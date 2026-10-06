@@ -36,3 +36,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - `~/tweaks.md` moved to `docs/archive/tweaks.md` (a symlink remains at `~/tweaks.md`).
 - 2026-10-06: repo pushed to private GitHub `robinei/gpdwin` (deploy key `~/.ssh/id_ed25519`,
   GitHub ed25519 host key verified against the published fingerprint and added to known_hosts).
+- 2026-10-06: fixed "claude: command not found" from Pegasus' Maintenance: `~/.local/bin` was
+  added to PATH in fish's `config.fish`, which runs after `conf.d/sway.fish` has already
+  exec'd sway. Moved to `conf.d/00-path.fish`; `scripts/maintain` also adds it. Takes effect for
+  the whole session at the next login (the maintain script works now). `sync check` now skips
+  root-only files without sudo instead of failing.

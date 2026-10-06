@@ -3,6 +3,7 @@
 # Asks for the sudo password once and keeps the (global) sudo timestamp fresh while Claude runs,
 # so Claude's non-interactive `sudo -n` commands work. Only one maintenance run at a time.
 set -u
+export PATH="$HOME/.local/bin:$PATH"   # claude; sway's env may lack it
 cd "$(dirname "$0")/.."
 exec 9>"${XDG_RUNTIME_DIR:-/tmp}/gpd-maintenance.lock"
 flock -n 9 || { echo "Another maintenance run is active."; read -rp "Press Enter " _r; exit 1; }

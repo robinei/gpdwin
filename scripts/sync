@@ -56,6 +56,10 @@ def is_root(e):
     return e["kind"] == "copy" and e["owner"] == "root"
 
 
+class NeedSudo(Exception):
+    pass
+
+
 def read_live(e):
     p = e["live"]
     if not os.path.lexists(p) and not is_root(e):
@@ -67,7 +71,7 @@ def read_live(e):
         if r.returncode != 0:
             if b"No such file" in r.stderr:
                 return None
-            sys.exit(f"cannot read {p} (run `sudo -v` first): {r.stderr.decode().strip()}")
+            raise NeedSudo(f"cannot read {p} (run `sudo -v` first): {r.stderr.decode().strip()}")
         return r.stdout
     except FileNotFoundError:
         return None
@@ -78,7 +82,7 @@ def link_ok(e):
 
 
 def check(args):
-    drift = 0
+    drift = skipped = 0
     for e in selected(manifest(), args):
         if not os.path.lexists(e["repo"]):
             print(f"MISSING-IN-REPO  {e['repo'].relative_to(REPO)}"); drift += 1
@@ -87,12 +91,18 @@ def check(args):
                 state = "not a symlink" if os.path.lexists(e["live"]) else "missing"
                 print(f"LINK {state:14} {e['live']}"); drift += 1
         else:
-            live = read_live(e)
+            try:
+                live = read_live(e)
+            except NeedSudo:
+                skipped += 1
+                continue
             if live is None:
                 print(f"COPY missing      {e['live']}"); drift += 1
             elif live != e["repo"].read_bytes():
                 print(f"COPY differs      {e['live']}"); drift += 1
     print("no drift" if not drift else f"{drift} item(s) drifted (`sync diff`, then `sync capture` or `sync install`)")
+    if skipped:
+        print(f"{skipped} root-only file(s) not checked: run `sudo -v` first")
     return 1 if drift else 0
 
 
@@ -189,7 +199,10 @@ def main():
     cmds = {"check": check, "diff": diff, "capture": capture, "install": install, "adopt": adopt}
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
         print(__doc__); return 2
-    return cmds[sys.argv[1]](sys.argv[2:])
+    try:
+        return cmds[sys.argv[1]](sys.argv[2:])
+    except NeedSudo as err:
+        sys.exit(str(err))
 
 
 if __name__ == "__main__":
