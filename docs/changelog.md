@@ -65,3 +65,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   its process, SIGKILL after 1 s) for apps that ignore `kill`.
 
 - 2026-10-06: AUR `steamdepotdownloader-bin` updated to 3.4.0-2 (reviewed AUR commit 16ca53438ecd). First install; DepotDownloader for downloading owned Steam games without the client.
+- 2026-10-07: installed `wine` 11.19 (+ `ntsync-autoload`), 589 MiB. Shared default prefix
+  planned, not created yet; no DXVK. See frontend.md "Windows games".

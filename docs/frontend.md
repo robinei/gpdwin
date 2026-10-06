@@ -81,6 +81,18 @@
 - Only games that don't need the Steam client run this way. Check PCGamingWiki ("DRM-free" on
   Steam) and simply try: without Steam installed, a game that needs it fails at start.
 
+## Windows games (Wine)
+- System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
+  default) for everything, to save space; per-game settings go in the game's launcher script
+  (env vars such as `WINEDLLOVERRIDES`), not in separate prefixes. Keep winetricks installs to a
+  minimum (they affect every game in the prefix).
+- No Proton/DXVK. DXVK needs Vulkan; this GPU's Vulkan driver (hasvk) is partial and the GPU is
+  weak, so Wine's own D3D→OpenGL (wined3d) is the default. Add DXVK to the prefix only if a game
+  needs it, and opt games out per launcher with `WINEDLLOVERRIDES="d3d9,d3d11,dxgi=b"`.
+- GE-Proton via umu-launcher was rejected: Steam Linux Runtime + GE-Proton is 1.5 GB+.
+- Not yet verified: whether Wine uses its Wayland driver here (no Xwayland installed). The prefix
+  has not been created yet.
+
 ## Audio
 - PipeWire + WirePlumber + pipewire-pulse, 48 kHz, quantum up to 2048. Speaker sink
   `alsa_output.platform-cht-bsw-rt5645.HiFi__Speaker__sink`. Check xruns with `pw-top` (ERR).
