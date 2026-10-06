@@ -60,7 +60,8 @@
 - Zelda 3 (`zelda3-git`, AUR, snesrev/zelda3 built with the user's US v1.0 ROM, sha256 checked).
   `/opt/zelda3-git/zelda3.ini` (original `zelda3.ini.orig` there): `ExtendedAspectRatio =
   extend_y, 16:9` (426x240, exact 3x), Fullscreen, Autosave, ItemSwitchLR, TurnWhileDashing,
-  SkipIntroOnKeypress, MiscBugFixes, CancelBirdTravel = 1. Saves in `/opt/zelda3-git/saves`
+  SkipIntroOnKeypress, MiscBugFixes, CancelBirdTravel = 1; `AudioFreq = 48000` (was 44100, which
+  PipeWire resampled to 48 kHz). Saves in `/opt/zelda3-git/saves`
   (deleted on uninstall; back up first). Pad mapping default, untested.
 - Psychonauts: GOG Linux installer `~/gog_psychonauts_2.0.0.4.sh` (32-bit native port), not
   installed. Needs multilib + 32-bit libs + probably `xorg-xwayland`. Wine is the fallback

@@ -53,3 +53,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Arch news: nothing new. No repo or AUR updates pending, so no upgrade was run.
 - No pacnew, no failed units; journal errors only the known brcmfmac noise. Disk 25% used.
 - Orphans still left in place: qt5-tools, unzip. Running kernel 7.2.8, installed 7.2.9: reboot still pending.
+- 2026-10-06: Zelda 3 `AudioFreq` 44100 → 48000 (`/opt/zelda3-git/zelda3.ini`) to match PipeWire
+  and avoid resampling, as with DevilutionX. Revert: set it back to 44100.
