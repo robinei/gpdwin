@@ -59,3 +59,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   `shaders_glsl/handheld/lcd3x.glslp` (tested: loads, LCD grid visible). A separate clone of
   snesrev/glsl-shaders was made and deleted again, since RetroArch's set works. Revert:
   `OutputMethod = SDL`, `Shader =` (CRLF file).
+- 2026-10-06: `Mod4+F10` runs `screen-reset.sh` (output power off/on) to fix the split picture
+  that game fullscreen switches sometimes cause.

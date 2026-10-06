@@ -220,6 +220,8 @@ bindsym $mod+r mode "resize"
     bindsym --locked $mod+XF86AudioLowerVolume exec ~/.config/sway/osd.sh bri-down
 
     # Special key to take a screenshot with grim
+    # Resync the panel when the picture is split (bottom half at top)
+    bindsym --locked $mod+F10 exec ~/.config/sway/screen-reset.sh
     bindsym --locked $mod+F11 exec ~/.config/sway/turbo.sh cpu
     bindsym --locked $mod+F12 exec ~/.config/sway/turbo.sh gpu
     bindsym Print exec grim

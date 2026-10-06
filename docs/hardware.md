@@ -38,5 +38,6 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
 
 ## Display
 - Only mode: 720x1280 @ 60.253 Hz, rotated to 1280x720. ~267 ppi, sway scale 1.
-- A game's fullscreen switch once left the picture split (bottom half on top). Fixed by
-  `swaymsg output DSI-1 power off; ... power on`.
+- A game's fullscreen switch sometimes leaves the picture split (bottom half on top); seen with
+  DevilutionX and Zelda 3. Fix: `Mod4+F10` (`dotfiles/sway/screen-reset.sh`: output power off,
+  2 s, power on). Root cause unknown (panel/DSI resync after a mode or buffer change).
