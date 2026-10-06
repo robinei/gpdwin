@@ -49,6 +49,8 @@ The user is Robin (they/them).
 - The gamepad only exists as `Microsoft X-Box 360 pad` when the hardware switch is in gamepad
   mode (otherwise "Mouce for Android" mouse/keyboard).
 - Claude Code uses ~400 MB of RAM; don't run heavy work while a game is running.
+- Verify every edit took effect (grep the file afterwards) before documenting it. Some files
+  have CRLF line endings (`/opt/zelda3-git/zelda3.ini`), so `sed` patterns ending in `$` miss.
 
 ## Map
 - `docs/hardware.md` quirks and fixes · `docs/power.md` sleep/idle/battery/turbo ·
