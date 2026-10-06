@@ -61,3 +61,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   `OutputMethod = SDL`, `Shader =` (CRLF file).
 - 2026-10-06: `Mod4+F10` runs `screen-reset.sh` (output power off/on) to fix the split picture
   that game fullscreen switches sometimes cause.
+- 2026-10-06: `Mod+Shift+Backspace` force-closes the focused window (`force-kill.sh`: SIGTERM to
+  its process, SIGKILL after 1 s) for apps that ignore `kill`.
