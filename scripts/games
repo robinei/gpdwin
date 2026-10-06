@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""Game installer: browse owned games (Steam now, GOG later), install with filters,
+add installed games to Pegasus' PC Games. Pegasus: Utilities > Games. See docs/frontend.md."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gamelib.tui import main  # noqa: E402
+
+sys.exit(main())

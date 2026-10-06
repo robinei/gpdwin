@@ -3,6 +3,11 @@ shortname: utils
 summary: System tools and settings
 launch: "{file.path}"
 
+game: Games
+file: tools/games.sh
+assets.boxFront: media/games.png
+description: Browse your Steam library (DRM-free and performance filters), install games with DepotDownloader, and add them to PC Games (Wine or native).
+
 game: Terminal
 file: tools/terminal.sh
 assets.boxFront: media/terminal.png

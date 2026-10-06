@@ -72,14 +72,28 @@
   installed. Needs multilib + 32-bit libs + probably `xorg-xwayland`. Wine is the fallback
   (needs the Windows installer).
 
-## Steam games without Steam
-- `depotdownloader` (AUR `steamdepotdownloader-bin`, SteamRE's official release binary, .NET
-  bundled). Downloads games you own straight from Steam; the user logs in themselves (password +
-  Steam Guard typed in a terminal; never handled by Claude). Example:
-  `depotdownloader -app APPID -os linux -username NAME -remember-password -dir ~/Games/steam/NAME`
-  (`-remember-password` stores a login token in `~/.local/share/IsolatedStorage`, not the password).
-- Only games that don't need the Steam client run this way. Check PCGamingWiki ("DRM-free" on
-  Steam) and simply try: without Steam installed, a game that needs it fails at start.
+## Game installer (`scripts/games`, Pegasus: Utilities > Games)
+- Curses UI over all owned games (`games/steam-library.json`: DRM status and controller support
+  from PCGamingWiki, tier = expected performance here, native Linux build, hours). Filters: DRM
+  (default DRM-free), tier, controller, installed-only, text search; `s` sorts by hours played.
+- Install: DepotDownloader (`-remember-password -validate`, Linux build preferred when one exists)
+  into `~/Games/installed/<slug>/`. The user types the Steam password/Guard code; username and
+  SteamID are saved in `~/.config/gpd/games.json` (not in the repo). Interrupted downloads resume
+  on the next install.
+- After download: Steam portrait cover → `gpd-cover.jpg`, executable detection (skips
+  uninstallers, redists, crash handlers; asks when unsure), `gpd-launch.sh` (native, or
+  `wine` with the shared `~/.wine` prefix and `WINEDEBUG=-all`), record in `.gpd-game.json`.
+- `~/Games/installed/metadata.pegasus.txt` is regenerated from the records with
+  `collection: PC Games` / `shortname: pc`, so Pegasus merges these games into PC Games
+  (verified). `~/Games/installed` is in `game_dirs.txt`. Launchers are not overwritten on
+  regeneration (edit them for per-game env vars); "Rewrite launcher" in the UI does.
+- On quit after changes it offers to restart Pegasus (Pegasus only rescans on start).
+- `R` refreshes the library: Web API key typed each time (never stored), then PCGamingWiki
+  lookups. Existing tiers and Linux flags are kept; new games have no tier.
+- Code: `scripts/gamelib/` (`core.py` shared, `sources/steam.py`, `tui.py`). Sources are
+  pluggable for GOG later (see `sources/__init__.py`).
+- DepotDownloader itself: AUR `steamdepotdownloader-bin` (SteamRE release binary, .NET bundled).
+  Only games that don't need the Steam client run; PCGamingWiki's "DRM-free" can be wrong.
 
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the

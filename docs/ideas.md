@@ -14,5 +14,7 @@
    is used.
 7. Remove `clang` and `yay-bin-debug`; disable unused `systemd-userdbd.socket`.
 8. Bluetooth firmware patch if Bluetooth is ever wanted.
+9. GOG source for `scripts/games` (`sources/gog.py`, e.g. lgogdownloader from the AUR).
+10. Gamepad navigation in `scripts/games` (it runs in foot, so keyboard only for now).
 
 Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).

@@ -1,3 +1,4 @@
 /home/robin/Games/pc
 /home/robin/Games/snes
 /home/robin/Games/utils
+/home/robin/Games/installed

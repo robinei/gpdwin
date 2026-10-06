@@ -59,6 +59,7 @@ The user is Robin (they/them).
   `docs/steam-library.md` owned DRM-free Steam games, tiered for this device ·
   `docs/ideas.md` not done yet · `docs/changelog.md` history ·
   `docs/archive/` the original logs this repo was built from.
-- `scripts/`: `sync` (manifest), `aur` (review/build), `update` (manual updates),
+- `scripts/`: `sync` (manifest), `aur` (review/build), `update` (manual updates), `games`
+  (game installer UI, `gamelib/`),
   `maintain` (Claude maintenance launcher), `news`, `fetch-boxart.py`.
 - `.claude/commands/maintain.md` is the routine maintenance procedure (`/maintain`).

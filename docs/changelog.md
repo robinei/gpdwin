@@ -69,3 +69,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   planned, not created yet; no DXVK. See frontend.md "Windows games".
 - 2026-10-07: added `docs/steam-library.md`: owned Steam games that PCGamingWiki lists as DRM-free,
   tiered by expected performance here, with AppIDs for DepotDownloader.
+- 2026-10-07: `scripts/games` game installer (curses): browse the Steam library with DRM/tier/
+  controller filters, install via DepotDownloader into `~/Games/installed`, auto-add to Pegasus PC
+  Games with cover art and a Wine/native launcher. Utilities > Games. GOG source planned.
