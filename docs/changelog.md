@@ -67,3 +67,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-06: AUR `steamdepotdownloader-bin` updated to 3.4.0-2 (reviewed AUR commit 16ca53438ecd). First install; DepotDownloader for downloading owned Steam games without the client.
 - 2026-10-07: installed `wine` 11.19 (+ `ntsync-autoload`), 589 MiB. Shared default prefix
   planned, not created yet; no DXVK. See frontend.md "Windows games".
+- 2026-10-07: added `docs/steam-library.md`: owned Steam games that PCGamingWiki lists as DRM-free,
+  tiered by expected performance here, with AppIDs for DepotDownloader.

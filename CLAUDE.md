@@ -56,6 +56,7 @@ The user is Robin (they/them).
 - `docs/hardware.md` quirks and fixes · `docs/power.md` sleep/idle/battery/turbo ·
   `docs/boot.md` boot chain and timings · `docs/desktop.md` sway/bar/OSD/terminal ·
   `docs/frontend.md` Pegasus, RetroArch, games · `docs/packages.md` package set and AUR policy ·
+  `docs/steam-library.md` owned DRM-free Steam games, tiered for this device ·
   `docs/ideas.md` not done yet · `docs/changelog.md` history ·
   `docs/archive/` the original logs this repo was built from.
 - `scripts/`: `sync` (manifest), `aur` (review/build), `update` (manual updates),
