@@ -1,0 +1,34 @@
+collection: PC Games
+shortname: pc
+summary: Native Linux PC games
+launch: "{file.path}"
+
+game: Diablo
+file: diablo.sh
+assets.boxFront: media/diablo.png
+developer: Blizzard North
+publisher: Blizzard Entertainment
+release: 1996-12-31
+genre: Action RPG
+players: 1-4
+description: Descend through the cathedral and catacombs beneath Tristram to face the Lord of Terror. Runs on the DevilutionX engine.
+
+game: Diablo: Hellfire
+file: hellfire.sh
+assets.boxFront: media/hellfire.png
+developer: Synergistic Software
+publisher: Sierra On-Line
+release: 1997-11-24
+genre: Action RPG
+players: 1-4
+description: The official expansion to Diablo, adding the Monk class, the Hive and the Crypt. Runs on the DevilutionX engine.
+
+game: The Legend of Zelda: A Link to the Past
+file: zelda3.sh
+assets.boxFront: media/zelda3.png
+developer: Nintendo EAD
+publisher: Nintendo
+release: 1991-11-21
+genre: Action Adventure
+players: 1
+description: Link's SNES adventure, running natively on the zelda3 reverse-engineered engine with widescreen and quality-of-life options.

@@ -1,0 +1,12 @@
+# Hide the mouse cursor after 3s without movement
+seat * hide_cursor 3000
+
+# Idle: dim after 2 min, screen off after 3 min, suspend after 10 min on battery.
+# Games and RetroArch inhibit idle while they run. Gamepad input does not count as activity.
+exec swayidle -w \
+    timeout 120 '~/.config/sway/dim.sh' resume 'brightnessctl -q -r' \
+    timeout 180 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
+    timeout 600 '~/.config/sway/idle-suspend.sh'
+
+# On-screen bar for volume/brightness
+exec rm -f $XDG_RUNTIME_DIR/wob.sock && mkfifo $XDG_RUNTIME_DIR/wob.sock && tail -f $XDG_RUNTIME_DIR/wob.sock | wob

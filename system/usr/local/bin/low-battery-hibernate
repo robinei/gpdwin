@@ -1,0 +1,5 @@
+#!/bin/sh
+b=/sys/class/power_supply/max170xx_battery
+[ "$(cat $b/status)" = Discharging ] || exit 0
+[ "$(cat $b/capacity)" -le 5 ] && exec systemctl hibernate
+exit 0

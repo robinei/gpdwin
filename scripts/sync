@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""Keep live config files and the ~/gpd repo in step.
+
+manifest.tsv lists every file the repo manages:
+  link  <repo path>  <live path>                  live path is a symlink into the repo
+  copy  <repo path>  <live path>  <owner:group:mode>  repo holds a copy (root-owned files,
+                                                      or files programs rewrite themselves)
+
+Commands:
+  sync check            report drift (missing/foreign links, copies that differ). Exit 1 on drift.
+  sync diff [PATH..]    show unified diffs for drifted copies
+  sync capture [PATH..] copy live -> repo for copy entries (all, or those matching PATH)
+  sync install [PATH..] repo -> live: create links, install copies (sudo for root files)
+  sync adopt            first-time setup: move live files into the repo and link them
+
+Root files are read and written with `sudo -n`, so run `sudo -v` in a terminal first.
+"""
+import difflib, os, shutil, subprocess, sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+HOME = Path.home()
+
+
+def expand(p):
+    return Path(os.path.expanduser(p))
+
+
+def manifest():
+    entries = []
+    for n, line in enumerate((REPO / "manifest.tsv").read_text().splitlines(), 1):
+        if not line.strip() or line.startswith("#"):
+            continue
+        f = line.split("\t")
+        if f[0] == "link" and len(f) == 3:
+            entries.append({"kind": "link", "repo": REPO / f[1], "live": expand(f[2])})
+        elif f[0] == "copy" and len(f) == 4:
+            owner, group, mode = f[3].split(":")
+            entries.append({"kind": "copy", "repo": REPO / f[1], "live": expand(f[2]),
+                            "owner": owner, "group": group, "mode": mode})
+        else:
+            sys.exit(f"manifest.tsv:{n}: bad line: {line!r}")
+    return entries
+
+
+def selected(entries, args):
+    if not args:
+        return entries
+    out = [e for e in entries if any(a in str(e["live"]) or a in str(e["repo"]) for a in args)]
+    if not out:
+        sys.exit(f"no manifest entry matches {args}")
+    return out
+
+
+def is_root(e):
+    return e["kind"] == "copy" and e["owner"] == "root"
+
+
+def read_live(e):
+    p = e["live"]
+    if not os.path.lexists(p) and not is_root(e):
+        return None
+    try:
+        return p.read_bytes()
+    except PermissionError:
+        r = subprocess.run(["sudo", "-n", "cat", str(p)], capture_output=True)
+        if r.returncode != 0:
+            if b"No such file" in r.stderr:
+                return None
+            sys.exit(f"cannot read {p} (run `sudo -v` first): {r.stderr.decode().strip()}")
+        return r.stdout
+    except FileNotFoundError:
+        return None
+
+
+def link_ok(e):
+    return e["live"].is_symlink() and Path(os.readlink(e["live"])) == e["repo"]
+
+
+def check(args):
+    drift = 0
+    for e in selected(manifest(), args):
+        if not os.path.lexists(e["repo"]):
+            print(f"MISSING-IN-REPO  {e['repo'].relative_to(REPO)}"); drift += 1
+        elif e["kind"] == "link":
+            if not link_ok(e):
+                state = "not a symlink" if os.path.lexists(e["live"]) else "missing"
+                print(f"LINK {state:14} {e['live']}"); drift += 1
+        else:
+            live = read_live(e)
+            if live is None:
+                print(f"COPY missing      {e['live']}"); drift += 1
+            elif live != e["repo"].read_bytes():
+                print(f"COPY differs      {e['live']}"); drift += 1
+    print("no drift" if not drift else f"{drift} item(s) drifted (`sync diff`, then `sync capture` or `sync install`)")
+    return 1 if drift else 0
+
+
+def diff(args):
+    for e in selected(manifest(), args):
+        if e["kind"] != "copy" or not e["repo"].exists():
+            continue
+        live = read_live(e)
+        if live is None or live == e["repo"].read_bytes():
+            continue
+        a = e["repo"].read_text(errors="replace").splitlines(keepends=True)
+        b = live.decode(errors="replace").splitlines(keepends=True)
+        sys.stdout.writelines(difflib.unified_diff(a, b, f"repo/{e['repo'].relative_to(REPO)}", f"live:{e['live']}"))
+    return 0
+
+
+def capture(args):
+    for e in selected(manifest(), args):
+        if e["kind"] != "copy":
+            continue
+        live = read_live(e)
+        if live is None:
+            print(f"skip (live missing) {e['live']}"); continue
+        e["repo"].parent.mkdir(parents=True, exist_ok=True)
+        if not e["repo"].exists() or e["repo"].read_bytes() != live:
+            e["repo"].write_bytes(live)
+            print(f"captured {e['live']}")
+    return 0
+
+
+def install(args):
+    hints = set()
+    for e in selected(manifest(), args):
+        live = e["live"]
+        if e["kind"] == "link":
+            if link_ok(e):
+                continue
+            if os.path.lexists(live):
+                backup = live.with_name(live.name + ".pre-gpd")
+                os.rename(live, backup)
+                print(f"moved existing {live} -> {backup}")
+            live.parent.mkdir(parents=True, exist_ok=True)
+            live.symlink_to(e["repo"])
+            print(f"linked {live}")
+            continue
+        data = e["repo"].read_bytes()
+        if read_live(e) == data:
+            continue
+        if "sudoers" in str(live):
+            r = subprocess.run(["visudo", "-cf", str(e["repo"])], capture_output=True, text=True)
+            if r.returncode != 0:
+                sys.exit(f"refusing to install invalid sudoers file {e['repo']}: {r.stdout}{r.stderr}")
+        cmd = ["install", "-D", "-m", e["mode"], "-o", e["owner"], "-g", e["group"], str(e["repo"]), str(live)]
+        if is_root(e):
+            cmd = ["sudo", "-n"] + cmd
+        elif e["owner"] == os.environ.get("USER"):
+            cmd = ["install", "-D", "-m", e["mode"], str(e["repo"]), str(live)]
+        subprocess.run(cmd, check=True)
+        print(f"installed {live}")
+        s = str(live)
+        if s.startswith("/etc/systemd"): hints.add("sudo systemctl daemon-reload (and restart the affected unit)")
+        if "udev/rules.d" in s: hints.add("sudo udevadm control --reload")
+        if s == "/etc/mkinitcpio.conf": hints.add("sudo mkinitcpio -P")
+        if "sshd_config" in s: hints.add("sudo systemctl reload sshd")
+        if "/.config/sway/" in s: hints.add("swaymsg reload")
+    for h in sorted(hints):
+        print(f"next: {h}")
+    return 0
+
+
+def adopt(args):
+    """Move live link-targets into the repo (if the repo has no copy yet), then link; capture copies."""
+    for e in manifest():
+        if e["kind"] == "link":
+            if link_ok(e):
+                continue
+            if os.path.lexists(e["repo"]):
+                if os.path.lexists(e["live"]):
+                    print(f"conflict: both {e['repo']} and {e['live']} exist; resolve by hand")
+                    continue
+            elif os.path.lexists(e["live"]):
+                e["repo"].parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(e["live"]), str(e["repo"]))
+                print(f"moved {e['live']} -> {e['repo'].relative_to(REPO)}")
+            else:
+                print(f"skip (nothing to adopt) {e['live']}"); continue
+            e["live"].parent.mkdir(parents=True, exist_ok=True)
+            e["live"].symlink_to(e["repo"])
+            print(f"linked {e['live']}")
+    return capture([])
+
+
+def main():
+    cmds = {"check": check, "diff": diff, "capture": capture, "install": install, "adopt": adopt}
+    if len(sys.argv) < 2 or sys.argv[1] not in cmds:
+        print(__doc__); return 2
+    return cmds[sys.argv[1]](sys.argv[2:])
+
+
+if __name__ == "__main__":
+    sys.exit(main())

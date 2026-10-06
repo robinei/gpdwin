@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(scripts/sync check:*)",
+      "Bash(scripts/sync diff:*)",
+      "Bash(scripts/aur check:*)",
+      "Bash(scripts/aur review:*)",
+      "Bash(scripts/news:*)",
+      "Bash(checkupdates:*)",
+      "Bash(pacman -Q:*)",
+      "Bash(pacman -Si:*)",
+      "Bash(pacman -Ss:*)",
+      "Bash(pacdiff -o:*)",
+      "Bash(systemctl --failed:*)",
+      "Bash(systemctl status:*)",
+      "Bash(systemctl list-timers:*)",
+      "Bash(journalctl:*)",
+      "Bash(systemd-analyze:*)",
+      "Bash(df -h:*)",
+      "Bash(du -sh:*)"
+    ]
+  }
+}

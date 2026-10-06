@@ -1,0 +1,7 @@
+# Pegasus frontend always lives on workspace 1 and starts with sway
+assign [app_id="org.pegasus-frontend.pegasus-fe"] workspace number 1
+exec ~/.config/pegasus-frontend/run
+exec ~/.config/sway/guide-button.py
+
+# Terminal tools launched from Pegasus' Utilities run fullscreen
+for_window [app_id="pegasus-tool"] fullscreen enable

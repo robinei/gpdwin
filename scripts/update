@@ -1,0 +1,46 @@
+#!/bin/bash
+# Manual system update without Claude: news, repo packages, reviewed AUR updates,
+# .pacnew files, config drift, changelog + commit. Run from a terminal (needs sudo password).
+set -u
+cd "$(dirname "$0")/.."
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/gpd-maintenance.lock"
+flock -n 9 || { echo "Another maintenance run is active."; read -rp "Press Enter " _r; exit 1; }
+
+pause() { read -rp "${1:-Press Enter to continue} " _r; }
+ask() { read -rp "$1 [y/N] " _r; [[ $_r == [yY] ]]; }
+
+echo "== Arch news (check for manual intervention before updating)"
+scripts/news 5 || echo "(could not fetch news)"
+ask "Continue with the update?" || exit 0
+
+sudo -v || exit 1
+before=$(pacman -Q)
+
+echo; echo "== Repo packages"
+sudo pacman -Syu
+
+echo; echo "== AUR packages"
+scripts/aur check
+for pkg in $(pacman -Qmq); do
+    ver=$(pacman -Q "$pkg" | cut -d' ' -f2)
+    aurver=$(curl -fs "https://aur.archlinux.org/rpc/v5/info?arg[]=$pkg" | python3 -c 'import json,sys; r=json.load(sys.stdin)["results"]; print(r[0]["Version"] if r else "")')
+    [[ -n $aurver && $(vercmp "$aurver" "$ver") -gt 0 ]] || continue
+    echo; echo "-- $pkg $ver -> $aurver"
+    scripts/aur review "$pkg" | less -R
+    ask "Build $pkg $aurver?" && scripts/aur build "$pkg" --yes
+done
+
+echo; echo "== .pacnew / .pacsave files"
+pacdiff -o || true
+echo "(merge with: sudo DIFFPROG='helix' pacdiff, then: scripts/sync capture <file>)"
+
+echo; echo "== Config drift"
+scripts/sync check
+
+after=$(pacman -Q)
+changed=$(diff <(echo "$before") <(echo "$after") | grep '^>' | cut -c3- | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+if [[ -n $changed ]]; then
+    printf '\n- %s: system update (scripts/update): %s\n' "$(date +%F)" "$changed" >> docs/changelog.md
+fi
+git add -A && git commit -qm "Update $(date +%F)" && echo "Committed to ~/gpd."
+pause "Done. Press Enter to return"

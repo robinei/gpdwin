@@ -1,0 +1,56 @@
+# Files managed by this repo. Tab-separated. See scripts/sync.
+# link  <repo path>  <live path>                       live is a symlink into the repo (edit either; git sees it)
+# copy  <repo path>  <live path>  <owner:group:mode>   repo holds a copy; `sync capture` after changing live,
+#                                                      `sync install` after changing the repo
+
+# --- user config (symlinked) ---
+link	dotfiles/sway	~/.config/sway
+link	dotfiles/foot	~/.config/foot
+link	dotfiles/fuzzel	~/.config/fuzzel
+link	dotfiles/wob	~/.config/wob
+link	dotfiles/helix	~/.config/helix
+link	dotfiles/fish/config.fish	~/.config/fish/config.fish
+link	dotfiles/fish/conf.d/sway.fish	~/.config/fish/conf.d/sway.fish
+link	dotfiles/fish/functions/reboot.fish	~/.config/fish/functions/reboot.fish
+link	dotfiles/fish/functions/poweroff.fish	~/.config/fish/functions/poweroff.fish
+link	dotfiles/fish/functions/suspend.fish	~/.config/fish/functions/suspend.fish
+link	dotfiles/fish/functions/hibernate.fish	~/.config/fish/functions/hibernate.fish
+link	dotfiles/pacman/makepkg.conf	~/.config/pacman/makepkg.conf
+link	dotfiles/pegasus-frontend/run	~/.config/pegasus-frontend/run
+link	dotfiles/pegasus-frontend/bin	~/.config/pegasus-frontend/bin
+link	dotfiles/pegasus-frontend/game_dirs.txt	~/.config/pegasus-frontend/game_dirs.txt
+
+# --- Pegasus collections without ROMs (symlinked) ---
+link	pegasus/pc	~/Games/pc
+link	pegasus/utils	~/Games/utils
+link	scripts/fetch-boxart.py	~/Games/fetch-boxart.py
+
+# --- user files that programs rewrite (copied) ---
+copy	dotfiles/retroarch/retroarch.cfg	~/.config/retroarch/retroarch.cfg	robin:robin:0644
+copy	dotfiles/retroarch/autoconfig/Microsoft X-Box 360 pad.cfg	~/.config/retroarch/autoconfig/udev/Microsoft X-Box 360 pad.cfg	robin:robin:0644
+copy	dotfiles/devilutionx/diablo.ini	~/.local/share/diasurgical/devilution/diablo.ini	robin:robin:0644
+copy	pegasus/snes/metadata.pegasus.txt	~/Games/snes/metadata.pegasus.txt	robin:robin:0644
+
+# --- system files (copied, installed with sudo) ---
+copy	system/boot/loader/loader.conf	/boot/loader/loader.conf	root:root:0700
+copy	system/boot/loader/entries/arch.conf	/boot/loader/entries/arch.conf	root:root:0700
+copy	system/etc/mkinitcpio.conf	/etc/mkinitcpio.conf	root:root:0644
+copy	system/etc/sudoers.d/10-global-timestamp	/etc/sudoers.d/10-global-timestamp	root:root:0440
+copy	system/etc/sudoers.d/10-wheel	/etc/sudoers.d/10-wheel	root:root:0440
+copy	system/etc/sudoers.d/20-power	/etc/sudoers.d/20-power	root:root:0440
+copy	system/etc/sudoers.d/21-firmware-setup	/etc/sudoers.d/21-firmware-setup	root:root:0440
+copy	system/etc/systemd/sleep.conf.d/handheld.conf	/etc/systemd/sleep.conf.d/handheld.conf	root:root:0644
+copy	system/etc/systemd/logind.conf.d/handheld.conf	/etc/systemd/logind.conf.d/handheld.conf	root:root:0644
+copy	system/etc/systemd/system/getty@tty1.service.d/autologin.conf	/etc/systemd/system/getty@tty1.service.d/autologin.conf	root:root:0644
+copy	system/etc/systemd/system/systemd-user-sessions.service	/etc/systemd/system/systemd-user-sessions.service	root:root:0644
+copy	system/etc/systemd/system/low-battery.service	/etc/systemd/system/low-battery.service	root:root:0644
+copy	system/etc/systemd/system/low-battery.timer	/etc/systemd/system/low-battery.timer	root:root:0644
+copy	system/etc/udev/rules.d/90-xhci-no-wakeup.rules	/etc/udev/rules.d/90-xhci-no-wakeup.rules	root:root:0644
+copy	system/etc/tmpfiles.d/turbo.conf	/etc/tmpfiles.d/turbo.conf	root:root:0644
+copy	system/etc/modprobe.d/cfg80211.conf	/etc/modprobe.d/cfg80211.conf	root:root:0644
+copy	system/etc/iwd/main.conf	/etc/iwd/main.conf	root:root:0644
+copy	system/etc/ssh/sshd_config.d/10-keys-only.conf	/etc/ssh/sshd_config.d/10-keys-only.conf	root:root:0644
+copy	system/etc/conf.d/pacman-contrib	/etc/conf.d/pacman-contrib	root:root:0644
+copy	system/usr/local/bin/low-battery-hibernate	/usr/local/bin/low-battery-hibernate	root:root:0755
+copy	system/usr/lib/systemd/system-sleep/backlight	/usr/lib/systemd/system-sleep/backlight	root:root:0755
+copy	system/opt/zelda3-git/zelda3.ini	/opt/zelda3-git/zelda3.ini	root:root:0644

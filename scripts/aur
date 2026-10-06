@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""Review-before-build AUR handling. Replaces `yay -Sua` for this device.
+
+Every installed AUR package has a "reviewed" AUR commit in aur/reviewed.tsv. Updates are
+shown as a diff from that commit, and only built after review.
+
+Commands:
+  aur check                 list foreign packages, AUR version, and whether an update is pending
+  aur review PKG            fetch PKG's AUR repo and show what changed since the reviewed commit
+                            (full PKGBUILD/.install/etc. if never reviewed)
+  aur build PKG [--yes]     build and install the reviewed state of PKG (asks unless --yes),
+                            then record the commit as reviewed
+  aur mark PKG [NOTE]       record the current AUR head as reviewed without building
+
+Build notes: repo dependencies are installed with `sudo -n pacman --asdeps` and makepkg runs
+without -s (sudo has no TTY under Claude; run `sudo -v` in a terminal first). AUR-only
+dependencies are not resolved; build those first.
+"""
+import json, subprocess, sys, urllib.request
+from datetime import date
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+REVIEWED = REPO / "aur" / "reviewed.tsv"
+CACHE = Path.home() / ".cache" / "gpd-aur"
+CHANGELOG = REPO / "docs" / "changelog.md"
+REVIEW_FILES_SKIP = {".SRCINFO", ".gitignore", ".nvchecker.toml"}
+
+
+def run(cmd, **kw):
+    return subprocess.run(cmd, check=True, text=True, **kw)
+
+
+def out(cmd, **kw):
+    return subprocess.run(cmd, check=True, text=True, capture_output=True, **kw).stdout.strip()
+
+
+def load_reviewed():
+    rows = {}
+    if REVIEWED.exists():
+        for line in REVIEWED.read_text().splitlines():
+            if line and not line.startswith("#"):
+                pkg, commit, day, note = (line.split("\t") + ["", "", ""])[:4]
+                rows[pkg] = {"commit": commit, "date": day, "note": note}
+    return rows
+
+
+def save_reviewed(rows):
+    lines = ["# pkg\tAUR commit reviewed\tdate\tnote"]
+    lines += [f"{p}\t{r['commit']}\t{r['date']}\t{r['note']}" for p, r in sorted(rows.items())]
+    REVIEWED.parent.mkdir(exist_ok=True)
+    REVIEWED.write_text("\n".join(lines) + "\n")
+
+
+def aur_info(pkgs):
+    q = "&".join(f"arg[]={p}" for p in pkgs)
+    with urllib.request.urlopen(f"https://aur.archlinux.org/rpc/v5/info?{q}", timeout=30) as r:
+        return {x["Name"]: x for x in json.load(r)["results"]}
+
+
+def fetch(pkg):
+    d = CACHE / pkg
+    if (d / ".git").exists():
+        run(["git", "-C", str(d), "fetch", "-q", "origin"])
+    else:
+        CACHE.mkdir(parents=True, exist_ok=True)
+        run(["git", "clone", "-q", f"https://aur.archlinux.org/{pkg}.git", str(d)])
+    head = out(["git", "-C", str(d), "rev-parse", "origin/HEAD"])
+    return d, head
+
+
+def vercmp(a, b):
+    return int(out(["vercmp", a, b]))
+
+
+def check(_):
+    foreign = [l.split() for l in out(["pacman", "-Qm"]).splitlines()]
+    info = aur_info([p for p, _ in foreign])
+    rows = load_reviewed()
+    print(f"{'package':34} {'installed':26} {'AUR':26} state")
+    for pkg, ver in foreign:
+        i = info.get(pkg)
+        if not i:
+            state = "not in AUR (debug/split package or removed)"
+            aur = "-"
+        else:
+            aur = i["Version"]
+            state = "update" if vercmp(aur, ver) > 0 else "ok"
+            if i.get("OutOfDate"):
+                state += ", flagged out-of-date"
+            if pkg.endswith("-git"):
+                state += ", -git: builds unreviewed upstream HEAD"
+            if pkg not in rows:
+                state += ", never reviewed"
+        print(f"{pkg:34} {ver:26} {aur:26} {state}")
+    return 0
+
+
+def review(args):
+    pkg = args[0]
+    d, head = fetch(pkg)
+    rows = load_reviewed()
+    base = rows.get(pkg, {}).get("commit")
+    print(f"== {pkg}: AUR head {head[:12]}, reviewed {base[:12] if base else 'never'}")
+    info = aur_info([pkg]).get(pkg, {})
+    print(f"   maintainer: {info.get('Maintainer')}  votes: {info.get('NumVotes')}  "
+          f"last modified: {date.fromtimestamp(info.get('LastModified', 0))}")
+    if base == head:
+        print("   no changes since review")
+        return 0
+    if base:
+        run(["git", "-C", str(d), "--no-pager", "log", "--format=%h %ad %an: %s", "--date=short", f"{base}..{head}"])
+        print()
+        run(["git", "-C", str(d), "--no-pager", "diff", "--stat", base, head])
+        run(["git", "-C", str(d), "--no-pager", "diff", base, head, "--", ".", *[f":!{f}" for f in REVIEW_FILES_SKIP]])
+    else:
+        for f in out(["git", "-C", str(d), "ls-tree", "--name-only", head]).splitlines():
+            if f in REVIEW_FILES_SKIP:
+                continue
+            print(f"\n----- {f} -----")
+            print(out(["git", "-C", str(d), "show", f"{head}:{f}"]))
+    return 0
+
+
+def srcinfo_deps(d):
+    deps = []
+    for line in (d / ".SRCINFO").read_text().splitlines():
+        k, _, v = line.strip().partition(" = ")
+        if k in ("depends", "makedepends", "checkdepends") or k.startswith(("depends_x86_64", "makedepends_x86_64")):
+            deps.append(v)
+    return deps
+
+
+def build(args):
+    pkg, yes = args[0], "--yes" in args
+    d, head = fetch(pkg)
+    if not yes:
+        if input(f"Build and install {pkg} at {head[:12]}? Have you reviewed `aur review {pkg}`? [y/N] ").lower() != "y":
+            return 1
+    run(["git", "-C", str(d), "checkout", "-q", "--detach", head])
+    run(["git", "-C", str(d), "clean", "-qfdx", "-e", "src", "-e", "*.tar.*", "-e", "*.zip"])
+    missing = [x for x in srcinfo_deps(d)
+               if subprocess.run(["pacman", "-T", x], capture_output=True).returncode != 0]
+    if missing:
+        repo_ok = subprocess.run(["pacman", "-Sp", "--print-format", "%n", *missing], capture_output=True, text=True)
+        if repo_ok.returncode != 0:
+            sys.exit(f"dependencies not in the repos (build them from the AUR first?): {missing}\n{repo_ok.stderr}")
+        run(["sudo", "-n", "pacman", "-S", "--needed", "--asdeps", "--noconfirm", *missing])
+    run(["makepkg", "-f", "--noconfirm"], cwd=d)
+    pkgs = [p for p in out(["makepkg", "--packagelist"], cwd=d).splitlines()
+            if p.endswith(".pkg.tar.zst") and "-debug-" not in p and Path(p).exists()]
+    run(["sudo", "-n", "pacman", "-U", "--noconfirm", *pkgs])
+    rows = load_reviewed()
+    rows[pkg] = {"commit": head, "date": date.today().isoformat(), "note": "built"}
+    save_reviewed(rows)
+    ver = out(["pacman", "-Q", pkg]).split()[1]
+    with CHANGELOG.open("a") as f:
+        f.write(f"\n- {date.today()}: AUR `{pkg}` updated to {ver} (reviewed AUR commit {head[:12]}).\n")
+    print(f"installed {pkg} {ver}; reviewed commit recorded")
+    return 0
+
+
+def mark(args):
+    pkg = args[0]
+    _, head = fetch(pkg)
+    rows = load_reviewed()
+    rows[pkg] = {"commit": head, "date": date.today().isoformat(), "note": " ".join(args[1:]) or "marked"}
+    save_reviewed(rows)
+    print(f"{pkg}: marked {head[:12]} as reviewed")
+    return 0
+
+
+def main():
+    cmds = {"check": check, "review": review, "build": build, "mark": mark}
+    if len(sys.argv) < 2 or sys.argv[1] not in cmds or (sys.argv[1] != "check" and len(sys.argv) < 3):
+        print(__doc__); return 2
+    return cmds[sys.argv[1]](sys.argv[2:])
+
+
+if __name__ == "__main__":
+    sys.exit(main())

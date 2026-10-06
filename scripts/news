@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Print recent Arch Linux news (titles + dates). `news N` shows N items (default 5).
+
+Read these before `pacman -Syu`: items marked "manual intervention" need steps first.
+"""
+import sys, urllib.request, xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
+
+n = int(sys.argv[1]) if len(sys.argv) > 1 else 5
+with urllib.request.urlopen("https://archlinux.org/feeds/news/", timeout=30) as r:
+    items = ET.parse(r).getroot().findall("./channel/item")[:n]
+for it in items:
+    day = parsedate_to_datetime(it.findtext("pubDate")).date()
+    print(f"{day}  {it.findtext('title')}\n            {it.findtext('link')}")

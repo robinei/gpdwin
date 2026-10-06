@@ -1,0 +1,3 @@
+#!/bin/sh
+# Start Pegasus with its dbus-send shim first in PATH
+PATH="$HOME/.config/pegasus-frontend/bin:$PATH" exec pegasus-fe "$@"

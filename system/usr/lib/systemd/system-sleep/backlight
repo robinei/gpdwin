@@ -1,0 +1,9 @@
+#!/bin/sh
+# Save backlight before sleep, restore after (firmware resets it on resume)
+B=/sys/class/backlight/intel_backlight
+S=/run/backlight-before-sleep
+case "$1" in
+    pre)  cat "$B/brightness" > "$S" ;;
+    post) [ -f "$S" ] && cat "$S" > "$B/brightness" ;;
+esac
+exit 0

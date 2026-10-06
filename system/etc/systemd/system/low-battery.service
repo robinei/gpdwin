@@ -1,0 +1,6 @@
+[Unit]
+Description=Hibernate when the battery is nearly empty
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/low-battery-hibernate

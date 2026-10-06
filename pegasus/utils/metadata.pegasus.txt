@@ -1,0 +1,44 @@
+collection: Utilities
+shortname: utils
+summary: System tools and settings
+launch: "{file.path}"
+
+game: Terminal
+file: tools/terminal.sh
+assets.boxFront: media/terminal.png
+description: A fullscreen foot terminal. Type exit to return.
+
+game: System Monitor
+file: tools/monitor.sh
+assets.boxFront: media/monitor.png
+description: btop: CPU, memory, temperatures and processes. Press q to return.
+
+game: Update System
+file: tools/update.sh
+assets.boxFront: media/update.png
+description: Update without Claude: Arch news, pacman -Syu, AUR updates after you review the diffs, pacnew files, config drift, changelog.
+
+game: Maintenance
+file: tools/maintain.sh
+assets.boxFront: media/maintain.png
+description: Claude Code maintenance session: Arch news, updates with AUR review, config drift, changelog. Asks for the sudo password once.
+
+game: Fetch Box Art
+file: tools/boxart.sh
+assets.boxFront: media/boxart.png
+description: Download box art and clean titles for ROMs in ~/Games.
+
+game: WiFi
+file: tools/wifi.sh
+assets.boxFront: media/wifi.png
+description: Scan and connect to WiFi networks with iwctl.
+
+game: RetroArch
+file: tools/retroarch.sh
+assets.boxFront: media/retroarch.png
+description: RetroArch settings, shaders and online updater.
+
+game: BIOS Setup
+file: tools/bios.sh
+assets.boxFront: media/bios.png
+description: Reboot straight into the BIOS / UEFI setup. Asks for confirmation first.
