@@ -20,7 +20,8 @@ truth; this explains the choices.
 ## AUR policy
 - AUR packages are built only via `scripts/aur` after reviewing the diff since the last
   reviewed AUR commit (`aur/reviewed.tsv`). `scripts/update` and `/maintain` do this.
-- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `yay-bin`.
+- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `yay-bin`,
+  `steamdepotdownloader-bin`.
   `-git` packages build upstream HEAD, which the PKGBUILD review doesn't cover.
 - yay stays for searching (`yay -Ss`) and `-G`. It can't build pegasus-frontend-stable-git (the
   PKGBUILD echoes at top level, which breaks `makepkg --packagelist` parsing).

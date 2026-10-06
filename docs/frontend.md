@@ -72,6 +72,15 @@
   installed. Needs multilib + 32-bit libs + probably `xorg-xwayland`. Wine is the fallback
   (needs the Windows installer).
 
+## Steam games without Steam
+- `depotdownloader` (AUR `steamdepotdownloader-bin`, SteamRE's official release binary, .NET
+  bundled). Downloads games you own straight from Steam; the user logs in themselves (password +
+  Steam Guard typed in a terminal; never handled by Claude). Example:
+  `depotdownloader -app APPID -os linux -username NAME -remember-password -dir ~/Games/steam/NAME`
+  (`-remember-password` stores a login token in `~/.local/share/IsolatedStorage`, not the password).
+- Only games that don't need the Steam client run this way. Check PCGamingWiki ("DRM-free" on
+  Steam) and simply try: without Steam installed, a game that needs it fails at start.
+
 ## Audio
 - PipeWire + WirePlumber + pipewire-pulse, 48 kHz, quantum up to 2048. Speaker sink
   `alsa_output.platform-cht-bsw-rt5645.HiFi__Speaker__sink`. Check xruns with `pw-top` (ERR).
