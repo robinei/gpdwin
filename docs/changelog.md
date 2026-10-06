@@ -72,3 +72,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: `scripts/games` game installer (curses): browse the Steam library with DRM/tier/
   controller filters, install via DepotDownloader into `~/Games/installed`, auto-add to Pegasus PC
   Games with cover art and a Wine/native launcher. Utilities > Games. GOG source planned.
+- 2026-10-07: captured RetroArch settings saved from its menu (see git diff of dotfiles/retroarch/retroarch.cfg).
