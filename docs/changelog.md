@@ -55,3 +55,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Orphans still left in place: qt5-tools, unzip. Running kernel 7.2.8, installed 7.2.9: reboot still pending.
 - 2026-10-06: Zelda 3 `AudioFreq` 44100 → 48000 (`/opt/zelda3-git/zelda3.ini`, CRLF line endings!) to match PipeWire
   and avoid resampling, as with DevilutionX. Revert: set it back to 44100.
+- 2026-10-06: Zelda 3 `OutputMethod` SDL → OpenGL (needed for shaders); cloned snesrev/glsl-shaders
+  (46a00f1, 484 presets) to `~/.local/share/glsl-shaders`. `Shader =` left empty. Revert:
+  `OutputMethod = SDL` (CRLF file).
