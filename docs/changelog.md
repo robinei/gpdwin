@@ -41,3 +41,10 @@ Details before 2026-10-06 are in `docs/archive/`.
   exec'd sway. Moved to `conf.d/00-path.fish`; `scripts/maintain` also adds it. Takes effect for
   the whole session at the next login (the maintain script works now). `sync check` now skips
   root-only files without sudo instead of failing.
+
+## 2026-10-06 — maintenance pass
+- Arch news: nothing new needing action. AUR packages all up to date.
+- `pacman -Syu`: firefox 157.0.1, linux 7.2.9 (reboot needed), openssh 10.6p1 (sshd restarted).
+- No pacnew files, no failed units. Journal errors were the known brcmfmac/ACPI noise and
+  sudo password-required entries from read-only checks without a sudo timestamp.
+- Orphans left in place (asked): qt5-tools, unzip. `~/.cache/yay` is ~1 GB (revert: n/a, cache only).
