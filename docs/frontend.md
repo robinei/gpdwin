@@ -62,11 +62,11 @@
   extend_y, 16:9` (426x240, exact 3x), Fullscreen, Autosave, ItemSwitchLR, TurnWhileDashing,
   SkipIntroOnKeypress, MiscBugFixes, CancelBirdTravel = 1; `AudioFreq = 48000` (was 44100, which
   PipeWire resampled to 48 kHz).
-  `OutputMethod = OpenGL` (was SDL) so GLSL shaders work: set `Shader =` to an absolute path of a
-  `.glslp`/`.glsl` file. Shaders: snesrev's fork of the libretro GLSL set (what zelda3 documents),
-  shallow clone in `~/.local/share/glsl-shaders` (not in this repo; update with `git pull`).
-  Light picks at the exact 3x scale: `crt/zfast-crt`, `crt/crt-easymode`, `crt/fakelottes`,
-  `handheld/lcd3x`. Too heavy here: crt-royale, crt-guest-dr-venom, nnedi3, reshade. Saves in `/opt/zelda3-git/saves`
+  `OutputMethod = OpenGL` (was SDL) so GLSL shaders work. `Shader =` takes an absolute path to a
+  `.glslp`/`.glsl`; it uses RetroArch's GLSL set (online updater, `~/.config/retroarch/shaders/
+  shaders_glsl/`), no separate copy. Current: `handheld/lcd3x.glslp` (made for exact 3x, which this
+  config is). Other light picks: `crt/zfast-crt`, `crt/crt-easymode`, `crt/fakelottes`. Too heavy
+  here: crt-royale, crt-guest-dr-venom, nnedi3, reshade. Saves in `/opt/zelda3-git/saves`
   (deleted on uninstall; back up first). Pad mapping default, untested.
 - Psychonauts: GOG Linux installer `~/gog_psychonauts_2.0.0.4.sh` (32-bit native port), not
   installed. Needs multilib + 32-bit libs + probably `xorg-xwayland`. Wine is the fallback
