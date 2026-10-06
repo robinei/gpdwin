@@ -48,3 +48,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - No pacnew files, no failed units. Journal errors were the known brcmfmac/ACPI noise and
   sudo password-required entries from read-only checks without a sudo timestamp.
 - Orphans left in place (asked): qt5-tools, unzip. `~/.cache/yay` is ~1 GB (revert: n/a, cache only).
+
+## 2026-10-06 — maintenance pass (second)
+- Arch news: nothing new. No repo or AUR updates pending, so no upgrade was run.
+- No pacnew, no failed units; journal errors only the known brcmfmac noise. Disk 25% used.
+- Orphans still left in place: qt5-tools, unzip. Running kernel 7.2.8, installed 7.2.9: reboot still pending.
