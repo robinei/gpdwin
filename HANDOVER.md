@@ -1,6 +1,6 @@
 # Handover to the on-device session (delete this file when done)
 
-The installer session (remote, over ssh from Robin's PC) built this repo on 2026-10-07 and hands
+The installer session (remote, over ssh from Robin's PC) built this repo on 2026-10-06 and hands
 maintenance to on-device sessions. Read `CLAUDE.md` first; it replaces the memory notes in
 `~/.claude/projects/-home-robin/memory/` (`tweaks-log.md` asked to update `~/tweaks.md`; that
 file is now archived, so update that memory to point at this repo's rules instead).

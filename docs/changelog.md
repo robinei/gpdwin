@@ -1,7 +1,7 @@
 # Changelog
 
 Newest last. Each entry: what changed, why, and how to revert if it isn't obvious.
-Details before 2026-10-07 are in `docs/archive/`.
+Details before 2026-10-06 are in `docs/archive/`.
 
 ## 2026-10-06 — install and setup (installer session, remote over ssh)
 - Wiped the eMMC (old Arch install), new GPT: 512 MiB ESP / 4 GiB swap / ext4. Installed a
@@ -26,7 +26,7 @@ Details before 2026-10-07 are in `docs/archive/`.
 - Zelda 3 (zelda3-git) with 16:9 / quality-of-life settings, added to the PC collection.
 - Fixed `read -P ... _` in the Utilities scripts (fish rejects `_`).
 
-## 2026-10-07 — maintenance repo
+## 2026-10-06 — maintenance repo
 - Created `~/gpd`: docs split from `~/tweaks.md` and the installer log, `manifest.tsv` + `scripts/sync`
   (user configs symlinked into the repo, system files tracked as copies), `scripts/aur`
   (review-before-build, `aur/reviewed.tsv`), `scripts/update` (manual), `scripts/maintain` +
