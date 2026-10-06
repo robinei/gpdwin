@@ -34,3 +34,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Pegasus Utilities: "Update System" now runs `scripts/update`; "Update Pegasus" replaced by
   "Maintenance" (`scripts/maintain`). fish `pegasus-update` function removed (use `scripts/aur`).
 - `~/tweaks.md` moved to `docs/archive/tweaks.md` (a symlink remains at `~/tweaks.md`).
+- 2026-10-06: repo pushed to private GitHub `robinei/gpdwin` (deploy key `~/.ssh/id_ed25519`,
+  GitHub ed25519 host key verified against the published fingerprint and added to known_hosts).

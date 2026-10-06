@@ -16,4 +16,3 @@ State at handover:
 Suggested first tasks:
 1. Run `/maintain` once (Robin starts it from Pegasus → Utilities → Maintenance).
 2. Fix the memory notes mentioned above, then delete this file and commit.
-3. Ask Robin about an off-device backup remote (docs/ideas.md #7).

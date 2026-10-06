@@ -21,4 +21,4 @@ Everything that makes this handheld what it is: configs, system files, scripts, 
 clone this repo to `~/gpd`, `sudo -v && scripts/sync install`.
 
 Docs: `docs/` (start with `changelog.md`). Notes for Claude sessions: `CLAUDE.md`.
-No remote is configured yet; see `docs/ideas.md`.
+Backed up to `git@github.com:robinei/gpdwin.git` (private; pushed with a deploy key, `~/.ssh/id_ed25519`).

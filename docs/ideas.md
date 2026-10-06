@@ -12,8 +12,7 @@
 6. Gamepad activity doesn't reset sway idle (dims after 2 min while browsing Pegasus with the
    pad). Options: `inhibit_idle focus` for Pegasus, or have guide-button.py inhibit while the pad
    is used.
-7. Off-device backup of this repo (private git remote or the PC). Not set up yet.
-8. Remove `clang` and `yay-bin-debug`; disable unused `systemd-userdbd.socket`.
-9. Bluetooth firmware patch if Bluetooth is ever wanted.
+7. Remove `clang` and `yay-bin-debug`; disable unused `systemd-userdbd.socket`.
+8. Bluetooth firmware patch if Bluetooth is ever wanted.
 
 Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).

@@ -8,7 +8,8 @@ The user is Robin (they/them).
 ## Rules
 - **Every change to the system goes through this repo.** Edit, then record it in
   `docs/changelog.md` (date, what, why, how to revert) and update the topic doc in `docs/`.
-  Commit when a piece of work is done (`git add -A && git commit`).
+  Commit when a piece of work is done (`git add -A && git commit`), then `git push`
+  (remote `origin` = github.com:robinei/gpdwin, deploy key `~/.ssh/id_ed25519`).
 - Files listed in `manifest.tsv` are managed:
   - `link` entries: the live path is a symlink into the repo. Edit the file in the repo.
   - `copy` entries (root files, and files programs rewrite): edit the live file and run
