@@ -15,6 +15,9 @@ Commands:
   aur mark PKG [NOTE]       record the current AUR head as reviewed without building
   aur vendor [PKG..]        (re)export the reviewed commit's files into aur/pkgbuilds/PKG
   aur build PKG --vendored  build from aur/pkgbuilds/PKG (no AUR fetch; e.g. package gone)
+                            Also for rebuilds of official packages: aur/pkgbuilds/PKG/.arch-package
+                            names the repo package (its Arch GitLab PKGBUILD is vendored, our
+                            changes are pkgbuild patches); `check` compares with the repo version.
 
 Vendoring: aur/pkgbuilds/PKG/ holds the build files exactly as reviewed (exported from the
 reviewed AUR commit). `build` and `mark` refresh it, so updates show up in `git diff`.
@@ -202,7 +205,13 @@ def check(_):
     print(f"{'package':34} {'installed':26} {'AUR':26} state")
     for pkg, ver in foreign:
         i = info.get(pkg)
-        if not i:
+        if not i and (VENDOR / pkg / ".arch-package").exists():
+            # our rebuild of an official package (e.g. mangohud-light): compare with the repo
+            base = (VENDOR / pkg / ".arch-package").read_text().strip()
+            aur = out(["pacman", "-Si", base]).split("Version")[1].split(":", 1)[1].split()[0]
+            state = (f"REBUILD: repo {base} is newer (refresh {VENDOR.name}/{pkg} from Arch's GitLab)"
+                     if vercmp(aur, ver) > 0 else f"ok (rebuild of repo {base})")
+        elif not i:
             state = "not in AUR (debug/split package or removed)"
             aur = "-"
         else:

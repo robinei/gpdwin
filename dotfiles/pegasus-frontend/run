@@ -1,3 +1,9 @@
 #!/bin/sh
-# Start Pegasus with its dbus-send shim first in PATH
+# Start Pegasus with its dbus-send shim first in PATH.
+# QT_BEARER_POLL_TIMEOUT=-1: no Qt network bearer polling.
+# MANGOHUD=1 + the shim preload: every game Pegasus starts gets MangoHud (Vulkan via the layer,
+# OpenGL via the preload), hidden until Right Shift+F12; Pegasus itself is blacklisted in
+# ~/.config/MangoHud/MangoHud.conf.
+export MANGOHUD=1
+[ -e /usr/lib/mangohud/libMangoHud_shim.so ] && export LD_PRELOAD="${LD_PRELOAD:+$LD_PRELOAD:}/usr/lib/mangohud/libMangoHud_shim.so"
 QT_BEARER_POLL_TIMEOUT=-1 PATH="$HOME/.config/pegasus-frontend/bin:$PATH" exec pegasus-fe "$@"

@@ -14,7 +14,8 @@ truth; this explains the choices.
 - Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
-- Performance overlay: `mangohud` (opt in per game; its matplotlib/numpy dependencies are ~134 MB).
+- Performance overlay: `mangohud-light` (own rebuild of the repo package without mangoplot/mangoapp
+  and their ~134 MB of python/matplotlib/numpy/glfw; see frontend.md).
 - Build: `base-devel git` (AUR builds). `python` is explicit (scripts). `gcc` (base-devel) also builds `src/*.c`.
   `clang` came with zelda3-git and is build-only (~100 MB+).
 - Installed by the user or other work: `firefox`, `yazi`, `7zip`.
