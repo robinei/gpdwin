@@ -46,3 +46,14 @@ Restarting wob: `pkill -x wob; pkill -x tail`, then `swaymsg exec` the pipeline 
   only shows in opaque windows.
 - No VRR (DSI panel), no tearing/direct scanout: the display engine can't rotate a plane by 90
   degrees, so sway composites (rotates) every frame, including fullscreen games.
+- `max_render_time 12` (sway composites 12 ms before each vblank). Measured by tracing
+  `i915:intel_pipe_update_end` and counting jumps in its hardware `frame=` counter (refreshes
+  without a new image), 20 s per run:
+
+  | Load | off (default) | 10 ms | 12 ms | 14 ms |
+  |---|---|---|---|---|
+  | RetroArch snes9x F-Zero | 13.0-13.6% | 3.3% | 0% | - |
+  | same + crt-royale shader | 11.0-13.4% | 5.5% | 0% | 0% |
+  | Hyper Light Drifter (Wine, Xwayland) | 12.4-13.8% | - | 0.3% | 0.4% |
+
+  4 and 6 ms were as bad as off. If a game stutters, retest with the same method before changing it.
