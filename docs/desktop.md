@@ -41,9 +41,8 @@ Restarting wob: `pkill -x wob; pkill -x tail`, then `swaymsg exec` the pipeline 
 ## Display
 - Panel mode 720x1280 @ 60.253 Hz, rotated (`transform 90`). RetroArch's `video_refresh_rate` is set to
   60.253 so its audio/video sync doesn't bend the pitch to fit 60.000.
-- `subpixel vbgr`: the rotated panel's real stripe order (derivation in the sway config; not verified
-  by eye yet, the alternative would be `vrgb`). Translucent foot/fuzzel use grey antialiasing, so it
-  only shows in opaque windows.
+- `subpixel none`: grey text antialiasing everywhere (8-bit glyph caches). The kernel reports the
+  panel's native `rgb`, which is wrong after rotation (it would be `vbgr`); apps don't correct for it.
 - No VRR (DSI panel), no tearing/direct scanout: the display engine can't rotate a plane by 90
   degrees, so sway composites (rotates) every frame, including fullscreen games.
 - `max_render_time 12` (sway composites 12 ms before each vblank). Measured by tracing

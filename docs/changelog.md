@@ -150,3 +150,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: status bar shows CPU/GPU boost (cpu+/gpu+, dimmed cpu-/gpu- when capped); turbo.sh redraws it.
 - 2026-10-07: RetroArch refresh rate 60.253 (real panel rate); sway subpixel vbgr (rotated panel).
 - 2026-10-07: sway max_render_time 12: dropped refreshes in games from ~13% to 0-0.3% (measured).
+- 2026-10-07: sway subpixel none instead of vbgr (grey antialiasing, smaller glyph caches).
