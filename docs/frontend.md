@@ -112,7 +112,8 @@
   720x1280, so fullscreen games draw into a corner (Hyper Light Drifter; its virtual desktop
   option has no effect with the Wayland driver). `xorg-xwayland` is installed so Wine uses its
   X11 driver, which gets the rotated 1280x720 (sway starts Xwayland only if it is installed when
-  sway starts). Old X11-only native games also use it.
+  sway starts). Verified: Hyper Light Drifter fullscreen fills the screen. Old X11-only native
+  games also use it.
 
 ## Audio
 - Every app path must reach PipeWire: PulseAudio clients via `pipewire-pulse` (SDL, OpenAL,

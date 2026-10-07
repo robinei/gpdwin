@@ -106,3 +106,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: Hyper Light Drifter (Windows build via Wine) rendered in a corner: Wine's Wayland
   driver sees the unrotated 720x1280 panel. Installed `xorg-xwayland` so Wine uses X11 (needs a
   sway restart to take effect).
+- 2026-10-07: verified after a sway restart: Hyper Light Drifter (Wine, X11 via Xwayland) runs fullscreen correctly.
