@@ -166,3 +166,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 
 - 2026-10-07: AUR `pegasus-frontend-stable-git` updated to alpha16.r82.gc3462e68-1 (reviewed AUR commit caec261bd57d) with local patches 0001-splash-stop-progress-animation-when-hidden.patch, 0002-grid-theme-stop-hidden-spinner.patch, 0003-gamepad-adaptive-polling.patch, 0004-grid-theme-starting-overlay.patch.
 - 2026-10-07: installer covers from the store asset list (newer games keep art under hashed paths; Heretic + Hexen had none).
+- 2026-10-07: Heretic + Hexen set to fullscreen in its own config (v_windowmode 2); windowed-mode games undo sway fullscreen.

@@ -127,6 +127,12 @@
   X11 driver, which gets the rotated 1280x720 (sway starts Xwayland only if it is installed when
   sway starts). Verified: Hyper Light Drifter fullscreen fills the screen. Old X11-only native
   games also use it.
+- Fullscreen: workspace 1 makes every window fullscreen (docs/desktop.md), but a game set to
+  windowed mode in its own settings takes fullscreen straight back (Super+F doesn't stick either).
+  Set the game itself to fullscreen. Heretic + Hexen (KEX engine): `v_windowmode "2"` in
+  `~/.wine/drive_c/users/robin/Saved Games/Nightdive Studios/Heretic/kexengine.cfg`
+  (in game: Options > Video, window mode fullscreen); 1 = fixed 1280x720 window, 0 = resizable
+  window, both refuse fullscreen.
 
 ## Audio
 - Every app path must reach PipeWire: PulseAudio clients via `pipewire-pulse` (SDL, OpenAL,
