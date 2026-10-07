@@ -110,3 +110,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: reviewed ViccRondo/gpd-win1-atomic-gaming; findings in docs/hardware.md "Prior art"
   (confirms xHCI wakeup fix and Vulkan 1.2; DSI resume kernel patch and kernel args noted as
   fallbacks; no DSI pipeline failures in our logs).
+- 2026-10-07: core dumps off (`/etc/systemd/coredump.conf.d/90-gpd.conf`: Storage=none,
+  ProcessSizeMax=0); crashes are still logged in the journal. Revert: delete the file.

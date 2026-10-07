@@ -45,6 +45,7 @@ copy	system/etc/sudoers.d/20-power	/etc/sudoers.d/20-power	root:root:0440
 copy	system/etc/sudoers.d/21-firmware-setup	/etc/sudoers.d/21-firmware-setup	root:root:0440
 copy	system/etc/systemd/sleep.conf.d/handheld.conf	/etc/systemd/sleep.conf.d/handheld.conf	root:root:0644
 copy	system/etc/systemd/logind.conf.d/handheld.conf	/etc/systemd/logind.conf.d/handheld.conf	root:root:0644
+copy	system/etc/systemd/coredump.conf.d/90-gpd.conf	/etc/systemd/coredump.conf.d/90-gpd.conf	root:root:0644
 copy	system/etc/systemd/system/getty@tty1.service.d/autologin.conf	/etc/systemd/system/getty@tty1.service.d/autologin.conf	root:root:0644
 copy	system/etc/systemd/system/systemd-user-sessions.service	/etc/systemd/system/systemd-user-sessions.service	root:root:0644
 copy	system/etc/systemd/system/low-battery.service	/etc/systemd/system/low-battery.service	root:root:0644

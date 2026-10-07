@@ -61,6 +61,7 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
 - Lid wake race: after an open-lid resume, a spurious lid-close event can immediately re-suspend
   the device; they ignore lid-close events within 8 s of a resume (`win1-lid-event-guard`).
   Watch for "goes back to sleep right after waking".
-- Coredumps disabled (`Storage=none`) to save eMMC space and time; cheap idea for us too.
+- Coredumps disabled (`Storage=none`) to save eMMC space and time: adopted here too
+  (`/etc/systemd/coredump.conf.d/90-gpd.conf`).
 - The in-session "split picture" (bottom half on top) that we fix with `Mod4+F10` is not covered
   by their patch (different symptom: ours keeps running, theirs stalls).

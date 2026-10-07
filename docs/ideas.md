@@ -17,8 +17,7 @@
 9. GOG source for `scripts/games` (`sources/gog.py`, e.g. lgogdownloader from the AUR).
 10. Gamepad navigation in `scripts/games` (it runs in foot, so keyboard only for now).
 
-11. Coredumps off (`/etc/systemd/coredump.conf.d`: `Storage=none`) to save eMMC space/CPU.
-12. If DSI resume failures (`flip_done timed out`) ever appear: see hardware.md "Prior art"
+11. If DSI resume failures (`flip_done timed out`) ever appear: see hardware.md "Prior art"
     (kernel patch, `i915.disable_power_well=0`, diagnostics capture).
 
 Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).
