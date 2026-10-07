@@ -6389,7 +6389,8 @@
    "linux": false,
    "tier": "heavy",
    "pcgw": "Hades",
-   "windows": true
+   "windows": true,
+   "size_mb": 15360
   },
   {
    "source": "steam",
@@ -6569,7 +6570,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Hammerwatch",
-   "windows": true
+   "windows": true,
+   "size_mb": 300
   },
   {
    "source": "steam",
@@ -7586,7 +7588,8 @@
    "linux": true,
    "tier": "maybe",
    "pcgw": "Kentucky Route Zero",
-   "windows": true
+   "windows": true,
+   "size_mb": 2560
   },
   {
    "source": "steam",
@@ -9059,7 +9062,8 @@
    "linux": true,
    "tier": "mouse",
    "pcgw": "Nihilumbra",
-   "windows": true
+   "windows": true,
+   "size_mb": 3072
   },
   {
    "source": "steam",
@@ -9095,7 +9099,8 @@
    "linux": false,
    "tier": "heavy",
    "pcgw": "Noita",
-   "windows": true
+   "windows": true,
+   "size_mb": 1600
   },
   {
    "source": "steam",
@@ -9932,7 +9937,8 @@
    "linux": true,
    "tier": "maybe",
    "pcgw": "Portal",
-   "windows": true
+   "windows": true,
+   "size_mb": null
   },
   {
    "source": "steam",
@@ -10173,7 +10179,8 @@
    "tier": "good",
    "pcgw": "Psychonauts",
    "windows": true,
-   "linux32": true
+   "linux32": true,
+   "size_mb": 3840
   },
   {
    "source": "steam",
@@ -10197,7 +10204,8 @@
    "linux": true,
    "tier": "maybe",
    "pcgw": "Pyre",
-   "windows": true
+   "windows": true,
+   "size_mb": 9216
   },
   {
    "source": "steam",
