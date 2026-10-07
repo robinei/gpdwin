@@ -12,6 +12,8 @@ LIBRARY = core.REPO / "games" / "steam-library.json"
 UA = {"User-Agent": "gpd-games/1.0 (personal library tool)"}
 STORE_ITEMS = "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/"
 APPDETAILS = "https://store.steampowered.com/api/appdetails?appids={id}"
+# 32-bit Linux games need multilib (lib32-glibc provides the 32-bit loader)
+MULTILIB = Path("/lib/ld-linux.so.2").exists()
 COVER_URLS = [
     "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{id}/library_600x900_2x.jpg",
     "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{id}/library_600x900.jpg",
