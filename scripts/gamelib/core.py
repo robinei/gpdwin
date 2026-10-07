@@ -133,6 +133,28 @@ def find_executables(dirpath, osname, game_name):
 
 
 # ---------- fixes for old native games ----------
+def elf_32bit_unsupported(path):
+    """True if path is a 32-bit ELF and this system has no 32-bit loader (no multilib)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(5)
+    except OSError:
+        return False
+    return head[:4] == b"\x7fELF" and head[4] == 1 and not Path("/lib/ld-linux.so.2").exists()
+
+
+def launch_target_32bit(dirpath, exe):
+    """For a launch script, check the ELF binaries next to it; for a binary, check it directly."""
+    root = Path(dirpath)
+    target = root / exe
+    cands = [target]
+    try:
+        if target.read_bytes()[:2] == b"#!":
+            cands = [p for p in target.parent.iterdir() if p.is_file() and ".so" not in p.name]
+    except OSError:
+        pass
+    return any(elf_32bit_unsupported(c) for c in cands)
+
 def disable_old_bundled_sdl(dirpath):
     """Old Linux ports (FNA/MonoKickstart, e.g. Bastion) bundle an SDL2 without Wayland support;
     with no X server it finds no display. Move such copies aside so the system SDL (sdl2-compat on

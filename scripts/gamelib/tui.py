@@ -162,6 +162,10 @@ class App:
             if ans.isdigit() and 1 <= int(ans) <= len(cands[:15]):
                 best = cands[int(ans) - 1][0]
         rec["exe"] = best
+        if rec["os"] == "linux" and core.launch_target_32bit(rec["dir"], best):
+            print("\nWARNING: this Linux build is 32-bit and this system has no 32-bit runtime (no\n"
+                  "multilib), so it can't start. Uninstall it and install the Windows build instead\n"
+                  "(Wine runs 32-bit Windows games without multilib).")
         core.save_record(rec)
         core.write_launcher(rec, force=True)
         core.write_pegasus()
