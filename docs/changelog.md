@@ -132,3 +132,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   wakeups 72/s -> 20/s, CPU 2.4% -> 0.8%. USB irqs while the screen is on traced to the gamepad's
   4 ms idle reports (inherent). Measured power on battery: screen on 2.56 W, backlight-0 1.92 W,
   display off 1.45 W, so swayidle's DPMS off stays. Details in docs/power.md.
+
+- 2026-10-07: AUR `pegasus-frontend-stable-git` updated to alpha16.r82.gc3462e68-1 (reviewed AUR commit caec261bd57d) with local patches 0001-splash-stop-progress-animation-when-hidden.patch, 0002-grid-theme-stop-hidden-spinner.patch, 0003-gamepad-adaptive-polling.patch.
