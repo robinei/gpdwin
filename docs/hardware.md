@@ -75,3 +75,11 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
 - The BIOS "512 MB" graphics setting is the GPU aperture (PCI BAR at 0x80000000): address space
   for CPU access to GPU memory, it costs no RAM. Leave it. GPU buffers come from normal RAM on
   demand.
+
+## Analog sticks (measured 2026-10-08)
+- The sticks snap to the axes, from the controller firmware: at half deflection only ~14% of
+  samples fell in the diagonal sector (a round stick gives ~41%), i.e. a per-axis dead zone; at
+  full deflection the range is square (diagonals reach both maxima). The kernel adds almost
+  nothing (xpad `flat 128`, `fuzz 16` of +-32768).
+- No firmware update path known for the Win 1 (GPD's tools are Windows-only and for later
+  models). A uinput remapper could only smooth the jump at the threshold; decided to leave it.
