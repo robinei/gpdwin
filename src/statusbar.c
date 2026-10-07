@@ -4,8 +4,8 @@
  *   cpu 2.4G gpu 400M | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
- * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick); GPU is
- * "idle" while it sleeps in RC6.
+ * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
+ * when it spent most of the last second in RC6 (its frequency register keeps the last value).
  *
  * Everything happens in one poll() loop, so the program sleeps until something can have changed.
  * Each value is read only as often as it is worth (measured cost per read on this device):
@@ -134,7 +134,16 @@ static void read_cpu(void)
 
 static void read_gpu(void)
 {
-    st.gpu_mhz = gpu_int("gt_act_freq_mhz");
+    static long last_rc6_ms;
+    static struct timespec last;
+    struct timespec now;
+    long rc6_ms = gpu_int("power/rc6_residency_ms");
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    long elapsed_ms = (now.tv_sec - last.tv_sec) * 1000 + (now.tv_nsec - last.tv_nsec) / 1000000;
+    int asleep = rc6_ms - last_rc6_ms >= elapsed_ms * 9 / 10; /* in RC6 for 90% of the time */
+    last_rc6_ms = rc6_ms;
+    last = now;
+    st.gpu_mhz = asleep ? 0 : gpu_int("gt_act_freq_mhz");
 }
 
 static void read_turbo(void)
