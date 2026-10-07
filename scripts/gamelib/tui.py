@@ -185,7 +185,22 @@ class App:
     def install(self, g, osname):
         src = SOURCES[g["source"]]
         dest = core.game_dir(g)
-        print(f"Installing {g['name']} ({osname}) into {dest}\nFree space: {core.human(core.free_space())}\n")
+        free = core.free_space()
+        print(f"{g['name']} ({osname}): checking the size...")
+        size = src.exact_size(g, osname) if hasattr(src, "exact_size") else None
+        if size:
+            disk, download = size
+            print(f"  download {core.human(download)}, on disk {core.human(disk)}; "
+                  f"free {core.human(free)}, left after install {core.human(max(0, free - disk))}")
+            if disk > free:
+                print(f"  NOT ENOUGH SPACE: {core.human(disk - free)} short.")
+        else:
+            est = g.get("size_mb")
+            print(f"  exact size unknown (needs the saved Steam login); store estimate "
+                  f"{core.human(est * 2**20) if est else 'none'}; free {core.human(free)}")
+        if input("Install? [Y/n] ").strip().lower() not in ("", "y", "yes"):
+            return False
+        print(f"\nInstalling into {dest}\n")
         dest.mkdir(parents=True, exist_ok=True)
         if not src.install(g, dest, osname):
             if osname == "linux" and core.dir_size(dest) == 0:

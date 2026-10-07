@@ -3,7 +3,7 @@
 The Steam password and Steam Guard code are typed by the user into DepotDownloader; this code
 never sees them. The Web API key for refreshing the library is asked for each time, not stored.
 """
-import getpass, json, re, subprocess, time, urllib.parse, urllib.request
+import getpass, json, re, subprocess, tempfile, time, urllib.parse, urllib.request
 from pathlib import Path
 
 from .. import core
@@ -111,12 +111,37 @@ class SteamSource:
                 return False
             cfg["steam_username"] = user
             core.save_config(cfg)
-        cmd = ["depotdownloader", "-app", game["id"], "-os", osname, "-username", user,
-               *(["-osarch", "64"] if osname == "linux" else []),
-               "-remember-password", "-validate", "-dir", str(dest)]
+        cmd = self._depot_cmd(game, osname, user) + ["-validate", "-dir", str(dest)]
         print("$", " ".join(cmd))
         print("(DepotDownloader asks for your password / Steam Guard code the first time.)\n")
         return subprocess.run(cmd).returncode == 0
+
+    def _depot_cmd(self, game, osname, user):
+        return ["depotdownloader", "-app", game["id"], "-os", osname, "-username", user,
+                *(["-osarch", "64"] if osname == "linux" else []), "-remember-password"]
+
+    def exact_size(self, game, osname):
+        """(bytes on disk, bytes to download) from the depot manifests, without downloading the
+        game. Needs the saved Steam login (non-interactive); None if that isn't possible."""
+        user = core.load_config().get("steam_username")
+        if not user:
+            return None
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                r = subprocess.run(self._depot_cmd(game, osname, user) + ["-manifest-only", "-dir", tmp],
+                                   stdin=subprocess.DEVNULL, capture_output=True, timeout=120)
+            except subprocess.TimeoutExpired:
+                return None
+            disk = download = 0
+            manifests = list(Path(tmp).glob("manifest_*.txt"))
+            for m in manifests:
+                text = m.read_text(errors="replace")
+                disk += int((re.search(r"Total bytes on disk\s*:\s*(\d+)", text) or [0, 0])[1])
+                download += int((re.search(r"Total bytes compressed\s*:\s*(\d+)", text) or [0, 0])[1])
+        if r.returncode != 0 or not manifests:
+            return None
+        self.update(game, size_mb=round(disk / 2**20))  # the list shows the real size from now on
+        return disk, download
 
     def fetch_cover(self, game, path):
         for url in COVER_URLS:

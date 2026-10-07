@@ -9,6 +9,7 @@
     platforms(game) -> list   OS builds that exist and can run, preferred first ("linux", "windows")
     update(game, **fields)    change fields of a game in the library (optional; e.g. linux32=True)
     size_hint(game) -> MB     approximate install size, or None (optional)
+    exact_size(game, osname) -> (disk bytes, download bytes) or None   (optional)
     fetch_cover(game, path)   save portrait box art (best effort)
     refresh() -> bool         interactive re-harvest of the library (optional)
 

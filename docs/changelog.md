@@ -160,3 +160,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   library), only builds that exist are offered; Linux downloads use `-osarch 64`; a 32-bit-only
   Linux build is removed, marked `linux32` and the Windows build offered instead; store size
   estimate shown in the list and the game menu.
+- 2026-10-07: installer shows the exact download/disk size (DepotDownloader -manifest-only) and free
+  space before installing, then asks Install? [Y/n].
