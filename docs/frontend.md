@@ -128,6 +128,12 @@
   same architecture exists (the games' `$ORIGIN` rpath would pick the bundled copy otherwise).
   Camera spin with the pad (PCGamingWiki): in `~/.local/share/Psychonauts/Profiles/*/*.ini` map
   `LookUp/Down_Alt=JoyRotY`, `LookLeft/Right_Alt=JoyRotX` (default uses the triggers' axes).
+  Buttons: the defaults assume DirectInput numbering (1=X 2=A 3=B 4=Y); on Linux the pad is
+  Joy1=A Joy2=B Joy3=X Joy4=Y Joy5=LB Joy6=RB Joy7=Back Joy8=Start Joy9=Guide Joy10=L3 Joy11=R3,
+  and the triggers are axes (the game has no half-axis inputs, so they can't be buttons). Set:
+  Jump=Joy1, Attack=Joy3, Cancel=Joy2, Use=Joy4, LockOn/Float=Joy5, PsiPower1=Joy6,
+  PsiPower2/3=DPadUp/DPadDown, Journal=Joy8, Stats=Joy7, FirstPerson=Joy11 (all `_Alt`).
+  Original profile kept as `Profile 1- Raz.ini.gpd-bak`.
   Runs well and much faster than the Wine version. SDL 1.2 games only look for controllers at
   start: switch the GPD to gamepad mode before launching, and the pad is lost for the rest of the
   session if it disconnects (screen off at the battery idle step, suspend).
