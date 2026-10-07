@@ -3,5 +3,7 @@ assign [app_id="org.pegasus-frontend.pegasus-fe"] workspace number 1
 exec ~/.config/pegasus-frontend/run
 exec ~/.local/bin/inputd
 
-# Terminal tools launched from Pegasus' Utilities run fullscreen
-for_window [app_id="pegasus-tool"] fullscreen enable
+# Everything on workspace 1 (Pegasus and whatever it starts: games, Utilities tools) runs
+# fullscreen. Floating windows (dialogs) are left alone.
+for_window [workspace="^1$" tiling] fullscreen enable
+exec ~/.config/sway/pegasus-fullscreen.sh
