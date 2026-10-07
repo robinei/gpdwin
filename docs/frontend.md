@@ -82,7 +82,8 @@
   on the next install.
 - After download: Steam portrait cover → `gpd-cover.jpg`, executable detection (skips
   uninstallers, redists, crash handlers; prefers the game's own `#!` launch script, which sets
-  cwd/env; DepotDownloader drops exec bits, so they are restored; asks when unsure), `gpd-launch.sh` (native, or
+  cwd/env; DepotDownloader drops exec bits, so they are restored; asks when unsure; moves a
+  bundled `libSDL2` without Wayland support aside, e.g. Bastion, since there is no X server), `gpd-launch.sh` (native, or
   `wine` with the shared `~/.wine` prefix and `WINEDEBUG=-all`), record in `.gpd-game.json`.
 - `~/Games/installed/metadata.pegasus.txt` is regenerated from the records with
   `collection: PC Games` / `shortname: pc`, so Pegasus merges these games into PC Games

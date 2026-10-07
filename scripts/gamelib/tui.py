@@ -183,6 +183,9 @@ class App:
         if src.fetch_cover(g, dest / core.COVER_NAME):
             print("Cover art saved.")
         core.save_record(rec)
+        if osname == "linux":
+            for m in core.disable_old_bundled_sdl(dest):
+                print(f"Bundled SDL2 without Wayland support moved aside: {m}")
         if self.pick_exe(rec):
             print(f"Added to Pegasus PC Games ({'Wine' if osname == 'windows' else 'native'}).")
         return True

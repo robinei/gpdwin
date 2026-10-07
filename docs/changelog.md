@@ -80,3 +80,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   (512 underran). Installer: prefers the game's own shebang launch script (no `.sh` needed),
   restores exec bits DepotDownloader drops, and the Pegasus restart escalates to SIGKILL (an
   ignored SIGTERM had left two Pegasus instances). SMB's launcher now runs its own script.
+- 2026-10-07: Bastion (native FNA) found no display: its bundled 2015 SDL2 has no Wayland support
+  and there is no X server. Moved `Linux/lib64/libSDL2-2.0.so.0` to `.bundled` so the system SDL
+  is used (runs). The installer now does this automatically for Linux installs. Bastion's
+  launcher now runs its own `Linux/Bastion` script.
