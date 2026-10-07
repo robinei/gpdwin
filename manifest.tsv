@@ -51,6 +51,9 @@ copy	system/etc/systemd/system/systemd-user-sessions.service	/etc/systemd/system
 copy	system/etc/systemd/system/low-battery.service	/etc/systemd/system/low-battery.service	root:root:0644
 copy	system/etc/systemd/system/low-battery.timer	/etc/systemd/system/low-battery.timer	root:root:0644
 copy	system/etc/sysctl.d/90-gpd.conf	/etc/sysctl.d/90-gpd.conf	root:root:0644
+copy	system/etc/systemd/resolved.conf.d/90-gpd.conf	/etc/systemd/resolved.conf.d/90-gpd.conf	root:root:0644
+copy	system/etc/systemd/journald.conf.d/90-gpd.conf	/etc/systemd/journald.conf.d/90-gpd.conf	root:root:0644
+copy	system/etc/nftables.conf	/etc/nftables.conf	root:root:0644
 copy	system/etc/udev/rules.d/90-xhci-no-wakeup.rules	/etc/udev/rules.d/90-xhci-no-wakeup.rules	root:root:0644
 copy	system/etc/tmpfiles.d/turbo.conf	/etc/tmpfiles.d/turbo.conf	root:root:0644
 copy	system/etc/modprobe.d/cfg80211.conf	/etc/modprobe.d/cfg80211.conf	root:root:0644
