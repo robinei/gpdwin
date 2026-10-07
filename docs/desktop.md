@@ -11,11 +11,13 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   wallpaper `wallpaper.jpg` (1280x720, Lanczos resize in linear light) on `$crust`. Bar on top.
 - Bar: `~/.local/bin/statusbar`, built from `src/statusbar.c` (one C file, event driven; the
   header comment explains every source). `cpu 2.4G gpu 400M | ram 0.6/3.7G | <ssid> N% |
-  vol N% | bat N% | clock`. CPU = fastest core, GPU `idle` = RC6; both dimmed while turbo is
-  capped. Frequencies/RAM/clock every second, WiFi signal (/proc/net/wireless, -90..-30 dBm →
-  0..100%) every 10 s, battery every 30 s and at once on charger uevents, SSID (iwctl) on link
-  changes, volume (wpctl) when `osd.sh` sends SIGUSR1. The screen-off idle step SIGSTOPs it,
-  resume SIGCONTs it. Only changed lines are written.
+  vol N% | bat N% | clock`. CPU = fastest core, GPU `idle` = ≥90% of the last second in RC6;
+  both dimmed while turbo is capped. Reads are spaced by cost: CPU/GPU clock every second, RAM
+  5 s, WiFi signal (/proc/net/wireless, asks the firmware, 2.3 ms) 30 s, battery (I2C, 9 ms)
+  60 s and at once on charger uevents, SSID (iwctl) on link changes, volume (wpctl) and turbo
+  state when `osd.sh`/`turbo.sh` send SIGUSR1. The screen-off idle step SIGSTOPs it, resume
+  SIGCONTs it. Only changed lines are written. Measured: sway+swaybar+statusbar together
+  1.7 ms CPU/s (0.17% of a core); the GPU stays in RC6.
 - `autostart`: Pegasus on workspace 1 (`assign` + `exec ~/.config/pegasus-frontend/run`),
   `~/.local/bin/inputd`, `for_window [app_id="pegasus-tool"] fullscreen enable`.
 - `handheld`: `seat * hide_cursor 3000`, swayidle (power.md), wob pipeline
