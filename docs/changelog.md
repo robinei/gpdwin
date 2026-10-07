@@ -141,3 +141,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   saves survive uninstall.
 - 2026-10-07: verified after reboot: PipeWire threads SCHED_FIFO via realtime-privileges, no RTKit
   warnings; firewall loaded at boot (nftables.service shows inactive by design, oneshot).
+- 2026-10-07: verified CPU boost (2.4 GHz all cores), idle floor (480 MHz, C7), and the Mod4+F11
+  CPU turbo toggle (1.6 GHz cap and back); GPU idles in RC6 (0 MHz), boosts above 400 MHz with
+  turbo on and respects the 400 MHz cap from Mod4+F12. Details in docs/power.md.

@@ -70,6 +70,18 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
 - `/etc/tmpfiles.d/turbo.conf` makes `no_turbo`, `rps_max_freq_mhz`, `rps_boost_freq_mhz`
   group-writable by `wheel` at boot. Both reset to turbo-on at boot.
 - cpufreq driver `intel_cpufreq`, governor `schedutil`.
+- Verified 2026-10-07 (actual clocks from /proc/cpuinfo, APERF/MPERF based):
+  - CPU idle: unused cores at 480 MHz (hardware minimum), cores mostly in C7/C7S.
+  - CPU turbo on: 1 busy core 2.4 GHz; all 4 cores 2.4 GHz (46 C after 9 s, fan off).
+  - `turbo.sh cpu` (Mod4+F11): caps all cores at 1.6 GHz under load, toggling again restores
+    2.4 GHz. Works from scripts too (wheel can write `no_turbo`).
+  - GPU idle: act 0 MHz with ~100% RC6 residency (deep idle); limits RPn 200 / RP1 400 / RP0 600.
+  - GPU under load (RetroArch + crt-royale): turbo on reached 420-540 MHz; with `turbo.sh gpu`
+    (Mod4+F12, limit 400) it never exceeded the limit. RPS ramps conservatively when the load is
+    partly CPU-bound; fully saturating 600 MHz wasn't shown (no GPU-only benchmark installed).
+- Test hygiene: RetroArch ignores SIGTERM; use `--max-frames` (exits by itself, uncapped) plus
+  `timeout -s KILL`, and power the output on first (no frames are drawn while it is off). The
+  GPD Win has a physical fan switch; heavy loads with the fan off cause audible coil whine.
 
 ## Memory / swap
 - zswap is on by default in the Arch kernel (zstd, 20% pool). zram was tried and removed; don't
