@@ -133,6 +133,14 @@
   `~/.wine/drive_c/users/robin/Saved Games/Nightdive Studios/Heretic/kexengine.cfg`
   (in game: Options > Video, window mode fullscreen); 1 = fixed 1280x720 window, 0 = resizable
   window, both refuse fullscreen.
+- Display modes: Xwayland's emulated resolutions ignore the panel rotation. Wine sees the real
+  1280x720 plus portrait modes (480x640, 480x720, 400x640, ...), so there is no 640x480 or
+  800x600. Old games that insist on such a mode fail ("needs at least 640x480x32"). Fix: set the
+  game itself to 1280x720 in its config before the first start; otherwise a Wine virtual desktop
+  (`wine explorer /desktop=game,1280x720 game.exe`) gives Wine's own mode list.
+  Psychonauts: `DisplaySettings.ini` in the game folder (CRLF):
+  `[DisplaySettings]` `ScreenWidth=1280` `ScreenHeight=720` `FullScreen=1`. It lives in the
+  install, so a reinstall needs it again.
 
 ## Audio
 - Every app path must reach PipeWire: PulseAudio clients via `pipewire-pulse` (SDL, OpenAL,
