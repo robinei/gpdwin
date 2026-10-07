@@ -909,7 +909,8 @@
    "linux": false,
    "tier": "mouse",
    "pcgw": "Arx Fatalis",
-   "windows": true
+   "windows": true,
+   "size_mb": null
   },
   {
    "source": "steam",
@@ -10180,7 +10181,7 @@
    "pcgw": "Psychonauts",
    "windows": true,
    "linux32": true,
-   "size_mb": 3840
+   "size_mb": 5261
   },
   {
    "source": "steam",
@@ -12851,7 +12852,9 @@
    "linux": true,
    "tier": "good",
    "pcgw": "SteamWorld Heist",
-   "windows": true
+   "windows": true,
+   "size_mb": 186,
+   "linux32": true
   },
   {
    "source": "steam",
