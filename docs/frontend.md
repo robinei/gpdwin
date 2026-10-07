@@ -158,9 +158,7 @@
   800x600. Old games that insist on such a mode fail ("needs at least 640x480x32"). Fix: set the
   game itself to 1280x720 in its config before the first start; otherwise a Wine virtual desktop
   (`wine explorer /desktop=game,1280x720 game.exe`) gives Wine's own mode list.
-  Psychonauts: `DisplaySettings.ini` in the game folder (CRLF):
-  `[DisplaySettings]` `ScreenWidth=1280` `ScreenHeight=720` `FullScreen=1`. It lives in the
-  install, so a reinstall needs it again.
+  (The Windows Psychonauts needed `DisplaySettings.ini` in its game folder at 1280x720.)
 
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them
@@ -170,11 +168,8 @@
   games too, since WoW64 Wine calls OpenGL from 64-bit code). Hidden at start (`no_display`),
   Right Shift+F12 shows it; Pegasus itself is blacklisted. Config `dotfiles/MangoHud/MangoHud.conf`:
   FPS, CPU and GPU clock.
-- Psychonauts: CPU-bound (main thread maxed at 2.4 GHz, wined3d_cs ~85%); ~11 FPS in heavy
-  scenes. Launcher sets `mesa_glthread=true` (driver work on its own thread, ~15% of a core) and
-  `WINEDEBUG=-all,fps` (log in `~/.cache/gpd/psychonauts-fps.log`).
-
-## Audio
+- Psychonauts (Wine, 2026-10-07, replaced by the native build): CPU-bound, ~11 FPS in heavy
+  scenes (main thread maxed at 2.4 GHz, wined3d_cs ~85%); mesa_glthread barely helped.
 - Every app path must reach PipeWire: PulseAudio clients via `pipewire-pulse` (SDL, OpenAL,
   Wine, `pactl`), ALSA clients via `pipewire-alsa` (`/etc/alsa/conf.d/99-pipewire-default.conf`
   makes ALSA's default device PipeWire). Without `pipewire-alsa`, ALSA apps (e.g. Bastion's FMOD
