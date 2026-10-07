@@ -175,3 +175,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: MangoHud replaced by `mangohud-light` (vendored Arch PKGBUILD, light patch); loaded into all games via Pegasus, hidden until Right Shift+F12.
 
 - 2026-10-07: AUR `mangohud-light` updated to 0.8.4-1 (reviewed AUR commit aec701d04109).
+- 2026-10-07: multilib enabled with the usual 32-bit graphics/audio/X11 set (system upgraded too); installer offers 32-bit Linux builds again.

@@ -13,6 +13,14 @@ truth; this explains the choices.
   pulse and ALSA apps both need their PipeWire bridge).
 - Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
+- Multilib (enabled 2026-10-07, `system/etc/pacman.conf`) for 32-bit-only native Linux ports
+  (e.g. Psychonauts): lib32 glibc/gcc-libs (now in core), mesa, libglvnd, vulkan loader + intel,
+  pipewire/libpulse/alsa-lib/alsa-plugins (32-bit games play through PipeWire), X11 libs,
+  freetype2/fontconfig, png/jpeg/zlib/vorbis/ogg, curl. About 300 MB. 32-bit SDL 1.2/2 and
+  OpenAL are AUR-only now (lib32-sdl12-compat, lib32-sdl2-compat, lib32-openal); most old ports
+  bundle their own, so add them via /aur-add only when a game needs them. The game installer
+  then offers 32-bit Linux builds and drops `-osarch 64`. To undo: remove the lib32 packages,
+  comment out [multilib].
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
 - Performance overlay: `mangohud-light` (own rebuild of the repo package without mangoplot/mangoapp
   and their ~134 MB of python/matplotlib/numpy/glfw; see frontend.md).

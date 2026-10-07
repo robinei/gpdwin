@@ -66,11 +66,11 @@ class SteamSource:
     def platforms(self, game):
         """Builds that exist, preferred first. The Steam store is asked the first time a game is
         opened and the answer is kept in the library. A Linux build found to be 32-bit ("linux32")
-        is left out: it can't run without multilib, while Wine runs 32-bit Windows games."""
+        is only offered with multilib installed; Wine runs 32-bit Windows games either way."""
         self._lookup_platforms(game)
         if "windows" not in game:  # store lookup failed (offline, delisted): offer both
             return ["linux", "windows"] if game.get("linux") else ["windows", "linux"]
-        linux = game.get("linux") and not game.get("linux32")
+        linux = game.get("linux") and (MULTILIB or not game.get("linux32"))
         builds = (["linux"] if linux else []) + (["windows"] if game["windows"] else [])
         return builds or ["windows", "linux"]
 
@@ -120,7 +120,7 @@ class SteamSource:
 
     def _depot_cmd(self, game, osname, user):
         return ["depotdownloader", "-app", game["id"], "-os", osname, "-username", user,
-                *(["-osarch", "64"] if osname == "linux" else []), "-remember-password"]
+                *(["-osarch", "64"] if osname == "linux" and not MULTILIB else []), "-remember-password"]
 
     def exact_size(self, game, osname):
         """(bytes on disk, bytes to download) from the depot manifests, without downloading the
