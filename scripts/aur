@@ -93,6 +93,12 @@ def vendor_files(pkg, d, commit):
     with tarfile.open(fileobj=io.BytesIO(data)) as t:
         t.extractall(dest, filter="data")
     (dest / ".aur-commit").write_text(commit + "\n")
+    # The vendored .gitignore applies to our repo too: make sure it doesn't hide any vendored file.
+    files = [str(f.relative_to(REPO)) for f in dest.rglob("*") if f.is_file()]
+    hidden = subprocess.run(["git", "-C", str(REPO), "check-ignore", "--no-index", *files],
+                            capture_output=True, text=True).stdout.split()
+    for h in hidden:
+        print(f"WARNING: {h} is git-ignored (vendored .gitignore?); add it with `git add -f`")
     return dest
 
 
