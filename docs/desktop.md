@@ -10,7 +10,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   bars, `gaps inner 4` with `smart_gaps`/`smart_borders` (lone windows have no border/gap),
   wallpaper `wallpaper.jpg` (1280x720, Lanczos resize in linear light) on `$crust`. Bar on top.
 - Bar: `~/.local/bin/statusbar`, built from `src/statusbar.c` (one C file, event driven; the
-  header comment explains every source). `cpu 2.4G gpu 400M | ram 0.6/3.7G | <ssid> N% |
+  header comment explains every source). `cpu 2.4G | gpu 400M | ram 0.6/3.7G | <ssid> N% |
   vol N% | bat N% | clock`. CPU = fastest core, GPU `idle` = ≥90% of the last second in RC6;
   both dimmed while turbo is capped. Reads are spaced by cost: CPU/GPU clock every second, RAM
   5 s, WiFi signal (/proc/net/wireless, asks the firmware, 2.3 ms) 30 s, battery (I2C, 9 ms)

@@ -1,7 +1,7 @@
 /*
  * statusbar: the swaybar status line (i3bar JSON on stdout).
  *
- *   cpu 2.4G gpu 400M | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
+ *   cpu 2.4G | gpu 400M | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
@@ -250,7 +250,7 @@ static void read_volume(void)
 
 /* ---- output ---- */
 
-enum sep { LINE, JOIN, LAST }; /* separator line after a block / keep with next / end */
+enum sep { LINE, LAST }; /* separator line after a block / end of the bar */
 
 static char out[2048];
 static size_t len;
@@ -272,7 +272,7 @@ static void block(const char *color, enum sep sep, const char *fmt, ...)
     len += snprintf(out + len, sizeof out - len,
                     "%s{\"full_text\":\"%s\",\"color\":\"%s\",\"separator\":%s,\"separator_block_width\":%d}",
                     len > 1 ? "," : "", esc, color, sep == LINE ? "true" : "false",
-                    sep == LINE ? 19 : sep == JOIN ? 8 : 6);
+                    sep == LINE ? 19 : 6);
 }
 
 static void emit(void)
@@ -284,7 +284,7 @@ static void emit(void)
 
     len = 0;
     len += snprintf(out, sizeof out, "[");
-    block(st.cpu_turbo ? TEXT : DIM, JOIN, "cpu %.1fG", st.cpu_ghz);
+    block(st.cpu_turbo ? TEXT : DIM, LINE, "cpu %.1fG", st.cpu_ghz);
     if (st.gpu_mhz > 0)
         block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu %dM", st.gpu_mhz);
     else
