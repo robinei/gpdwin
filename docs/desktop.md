@@ -26,7 +26,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
 - `handheld`: `seat * hide_cursor 3000`, swayidle (power.md), wob pipeline
   (`$XDG_RUNTIME_DIR/wob.sock`).
 - `osd.sh vol-up|vol-down|mute|bri-up|bri-down`: changes the value (wpctl / brightnessctl with
-  `--min-value=2`) and writes it to wob. Idle dimming deliberately doesn't show wob.
+  `--min-value=1`, the lowest visible level; 0 is backlight off) and writes it to wob. Idle dimming deliberately doesn't show wob.
 - `inputd` (`src/inputd.c`): the pad's Guide button (BTN_MODE). Starts Pegasus if not running,
   focuses workspace 1 if it is, does nothing while a game launched by Pegasus (a child process)
   runs. The kernel only delivers BTN_MODE to it (EVIOCSMASK), and inotify on /dev/input reopens

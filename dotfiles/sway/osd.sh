@@ -7,7 +7,7 @@ case "$1" in
     vol-down) wpctl set-volume $sink 5%- 2>/dev/null ;;
     mute)     wpctl set-mute $sink toggle 2>/dev/null ;;
     bri-up)   brightnessctl -q set 5%+ ;;
-    bri-down) brightnessctl -q --min-value=2 set 5%- ;;
+    bri-down) brightnessctl -q --min-value=1 set 5%- ;;
 esac
 case "$1" in
     vol-*|mute)
