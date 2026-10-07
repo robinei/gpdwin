@@ -28,6 +28,9 @@ informed in short lines; they are on a small screen with a keyboard.
      scripts or hooks, files written outside `$pkgdir`, new dependencies, a maintainer change
      (compare with the reviewed row in `aur/reviewed.tsv`), obfuscated code.
    - Give the user a short verdict (what changed, anything suspicious) and ask before building.
+   - `scripts/aur check` also lists every git source pinned with `#commit=` and how many upstream
+     commits are newer (pins come from our patches, e.g. zelda3-git, or from the AUR PKGBUILD
+     itself, e.g. pegasus-frontend-stable-git). Mention notable gaps to the user.
    - Pinned `-git` packages (a pin patch in `aur/patches/PKG/pkgbuild/`, e.g. zelda3-git) don't
      move with the AUR. To update one, look at the upstream commits since the pin, summarize
      them, and on approval bump the commit in the pin patch. Unpinned `-git` packages build

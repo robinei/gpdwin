@@ -125,3 +125,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   installing new AUR packages the reviewed, vendored way. yay stays (search only).
 - 2026-10-07: removed yay (`yay-bin`, its cache/config and vendored copy); `scripts/aur search`
   replaces `yay -Ss`. git/base-devel stay (needed for `scripts/aur` builds).
+- 2026-10-07: `scripts/aur check` reports pinned git sources and how many upstream commits are
+  newer (first run: zelda3-git up to date; pegasus-frontend-stable-git's AUR pin c3462e68 is 25
+  commits behind upstream).

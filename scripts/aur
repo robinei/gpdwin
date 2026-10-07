@@ -198,7 +198,7 @@ def check(_):
             if i.get("OutOfDate"):
                 state += ", flagged out-of-date"
             if pkg.endswith("-git"):
-                state += ", -git: may build upstream HEAD (check whether it pins a commit)"
+                state += ", -git: pinned (see below)" if pinned_sources(pkg) else ", -git: UNPINNED, builds upstream HEAD"
             if pkg not in rows:
                 state += ", never reviewed"
         print(f"{pkg:34} {ver:26} {aur:26} {state}")
