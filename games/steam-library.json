@@ -10172,7 +10172,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Psychonauts",
-   "windows": true
+   "windows": true,
+   "linux32": true
   },
   {
    "source": "steam",
