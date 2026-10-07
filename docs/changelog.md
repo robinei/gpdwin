@@ -173,3 +173,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: Psychonauts (Windows) runs: DisplaySettings.ini at 1280x720; Xwayland's emulated modes are rotated (no 640x480).
 - 2026-10-07: MangoHud (FPS, CPU/GPU clock), opt-in per game launcher; Psychonauts uses it.
 - 2026-10-07: MangoHud replaced by `mangohud-light` (vendored Arch PKGBUILD, light patch); loaded into all games via Pegasus, hidden until Right Shift+F12.
+
+- 2026-10-07: AUR `mangohud-light` updated to 0.8.4-1 (reviewed AUR commit aec701d04109).
