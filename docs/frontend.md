@@ -138,6 +138,11 @@
   start: switch the GPD to gamepad mode before launching, and the pad is lost for the rest of the
   session if it disconnects (screen off at the battery idle step, suspend).
 
+- Hyper Light Drifter (native, 32-bit): start via its `run.sh` (bundled OpenSSL 1.0 and a Steam
+  runtime curl in `lib/`); the installer now prefers such launcher scripts. Use the **Window Max**
+  screen mode (borderless at desktop size); windowed stays 960x540 inside the fullscreen window.
+  Saves `~/.config/HyperLightDrifter/` (lowercase names; moved from the Wine prefix 2026-10-07).
+
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
   default) for everything, to save space; per-game settings go in the game's launcher script

@@ -129,6 +129,17 @@ def find_executables(dirpath, osname, game_name):
         if "launcher" in p.name.lower():
             score -= 2
         cands.append((str(rel), round(score, 1)))
+    if osname == "linux":
+        # A shell script that starts one of the binaries is the game's own launcher (sets
+        # LD_LIBRARY_PATH to bundled libs, e.g. Hyper Light Drifter's run.sh): prefer it.
+        names = {Path(c).name for c, _ in cands}
+        for i, (c, score) in enumerate(cands):
+            try:
+                text = (root / c).read_text(errors="replace") if (root / c).stat().st_size < 65536 else ""
+            except OSError:
+                continue
+            if text.startswith("#!") and any(n != Path(c).name and n in text for n in names):
+                cands[i] = (c, round(score + 40, 1))
     return sorted(cands, key=lambda c: -c[1])
 
 
