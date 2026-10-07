@@ -22,7 +22,9 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   `~/.local/bin/inputd`, `for_window [workspace="^1$" tiling] fullscreen enable` (everything
   Pegasus starts is fullscreen; dialogs float), `fullscreen-stack.sh` (whichever tiled window on
   workspace 1 gets focus becomes fullscreen, so closing a game brings Pegasus or the window below
-  back fullscreen; sway allows one fullscreen window per workspace).
+  back fullscreen; sway allows one fullscreen window per workspace). New floating X11 windows
+  that aren't dialogs (fixed-size old games, e.g. native Psychonauts; sway floats them) are made
+  fullscreen by the same script, otherwise the fullscreen Pegasus hides them.
 - `handheld`: `seat * hide_cursor 3000`, swayidle (power.md), wob pipeline
   (`$XDG_RUNTIME_DIR/wob.sock`).
 - `osd.sh vol-up|vol-down|mute|bri-up|bri-down`: changes the value (wpctl / brightnessctl with

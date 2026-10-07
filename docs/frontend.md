@@ -118,6 +118,11 @@
   when the game ships `libsteam_api.so`/`steam_api(64).dll`. The game then logs
   `SteamAPI_Init() failed` and runs on (achievements/cloud don't work).
 
+- Native Psychonauts (32-bit, SDL 1.2): its own fullscreen switches the display mode, which
+  Xwayland's rotated emulated modes break (picture pushed down, mouse offset). Run it windowed at
+  1280x720 (`~/.local/share/Psychonauts/DisplaySettings.ini`: `FullScreen=false`); sway makes the
+  window fullscreen, which fits exactly. 32-bit MangoHud: `lib32-mangohud` (multilib).
+
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
   default) for everything, to save space; per-game settings go in the game's launcher script
