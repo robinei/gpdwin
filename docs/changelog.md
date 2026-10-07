@@ -145,3 +145,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   CPU turbo toggle (1.6 GHz cap and back); GPU idles in RC6 (0 MHz), boosts above 400 MHz with
   turbo on and respects the 400 MHz cap from Mod4+F12. Details in docs/power.md.
 - 2026-10-07: idle screen-off only on battery (`idle-screen-off.sh`); on AC the screen just dims.
+- 2026-10-07: `mitigations=off` (syscalls 10x cheaper; HLD uses ~12% less CPU, emulators ~1%). Benchmarks in docs/power.md.

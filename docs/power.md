@@ -90,3 +90,22 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
 - zswap is on by default in the Arch kernel (zstd, 20% pool). zram was tried and removed; don't
   re-suggest it. `vm.swappiness`/`page-cluster` at defaults.
 - RAM at idle ~760 MB used, of which Claude Code ~400 MB when running.
+
+## CPU vulnerability mitigations: off
+`mitigations=off` on the kernel command line (decided 2026-10-07: gaming-only device, little web
+browsing; only Firefox running untrusted JavaScript would be a realistic attack path). Affected on
+this Airmont CPU: Meltdown (PTI, without PCID so every kernel entry flushes the TLB), MDS (VERW buffer
+clearing), Spectre v1/v2. Measured on the same device, default vs off:
+
+| Test | default | off |
+|---|---|---|
+| getppid syscall | 1946 ns | 192 ns |
+| 64-byte read from /dev/zero | 2070 ns | 268 ns |
+| mmap + 16 page faults + munmap | 97 us | 62 us |
+| pipe ping-pong between processes | 31 us | 22 us |
+| RetroArch snes9x, 1800 frames at fixed 1.6 GHz (user+kernel CPU s) | 13.55 | 13.40 (~1%) |
+| Hyper Light Drifter title screen at fixed 1.6 GHz, system CPU busy | 55.0% | 48.7% (~12% less) |
+| 5x `wine cmd /c exit` wall time | 1.3-1.7 s | 1.2-1.4 s |
+
+Emulators barely notice; Wine games (wineserver round trips, futexes, GPU ioctls) gain clearly.
+To revert: remove `mitigations=off` from `system/boot/loader/entries/arch.conf`, `scripts/sync apply`.
