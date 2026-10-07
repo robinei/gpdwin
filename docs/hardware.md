@@ -41,3 +41,26 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
 - A game's fullscreen switch sometimes leaves the picture split (bottom half on top); seen with
   DevilutionX and Zelda 3. Fix: `Mod4+F10` (`dotfiles/sway/screen-reset.sh`: output power off,
   2 s, power on). Root cause unknown (panel/DSI resync after a mode or buffer change).
+
+## Prior art: ViccRondo/gpd-win1-atomic-gaming (checked 2026-10-07, commit 325f405)
+An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful findings:
+- Confirms our xHCI fix: they also disable wakeup on `0000:00:14.0` because of EBUSY in s2idle,
+  and additionally on the internal keyboard device `0603:0002`.
+- Confirms Vulkan 1.2 on this GPU; some old games run with Proton 7 (DXVK 1.10.x era).
+- Their known issue: long/repeated suspend cycles can leave the i915 DSI display black or freeze
+  the machine. Kernel patch `drm/i915/chv: Retry stalled DSI transcoder enable` (resume leaves
+  the transcoder "enabled" but the scanline counter stopped → `flip_done timed out`), plus a
+  watcher (`win1-i915-watch`) that saves i915 debugfs state and force-reboots on
+  `flip_done timed out` / `commit wait timed out` / `vblank wait timed out on crtc`.
+  Our journal had none of these messages across 11 boots (2026-10-07). If they appear: their
+  patch is the lead (needs a custom kernel), and copying their diagnostics capture (without the
+  forced reboot) would help.
+- Kernel args they set without documented reasons: `reboot=pci` (reboot hangs on some GPDs) and
+  `i915.disable_power_well=0` (keeps display power wells on; commonly used against DSI
+  black-screen-after-resume, costs some idle power). Candidates only if we see those problems.
+- Lid wake race: after an open-lid resume, a spurious lid-close event can immediately re-suspend
+  the device; they ignore lid-close events within 8 s of a resume (`win1-lid-event-guard`).
+  Watch for "goes back to sleep right after waking".
+- Coredumps disabled (`Storage=none`) to save eMMC space and time; cheap idea for us too.
+- The in-session "split picture" (bottom half on top) that we fix with `Mod4+F10` is not covered
+  by their patch (different symptom: ours keeps running, theirs stalls).

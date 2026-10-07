@@ -107,3 +107,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   driver sees the unrotated 720x1280 panel. Installed `xorg-xwayland` so Wine uses X11 (needs a
   sway restart to take effect).
 - 2026-10-07: verified after a sway restart: Hyper Light Drifter (Wine, X11 via Xwayland) runs fullscreen correctly.
+- 2026-10-07: reviewed ViccRondo/gpd-win1-atomic-gaming; findings in docs/hardware.md "Prior art"
+  (confirms xHCI wakeup fix and Vulkan 1.2; DSI resume kernel patch and kernel args noted as
+  fallbacks; no DSI pipeline failures in our logs).
