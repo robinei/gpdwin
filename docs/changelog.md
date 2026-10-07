@@ -128,3 +128,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: `scripts/aur check` reports pinned git sources and how many upstream commits are
   newer (first run: zelda3-git up to date; pegasus-frontend-stable-git's AUR pin c3462e68 is 25
   commits behind upstream).
+- 2026-10-07: idle wakeup and power pass. Pegasus patch 0003 (adaptive gamepad polling): idle
+  wakeups 72/s -> 20/s, CPU 2.4% -> 0.8%. USB irqs while the screen is on traced to the gamepad's
+  4 ms idle reports (inherent). Measured power on battery: screen on 2.56 W, backlight-0 1.92 W,
+  display off 1.45 W, so swayidle's DPMS off stays. Details in docs/power.md.

@@ -20,7 +20,7 @@
 11. If DSI resume failures (`flip_done timed out`) ever appear: see hardware.md "Prior art"
     (kernel patch, `i915.disable_power_well=0`, diagnostics capture).
 
-12. Measure s2idle battery drain (unplugged, known sleep time); then consider a shorter
-    HibernateDelaySec or the BIOS C-state limit.
+12. Measure s2idle battery drain (unplugged, known sleep time; method in power.md); then
+    consider a shorter HibernateDelaySec or the BIOS C-state limit.
 
 Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).

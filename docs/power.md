@@ -22,6 +22,28 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   while discharging.
 - Bar: battery text yellow at ≤30%, red at ≤15%, `+` while charging.
 
+## Measured power (2026-10-07, on battery, Pegasus idle, brightness 5%)
+| State | Current | Power |
+|---|---|---|
+| Screen on | 594 mA | 2.56 W |
+| Backlight 0, display powered | 448 mA | 1.92 W |
+| Display powered off (`output power off`, what swayidle does) | 336 mA | 1.45 W |
+
+Battery ~27 Wh (7.1 Ah) → ~10 h screen-on idle at 5% brightness, ~18 h display off. DPMS off
+is the right "screen off" despite causing ~64 i915 irq/s while off (backlight-0 draws more).
+Method: average `max170xx_battery/current_now` every 2 s for 60 s after 20 s settling, swayidle
+paused, run via `swaymsg exec` (brightnessctl needs the session).
+
+## Idle wakeups (after the Pegasus patches)
+- Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
+  answers its 4 ms interrupt poll with identical idle reports, 250 irq/s, whenever the screen is
+  on and something has it open (Pegasus/SDL, guide-button.py). It stops when the display is off
+  (the GPD apparently powers the pad down). No driver knob for the interval; accepted.
+- Pegasus: ~20 wakeups/s, 0.8% CPU (was 72/s, 2.4%) with adaptive gamepad polling (patch 0003).
+- Measure per-process wakeups via `voluntary_ctxt_switches` deltas in /proc/PID/task/*/status;
+  per-USB-device traffic with `usbmon` (`sudo modprobe usbmon`, read
+  `/sys/kernel/debug/usb/usbmon/1u`).
+
 ## Kernel
 - `kernel.nmi_watchdog = 0` (`/etc/sysctl.d/90-gpd.conf`): fewer timer wakeups.
 - C-states: `intel_idle` uses its own Cherry Trail table (C1..C7S) and ignores the BIOS C-state

@@ -14,6 +14,9 @@
   our build (aur/patches); now 0 fps, ~2% CPU, ~470 irq/s when idle. Measure with
   `WAYLAND_DEBUG=client` and count `wl_surface...commit()` per second (QSG_RENDER_TIMING crashes it).
   QML gotcha: inside an Animator, `parent` resolves to the enclosing Item's parent, not the Item.
+- Gamepad polling: Pegasus polled SDL every 16 ms for its whole lifetime (63 wakeups/s even with
+  the screen off or a game running). Patch 0003 polls at 16 ms while there is input and drops to
+  100 ms after 5 s without events (first input after a pause can take up to 100 ms).
 - Pegasus does not quit when it launches a game; it unloads its theme and waits. It flashes
   briefly while the theme reloads after a game exits.
 - Collections: one directory per collection under `~/Games`, each listed in
