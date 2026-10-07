@@ -40,7 +40,7 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
 ## Idle wakeups (after the Pegasus patches)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
   answers its 4 ms interrupt poll with identical idle reports, 250 irq/s, whenever the screen is
-  on and something has it open (Pegasus/SDL, guide-button.py). It stops when the display is off
+  on and something has it open (Pegasus/SDL, inputd). It stops when the display is off
   (the GPD apparently powers the pad down). No driver knob for the interval; accepted.
 - Pegasus: ~20 wakeups/s, 0.8% CPU (was 72/s, 2.4%) with adaptive gamepad polling (patch 0003).
 - Measure per-process wakeups via `voluntary_ctxt_switches` deltas in /proc/PID/task/*/status;

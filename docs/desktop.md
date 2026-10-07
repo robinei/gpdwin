@@ -9,20 +9,28 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
 - `theme`: Catppuccin Mocha palette, `default_border pixel 1`, muted focus colours, no title
   bars, `gaps inner 4` with `smart_gaps`/`smart_borders` (lone windows have no border/gap),
   wallpaper `wallpaper.jpg` (1280x720, Lanczos resize in linear light) on `$crust`. Bar on top.
-- `status.sh`: i3bar JSON; Wi-Fi SSID + signal (from `iwctl`, -90..-30 dBm → 0..100%), volume
-  (`vol N%`, dimmed `muted N%`; `osd.sh` sends SIGUSR1 so it updates at once), battery
-  (colours, see power.md), clock. Updates every 20 s to keep wakeups low.
+- Bar: `~/.local/bin/statusbar`, built from `src/statusbar.c` (one C file, event driven; the
+  header comment explains every source). `cpu 2.4G gpu 400M | ram 0.6/3.7G | <ssid> N% |
+  vol N% | bat N% | clock`. CPU = fastest core, GPU `idle` = RC6; both dimmed while turbo is
+  capped. Frequencies/RAM/clock every second, WiFi signal (/proc/net/wireless, -90..-30 dBm →
+  0..100%) every 10 s, battery every 30 s and at once on charger uevents, SSID (iwctl) on link
+  changes, volume (wpctl) when `osd.sh` sends SIGUSR1. The screen-off idle step SIGSTOPs it,
+  resume SIGCONTs it. Only changed lines are written.
 - `autostart`: Pegasus on workspace 1 (`assign` + `exec ~/.config/pegasus-frontend/run`),
-  `guide-button.py`, `for_window [app_id="pegasus-tool"] fullscreen enable`.
+  `~/.local/bin/inputd`, `for_window [app_id="pegasus-tool"] fullscreen enable`.
 - `handheld`: `seat * hide_cursor 3000`, swayidle (power.md), wob pipeline
   (`$XDG_RUNTIME_DIR/wob.sock`).
 - `osd.sh vol-up|vol-down|mute|bri-up|bri-down`: changes the value (wpctl / brightnessctl with
   `--min-value=2`) and writes it to wob. Idle dimming deliberately doesn't show wob.
-- `guide-button.py`: reads the pad's Guide button (BTN_MODE). Starts Pegasus if not running,
+- `inputd` (`src/inputd.c`): the pad's Guide button (BTN_MODE). Starts Pegasus if not running,
   focuses workspace 1 if it is, does nothing while a game launched by Pegasus (a child process)
-  runs. Reopens the device after resume. Needs `python` (marked explicit).
-- `turbo.sh`: see power.md. The bar shows the state: `cpu+ gpu+` = boost allowed, dimmed `cpu-`/`gpu-` = capped.
-- Bar: boost state, RAM used/total (total minus MemAvailable), WiFi, volume, battery, clock; refreshed every 20 s.
+  runs. The kernel only delivers BTN_MODE to it (EVIOCSMASK), and inotify on /dev/input reopens
+  the pad when it reappears (screen off, resume), so it never polls.
+- C programs (`src/`): manifest `build` entries; `scripts/sync install` compiles them when the
+  source is newer (`sync check` reports `BUILD outdated`). Restart after a rebuild:
+  `swaymsg reload` (statusbar, swaybar's child) and
+  `pkill -x inputd; swaymsg exec ~/.local/bin/inputd`.
+- `turbo.sh`: see power.md. Sends SIGUSR1 to statusbar so the dimming updates at once.
 
 Restarting wob: `pkill -x wob; pkill -x tail`, then `swaymsg exec` the pipeline from `handheld`.
 `swaymsg reload` does not re-run `exec` lines.

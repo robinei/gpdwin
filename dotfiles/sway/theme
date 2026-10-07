@@ -32,7 +32,7 @@ client.urgent           $red       $base    $red      $red       $red
 bar {
     position top
     font pango:DejaVu Sans 10
-    status_command ~/.config/sway/status.sh
+    status_command ~/.local/bin/statusbar
     status_padding 3
     colors {
         background $crust

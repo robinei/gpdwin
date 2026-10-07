@@ -70,6 +70,8 @@ The user is Robin (they/them).
 - `scripts/`: `sync` (manifest), `aur` (review/build), `update` (manual updates), `games`
   (game installer UI, `gamelib/`),
   `maintain` (Claude maintenance launcher), `news`, `fetch-boxart.py`.
+- `src/`: single-file C programs (`statusbar` = swaybar status line, `inputd` = Guide button),
+  built to `~/.local/bin` by `scripts/sync install` (manifest `build`). See docs/desktop.md.
 - `aur/`: `reviewed.tsv`, `pkgbuilds/` (vendored build files), `patches/` (our changes).
 - `.claude/commands/maintain.md` is the routine maintenance procedure (`/maintain`);
   `.claude/commands/aur-add.md` installs a new AUR package the reviewed, vendored way (`/aur-add`).

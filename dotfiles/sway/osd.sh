@@ -17,4 +17,4 @@ case "$1" in
         n=$(brightnessctl -m | cut -d, -f4 | tr -d %) ;;
 esac
 [ -p "$wob" ] && echo "$n" > "$wob"
-case "$1" in vol-*|mute) pkill -USR1 -x status.sh ;; esac   # redraw the bar now
+case "$1" in vol-*|mute) pkill -USR1 -x statusbar ;; esac   # update the bar now

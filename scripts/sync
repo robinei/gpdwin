@@ -5,6 +5,8 @@ manifest.tsv lists every file the repo manages:
   link  <repo path>  <live path>                  live path is a symlink into the repo
   copy  <repo path>  <live path>  <owner:group:mode>  repo holds a copy (root-owned files,
                                                       or files programs rewrite themselves)
+  build <repo path>  <live path>                  a C source compiled to the live path
+                                                      (rebuilt when the source is newer)
 
 Commands:
   sync check            report drift (missing/foreign links, copies that differ). Exit 1 on drift.
@@ -34,6 +36,8 @@ def manifest():
         f = line.split("\t")
         if f[0] == "link" and len(f) == 3:
             entries.append({"kind": "link", "repo": REPO / f[1], "live": expand(f[2])})
+        elif f[0] == "build" and len(f) == 3:
+            entries.append({"kind": "build", "repo": REPO / f[1], "live": expand(f[2])})
         elif f[0] == "copy" and len(f) == 4:
             owner, group, mode = f[3].split(":")
             entries.append({"kind": "copy", "repo": REPO / f[1], "live": expand(f[2]),
@@ -77,6 +81,10 @@ def read_live(e):
         return None
 
 
+def build_ok(e):
+    return e["live"].exists() and e["live"].stat().st_mtime >= e["repo"].stat().st_mtime
+
+
 def link_ok(e):
     return e["live"].is_symlink() and Path(os.readlink(e["live"])) == e["repo"]
 
@@ -90,6 +98,10 @@ def check(args):
             if not link_ok(e):
                 state = "not a symlink" if os.path.lexists(e["live"]) else "missing"
                 print(f"LINK {state:14} {e['live']}"); drift += 1
+        elif e["kind"] == "build":
+            if not build_ok(e):
+                state = "outdated" if e["live"].exists() else "missing"
+                print(f"BUILD {state:12} {e['live']}"); drift += 1
         else:
             try:
                 live = read_live(e)
@@ -147,6 +159,14 @@ def install(args):
             live.parent.mkdir(parents=True, exist_ok=True)
             live.symlink_to(e["repo"])
             print(f"linked {live}")
+            continue
+        if e["kind"] == "build":
+            if build_ok(e):
+                continue
+            live.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(["cc", "-O2", "-Wall", "-Wextra", "-o", str(live), str(e["repo"])], check=True)
+            print(f"built {live}")
+            hints.add(f"restart {live.name} (see docs/desktop.md)")
             continue
         data = e["repo"].read_bytes()
         if read_live(e) == data:

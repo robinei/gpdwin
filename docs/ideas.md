@@ -10,7 +10,7 @@
    or the stale AUR package). Beetle PSX needs a BIOS the user doesn't have.
 5. Psychonauts native install (multilib, 32-bit libs, Xwayland). See frontend.md.
 6. Gamepad activity doesn't reset sway idle (dims after 2 min while browsing Pegasus with the
-   pad). Options: `inhibit_idle focus` for Pegasus, or have guide-button.py inhibit while the pad
+   pad). Options: `inhibit_idle focus` for Pegasus, or have inputd inhibit while the pad
    is used.
 7. Remove `clang` (build-only, zelda3-git); disable unused `systemd-userdbd.socket`.
 8. Bluetooth firmware patch if Bluetooth is ever wanted.

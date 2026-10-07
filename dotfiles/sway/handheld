@@ -6,7 +6,7 @@ seat * hide_cursor 3000
 # Games and RetroArch inhibit idle while they run. Gamepad input does not count as activity.
 exec swayidle -w \
     timeout 120 '~/.config/sway/dim.sh' resume 'brightnessctl -q -r' \
-    timeout 180 '~/.config/sway/idle-screen-off.sh' resume 'swaymsg "output * power on"' \
+    timeout 180 '~/.config/sway/idle-screen-off.sh' resume 'swaymsg "output * power on"; pkill -CONT -x statusbar' \
     timeout 600 '~/.config/sway/idle-suspend.sh'
 
 # On-screen bar for volume/brightness

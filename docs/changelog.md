@@ -152,3 +152,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: sway max_render_time 12: dropped refreshes in games from ~13% to 0-0.3% (measured).
 - 2026-10-07: sway subpixel none instead of vbgr (grey antialiasing, smaller glyph caches).
 - 2026-10-07: status bar shows RAM used/total.
+- 2026-10-07: status bar and Guide button rewritten in C (`src/statusbar.c`, `src/inputd.c`, manifest `build`
+  entries): bar shows CPU/GPU clocks, updates every second and instantly on events; inputd only wakes
+  for the Guide button.

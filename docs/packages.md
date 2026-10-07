@@ -14,7 +14,7 @@ truth; this explains the choices.
 - Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
-- Build: `base-devel git` (AUR builds). `python` is explicit (guide-button.py, scripts).
+- Build: `base-devel git` (AUR builds). `python` is explicit (scripts). `gcc` (base-devel) also builds `src/*.c`.
   `clang` came with zelda3-git and is build-only (~100 MB+).
 - Installed by the user or other work: `firefox`, `yazi`, `7zip`.
 - Network: hostname `gpdwin.lan` via the router's DNS (iwd sends the hostname: `[IPv4]
