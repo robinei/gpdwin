@@ -8,7 +8,8 @@ truth; this explains the choices.
   `wireless-regdb`, `iw`, `pacman-contrib` (checkupdates, pacdiff, paccache).
 - Desktop: `sway swaybg swayidle foot fuzzel wob brightnessctl grim ttf-dejavu btop`, seatd
   (sway dependency, `seatd.service` enabled, user in group `seat`).
-- Audio: `pipewire pipewire-pulse wireplumber alsa-ucm-conf`.
+- Audio: `pipewire pipewire-pulse pipewire-alsa wireplumber alsa-ucm-conf` (all explicit;
+  pulse and ALSA apps both need their PipeWire bridge).
 - Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
 - Build: `base-devel git` (AUR builds). `python` is explicit (guide-button.py, scripts).

@@ -94,3 +94,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: Utilities > Save Status (`scripts/save-status` + `desktop/save-status-remote`,
   mapping in `games/saves.json`). The desktop's authorized_keys allows the GPD key to run only the
   read-only status script.
+- 2026-10-07: Bastion had no audio: its FMOD Ex uses ALSA, and without `pipewire-alsa` ALSA's
+  default was the busy hardware device. Installed `pipewire-alsa` (explicit); `/maintain` now
+  checks that both the PulseAudio and ALSA bridges to PipeWire are present.

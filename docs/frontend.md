@@ -110,6 +110,11 @@
   has not been created yet.
 
 ## Audio
+- Every app path must reach PipeWire: PulseAudio clients via `pipewire-pulse` (SDL, OpenAL,
+  Wine, `pactl`), ALSA clients via `pipewire-alsa` (`/etc/alsa/conf.d/99-pipewire-default.conf`
+  makes ALSA's default device PipeWire). Without `pipewire-alsa`, ALSA apps (e.g. Bastion's FMOD
+  Ex) open the busy hardware device, fail silently, and play nothing. Check: `pactl info` says
+  "PulseAudio (on PipeWire)", and an ALSA app shows up in `pw-top` as `alsa_playback.<name>`.
 - PipeWire + WirePlumber + pipewire-pulse, 48 kHz, quantum 1024-2048: `min-quantum = 1024`
   (`dotfiles/pipewire/...`), because this Atom without RTKit (realtime priority) underran
   constantly at 512 (10.7 ms).
