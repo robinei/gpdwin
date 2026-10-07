@@ -75,3 +75,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: captured RetroArch settings saved from its menu (see git diff of dotfiles/retroarch/retroarch.cfg).
 - 2026-10-07: bar shows volume / mute; the volume keys signal the bar script (SIGUSR1) to redraw
   immediately instead of waiting for the 20 s tick.
+- 2026-10-07: audio fixes for Super Meat Boy (native, OpenAL): `~/.config/alsoft.conf` uses the
+  pulse backend with 1024-sample periods (PipeWire backend pulsed); PipeWire `min-quantum = 1024`
+  (512 underran). Installer: prefers the game's own shebang launch script (no `.sh` needed),
+  restores exec bits DepotDownloader drops, and the Pegasus restart escalates to SIGKILL (an
+  ignored SIGTERM had left two Pegasus instances). SMB's launcher now runs its own script.

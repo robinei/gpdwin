@@ -228,8 +228,11 @@ def restart_pegasus_after_exit():
     if not subprocess.run(["pgrep", "-x", "pegasus-fe"], capture_output=True).stdout:
         return
     me = os.getpid()
+    # Pegasus sometimes ignores SIGTERM; escalate to SIGKILL so we never end up with two.
     script = (f"while kill -0 {me} 2>/dev/null; do sleep 0.3; done; sleep 0.5; pkill -x pegasus-fe; "
-              f"sleep 1.5; swaymsg exec ~/.config/pegasus-frontend/run")
+              f"for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -x pegasus-fe >/dev/null || break; sleep 0.3; done; "
+              f"pkill -KILL -x pegasus-fe; sleep 0.5; "
+              f"pgrep -x pegasus-fe >/dev/null || swaymsg exec ~/.config/pegasus-frontend/run")
     subprocess.Popen(["setsid", "-f", "sh", "-c", script], stdin=subprocess.DEVNULL,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

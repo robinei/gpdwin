@@ -81,7 +81,8 @@
   SteamID are saved in `~/.config/gpd/games.json` (not in the repo). Interrupted downloads resume
   on the next install.
 - After download: Steam portrait cover → `gpd-cover.jpg`, executable detection (skips
-  uninstallers, redists, crash handlers; asks when unsure), `gpd-launch.sh` (native, or
+  uninstallers, redists, crash handlers; prefers the game's own `#!` launch script, which sets
+  cwd/env; DepotDownloader drops exec bits, so they are restored; asks when unsure), `gpd-launch.sh` (native, or
   `wine` with the shared `~/.wine` prefix and `WINEDEBUG=-all`), record in `.gpd-game.json`.
 - `~/Games/installed/metadata.pegasus.txt` is regenerated from the records with
   `collection: PC Games` / `shortname: pc`, so Pegasus merges these games into PC Games
@@ -108,5 +109,12 @@
   has not been created yet.
 
 ## Audio
-- PipeWire + WirePlumber + pipewire-pulse, 48 kHz, quantum up to 2048. Speaker sink
+- PipeWire + WirePlumber + pipewire-pulse, 48 kHz, quantum 1024-2048: `min-quantum = 1024`
+  (`dotfiles/pipewire/...`), because this Atom without RTKit (realtime priority) underran
+  constantly at 512 (10.7 ms).
+- OpenAL Soft (`dotfiles/openal/alsoft.conf`, used by e.g. Super Meat Boy): its PipeWire backend
+  gave pulsing audio (512-sample periods half-filling the 1024 graph); `drivers = pulse,...` with
+  `period_size = 1024` fixed it.
+- Rule of thumb when a game's audio stutters or pulses: match the app to 48 kHz, look at `pw-top`
+  (ERR column, QUANT of the stream), and check which backend/library the game uses. Speaker sink
   `alsa_output.platform-cht-bsw-rt5645.HiFi__Speaker__sink`. Check xruns with `pw-top` (ERR).

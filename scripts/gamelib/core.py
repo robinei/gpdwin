@@ -105,24 +105,27 @@ def find_executables(dirpath, osname, game_name):
             continue
         rel = p.relative_to(root)
         depth = len(rel.parts) - 1
+        head = b""
         if osname == "windows":
             if p.suffix.lower() != ".exe" or WIN_SKIP.search(p.name):
                 continue
         else:
             if LIN_SKIP.search(p.name) or ".so" in p.name:
                 continue
-            is_script = p.suffix in (".sh",) or p.suffix in (".x86_64", ".x86", ".bin")
             try:
                 with p.open("rb") as f:
-                    is_elf = f.read(4) == b"\x7fELF"
+                    head = f.read(4)
             except OSError:
-                is_elf = False
+                head = b""
+            is_elf = head == b"\x7fELF"
+            is_shebang = head[:2] == b"#!"
+            is_script = is_shebang or p.suffix in (".sh", ".x86_64", ".x86", ".bin")
             if not (is_script or is_elf):   # exec bits may be missing after download
                 continue
         size = p.stat().st_size
         score = _similar(p.stem, game_name) * 10 - depth * 3 + min(size / 2**20, 50) / 10
-        if osname == "linux" and p.suffix == ".sh":
-            score += 4                      # launch scripts usually set up the environment
+        if osname == "linux" and (p.suffix == ".sh" or (head[:2] == b"#!" if osname == "linux" else False)):
+            score += 4                      # the game's own launch script sets up cwd/env
         if "launcher" in p.name.lower():
             score -= 2
         cands.append((str(rel), round(score, 1)))
@@ -152,6 +155,15 @@ def write_launcher(rec, force=False):
         runner, env = "native", ""
         target = d / exe
         target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        with target.open("rb") as f:
+            is_script = f.read(2) == b"#!"
+        if is_script:
+            # the script may exec other binaries whose exec bits DepotDownloader dropped
+            for b in d.rglob("*"):
+                if b.is_file() and not b.is_symlink():
+                    with b.open("rb") as f:
+                        if f.read(4) == b"\x7fELF" and ".so" not in b.name:
+                            b.chmod(b.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         cmd = f'"./{exe.name}"'
     path.write_text(LAUNCHER.format(name=rec["name"], source=rec["source"], id=rec["id"],
                                     runner=runner, workdir=workdir, env=env, cmd=cmd))
