@@ -1,6 +1,7 @@
 #!/bin/sh
-# WiFi + battery + clock for swaybar (i3bar JSON so the battery can change colour).
-# Updates every 20s to keep wakeups low; SIGUSR1 (sent by osd.sh) redraws at once.
+# CPU/GPU boost + WiFi + volume + battery + clock for swaybar (i3bar JSON so the battery can change colour).
+# Updates every 20s to keep wakeups low; SIGUSR1 (sent by osd.sh and turbo.sh)
+# redraws at once.
 bat=/sys/class/power_supply/max170xx_battery
 chg=/sys/class/power_supply/bq24190-charger
 text=#cdd6f4 yellow=#f9e2af red=#f38ba8 dim=#7f849c
@@ -21,6 +22,19 @@ volume() {
     v=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null) || { echo "vol ?"; return; }
     pct=$(echo "$v" | awk '{print int($2*100+0.5)}')
     case "$v" in *MUTED*) echo "muted ${pct}%" ;; *) echo "vol ${pct}%" ;; esac
+}
+
+# Boost state as "cpu+"/"gpu+" (turbo allowed) or a dimmed "cpu-"/"gpu-" (capped by turbo.sh).
+boost() { # cpu|gpu -> prints "on" or "off"
+    case "$1" in
+    cpu) [ "$(cat /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null)" = 1 ] && echo off || echo on ;;
+    gpu) d=$(ls -d /sys/class/drm/card*/gt/gt0 2>/dev/null | head -1)
+         [ -n "$d" ] && [ "$(cat $d/rps_max_freq_mhz)" -lt "$(cat $d/rps_RP0_freq_mhz)" ] && echo off || echo on ;;
+    esac
+}
+
+boostblock() {
+    if [ "$(boost $1)" = on ]; then block "$1+" "$text"; else block "$1-" "$dim"; fi
 }
 
 json() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
@@ -48,7 +62,9 @@ while :; do
     fi
     vol=$(volume)
     vcol=$text; case "$vol" in muted*) vcol=$dim ;; esac
-    printf '[%s,%s,%s,%s],\n' \
+    printf '[%s,%s,%s,%s,%s,%s],\n' \
+        "$(boostblock cpu)" \
+        "$(boostblock gpu)" \
         "$(block "$w" "$wcol")" \
         "$(block "$vol" "$vcol")" \
         "$(block "bat ${cap}%${mark}" "$bcol")" \

@@ -21,7 +21,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
 - `guide-button.py`: reads the pad's Guide button (BTN_MODE). Starts Pegasus if not running,
   focuses workspace 1 if it is, does nothing while a game launched by Pegasus (a child process)
   runs. Reopens the device after resume. Needs `python` (marked explicit).
-- `turbo.sh`: see power.md.
+- `turbo.sh`: see power.md. The bar shows the state: `cpu+ gpu+` = boost allowed, dimmed `cpu-`/`gpu-` = capped.
 
 Restarting wob: `pkill -x wob; pkill -x tail`, then `swaymsg exec` the pipeline from `handheld`.
 `swaymsg reload` does not re-run `exec` lines.

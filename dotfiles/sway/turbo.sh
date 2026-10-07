@@ -28,3 +28,4 @@ esac
 
 # Show the state read back from the hardware, so a failed write never shows a wrong bar.
 [ -p "$wob" ] && echo "$((on * 100)) $1" > "$wob"
+pkill -USR1 -x status.sh   # redraw the bar now

@@ -147,3 +147,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: idle screen-off only on battery (`idle-screen-off.sh`); on AC the screen just dims.
 - 2026-10-07: `mitigations=off` (syscalls 10x cheaper; HLD uses ~12% less CPU, emulators ~1%). Benchmarks in docs/power.md.
 - 2026-10-07: vm.swappiness 10; THP deliberately left at always (reasoning in docs/power.md).
+- 2026-10-07: status bar shows CPU/GPU boost (cpu+/gpu+, dimmed cpu-/gpu- when capped); turbo.sh redraws it.
