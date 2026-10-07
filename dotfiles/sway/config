@@ -21,6 +21,10 @@ set $menu fuzzel
 ### Output configuration
 #
 output DSI-1 transform 90
+# Subpixel order as seen after rotation: the portrait panel's RGB stripes (left->right natively)
+# run bottom->top here. The kernel reports native "rgb"; foot/fuzzel use the value as-is, unrotated.
+# Only matters for opaque windows (translucent foot/fuzzel use grey antialiasing anyway).
+output DSI-1 subpixel vbgr
 #
 # Example configuration:
 #
