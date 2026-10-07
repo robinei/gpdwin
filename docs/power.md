@@ -109,3 +109,11 @@ clearing), Spectre v1/v2. Measured on the same device, default vs off:
 
 Emulators barely notice; Wine games (wineserver round trips, futexes, GPU ioctls) gain clearly.
 To revert: remove `mitigations=off` from `system/boot/loader/entries/arch.conf`, `scripts/sync apply`.
+
+## Memory
+- `vm.swappiness = 10` (sysctl.d/90-gpd.conf): swap is the eMMC partition used for hibernation;
+  keep game memory in RAM as long as possible.
+- Transparent huge pages left at the Arch default `enabled=always, defrag=madvise`: Wine, glibc
+  malloc and emulators don't madvise, so `madvise` would cost them huge pages (more TLB misses on
+  the small Airmont TLB) for only ~5 khugepaged wakeups/s saved. Allocation never stalls on
+  compaction with defrag=madvise.
