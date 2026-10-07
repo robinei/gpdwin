@@ -23,7 +23,7 @@ The user is Robin (they/them).
   contradictions. Findings that cost time to discover belong in the docs.
 - Don't reboot, suspend, or restart sway/Pegasus without asking; the user may be playing.
 - Prefer official repo packages. AUR packages only through `scripts/aur` (review, then build).
-  Keep the AUR set small. Never `yay -S` / `yay -Syu` for AUR builds (yay is for searching).
+  Keep the AUR set small. No AUR helper (yay was removed): search with `scripts/aur search`.
   New AUR package: follow `/aur-add`.
 
 ## sudo

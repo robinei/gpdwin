@@ -5,6 +5,7 @@ Every installed AUR package has a "reviewed" AUR commit in aur/reviewed.tsv. Upd
 shown as a diff from that commit, and only built after review.
 
 Commands:
+  aur search TERM..         search the AUR (name and description), most votes first
   aur check                 list foreign packages, AUR version, and whether an update is pending
   aur review PKG            fetch PKG's AUR repo and show what changed since the reviewed commit
                             (full PKGBUILD/.install/etc. if never reviewed)
@@ -27,7 +28,7 @@ Build notes: repo dependencies are installed with `sudo -n pacman --asdeps` and 
 without -s (sudo has no TTY under Claude; run `sudo -v` in a terminal first). AUR-only
 dependencies are not resolved; build those first.
 """
-import json, subprocess, sys, urllib.request
+import json, subprocess, sys, urllib.parse, urllib.request
 from datetime import date
 from pathlib import Path
 
@@ -116,6 +117,22 @@ def vendor(args):
 
 def vercmp(a, b):
     return int(out(["vercmp", a, b]))
+
+
+def search(args):
+    q = urllib.parse.quote(" ".join(args))
+    with urllib.request.urlopen(f"https://aur.archlinux.org/rpc/v5/search/{q}?by=name-desc", timeout=30) as r:
+        results = json.load(r)["results"]
+    installed = set(out(["pacman", "-Qmq"]).split())
+    for x in sorted(results, key=lambda x: -x.get("NumVotes", 0))[:40]:
+        flags = " [out of date]" if x.get("OutOfDate") else ""
+        flags += " [installed]" if x["Name"] in installed else ""
+        print(f"{x['Name']} {x['Version']}  votes {x.get('NumVotes', 0)}  "
+              f"updated {date.fromtimestamp(x['LastModified'])}  {x.get('Maintainer') or 'ORPHAN'}{flags}")
+        print(f"    {x.get('Description') or ''}")
+    if not results:
+        print("no matches")
+    return 0
 
 
 def check(_):
@@ -284,7 +301,7 @@ def mark(args):
 
 
 def main():
-    cmds = {"check": check, "review": review, "build": build, "mark": mark, "vendor": vendor}
+    cmds = {"check": check, "search": search, "review": review, "build": build, "mark": mark, "vendor": vendor}
     if len(sys.argv) < 2 or sys.argv[1] not in cmds or (sys.argv[1] not in ("check", "vendor") and len(sys.argv) < 3):
         print(__doc__); return 2
     return cmds[sys.argv[1]](sys.argv[2:])

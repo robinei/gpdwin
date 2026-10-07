@@ -44,7 +44,7 @@ informed in short lines; they are on a small screen with a keyboard.
      If upstream fixed the problem itself, delete the patch and note it in the changelog.
    - After the build, check what each patch was for still holds (e.g. Pegasus idle: 0 frames/s,
      see docs/frontend.md), and that `git diff aur/pkgbuilds` matches what you reviewed.
-   - Never use `yay -S`/`yay -Syu` for AUR builds; yay is only for searching (`yay -Ss`).
+   - AUR packages are only built with `scripts/aur` (yay is not installed).
    - After updating `pegasus-frontend-stable-git`, tell the user to restart Pegasus.
 
 5. **pacnew/pacsave.** `pacdiff -o`. For each, diff against the live file, merge sensibly (keep

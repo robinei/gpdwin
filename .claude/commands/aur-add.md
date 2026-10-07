@@ -8,7 +8,7 @@ The user wants a new AUR package: $ARGUMENTS
 Prefer the official repos: check `pacman -Ss` first, and only use the AUR if nothing official
 fits. Keep the AUR set small (docs/packages.md "AUR policy").
 
-1. **Pick the package.** `yay -Ss <term>` (search only). Compare candidates: `-bin` (upstream
+1. **Pick the package.** `scripts/aur search <term>`. Compare candidates: `-bin` (upstream
    binaries, quick) vs source builds (slow on this Atom) vs `-git` (unpinned upstream HEAD).
    Check votes, last update, out-of-date flag, maintainer. Recommend one and say why.
 2. **Review.** `scripts/aur review PKG` shows every file of a never-reviewed package. Read all

@@ -123,3 +123,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: `/maintain` AUR step updated for vendoring, patches (what to do when one no longer
   applies), pinned `-git` packages and detached long builds; new `/aur-add` command for
   installing new AUR packages the reviewed, vendored way. yay stays (search only).
+- 2026-10-07: removed yay (`yay-bin`, its cache/config and vendored copy); `scripts/aur search`
+  replaces `yay -Ss`. git/base-devel stay (needed for `scripts/aur` builds).
