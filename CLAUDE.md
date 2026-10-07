@@ -6,6 +6,8 @@ eMMC, 5.5" 1280x720 panel that is natively portrait), running sway + Pegasus + R
 The user is Robin (they/them).
 
 ## Rules
+- The repo is cloned on the GPD (`~/gpd`) and the desktop (`~/Code/gpdwin`); both push to
+  GitHub. Start every session with `git pull --ff-only`.
 - **Every change to the system goes through this repo.** Edit, then record it in
   `docs/changelog.md` (date, what, why, how to revert) and update the topic doc in `docs/`.
   Commit when a piece of work is done (`git add -A && git commit`), then `git push`
