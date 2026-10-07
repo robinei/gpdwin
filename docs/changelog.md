@@ -187,3 +187,9 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: AUR `lib32-sdl12-compat` updated to 1.2.68-2 (reviewed AUR commit 90b185b9f12e).
 - 2026-10-07: lib32-sdl2-compat + lib32-sdl12-compat; installer swaps bundled SDL 1.2/2 for the system compat libs (per architecture); Psychonauts camera axes fixed.
 - 2026-10-07: HLD switched to the native build (run.sh, saves moved from the Wine prefix); installer prefers games' own launch scripts.
+
+## 2026-10-08 — maintenance pass
+- No repo updates pending (kernel 7.2.9 running). No AUR updates; pegasus pin is 25 upstream commits behind (latest 2026-10-02), zelda3 current.
+- Arch news: mkinitcpio 42 TPM2/LUKS item does not apply (no LUKS here).
+- No .pacnew, no failed units, firewall (policy drop) and PipeWire audio paths intact; journal errors only known-harmless hardware messages.
+- Orphans left in place: qt5-tools, cmake. Disk 19G/53G used.
