@@ -20,8 +20,9 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   1.7 ms CPU/s (0.17% of a core); the GPU stays in RC6.
 - `autostart`: Pegasus on workspace 1 (`assign` + `exec ~/.config/pegasus-frontend/run`),
   `~/.local/bin/inputd`, `for_window [workspace="^1$" tiling] fullscreen enable` (everything
-  Pegasus starts is fullscreen; dialogs float), `pegasus-fullscreen.sh` (gives Pegasus fullscreen back
-  when it regains focus after a game; sway allows one fullscreen window per workspace).
+  Pegasus starts is fullscreen; dialogs float), `fullscreen-stack.sh` (whichever tiled window on
+  workspace 1 gets focus becomes fullscreen, so closing a game brings Pegasus or the window below
+  back fullscreen; sway allows one fullscreen window per workspace).
 - `handheld`: `seat * hide_cursor 3000`, swayidle (power.md), wob pipeline
   (`$XDG_RUNTIME_DIR/wob.sock`).
 - `osd.sh vol-up|vol-down|mute|bri-up|bri-down`: changes the value (wpctl / brightnessctl with

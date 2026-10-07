@@ -162,4 +162,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   estimate shown in the list and the game menu.
 - 2026-10-07: installer shows the exact download/disk size (DepotDownloader -manifest-only) and free
   space before installing, then asks Install? [Y/n].
-- 2026-10-07: every tiled window on workspace 1 is fullscreen; Pegasus gets fullscreen back after games.
+- 2026-10-07: every tiled window on workspace 1 is fullscreen; the window below gets fullscreen back when the top one closes (`fullscreen-stack.sh`).

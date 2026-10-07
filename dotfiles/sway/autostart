@@ -3,7 +3,8 @@ assign [app_id="org.pegasus-frontend.pegasus-fe"] workspace number 1
 exec ~/.config/pegasus-frontend/run
 exec ~/.local/bin/inputd
 
-# Everything on workspace 1 (Pegasus and whatever it starts: games, Utilities tools) runs
-# fullscreen. Floating windows (dialogs) are left alone.
+# Workspace 1 is a stack of fullscreen windows: Pegasus and whatever it starts (games, Utilities
+# tools). New windows open fullscreen, fullscreen-stack.sh restores the one below when the top one
+# closes. Floating windows (dialogs) are left alone.
 for_window [workspace="^1$" tiling] fullscreen enable
-exec ~/.config/sway/pegasus-fullscreen.sh
+exec ~/.config/sway/fullscreen-stack.sh
