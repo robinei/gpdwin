@@ -155,3 +155,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: status bar and Guide button rewritten in C (`src/statusbar.c`, `src/inputd.c`, manifest `build`
   entries): bar shows CPU/GPU clocks, updates every second and instantly on events; inputd only wakes
   for the Guide button.
+- 2026-10-07: TXE runtime PM (udev rule, ~80 mW); idle suspend after 20 min instead of 10.

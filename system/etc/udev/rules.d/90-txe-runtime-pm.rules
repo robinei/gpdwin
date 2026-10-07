@@ -1,0 +1,3 @@
+# Let the TXE (Intel security engine, unused here) runtime-suspend; the kernel leaves it always on.
+# Measured ~80 mW less with the screen on (docs/power.md).
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x8086", ATTR{device}=="0x2298", ATTR{power/control}="auto"

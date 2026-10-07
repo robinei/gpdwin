@@ -14,7 +14,7 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 ## Idle (swayidle, `dotfiles/sway/handheld`)
 - 2 min: dim to a third of current brightness, min 2% (`dim.sh`; restored on activity).
 - 3 min: screen off, on battery only (`idle-screen-off.sh`); on AC the screen stays dimmed.
-- 10 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
+- 20 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
   `bq24190-charger/online`).
 - The charger state is checked when the timeout fires: unplugging while already dimmed doesn't
   turn the screen off until the next idle period.
@@ -117,3 +117,11 @@ To revert: remove `mitigations=off` from `system/boot/loader/entries/arch.conf`,
   malloc and emulators don't madvise, so `madvise` would cost them huge pages (more TLB misses on
   the small Airmont TLB) for only ~5 khugepaged wakeups/s saved. Allocation never stalls on
   compaction with defrag=madvise.
+
+## Runtime PM
+- TXE (`00:1a.0`, mei_txe) runtime-suspends via `90-txe-runtime-pm.rules`; the kernel left it
+  `control=on`. A/B with dimmed screen on battery: 2131 vs 2047 mW (~80 mW, noisy).
+- Still `control=on`, deliberately: Broadcom WiFi (brcmfmac has no runtime PM), the keyboard and
+  pad USB devices (the pad's 250 Hz polling keeps the xHCI awake anyway while the screen is on).
+- Idle power 2026-10-07: dimmed screen on ~2.05 W, screen off ~1 W (WiFi connected; the
+  SoC only reaches S0i3 in real suspend).
