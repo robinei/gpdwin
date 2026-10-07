@@ -22,6 +22,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   focuses workspace 1 if it is, does nothing while a game launched by Pegasus (a child process)
   runs. Reopens the device after resume. Needs `python` (marked explicit).
 - `turbo.sh`: see power.md. The bar shows the state: `cpu+ gpu+` = boost allowed, dimmed `cpu-`/`gpu-` = capped.
+- Bar: boost state, RAM used/total (total minus MemAvailable), WiFi, volume, battery, clock; refreshed every 20 s.
 
 Restarting wob: `pkill -x wob; pkill -x tail`, then `swaymsg exec` the pipeline from `handheld`.
 `swaymsg reload` does not re-run `exec` lines.

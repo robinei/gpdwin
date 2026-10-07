@@ -1,5 +1,5 @@
 #!/bin/sh
-# CPU/GPU boost + WiFi + volume + battery + clock for swaybar (i3bar JSON so the battery can change colour).
+# CPU/GPU boost + RAM + WiFi + volume + battery + clock for swaybar (i3bar JSON so the battery can change colour).
 # Updates every 20s to keep wakeups low; SIGUSR1 (sent by osd.sh and turbo.sh)
 # redraws at once.
 bat=/sys/class/power_supply/max170xx_battery
@@ -37,6 +37,11 @@ boostblock() {
     if [ "$(boost $1)" = on ]; then block "$1+" "$text"; else block "$1-" "$dim"; fi
 }
 
+# Used/total RAM in GB; "used" = total - available (what apps can't get back without swapping).
+ram() {
+    awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} END{printf "ram %.1f/%.1fG", (t-a)/1048576, t/1048576}' /proc/meminfo
+}
+
 json() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
 block() { # text colour [last]
@@ -62,9 +67,10 @@ while :; do
     fi
     vol=$(volume)
     vcol=$text; case "$vol" in muted*) vcol=$dim ;; esac
-    printf '[%s,%s,%s,%s,%s,%s],\n' \
+    printf '[%s,%s,%s,%s,%s,%s,%s],\n' \
         "$(boostblock cpu)" \
         "$(boostblock gpu)" \
+        "$(block "$(ram)" "$text")" \
         "$(block "$w" "$wcol")" \
         "$(block "$vol" "$vcol")" \
         "$(block "bat ${cap}%${mark}" "$bcol")" \
