@@ -103,3 +103,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: Hyper Light Drifter's Linux build is 32-bit (no 32-bit loader without multilib), so
   it can't start. Installer now warns about 32-bit Linux builds and suggests the Windows build
   (Wine WoW64 runs 32-bit Windows games without multilib).
+- 2026-10-07: Hyper Light Drifter (Windows build via Wine) rendered in a corner: Wine's Wayland
+  driver sees the unrotated 720x1280 panel. Installed `xorg-xwayland` so Wine uses X11 (needs a
+  sway restart to take effect).

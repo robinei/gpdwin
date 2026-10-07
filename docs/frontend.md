@@ -108,8 +108,11 @@
   weak, so Wine's own D3D→OpenGL (wined3d) is the default. Add DXVK to the prefix only if a game
   needs it, and opt games out per launcher with `WINEDLLOVERRIDES="d3d9,d3d11,dxgi=b"`.
 - GE-Proton via umu-launcher was rejected: Steam Linux Runtime + GE-Proton is 1.5 GB+.
-- Not yet verified: whether Wine uses its Wayland driver here (no Xwayland installed). The prefix
-  has not been created yet.
+- Display: Wine's Wayland driver ignores sway's output rotation and sees the panel's native
+  720x1280, so fullscreen games draw into a corner (Hyper Light Drifter; its virtual desktop
+  option has no effect with the Wayland driver). `xorg-xwayland` is installed so Wine uses its
+  X11 driver, which gets the rotated 1280x720 (sway starts Xwayland only if it is installed when
+  sway starts). Old X11-only native games also use it.
 
 ## Audio
 - Every app path must reach PipeWire: PulseAudio clients via `pipewire-pulse` (SDL, OpenAL,
