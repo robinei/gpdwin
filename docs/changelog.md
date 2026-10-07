@@ -97,3 +97,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: Bastion had no audio: its FMOD Ex uses ALSA, and without `pipewire-alsa` ALSA's
   default was the busy hardware device. Installed `pipewire-alsa` (explicit); `/maintain` now
   checks that both the PulseAudio and ALSA bridges to PipeWire are present.
+- 2026-10-07: audio latency: capped the speaker's hardware buffer from ~714 ms (34 periods) to
+  ~84 ms (4 x 1008 frames) with a WirePlumber rule; Bastion's lag is gone. Revert: delete
+  `~/.config/wireplumber/wireplumber.conf.d/51-speaker-latency.conf`, restart wireplumber.

@@ -118,6 +118,10 @@
 - PipeWire + WirePlumber + pipewire-pulse, 48 kHz, quantum 1024-2048: `min-quantum = 1024`
   (`dotfiles/pipewire/...`), because this Atom without RTKit (realtime priority) underran
   constantly at 512 (10.7 ms).
+- Speaker hardware buffer: the SST driver came up with 34 x 1008-frame periods (~714 ms), which
+  made audio lag (noticed in Bastion). WirePlumber rule `dotfiles/wireplumber/.../51-speaker-latency.conf`
+  caps it at 4 periods (driver keeps 1008 frames: 4032 = ~84 ms). No extra underruns seen. If
+  crackles appear, raise `api.alsa.period-num` to 6-8. Check: `/proc/asound/card1/pcm0p/sub0/hw_params`.
 - OpenAL Soft (`dotfiles/openal/alsoft.conf`, used by e.g. Super Meat Boy): its PipeWire backend
   gave pulsing audio (512-sample periods half-filling the 1024 graph); `drivers = pulse,...` with
   `period_size = 1024` fixed it.
