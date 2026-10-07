@@ -185,3 +185,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: AUR `lib32-sdl2-compat` updated to 2.32.74-1 (reviewed AUR commit 9b3db2d26721).
 
 - 2026-10-07: AUR `lib32-sdl12-compat` updated to 1.2.68-2 (reviewed AUR commit 90b185b9f12e).
+- 2026-10-07: lib32-sdl2-compat + lib32-sdl12-compat; installer swaps bundled SDL 1.2/2 for the system compat libs (per architecture); Psychonauts camera axes fixed.

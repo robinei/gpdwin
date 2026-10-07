@@ -177,14 +177,21 @@ def launch_target_32bit(dirpath, exe):
     return 32 in bits and 64 not in bits
 
 def disable_old_bundled_sdl(dirpath):
-    """Old Linux ports (FNA/MonoKickstart, e.g. Bastion) bundle an SDL2 without Wayland support;
-    with no X server it finds no display. Move such copies aside so the system SDL (sdl2-compat on
-    SDL3, Wayland-capable) is used. Returns the renamed paths."""
+    """Old Linux ports bundle an old SDL: SDL2 without Wayland support (FNA/MonoKickstart, e.g.
+    Bastion; with no X server it finds no display), or the original SDL 1.2 (native Psychonauts:
+    its fullscreen and mouse handling break under Xwayland on the rotated panel). Move such copies
+    aside so the system's compat libraries are used (sdl2-compat and sdl12-compat on SDL3, Wayland
+    capable), but only if one exists for the same architecture (lib32-* for 32-bit games). The
+    game's own rpath ($ORIGIN) would otherwise always pick the bundled copy. Returns the renamed
+    paths."""
     moved = []
-    for lib in Path(dirpath).rglob("libSDL2-2.0.so.0"):
-        if lib.is_symlink() or not lib.is_file():
-            continue
-        if b"wayland" not in lib.read_bytes():
+    for name, modern in (("libSDL2-2.0.so.0", b"wayland"), ("libSDL-1.2.so.0", b"SDL12COMPAT")):
+        for lib in Path(dirpath).rglob(name):
+            if lib.is_symlink() or not lib.is_file() or modern in lib.read_bytes():
+                continue
+            libdir = {32: "/usr/lib32", 64: "/usr/lib"}.get(elf_bits(lib))
+            if not libdir or not (Path(libdir) / name).exists():
+                continue
             target = lib.with_name(lib.name + ".bundled")
             lib.rename(target)
             moved.append(str(target))

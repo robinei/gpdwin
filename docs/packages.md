@@ -59,7 +59,7 @@ truth; this explains the choices.
 - AUR packages are built only via `scripts/aur` after reviewing the diff since the last
   reviewed AUR commit (`aur/reviewed.tsv`). `scripts/update` and `/maintain` do this.
 - Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin`, `lib32-openal`
-  (multilib, patched: no JACK/PortAudio), plus our rebuild `mangohud-light` of the repo package
+  (multilib, patched: no JACK/PortAudio), `lib32-sdl2-compat`, `lib32-sdl12-compat`, plus our rebuild `mangohud-light` of the repo package
   (aur/pkgbuilds/mangohud-light, `.arch-package`). yay-bin removed 2026-10-07.
   `-git` packages build upstream HEAD, which the PKGBUILD review doesn't cover.
 - No AUR helper: `scripts/aur search` (AUR RPC) replaces `yay -Ss`; builds only via `scripts/aur`.

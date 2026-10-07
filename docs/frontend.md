@@ -122,6 +122,12 @@
   Xwayland's rotated emulated modes break (picture pushed down, mouse offset). Run it windowed at
   1280x720 (`~/.local/share/Psychonauts/DisplaySettings.ini`: `FullScreen=false`); sway makes the
   window fullscreen, which fits exactly. 32-bit MangoHud: `lib32-mangohud` (multilib).
+  Mouse clicks landed at scaled coordinates with the bundled original SDL 1.2, so it uses the
+  system's `lib32-sdl12-compat` (on lib32-sdl2-compat on SDL3; both AUR): the installer moves
+  bundled `libSDL-1.2.so.0`/`libSDL2-2.0.so.0` to `*.bundled` when a system compat lib of the
+  same architecture exists (the games' `$ORIGIN` rpath would pick the bundled copy otherwise).
+  Camera spin with the pad (PCGamingWiki): in `~/.local/share/Psychonauts/Profiles/*/*.ini` map
+  `LookUp/Down_Alt=JoyRotY`, `LookLeft/Right_Alt=JoyRotX` (default uses the triggers' axes).
 
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
