@@ -13,8 +13,11 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 
 ## Idle (swayidle, `dotfiles/sway/handheld`)
 - 2 min: dim to a third of current brightness, min 2% (`dim.sh`; restored on activity).
-- 3 min: screen off. 10 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
+- 3 min: screen off, on battery only (`idle-screen-off.sh`); on AC the screen stays dimmed.
+- 10 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
   `bq24190-charger/online`).
+- The charger state is checked when the timeout fires: unplugging while already dimmed doesn't
+  turn the screen off until the next idle period.
 - Games and RetroArch inhibit idle. **Gamepad input does not count as activity** for sway.
 
 ## Battery

@@ -144,3 +144,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: verified CPU boost (2.4 GHz all cores), idle floor (480 MHz, C7), and the Mod4+F11
   CPU turbo toggle (1.6 GHz cap and back); GPU idles in RC6 (0 MHz), boosts above 400 MHz with
   turbo on and respects the 400 MHz cap from Mod4+F12. Details in docs/power.md.
+- 2026-10-07: idle screen-off only on battery (`idle-screen-off.sh`); on AC the screen just dims.
