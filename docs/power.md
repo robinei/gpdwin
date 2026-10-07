@@ -12,10 +12,10 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - Suspend needed the xHCI wakeup fix (hardware.md).
 
 ## Idle (swayidle, `dotfiles/sway/handheld`)
-- 2 min: dim to a third of current brightness, min 2% (`dim.sh`; restored on activity).
+- 2 min: dim to a third of current brightness, min 1% (`dim.sh`; restored on activity).
+- 3 min: screen off, on battery only (`idle-screen-off.sh`); on AC the screen stays dimmed.
 - 10 min: dim further to 1% (matters on AC, where the screen stays on; resume restores the
   brightness saved at the first level).
-- 3 min: screen off, on battery only (`idle-screen-off.sh`); on AC the screen stays dimmed.
 - 20 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
   `bq24190-charger/online`).
 - The charger state is checked when the timeout fires: unplugging while already dimmed doesn't
