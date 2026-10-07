@@ -139,8 +139,11 @@
   session if it disconnects (screen off at the battery idle step, suspend).
 
 - Hyper Light Drifter (native, 32-bit): start via its `run.sh` (bundled OpenSSL 1.0 and a Steam
-  runtime curl in `lib/`); the installer now prefers such launcher scripts. Use the **Window Max**
-  screen mode (borderless at desktop size); windowed stays 960x540 inside the fullscreen window.
+  runtime curl in `lib/`); the installer now prefers such launcher scripts. Set fullscreen in the
+  game's options. It still starts small in a corner: it ignores sway's fullscreen while loading.
+  Its `gpd-launch.sh` therefore toggles sway fullscreen off/on 12 s after the window appears (2 s
+  was too early; the game sends no events while loading). Manual fix: Super+F twice. The launcher
+  is hand-edited: "Rewrite launcher" in the installer would drop this.
   Saves `~/.config/HyperLightDrifter/` (lowercase names; moved from the Wine prefix 2026-10-07).
 
 ## Windows games (Wine)
