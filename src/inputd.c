@@ -23,7 +23,6 @@
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
