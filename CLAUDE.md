@@ -51,6 +51,10 @@ The user is Robin (they/them).
 - The eMMC is `mmcblk0` or `mmcblk2` depending on boot; everything uses UUIDs.
 - The gamepad only exists as `Microsoft X-Box 360 pad` when the hardware switch is in gamepad
   mode (otherwise "Mouce for Android" mouse/keyboard).
+- Restart Pegasus with `scripts/restart-pegasus` (it can ignore SIGTERM and end up running twice).
+- When a script you run spawns ssh, give it `</dev/null` or it eats the rest of a heredoc.
+- The device is `gpdwin.lan`, the desktop `desktop.lan`. Firewall is on (nftables): new
+  listening services need a rule in `system/etc/nftables.conf`.
 - Claude Code uses ~400 MB of RAM; don't run heavy work while a game is running.
 - Verify every edit took effect (grep the file afterwards) before documenting it. Some files
   have CRLF line endings (`/opt/zelda3-git/zelda3.ini`), so `sed` patterns ending in `$` miss.

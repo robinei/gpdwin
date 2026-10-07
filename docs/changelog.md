@@ -134,3 +134,8 @@ Details before 2026-10-06 are in `docs/archive/`.
   display off 1.45 W, so swayidle's DPMS off stays. Details in docs/power.md.
 
 - 2026-10-07: AUR `pegasus-frontend-stable-git` updated to alpha16.r82.gc3462e68-1 (reviewed AUR commit caec261bd57d) with local patches 0001-splash-stop-progress-animation-when-hidden.patch, 0002-grid-theme-stop-hidden-spinner.patch, 0003-gamepad-adaptive-polling.patch.
+- 2026-10-07: hardening/cleanup pass: LLMNR+mDNS off (router DNS gives gpdwin.lan; iwd now sends
+  the hostname), nftables firewall (ssh from LAN only), journald capped at 200 MB,
+  realtime-privileges for PipeWire RT (active after next login), Pegasus without Qt bearer
+  polling, `scripts/restart-pegasus`, Save Status uses desktop.lan over IPv4. Corrected: Zelda 3
+  saves survive uninstall.

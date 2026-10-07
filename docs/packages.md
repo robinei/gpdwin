@@ -8,7 +8,8 @@ truth; this explains the choices.
   `wireless-regdb`, `iw`, `pacman-contrib` (checkupdates, pacdiff, paccache).
 - Desktop: `sway swaybg swayidle foot fuzzel wob brightnessctl grim ttf-dejavu btop`, seatd
   (sway dependency, `seatd.service` enabled, user in group `seat`).
-- Audio: `pipewire pipewire-pulse pipewire-alsa wireplumber alsa-ucm-conf` (all explicit;
+- Audio: `pipewire pipewire-pulse pipewire-alsa wireplumber alsa-ucm-conf` + `realtime-privileges`
+  (robin in group `realtime`, so PipeWire gets RT scheduling without RTKit/polkit) (all explicit;
   pulse and ALSA apps both need their PipeWire bridge).
 - Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
@@ -16,7 +17,13 @@ truth; this explains the choices.
 - Build: `base-devel git` (AUR builds). `python` is explicit (guide-button.py, scripts).
   `clang` came with zelda3-git and is build-only (~100 MB+).
 - Installed by the user or other work: `firefox`, `yazi`, `7zip`.
-- Network: iwd does DHCP itself (`/etc/iwd/main.conf`: `EnableNetworkConfiguration=true`,
+- Network: hostname `gpdwin.lan` via the router's DNS (iwd sends the hostname: `[IPv4]
+  SendHostname=true` in `/var/lib/iwd/VennensVenner.psk`, not in the repo because it holds the
+  Wi-Fi key; re-add it if the network is re-created). systemd-resolved with LLMNR and mDNS off
+  (`resolved.conf.d/90-gpd.conf`). Firewall: `/etc/nftables.conf` (nftables.service), incoming
+  dropped except ssh from 192.168.1.0/24 and the LAN's IPv6 prefixes, DHCP replies, ICMP.
+  The desktop is `desktop.lan` (192.168.1.216).
+- iwd does DHCP itself (`/etc/iwd/main.conf`: `EnableNetworkConfiguration=true`,
   `NameResolvingService=systemd`), DNS via systemd-resolved, time via systemd-timesyncd.
 - Timers: `fstrim.timer` (eMMC supports discard), `paccache.timer` (`-k2`), `low-battery.timer`.
 

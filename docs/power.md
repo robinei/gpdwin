@@ -50,6 +50,9 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
   limit (BIOS was at C1; Linux still spends most idle time in C7/C7S). The BIOS setting may matter
   for s2idle (S0ix), which we can't observe without debugfs: compare suspend drain if needed.
 
+## Logs
+- journald capped at 200 MB (`/etc/systemd/journald.conf.d/90-gpd.conf`).
+
 ## Radios
 - Bluetooth: `rfkill block bluetooth` (systemd-rfkill keeps it across boots). Undo with
   `sudo rfkill unblock bluetooth`; pairing would also need `bluez bluez-utils`.

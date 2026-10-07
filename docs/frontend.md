@@ -4,7 +4,9 @@
 - Package `pegasus-frontend-stable-git` (AUR, built via `scripts/aur`). Needs `qt5-wayland`
   (no Xwayland here) and `sdl2-compat` (gamepad). Window app_id
   `org.pegasus-frontend.pegasus-fe`, always on workspace 1.
-- Started with `~/.config/pegasus-frontend/run`, which prepends `bin/` to PATH. `bin/dbus-send`
+- Started with `~/.config/pegasus-frontend/run`, which prepends `bin/` to PATH and sets
+  `QT_BEARER_POLL_TIMEOUT=-1` (Qt's network bearer thread polled Wi-Fi via the old wireless
+  extensions API). `bin/dbus-send`
   is a shim: Pegasus asks logind for Suspend/Reboot/PowerOff via dbus-send, which needs polkit.
   The shim maps those to the passwordless sudo rules (Suspend → suspend-then-hibernate) and passes
   everything else to `/usr/bin/dbus-send`.
@@ -36,7 +38,8 @@
   matches the bare title against thumbnails.libretro.com (prefers USA), saves
   `media/<rom>/boxFront.png`, and rewrites a generated block of `game:`/`file:` lines with clean
   titles at the end of each `metadata.pegasus.txt`. Restart Pegasus afterwards.
-- Restart Pegasus after metadata changes: `pkill -x pegasus-fe; swaymsg exec ~/.config/pegasus-frontend/run`.
+- Restart Pegasus with `scripts/restart-pegasus` (it sometimes ignores SIGTERM; the script
+  force-kills before starting a new one, so there are never two instances).
 
 ## RetroArch
 - `retroarch` 1.22 + `retroarch-assets-ozone/xmb`, `libretro-core-info`. Cores (`/usr/lib/libretro`):
@@ -76,7 +79,8 @@
   shaders_glsl/`), no separate copy. Current: `handheld/lcd3x.glslp` (made for exact 3x, which this
   config is). Other light picks: `crt/zfast-crt`, `crt/crt-easymode`, `crt/fakelottes`. Too heavy
   here: crt-royale, crt-guest-dr-venom, nnedi3, reshade. Saves in `/opt/zelda3-git/saves`
-  (deleted on uninstall; back up first). Pad mapping default, untested.
+  (world-writable by the package; files the game creates there are not owned by pacman, so
+  uninstalling keeps them). Pad mapping default, untested.
 - Psychonauts: GOG Linux installer `~/gog_psychonauts_2.0.0.4.sh` (32-bit native port), not
   installed. Needs multilib + 32-bit libs + probably `xorg-xwayland`. Wine is the fallback
   (needs the Windows installer).
