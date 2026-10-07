@@ -168,3 +168,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: installer covers from the store asset list (newer games keep art under hashed paths; Heretic + Hexen had none).
 - 2026-10-07: Heretic + Hexen set to fullscreen in its own config (v_windowmode 2); windowed-mode games undo sway fullscreen.
 - 2026-10-07: brightness floor 1 instead of 2 (key and idle dim; checked visible).
+- 2026-10-07: second idle dim level: 1% after 10 min.
