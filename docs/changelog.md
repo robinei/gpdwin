@@ -112,3 +112,11 @@ Details before 2026-10-06 are in `docs/archive/`.
   fallbacks; no DSI pipeline failures in our logs).
 - 2026-10-07: core dumps off (`/etc/systemd/coredump.conf.d/90-gpd.conf`: Storage=none,
   ProcessSizeMax=0); crashes are still logged in the journal. Revert: delete the file.
+
+- 2026-10-07: AUR `pegasus-frontend-stable-git` updated to alpha16.r82.gc3462e68-1 (reviewed AUR commit caec261bd57d) with local patches 0001-splash-stop-progress-animation-when-hidden.patch, 0002-grid-theme-stop-hidden-spinner.patch.
+- 2026-10-07: improvement pass. Pegasus idle redraw fixed with source patches (60 fps / 33% CPU ->
+  0 fps / 2% CPU on the menu); `scripts/aur` gained vendoring (`aur/pkgbuilds/`), build-file and
+  source patches (`aur/patches/`), local files outside the repo, sudo keepalive, pristine-source
+  builds and `-ffdx` cleanup; Pegasus package now carries its deps and a tolerant .install;
+  zelda3-git pinned to 45a149d with `backup=` for zelda3.ini. NMI watchdog off. Freed ~1.4 GB:
+  stale yay/aur build dirs, package cache -k1, orphans (qt5-tools, unzip), yay-bin-debug.

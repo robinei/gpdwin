@@ -8,6 +8,12 @@
   is a shim: Pegasus asks logind for Suspend/Reboot/PowerOff via dbus-send, which needs polkit.
   The shim maps those to the passwordless sudo rules (Suspend → suspend-then-hibernate) and passes
   everything else to `/usr/bin/dbus-send`.
+- Idle redraw: stock Pegasus redrew at 60 fps while showing the menu (~33% CPU, ~2900 irq/s on
+  the Atom): every grid tile's loading spinner ran an infinite `RotationAnimator` even when hidden
+  (and the splash screen's progress animation kept running after loading). Both are patched in
+  our build (aur/patches); now 0 fps, ~2% CPU, ~470 irq/s when idle. Measure with
+  `WAYLAND_DEBUG=client` and count `wl_surface...commit()` per second (QSG_RENDER_TIMING crashes it).
+  QML gotcha: inside an Animator, `parent` resolves to the enclosing Item's parent, not the Item.
 - Pegasus does not quit when it launches a game; it unloads its theme and waits. It flashes
   briefly while the theme reloads after a game exits.
 - Collections: one directory per collection under `~/Games`, each listed in

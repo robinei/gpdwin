@@ -65,6 +65,7 @@ The user is Robin (they/them).
 - `scripts/`: `sync` (manifest), `aur` (review/build), `update` (manual updates), `games`
   (game installer UI, `gamelib/`),
   `maintain` (Claude maintenance launcher), `news`, `fetch-boxart.py`.
+- `aur/`: `reviewed.tsv`, `pkgbuilds/` (vendored build files), `patches/` (our changes).
 - `.claude/commands/maintain.md` is the routine maintenance procedure (`/maintain`).
 - `desktop/`: tools that run on the Linux desktop (clone in `~/Code/gpdwin` there), e.g.
   `steam-cloud-status`. Not used on the GPD.

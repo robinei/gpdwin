@@ -50,6 +50,7 @@ copy	system/etc/systemd/system/getty@tty1.service.d/autologin.conf	/etc/systemd/
 copy	system/etc/systemd/system/systemd-user-sessions.service	/etc/systemd/system/systemd-user-sessions.service	root:root:0644
 copy	system/etc/systemd/system/low-battery.service	/etc/systemd/system/low-battery.service	root:root:0644
 copy	system/etc/systemd/system/low-battery.timer	/etc/systemd/system/low-battery.timer	root:root:0644
+copy	system/etc/sysctl.d/90-gpd.conf	/etc/sysctl.d/90-gpd.conf	root:root:0644
 copy	system/etc/udev/rules.d/90-xhci-no-wakeup.rules	/etc/udev/rules.d/90-xhci-no-wakeup.rules	root:root:0644
 copy	system/etc/tmpfiles.d/turbo.conf	/etc/tmpfiles.d/turbo.conf	root:root:0644
 copy	system/etc/modprobe.d/cfg80211.conf	/etc/modprobe.d/cfg80211.conf	root:root:0644

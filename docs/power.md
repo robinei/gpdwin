@@ -22,6 +22,12 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   while discharging.
 - Bar: battery text yellow at ≤30%, red at ≤15%, `+` while charging.
 
+## Kernel
+- `kernel.nmi_watchdog = 0` (`/etc/sysctl.d/90-gpd.conf`): fewer timer wakeups.
+- C-states: `intel_idle` uses its own Cherry Trail table (C1..C7S) and ignores the BIOS C-state
+  limit (BIOS was at C1; Linux still spends most idle time in C7/C7S). The BIOS setting may matter
+  for s2idle (S0ix), which we can't observe without debugfs: compare suspend drain if needed.
+
 ## Radios
 - Bluetooth: `rfkill block bluetooth` (systemd-rfkill keeps it across boots). Undo with
   `sudo rfkill unblock bluetooth`; pairing would also need `bluez bluez-utils`.

@@ -1,0 +1,15 @@
+--- a/PKGBUILD	2026-10-07 10:47:57.045144829 +0200
++++ b/PKGBUILD	2026-10-07 10:47:57.213402156 +0200
+@@ -10,8 +10,11 @@
+ depends=('python' 'python-pillow' 'python-yaml' 'sdl2')
+ makedepends=('clang')
+ install="$pkgname.install"
++# GPD: keep our customised zelda3.ini on rebuilds (pacman writes .pacnew instead)
++backup=("opt/$pkgname/zelda3.ini")
+ source=(
+-    "git+${url}.git"
++    # GPD: pinned to the reviewed/installed upstream commit (r318, 2026-10-02); bump deliberately
++    "git+${url}.git#commit=45a149d8b4bb8098f53d1009f76e76e7d8b79bbf"
+     # Zelda ROM should be named 'zelda3.sfc' and placed into the same directory as this file.
+     "local://zelda3.sfc"
+     "zelda3.desktop"

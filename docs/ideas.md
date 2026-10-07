@@ -12,12 +12,15 @@
 6. Gamepad activity doesn't reset sway idle (dims after 2 min while browsing Pegasus with the
    pad). Options: `inhibit_idle focus` for Pegasus, or have guide-button.py inhibit while the pad
    is used.
-7. Remove `clang` and `yay-bin-debug`; disable unused `systemd-userdbd.socket`.
+7. Remove `clang` (build-only, zelda3-git); disable unused `systemd-userdbd.socket`.
 8. Bluetooth firmware patch if Bluetooth is ever wanted.
 9. GOG source for `scripts/games` (`sources/gog.py`, e.g. lgogdownloader from the AUR).
 10. Gamepad navigation in `scripts/games` (it runs in foot, so keyboard only for now).
 
 11. If DSI resume failures (`flip_done timed out`) ever appear: see hardware.md "Prior art"
     (kernel patch, `i915.disable_power_well=0`, diagnostics capture).
+
+12. Measure s2idle battery drain (unplugged, known sleep time); then consider a shorter
+    HibernateDelaySec or the BIOS C-state limit.
 
 Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).

@@ -11,6 +11,17 @@ Commands:
   aur build PKG [--yes]     build and install the reviewed state of PKG (asks unless --yes),
                             then record the commit as reviewed
   aur mark PKG [NOTE]       record the current AUR head as reviewed without building
+  aur vendor [PKG..]        (re)export the reviewed commit's files into aur/pkgbuilds/PKG
+  aur build PKG --vendored  build from aur/pkgbuilds/PKG (no AUR fetch; e.g. package gone)
+
+Vendoring: aur/pkgbuilds/PKG/ holds the build files exactly as reviewed (exported from the
+reviewed AUR commit). `build` and `mark` refresh it, so updates show up in `git diff`.
+
+Local patches: aur/patches/PKG/pkgbuild/*.patch are applied (patch -p1) to the build files
+(PKGBUILD, .install, ...; .SRCINFO is then regenerated), and aur/patches/PKG/*.patch to the
+extracted source before building. Files that must not be in the repo (e.g. a game ROM) go
+in ~/.local/share/gpd/aur-local/PKG/ and are copied into the build dir; the source dir is aur/patches/PKG/target if present, else the only dir in src/.
+After a successful install the build dir is cleaned (only the AUR git checkout is kept).
 
 Build notes: repo dependencies are installed with `sudo -n pacman --asdeps` and makepkg runs
 without -s (sudo has no TTY under Claude; run `sudo -v` in a terminal first). AUR-only
@@ -25,6 +36,7 @@ REVIEWED = REPO / "aur" / "reviewed.tsv"
 CACHE = Path.home() / ".cache" / "gpd-aur"
 CHANGELOG = REPO / "docs" / "changelog.md"
 REVIEW_FILES_SKIP = {".SRCINFO", ".gitignore", ".nvchecker.toml"}
+VENDOR = REPO / "aur" / "pkgbuilds"
 
 
 def run(cmd, **kw):
@@ -67,6 +79,33 @@ def fetch(pkg):
         run(["git", "clone", "-q", f"https://aur.archlinux.org/{pkg}.git", str(d)])
     head = out(["git", "-C", str(d), "rev-parse", "origin/HEAD"])
     return d, head
+
+
+def vendor_files(pkg, d, commit):
+    """Export the reviewed commit's files into aur/pkgbuilds/PKG (replacing the old copy)."""
+    import shutil, tarfile, io
+    dest = VENDOR / pkg
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
+    data = subprocess.run(["git", "-C", str(d), "archive", "--format=tar", commit],
+                          check=True, capture_output=True).stdout
+    with tarfile.open(fileobj=io.BytesIO(data)) as t:
+        t.extractall(dest, filter="data")
+    (dest / ".aur-commit").write_text(commit + "\n")
+    return dest
+
+
+def vendor(args):
+    rows = load_reviewed()
+    for pkg in (args or sorted(rows)):
+        if pkg not in rows:
+            print(f"{pkg}: not in reviewed.tsv, skipped"); continue
+        d, _ = fetch(pkg)
+        commit = rows[pkg]["commit"]
+        dest = vendor_files(pkg, d, commit)
+        print(f"{pkg}: vendored {commit[:12]} -> {dest.relative_to(REPO)}")
+    return 0
 
 
 def vercmp(a, b):
@@ -131,14 +170,57 @@ def srcinfo_deps(d):
     return deps
 
 
+def sudo_keepalive():
+    """Refresh the (global) sudo timestamp every minute so the final pacman -U still works after
+    a long build. Needs a valid timestamp to start with (`sudo -v`)."""
+    import threading, time
+    def loop():
+        while True:
+            time.sleep(60)
+            subprocess.run(["sudo", "-n", "-v"], capture_output=True)
+    threading.Thread(target=loop, daemon=True).start()
+
+
 def build(args):
-    pkg, yes = args[0], "--yes" in args
-    d, head = fetch(pkg)
+    pkg, yes, vendored = args[0], "--yes" in args, "--vendored" in args
+    if subprocess.run(["sudo", "-n", "-v"], capture_output=True).returncode != 0:
+        sys.exit("sudo needs a fresh timestamp: run `sudo -v` first")
+    sudo_keepalive()
+    if vendored:
+        import shutil
+        src = VENDOR / pkg
+        if not src.exists():
+            sys.exit(f"no vendored copy at {src}")
+        d = CACHE / f"{pkg}-vendored"
+        if d.exists():
+            shutil.rmtree(d)
+        shutil.copytree(src, d)
+        head = (src / ".aur-commit").read_text().strip()
+        subprocess.run(["git", "init", "-q", str(d)], check=True)   # so the git calls below work
+        subprocess.run(["git", "-C", str(d), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(d), "-c", "user.name=gpd", "-c", "user.email=gpd@localhost",
+                        "commit", "-qm", "vendored"], check=True)
+        build_ref = "HEAD"
+    else:
+        d, head = fetch(pkg)
+        build_ref = head
     if not yes:
         if input(f"Build and install {pkg} at {head[:12]}? Have you reviewed `aur review {pkg}`? [y/N] ").lower() != "y":
             return 1
-    run(["git", "-C", str(d), "checkout", "-q", "--detach", head])
-    run(["git", "-C", str(d), "clean", "-qfdx", "-e", "src", "-e", "*.tar.*", "-e", "*.zip"])
+    run(["git", "-C", str(d), "reset", "-q", "--hard"])     # undo earlier build-file patches
+    run(["git", "-C", str(d), "checkout", "-q", "--detach", build_ref])
+    run(["git", "-C", str(d), "clean", "-qffdx", "-e", "src", "-e", "*.tar.*", "-e", "*.zip"])
+    for pt in sorted((REPO / "aur" / "patches" / pkg / "pkgbuild").glob("*.patch")):
+        print(f"applying build-file patch {pt.name}")
+        run(["patch", "-p1", "-N", "-i", str(pt)], cwd=d)
+        (d / ".SRCINFO").write_text(out(["makepkg", "--printsrcinfo"], cwd=d) + "\n")
+    local = Path.home() / ".local/share/gpd/aur-local" / pkg
+    if local.is_dir():
+        import shutil
+        for f in local.iterdir():
+            if f.is_file():
+                shutil.copy2(f, d / f.name)
+                print(f"local file {f.name} copied into the build dir")
     missing = [x for x in srcinfo_deps(d)
                if subprocess.run(["pacman", "-T", x], capture_output=True).returncode != 0]
     if missing:
@@ -146,17 +228,41 @@ def build(args):
         if repo_ok.returncode != 0:
             sys.exit(f"dependencies not in the repos (build them from the AUR first?): {missing}\n{repo_ok.stderr}")
         run(["sudo", "-n", "pacman", "-S", "--needed", "--asdeps", "--noconfirm", *missing])
-    run(["makepkg", "-f", "--noconfirm"], cwd=d)
+    patches = sorted((REPO / "aur" / "patches" / pkg).glob("*.patch"))
+    if patches:
+        import shutil
+        shutil.rmtree(d / "src", ignore_errors=True)               # patches must start from pristine sources
+        run(["makepkg", "-f", "-o", "--noconfirm"], cwd=d)        # download, extract, prepare()
+        tfile = REPO / "aur" / "patches" / pkg / "target"
+        if tfile.exists():
+            target = d / "src" / tfile.read_text().strip()
+        else:
+            dirs = [x for x in (d / "src").iterdir() if x.is_dir()]
+            if len(dirs) != 1:
+                sys.exit(f"can't pick a source dir for patches in {d / 'src'}: {dirs}; add a 'target' file")
+            target = dirs[0]
+        for pt in patches:
+            print(f"applying {pt.name} in {target}")
+            run(["patch", "-p1", "-N", "-i", str(pt)], cwd=target)
+        run(["makepkg", "-f", "-e", "--noconfirm"], cwd=d)        # build without re-extracting
+    else:
+        run(["makepkg", "-f", "--noconfirm"], cwd=d)
     pkgs = [p for p in out(["makepkg", "--packagelist"], cwd=d).splitlines()
             if p.endswith(".pkg.tar.zst") and "-debug-" not in p and Path(p).exists()]
     run(["sudo", "-n", "pacman", "-U", "--noconfirm", *pkgs])
     rows = load_reviewed()
-    rows[pkg] = {"commit": head, "date": date.today().isoformat(), "note": "built"}
+    rows[pkg] = {"commit": head, "date": date.today().isoformat(),
+                 "note": "built from vendored copy" if vendored else "built"}
     save_reviewed(rows)
+    if not vendored:
+        vendor_files(pkg, d, head)
     ver = out(["pacman", "-Q", pkg]).split()[1]
     with CHANGELOG.open("a") as f:
-        f.write(f"\n- {date.today()}: AUR `{pkg}` updated to {ver} (reviewed AUR commit {head[:12]}).\n")
-    print(f"installed {pkg} {ver}; reviewed commit recorded")
+        extra = f" with local patches {', '.join(x.name for x in patches)}" if patches else ""
+        f.write(f"\n- {date.today()}: AUR `{pkg}` updated to {ver} (reviewed AUR commit {head[:12]}){extra}.\n")
+    run(["git", "-C", str(d), "clean", "-qffdx"])          # drop src/, pkg/, downloads, packages
+    print(f"installed {pkg} {ver}; reviewed commit recorded"
+          + (f"; {len(patches)} local patch(es) applied" if patches else ""))
     return 0
 
 
@@ -166,13 +272,14 @@ def mark(args):
     rows = load_reviewed()
     rows[pkg] = {"commit": head, "date": date.today().isoformat(), "note": " ".join(args[1:]) or "marked"}
     save_reviewed(rows)
+    vendor_files(pkg, CACHE / pkg, head)
     print(f"{pkg}: marked {head[:12]} as reviewed")
     return 0
 
 
 def main():
-    cmds = {"check": check, "review": review, "build": build, "mark": mark}
-    if len(sys.argv) < 2 or sys.argv[1] not in cmds or (sys.argv[1] != "check" and len(sys.argv) < 3):
+    cmds = {"check": check, "review": review, "build": build, "mark": mark, "vendor": vendor}
+    if len(sys.argv) < 2 or sys.argv[1] not in cmds or (sys.argv[1] not in ("check", "vendor") and len(sys.argv) < 3):
         print(__doc__); return 2
     return cmds[sys.argv[1]](sys.argv[2:])
 

@@ -1,6 +1,6 @@
 # pkg	AUR commit reviewed	date	note
 devilutionx-bin	93785c4c17216a35f3517e24654010d7132ea817	2026-10-06	baseline: PKGBUILD read by installer session; official GitHub release tarball
-pegasus-frontend-stable-git	caec261bd57da02844d0c3cbe401ff69d753b70a	2026-10-06	baseline: PKGBUILD read by installer session; builds a pinned upstream commit
+pegasus-frontend-stable-git	caec261bd57da02844d0c3cbe401ff69d753b70a	2026-10-07	built
 steamdepotdownloader-bin	16ca53438ecd10a17f9f7fabe2273b2547521054	2026-10-06	PKGBUILD reviewed by installer session: official SteamRE GitHub release; zip sha256 verified against upstream download
 yay-bin	13e0a4754d106a9252b7479bf1b370fbe454fc48	2026-10-06	baseline: bootstrap install, not reviewed in depth
 zelda3-git	846bd80fdda7cf3c6aca37ff6f010397285aef6f	2026-10-06	baseline: built by on-device session; -git builds upstream HEAD
