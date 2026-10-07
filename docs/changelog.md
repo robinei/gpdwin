@@ -163,3 +163,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: installer shows the exact download/disk size (DepotDownloader -manifest-only) and free
   space before installing, then asks Install? [Y/n].
 - 2026-10-07: every tiled window on workspace 1 is fullscreen; the window below gets fullscreen back when the top one closes (`fullscreen-stack.sh`).
+
+- 2026-10-07: AUR `pegasus-frontend-stable-git` updated to alpha16.r82.gc3462e68-1 (reviewed AUR commit caec261bd57d) with local patches 0001-splash-stop-progress-animation-when-hidden.patch, 0002-grid-theme-stop-hidden-spinner.patch, 0003-gamepad-adaptive-polling.patch, 0004-grid-theme-starting-overlay.patch.
