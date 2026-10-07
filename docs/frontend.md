@@ -128,6 +128,9 @@
   same architecture exists (the games' `$ORIGIN` rpath would pick the bundled copy otherwise).
   Camera spin with the pad (PCGamingWiki): in `~/.local/share/Psychonauts/Profiles/*/*.ini` map
   `LookUp/Down_Alt=JoyRotY`, `LookLeft/Right_Alt=JoyRotX` (default uses the triggers' axes).
+  Runs well and much faster than the Wine version. SDL 1.2 games only look for controllers at
+  start: switch the GPD to gamepad mode before launching, and the pad is lost for the rest of the
+  session if it disconnects (screen off at the battery idle step, suspend).
 
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
