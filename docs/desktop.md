@@ -29,8 +29,10 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   `--min-value=1`, the lowest visible level; 0 is backlight off) and writes it to wob. Idle dimming deliberately doesn't show wob.
 - `inputd` (`src/inputd.c`): the pad's Guide button (BTN_MODE). Starts Pegasus if not running,
   focuses workspace 1 if it is, does nothing while a game launched by Pegasus (a child process)
-  runs. The kernel only delivers BTN_MODE to it (EVIOCSMASK), and inotify on /dev/input reopens
-  the pad when it reappears (screen off, resume), so it never polls.
+  runs. Pad use also counts as activity: sway ignores gamepads for idle, so any pad event (at
+  most every 30 s) makes inputd send `seat seat0 cursor move 0 0`, which resets swayidle (tested).
+  The untouched pad sends nothing and inotify on /dev/input reopens it when it reappears (screen
+  off, resume), so it never polls.
 - C programs (`src/`): manifest `build` entries; `scripts/sync install` compiles them when the
   source is newer (`sync check` reports `BUILD outdated`). Restart after a rebuild:
   `swaymsg reload` (statusbar, swaybar's child) and

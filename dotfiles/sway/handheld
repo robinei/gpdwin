@@ -3,7 +3,8 @@ seat * hide_cursor 3000
 
 # Idle, on battery: a third after 2 min, 1% after 3 min, screen off after 5 min, suspend after
 # 20 min. On AC: a third after 2 min, 1% after 10 min, no screen off or suspend.
-# Games and RetroArch inhibit idle while they run. Gamepad input does not count as activity.
+# Some games and RetroArch inhibit idle while they run. Gamepad input counts as activity via
+# inputd (src/inputd.c), which sway itself doesn't do.
 exec swayidle -w \
     timeout 120 '~/.config/sway/dim.sh' resume 'brightnessctl -q -r' \
     timeout 180 '~/.config/sway/dim-low.sh battery' resume 'brightnessctl -q -r' \

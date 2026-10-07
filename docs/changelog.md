@@ -179,3 +179,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 
 - 2026-10-07: AUR `lib32-openal` updated to 1.25.2-2 (reviewed AUR commit c1f1bf20b2e7).
 - 2026-10-07: lib32-openal (SteamWorld Heist); installer writes steam_appid.txt for Steam API games so they run without the Steam client.
+- 2026-10-07: gamepad use keeps the screen awake: inputd pokes sway (zero cursor move) on pad input, at most every 30 s.

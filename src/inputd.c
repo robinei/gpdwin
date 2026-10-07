@@ -1,14 +1,16 @@
 /*
- * inputd: the gamepad's Guide (Xbox) button brings up Pegasus.
+ * inputd: the gamepad's Guide (Xbox) button brings up Pegasus, and gamepad use counts as activity.
  *
  * Guide starts Pegasus if it isn't running, or switches to its workspace. While a game started
  * from Pegasus runs (a child process of pegasus-fe), the button is left to the game.
  *
- * Sleeps until there is something to do:
- *   - EVIOCSMASK tells the kernel to deliver only the Guide button from the pad, so sticks and
- *     other buttons don't wake us during play.
- *   - inotify on /dev/input reports when the pad (re)appears; it disconnects while the screen
- *     is off and across suspend.
+ * sway only counts keyboard, pointer and touch as activity, so playing with the pad alone would
+ * let swayidle dim the screen and suspend. Any pad event (at most every POKE_EVERY seconds)
+ * sends sway a zero pointer move (`seat seat0 cursor move 0 0`), which resets its idle timers.
+ *
+ * Sleeps until there is something to do: the untouched pad sends no events, and inotify on
+ * /dev/input reports when the pad (re)appears (it disconnects while the screen is off and across
+ * suspend).
  *
  * Built and installed by `scripts/sync install` (manifest "build" entry); started by sway
  * (dotfiles/sway/autostart).
@@ -27,27 +29,13 @@
 #include <string.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
+#include <time.h>
 #include <unistd.h>
 
 #define PAD_NAME "Microsoft X-Box 360 pad"
+#define POKE_EVERY 30 /* seconds; the first idle step (dim) comes after 2 min */
 
 extern char **environ;
-
-/* Only BTN_MODE from EV_KEY, and nothing from EV_ABS/EV_MSC. EV_SYN stays on: the kernel
- * wakes readers at SYN_REPORT, and drops reports whose events were all filtered out. */
-static void only_guide_button(int fd)
-{
-    static uint8_t keys[KEY_MAX / 8 + 1], none[ABS_MAX / 8 + 1];
-    keys[BTN_MODE / 8] |= 1 << (BTN_MODE % 8);
-    struct input_mask masks[] = {
-        { .type = EV_KEY, .codes_size = sizeof keys, .codes_ptr = (uintptr_t)keys },
-        { .type = EV_ABS, .codes_size = sizeof none, .codes_ptr = (uintptr_t)none },
-        { .type = EV_MSC, .codes_size = sizeof none, .codes_ptr = (uintptr_t)none },
-    };
-    for (size_t i = 0; i < sizeof masks / sizeof masks[0]; i++)
-        if (ioctl(fd, EVIOCSMASK, &masks[i]) < 0)
-            perror("inputd: EVIOCSMASK");
-}
 
 static int open_pad(void)
 {
@@ -63,7 +51,6 @@ static int open_pad(void)
         if (fd < 0)
             continue;
         if (ioctl(fd, EVIOCGNAME(sizeof name - 1), name) >= 0 && strcmp(name, PAD_NAME) == 0) {
-            only_guide_button(fd);
             found = fd;
         } else {
             close(fd);
@@ -118,6 +105,18 @@ static void swaymsg(const char *command)
         perror("inputd: swaymsg");
 }
 
+/* Tell sway the user is active (it doesn't count gamepads), at most every POKE_EVERY seconds. */
+static void activity(void)
+{
+    static time_t last;
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    if (last && now.tv_sec - last < POKE_EVERY)
+        return;
+    last = now.tv_sec;
+    swaymsg("seat seat0 cursor move 0 0");
+}
+
 static void on_guide(void)
 {
     int game;
@@ -155,9 +154,12 @@ int main(void)
         if (fds[1].fd >= 0 && fds[1].revents) {
             struct input_event ev;
             ssize_t n;
-            while ((n = read(fds[1].fd, &ev, sizeof ev)) == sizeof ev)
+            while ((n = read(fds[1].fd, &ev, sizeof ev)) == sizeof ev) {
                 if (ev.type == EV_KEY && ev.code == BTN_MODE && ev.value == 1)
                     on_guide();
+                if (ev.type == EV_KEY || ev.type == EV_ABS)
+                    activity();
+            }
             if (n < 0 && errno != EAGAIN) { /* ENODEV once the pad is unplugged */
                 close(fds[1].fd); /* pad went away; inotify brings it back */
                 fds[1].fd = -1;
