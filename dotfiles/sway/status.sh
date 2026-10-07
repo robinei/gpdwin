@@ -33,8 +33,8 @@ boost() { # cpu|gpu -> prints "on" or "off"
     esac
 }
 
-boostblock() {
-    if [ "$(boost $1)" = on ]; then block "$1+" "$text"; else block "$1-" "$dim"; fi
+boostblock() { # cpu|gpu [join]
+    if [ "$(boost $1)" = on ]; then block "$1+" "$text" $2; else block "$1-" "$dim" $2; fi
 }
 
 # Used/total RAM in GB; "used" = total - available (what apps can't get back without swapping).
@@ -44,9 +44,13 @@ ram() {
 
 json() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
-block() { # text colour [last]
-    sep=18; [ -n "$3" ] && sep=6
-    printf '{"full_text":"%s","color":"%s","separator":false,"separator_block_width":%d}' "$(json "$1")" "$2" "$sep"
+block() { # text colour [join|last]: separator line after the block, except join (keep with the
+    #                             next block) and last
+    case "$3" in
+    join) printf '{"full_text":"%s","color":"%s","separator":false,"separator_block_width":8}' "$(json "$1")" "$2" ;;
+    last) printf '{"full_text":"%s","color":"%s","separator":false,"separator_block_width":6}' "$(json "$1")" "$2" ;;
+    *)    printf '{"full_text":"%s","color":"%s","separator":true,"separator_block_width":19}' "$(json "$1")" "$2" ;;
+    esac
 }
 
 trap ':' USR1
@@ -68,7 +72,7 @@ while :; do
     vol=$(volume)
     vcol=$text; case "$vol" in muted*) vcol=$dim ;; esac
     printf '[%s,%s,%s,%s,%s,%s,%s],\n' \
-        "$(boostblock cpu)" \
+        "$(boostblock cpu join)" \
         "$(boostblock gpu)" \
         "$(block "$(ram)" "$text")" \
         "$(block "$w" "$wcol")" \
