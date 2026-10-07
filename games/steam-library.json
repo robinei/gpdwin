@@ -7100,7 +7100,7 @@
    "tier": "good",
    "pcgw": "Hyper Light Drifter",
    "windows": true,
-   "size_mb": 2048
+   "size_mb": 882
   },
   {
    "source": "steam",
@@ -7721,7 +7721,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Kingdom: Classic",
-   "windows": true
+   "windows": true,
+   "size_mb": 278
   },
   {
    "source": "steam",
