@@ -17,7 +17,10 @@ launch to upload). Planned: Syncthing, one folder per game (paths may differ per
   from Steam's last sync).
 - Desktop: `~/.ssh/authorized_keys` has the GPD's key restricted with
   `restrict,command="/home/robin/Code/gpdwin/desktop/save-status-remote"`: it can only run that
-  read-only script (JSON out). Remove the line to revoke. The desktop clone must be pulled for
+  read-only script (JSON out). Remove the line to revoke. Verified: other commands return the
+  status JSON, PTY requests fail, port forwarding is "administratively prohibited".
+  Desktop firewall (ufw): `sudo ufw allow from 192.168.1.218 to any port 22 proto tcp comment
+  'GPD save status'` (tied to the GPD's IP; reserve both IPs in the router). The desktop clone must be pulled for
   changes to `desktop/` or `games/saves.json` to take effect there.
 - New game: add it to `games/saves.json` (both paths) and `docs/saves.md`.
 - `desktop_host` in `games/saves.json` is the desktop's IP (192.168.1.216, DHCP: reserve it).
