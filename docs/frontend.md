@@ -144,7 +144,8 @@
   Its `gpd-launch.sh` therefore toggles sway fullscreen off/on 4 s after the window appears (2 s
   was too early; the game sends no events while loading). Manual fix: Super+F twice. The launcher
   is hand-edited: "Rewrite launcher" in the installer would drop this.
-  Saves `~/.config/HyperLightDrifter/` (lowercase names; moved from the Wine prefix 2026-10-07).
+  Saves `~/.config/HyperLightDrifter/`. Windows saves did not load in the Linux build (copied
+  with lowercase names and mixed-case links: only "New game"), so they were dropped.
 
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
