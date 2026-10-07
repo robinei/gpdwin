@@ -171,3 +171,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: second idle dim level: 1% after 10 min.
 - 2026-10-07: battery idle: 1% at 3 min, screen off at 5 min (was off at 3).
 - 2026-10-07: Psychonauts (Windows) runs: DisplaySettings.ini at 1280x720; Xwayland's emulated modes are rotated (no 640x480).
+- 2026-10-07: MangoHud (FPS, CPU/GPU clock), opt-in per game launcher; Psychonauts uses it.

@@ -142,6 +142,15 @@
   `[DisplaySettings]` `ScreenWidth=1280` `ScreenHeight=720` `FullScreen=1`. It lives in the
   install, so a reinstall needs it again.
 
+- Performance overlay: MangoHud (`extra`; 10 MB itself, but Arch's package hard-depends on
+  python-matplotlib/numpy for `mangoplot`, ~134 MB). Config `dotfiles/MangoHud/MangoHud.conf`:
+  FPS, CPU and GPU clock, Right Shift+F12 toggles. Opt in per game: `exec mangohud wine ...` in
+  its `gpd-launch.sh` (works for OpenGL/wined3d; 32-bit Windows games too, since WoW64 Wine calls
+  OpenGL from 64-bit code). Not loaded at all without the wrapper.
+- Psychonauts: CPU-bound (main thread maxed at 2.4 GHz, wined3d_cs ~85%); ~11 FPS in heavy
+  scenes. Launcher sets `mesa_glthread=true` (driver work on its own thread, ~15% of a core) and
+  `WINEDEBUG=-all,fps` (log in `~/.cache/gpd/psychonauts-fps.log`).
+
 ## Audio
 - Every app path must reach PipeWire: PulseAudio clients via `pipewire-pulse` (SDL, OpenAL,
   Wine, `pactl`), ALSA clients via `pipewire-alsa` (`/etc/alsa/conf.d/99-pipewire-default.conf`

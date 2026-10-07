@@ -16,6 +16,7 @@ link	dotfiles/fish/functions/reboot.fish	~/.config/fish/functions/reboot.fish
 link	dotfiles/fish/functions/poweroff.fish	~/.config/fish/functions/poweroff.fish
 link	dotfiles/fish/functions/suspend.fish	~/.config/fish/functions/suspend.fish
 link	dotfiles/fish/functions/hibernate.fish	~/.config/fish/functions/hibernate.fish
+link	dotfiles/MangoHud/MangoHud.conf	~/.config/MangoHud/MangoHud.conf
 link	dotfiles/openal/alsoft.conf	~/.config/alsoft.conf
 link	dotfiles/pipewire/pipewire.conf.d/10-min-quantum.conf	~/.config/pipewire/pipewire.conf.d/10-min-quantum.conf
 link	dotfiles/wireplumber/wireplumber.conf.d/51-speaker-latency.conf	~/.config/wireplumber/wireplumber.conf.d/51-speaker-latency.conf
