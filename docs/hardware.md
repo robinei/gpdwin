@@ -65,3 +65,13 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   (`/etc/systemd/coredump.conf.d/90-gpd.conf`).
 - The in-session "split picture" (bottom half on top) that we fix with `Mod4+F10` is not covered
   by their patch (different symptom: ours keeps running, theirs stalls).
+
+## Memory map (checked 2026-10-07)
+- 4 GB physical, 3.7 GB `MemTotal`. Firmware keeps ~94 MB: 32 MB graphics stolen memory (DVMT
+  pre-allocated; already minimal), an 18 MB block at 0x1f000000, ACPI/EFI tables. The kernel
+  keeps the rest: page bookkeeping (~64 MB), kernel image, and a 64 MB swiotlb bounce buffer
+  (RAM extends above 4 GB; peak use seen 1.6 MB, so `swiotlb=8192` would give back 48 MB if RAM
+  ever gets tight).
+- The BIOS "512 MB" graphics setting is the GPU aperture (PCI BAR at 0x80000000): address space
+  for CPU access to GPU memory, it costs no RAM. Leave it. GPU buffers come from normal RAM on
+  demand.
