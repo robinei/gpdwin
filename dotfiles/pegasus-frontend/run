@@ -5,5 +5,6 @@
 # OpenGL via the preload), hidden until Right Shift+F12; Pegasus itself is blacklisted in
 # ~/.config/MangoHud/MangoHud.conf.
 export MANGOHUD=1
-[ -e /usr/lib/mangohud/libMangoHud_shim.so ] && export LD_PRELOAD="${LD_PRELOAD:+$LD_PRELOAD:}/usr/lib/mangohud/libMangoHud_shim.so"
+# $LIB (literal, expanded by the dynamic linker) picks lib or lib32, so 32-bit games get lib32-mangohud.
+[ -e /usr/lib/mangohud/libMangoHud_shim.so ] && export LD_PRELOAD="${LD_PRELOAD:+$LD_PRELOAD:}/usr/\$LIB/mangohud/libMangoHud_shim.so"
 QT_BEARER_POLL_TIMEOUT=-1 PATH="$HOME/.config/pegasus-frontend/bin:$PATH" exec pegasus-fe "$@"
