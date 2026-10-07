@@ -7,11 +7,14 @@
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick); GPU is
  * "idle" while it sleeps in RC6.
  *
- * Everything happens in one poll() loop, so the program sleeps until something can have changed:
- *   1 s timer          CPU/GPU clock, turbo state, RAM, clock (cheap /proc and sysfs reads)
- *                      WiFi signal every 10 s, battery every 30 s
+ * Everything happens in one poll() loop, so the program sleeps until something can have changed.
+ * Each value is read only as often as it is worth (measured cost per read on this device):
+ *   every 1 s          CPU and GPU clock (~0.15 ms), and the clock text
+ *   every 5 s          RAM (0.05 ms)
+ *   every 30 s         WiFi signal (2.3 ms: asks the WiFi firmware); turbo state as a fallback
+ *   every 60 s         battery (9 ms: I2C to the fuel gauge and the charger)
  *   kernel uevents     charger plugged in/out, battery events -> battery at once
- *   rtnetlink          WiFi link up/down -> network name at once
+ *   rtnetlink          WiFi link up/down -> link state and network name at once
  *   SIGUSR1            volume or turbo changed (sent by osd.sh and turbo.sh) -> at once
  *   SIGSTOP/SIGCONT    sent by the idle scripts while the screen is off: nothing runs then;
  *                      SIGCONT re-reads everything
@@ -20,7 +23,9 @@
  * Built and installed by `scripts/sync install` (manifest "build" entry).
  */
 #define _GNU_SOURCE
+#include <fcntl.h>
 #include <glob.h>
+#include <stdlib.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <poll.h>
@@ -46,10 +51,15 @@
 #define YELLOW "#f9e2af"
 #define RED    "#f38ba8"
 
-#define WIFI_EVERY    10 /* seconds */
-#define BATTERY_EVERY 30
+/* seconds between reads of the slower values */
+#define RAM_EVERY     5
+#define SIGNAL_EVERY  30
+#define TURBO_EVERY   30
+#define BATTERY_EVERY 60
+#define VOLUME_RETRY  10 /* while PipeWire isn't up yet after login */
 
 static char gpu[64]; /* "/sys/class/drm/cardN/", found at start */
+static int gpu_rp0;  /* the GPU's highest (turbo) clock, MHz */
 
 static struct {
     double cpu_ghz;
@@ -100,25 +110,37 @@ static int gpu_int(const char *name)
 
 /* ---- readers ---- */
 
+/* Fastest core: the "cpu MHz" lines of /proc/cpuinfo (one read, then a plain search). */
 static void read_cpu(void)
 {
-    FILE *f = fopen("/proc/cpuinfo", "r");
-    char line[256];
-    double mhz, max = 0;
-    if (f) {
-        while (fgets(line, sizeof line, f))
-            if (sscanf(line, "cpu MHz : %lf", &mhz) == 1 && mhz > max)
-                max = mhz;
-        fclose(f);
+    static char buf[32768];
+    int fd = open("/proc/cpuinfo", O_RDONLY | O_CLOEXEC);
+    size_t len = 0;
+    ssize_t n;
+    double max = 0;
+    if (fd < 0)
+        return;
+    while (len < sizeof buf - 1 && (n = read(fd, buf + len, sizeof buf - 1 - len)) > 0)
+        len += n;
+    close(fd);
+    buf[len] = 0;
+    for (char *p = buf; (p = strstr(p, "cpu MHz")); p++) {
+        double mhz = strtod(strchr(p, ':') + 1, NULL);
+        if (mhz > max)
+            max = mhz;
     }
     st.cpu_ghz = max / 1000;
-    st.cpu_turbo = read_int(NO_TURBO, 0) == 0;
 }
 
 static void read_gpu(void)
 {
     st.gpu_mhz = gpu_int("gt_act_freq_mhz");
-    st.gpu_turbo = gpu_int("gt_max_freq_mhz") >= gpu_int("gt_RP0_freq_mhz");
+}
+
+static void read_turbo(void)
+{
+    st.cpu_turbo = read_int(NO_TURBO, 0) == 0;
+    st.gpu_turbo = gpu_int("gt_max_freq_mhz") >= gpu_rp0;
 }
 
 static void read_ram(void)
@@ -313,6 +335,8 @@ static int drain(int fd)
 
 static void read_all(void)
 {
+    read_ram();
+    read_turbo();
     read_battery();
     read_wifi_link();
     read_signal();
@@ -326,6 +350,7 @@ int main(void)
         snprintf(gpu, sizeof gpu, "%.*s", (int)(strrchr(g.gl_pathv[0], '/') - g.gl_pathv[0] + 1),
                  g.gl_pathv[0]);
         globfree(&g);
+        gpu_rp0 = gpu_int("gt_RP0_freq_mhz");
     }
 
     sigset_t sigs;
@@ -350,7 +375,6 @@ int main(void)
     for (unsigned tick = 0;;) {
         read_cpu();
         read_gpu();
-        read_ram();
         emit();
 
         if (poll(fds, 4, -1) < 0)
@@ -359,22 +383,29 @@ int main(void)
             uint64_t expirations;
             read(timer, &expirations, sizeof expirations);
             tick++;
-            if (tick % WIFI_EVERY == 0) {
+            if (tick % RAM_EVERY == 0)
+                read_ram();
+            if (tick % SIGNAL_EVERY == 0) {
                 read_signal();
-                read_wifi_link();
+                if (st.wifi_up && !st.ssid[0]) /* iwd may name the network just after link up */
+                    read_wifi_link();
             }
+            if (tick % TURBO_EVERY == 0)
+                read_turbo();
             if (tick % BATTERY_EVERY == 0)
                 read_battery();
-            if (st.volume < 0 && tick % WIFI_EVERY == 0) /* PipeWire not up yet at login */
+            if (st.volume < 0 && tick % VOLUME_RETRY == 0)
                 read_volume();
         }
         if (fds[1].revents) {
             struct signalfd_siginfo si;
             read(fds[1].fd, &si, sizeof si);
-            if (si.ssi_signo == SIGCONT)
+            if (si.ssi_signo == SIGCONT) {
                 read_all();
-            else
+            } else {
                 read_volume();
+                read_turbo();
+            }
         }
         if (fds[2].revents && drain(fds[2].fd))
             read_battery();
