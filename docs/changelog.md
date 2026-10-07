@@ -88,3 +88,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   local saves differ from Steam's last sync, i.e. need a Steam launch to upload. Groundwork for
   syncing GPD saves to the desktop (Syncthing) and on to Steam Cloud. Repo cloned on the desktop
   at `~/Code/gpdwin`.
+- 2026-10-07: Super Meat Boy and Bastion saves copied from the desktop (Steam Cloud) to the GPD;
+  locations and naming differences in `docs/saves.md`. Backups of the GPD's old files in
+  `~/save-backups/2026-10-07/`.
