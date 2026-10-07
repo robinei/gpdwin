@@ -63,3 +63,5 @@ The user is Robin (they/them).
   (game installer UI, `gamelib/`),
   `maintain` (Claude maintenance launcher), `news`, `fetch-boxart.py`.
 - `.claude/commands/maintain.md` is the routine maintenance procedure (`/maintain`).
+- `desktop/`: tools that run on the Linux desktop (clone in `~/Code/gpdwin` there), e.g.
+  `steam-cloud-status`. Not used on the GPD.

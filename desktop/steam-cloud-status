@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+"""Which Steam Cloud games have local saves that Steam hasn't uploaded yet?
+
+Runs on the desktop (with Steam). Read-only: reads Steam's per-game cloud cache
+(userdata/<id>/<appid>/remotecache.vdf: size + SHA-1 of every file at the last sync) and
+compares it with the save files on disk. Saves that arrived by other means (e.g. Syncthing from
+the GPD) show up as "changed" until Steam syncs them, which it only does when the game is
+launched or exits through Steam.
+
+  steam-cloud-status            games that need a Steam launch (or have problems)
+  steam-cloud-status -v         also list in-sync games, and every differing file
+  steam-cloud-status APPID...   only these games
+
+Status per file: ok | changed (local differs: Steam will upload on next launch/exit) |
+missing (cloud has it, disk doesn't: Steam will download) | unresolved (path unknown).
+"""
+import hashlib, os, re, sys
+from datetime import datetime
+from pathlib import Path
+
+STEAM = Path.home() / ".local/share/Steam"
+
+# ERemoteStorageFileRoot -> Windows folder inside a Proton prefix (users/steamuser/...).
+PROTON_ROOTS = {2: "Documents", 3: "AppData/Local", 4: "AppData/Roaming", 9: "Saved Games",
+                12: "AppData/LocalLow"}
+# Linux roots (unverified mapping; reported as such).
+LINUX_ROOTS = {14: "", 15: ".local/share", 16: ".config"}
+
+
+def parse_vdf(text):
+    """Minimal text-VDF parser -> nested dicts."""
+    tokens = re.findall(r'"((?:[^"\\]|\\.)*)"|([{}])', text)
+    stack, cur, key = [], {}, None
+    for s, brace in tokens:
+        if brace == "{":
+            new = {}
+            cur[key] = new
+            stack.append(cur)
+            cur, key = new, None
+        elif brace == "}":
+            cur = stack.pop()
+        elif key is None:
+            key = s
+        else:
+            cur[key] = s
+            key = None
+    return cur
+
+
+def libraries():
+    libs = [STEAM]
+    lf = STEAM / "steamapps/libraryfolders.vdf"
+    if lf.exists():
+        for v in parse_vdf(lf.read_text(errors="replace")).get("libraryfolders", {}).values():
+            if isinstance(v, dict) and v.get("path"):
+                p = Path(v["path"])
+                if p not in libs:
+                    libs.append(p)
+    return libs
+
+
+def app_info(appid, libs):
+    """(name, install dir or None, proton prefix user dir or None)"""
+    name, install, prefix = None, None, None
+    for lib in libs:
+        acf = lib / f"steamapps/appmanifest_{appid}.acf"
+        if acf.exists():
+            st = parse_vdf(acf.read_text(errors="replace")).get("AppState", {})
+            name = st.get("name")
+            if st.get("installdir"):
+                install = lib / "steamapps/common" / st["installdir"]
+        pfx = lib / f"steamapps/compatdata/{appid}/pfx/drive_c/users/steamuser"
+        if pfx.exists():
+            prefix = pfx
+    return name, install, prefix
+
+
+def resolve(root, relpath, appid, userdir, install, prefix):
+    if root == 0:
+        return userdir / appid / "remote" / relpath, None
+    if root == 1:
+        return (install / relpath, None) if install else (None, "game not installed")
+    if root in PROTON_ROOTS:
+        if prefix:
+            return prefix / PROTON_ROOTS[root] / relpath, None
+        return None, f"root {root} ({PROTON_ROOTS[root]}) but no Proton prefix (native Linux build?)"
+    if root in LINUX_ROOTS:
+        return Path.home() / LINUX_ROOTS[root] / relpath, "unverified root mapping"
+    return None, f"unknown root {root}"
+
+
+def sha1(path):
+    h = hashlib.sha1()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def main(argv):
+    verbose = "-v" in argv
+    only = {a for a in argv if a.isdigit()}
+    libs = libraries()
+    needs, problems, synced = [], [], []
+    for userdir in sorted((STEAM / "userdata").glob("*")):
+        if not userdir.is_dir():
+            continue
+        for cache in sorted(userdir.glob("*/remotecache.vdf")):
+            appid = cache.parent.name
+            # 7 = Steam client settings, 241100 = Steam Controller configs (not games)
+            if appid in ("7", "241100") or (only and appid not in only):
+                continue
+            files = parse_vdf(cache.read_text(errors="replace")).get(appid, {})
+            name, install, prefix = app_info(appid, libs)
+            name = name or f"app {appid}"
+            result = {"ok": [], "changed": [], "missing": [], "unresolved": []}
+            for rel, meta in files.items():
+                if not isinstance(meta, dict):
+                    continue
+                if set(meta.get("sha", "0")) == {"0"}:      # placeholder Steam never uploaded
+                    continue
+                path, note = resolve(int(meta.get("root", 0)), rel, appid, userdir, install, prefix)
+                if path is None:
+                    result["unresolved"].append((rel, note)); continue
+                if not path.exists():
+                    result["missing"].append((rel, note)); continue
+                if sha1(path) == meta.get("sha"):
+                    result["ok"].append((rel, note))
+                else:
+                    when = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                    synced_at = datetime.fromtimestamp(int(meta.get("time", 0))).strftime("%Y-%m-%d %H:%M")
+                    result["changed"].append((rel, f"local {when}, last sync {synced_at}" + (f"; {note}" if note else "")))
+            entry = (name, appid, result)
+            if result["changed"] or result["missing"]:
+                needs.append(entry)
+            elif result["unresolved"]:
+                problems.append(entry)
+            else:
+                synced.append(entry)
+
+    def show(title, entries, detail):
+        if not entries:
+            return
+        print(f"\n{title}")
+        for name, appid, r in entries:
+            counts = ", ".join(f"{len(v)} {k}" for k, v in r.items() if v)
+            print(f"  {name} ({appid}): {counts}")
+            if detail or verbose:
+                for k in ("changed", "missing", "unresolved"):
+                    for rel, note in r[k]:
+                        print(f"      {k:10} {rel}" + (f"  [{note}]" if note else ""))
+
+    show("Needs a Steam launch to sync (start the game once via Steam, quit at the menu):", needs, True)
+    show("Couldn't check (path unknown):", problems, verbose)
+    if verbose:
+        show("In sync:", synced, False)
+    print(f"\n{len(needs)} need a launch, {len(problems)} unchecked, {len(synced)} in sync.")
+    return 1 if needs else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

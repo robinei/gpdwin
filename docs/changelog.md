@@ -84,3 +84,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   and there is no X server. Moved `Linux/lib64/libSDL2-2.0.so.0` to `.bundled` so the system SDL
   is used (runs). The installer now does this automatically for Linux installs. Bastion's
   launcher now runs its own `Linux/Bastion` script.
+- 2026-10-07: `desktop/steam-cloud-status` (runs on the desktop): lists Steam Cloud games whose
+  local saves differ from Steam's last sync, i.e. need a Steam launch to upload. Groundwork for
+  syncing GPD saves to the desktop (Syncthing) and on to Steam Cloud. Repo cloned on the desktop
+  at `~/Code/gpdwin`.
