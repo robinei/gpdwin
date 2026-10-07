@@ -120,3 +120,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   builds and `-ffdx` cleanup; Pegasus package now carries its deps and a tolerant .install;
   zelda3-git pinned to 45a149d with `backup=` for zelda3.ini. NMI watchdog off. Freed ~1.4 GB:
   stale yay/aur build dirs, package cache -k1, orphans (qt5-tools, unzip), yay-bin-debug.
+- 2026-10-07: `/maintain` AUR step updated for vendoring, patches (what to do when one no longer
+  applies), pinned `-git` packages and detached long builds; new `/aur-add` command for
+  installing new AUR packages the reviewed, vendored way. yay stays (search only).

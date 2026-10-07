@@ -23,7 +23,8 @@ The user is Robin (they/them).
   contradictions. Findings that cost time to discover belong in the docs.
 - Don't reboot, suspend, or restart sway/Pegasus without asking; the user may be playing.
 - Prefer official repo packages. AUR packages only through `scripts/aur` (review, then build).
-  Keep the AUR set small. Never `yay -S` / `yay -Syu` for AUR builds.
+  Keep the AUR set small. Never `yay -S` / `yay -Syu` for AUR builds (yay is for searching).
+  New AUR package: follow `/aur-add`.
 
 ## sudo
 - The Bash tool has no TTY. `sudo -n` works only when the user has run `sudo -v` in a real
@@ -66,6 +67,7 @@ The user is Robin (they/them).
   (game installer UI, `gamelib/`),
   `maintain` (Claude maintenance launcher), `news`, `fetch-boxart.py`.
 - `aur/`: `reviewed.tsv`, `pkgbuilds/` (vendored build files), `patches/` (our changes).
-- `.claude/commands/maintain.md` is the routine maintenance procedure (`/maintain`).
+- `.claude/commands/maintain.md` is the routine maintenance procedure (`/maintain`);
+  `.claude/commands/aur-add.md` installs a new AUR package the reviewed, vendored way (`/aur-add`).
 - `desktop/`: tools that run on the Linux desktop (clone in `~/Code/gpdwin` there), e.g.
   `steam-cloud-status`. Not used on the GPD.

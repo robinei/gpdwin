@@ -19,18 +19,32 @@ informed in short lines; they are on a small screen with a keyboard.
    warnings, failed hooks and `.pacnew` notices. If the kernel or `linux-firmware-*` changed,
    tell the user a reboot is needed (don't reboot yourself).
 
-4. **AUR packages.** `scripts/aur check`. For each package with an update:
+4. **AUR packages.** `scripts/aur check`. Our build files are vendored in `aur/pkgbuilds/PKG/`
+   and our changes live in `aur/patches/PKG/` (`pkgbuild/*.patch` for build files, `*.patch` for
+   the source); see docs/packages.md "AUR policy". For each package with an update:
    - `scripts/aur review PKG` and read the diff yourself. Flag: new or changed source URLs or
      hosts, checksum changes without a version change, `SKIP` checksums on non-VCS sources,
      downloads or `curl|sh`/`eval` inside `build()`/`package()`/`prepare()`, new `.install`
      scripts or hooks, files written outside `$pkgdir`, new dependencies, a maintainer change
      (compare with the reviewed row in `aur/reviewed.tsv`), obfuscated code.
    - Give the user a short verdict (what changed, anything suspicious) and ask before building.
-   - `-git` packages build whatever upstream HEAD is; say so, and look at the upstream commit log
-     since the installed version when it's cheap to do.
-   - Build with `scripts/aur build PKG --yes` (it records the reviewed commit and a changelog line).
-     Never use `yay -S`/`yay -Syu` for AUR builds here; yay can't build pegasus-frontend-stable-git
-     anyway (its PKGBUILD echoes at top level).
+   - Pinned `-git` packages (a pin patch in `aur/patches/PKG/pkgbuild/`, e.g. zelda3-git) don't
+     move with the AUR. To update one, look at the upstream commits since the pin, summarize
+     them, and on approval bump the commit in the pin patch. Unpinned `-git` packages build
+     whatever upstream HEAD is: say so, and propose pinning them.
+   - Build with `scripts/aur build PKG --yes`. It applies our patches to pristine sources, keeps
+     sudo alive, installs, records the reviewed commit, re-vendors `aur/pkgbuilds/PKG`, adds a
+     changelog line and cleans the build dir. Long builds (Pegasus ~20 min): run it detached
+     (`setsid -f bash -c "scripts/aur build PKG --yes > /tmp/PKG-build.log 2>&1 < /dev/null"`)
+     and poll the log.
+   - **A patch fails to apply** (upstream changed the same lines): don't drop it. Fetch the new
+     source (`makepkg -o` in `~/.cache/gpd-aur/PKG` after the build-file patches), redo the
+     change by hand, regenerate the patch with `diff -u` (paths `a/...` and `b/...`, `-p1`
+     relative to the target dir), check it with `patch -p1 --dry-run`, and say what changed.
+     If upstream fixed the problem itself, delete the patch and note it in the changelog.
+   - After the build, check what each patch was for still holds (e.g. Pegasus idle: 0 frames/s,
+     see docs/frontend.md), and that `git diff aur/pkgbuilds` matches what you reviewed.
+   - Never use `yay -S`/`yay -Syu` for AUR builds; yay is only for searching (`yay -Ss`).
    - After updating `pegasus-frontend-stable-git`, tell the user to restart Pegasus.
 
 5. **pacnew/pacsave.** `pacdiff -o`. For each, diff against the live file, merge sensibly (keep
