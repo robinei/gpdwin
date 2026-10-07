@@ -1,0 +1,13 @@
+{
+ "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>. Used by scripts/save-status (GPD) and desktop/save-status-remote.",
+ "desktop_host": "robin@192.168.1.216",
+ "games": [
+  {"name": "Super Meat Boy", "appid": "40800", "files": [
+    {"gpd": "~/.local/share/SuperMeatBoy/UserData/savegame.dat",
+     "desktop": "{steam}/steamapps/common/Super Meat Boy/UserData/savegame.dat"}]},
+  {"name": "Bastion", "appid": "107100", "files": [
+    {"gpd": "~/.local/share/Bastion/Profile1.sav", "desktop": "{userdata}/107100/remote/profile1.sav"},
+    {"gpd": "~/.local/share/Bastion/Profile1.keyctrls", "desktop": "{userdata}/107100/remote/profile1.keyctrls"},
+    {"gpd": "~/.local/share/Bastion/Profile1.mousectrls", "desktop": "{userdata}/107100/remote/profile1.mousectrls"}]}
+ ]
+}

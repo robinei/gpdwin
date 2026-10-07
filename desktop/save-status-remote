@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Desktop side of the GPD's Save Status tool. Prints JSON, read-only.
+
+For every game in games/saves.json: size, mtime and SHA-1 of the desktop's save files, plus the
+Steam Cloud state of the game (from desktop/steam-cloud-status). The GPD runs this over ssh with
+a restricted key (authorized_keys forced command), so it takes no arguments.
+"""
+import hashlib, importlib.machinery, importlib.util, json, sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
+
+loader = importlib.machinery.SourceFileLoader("steamcloud", str(HERE / "steam-cloud-status"))
+spec = importlib.util.spec_from_loader("steamcloud", loader)
+sc = importlib.util.module_from_spec(spec)
+loader.exec_module(sc)
+
+
+def sha1(p):
+    h = hashlib.sha1()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def cloud_state(appid, userdirs, libs):
+    """'synced' | 'needs-launch' | 'no-cloud' for one app (same logic as steam-cloud-status)."""
+    for userdir in userdirs:
+        cache = userdir / appid / "remotecache.vdf"
+        if not cache.exists():
+            continue
+        files = sc.parse_vdf(cache.read_text(errors="replace")).get(appid, {})
+        _, install, prefix = sc.app_info(appid, libs)
+        for rel, meta in files.items():
+            if not isinstance(meta, dict) or set(meta.get("sha", "0")) == {"0"}:
+                continue
+            path, _ = sc.resolve(int(meta.get("root", 0)), rel, appid, userdir, install, prefix)
+            if path is None:
+                continue
+            if not path.exists() or sha1(path) != meta.get("sha"):
+                return "needs-launch"
+        return "synced"
+    return "no-cloud"
+
+
+def main():
+    cfg = json.loads((REPO / "games/saves.json").read_text())
+    userdirs = [d for d in sorted((sc.STEAM / "userdata").glob("*")) if d.is_dir() and d.name != "0"]
+    libs = sc.libraries()
+    out = {"games": []}
+    for g in cfg["games"]:
+        files = []
+        for f in g["files"]:
+            raw = f["desktop"].replace("{steam}", str(sc.STEAM))
+            if "{userdata}" in raw:
+                raw = raw.replace("{userdata}", str(userdirs[0])) if userdirs else raw
+            p = Path(raw)
+            if p.exists():
+                st = p.stat()
+                files.append({"path": str(p), "exists": True, "size": st.st_size,
+                              "mtime": int(st.st_mtime), "sha": sha1(p)})
+            else:
+                files.append({"path": str(p), "exists": False})
+        out["games"].append({"appid": g["appid"], "files": files,
+                             "cloud": cloud_state(g["appid"], userdirs, libs)})
+    json.dump(out, sys.stdout)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

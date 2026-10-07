@@ -91,3 +91,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: Super Meat Boy and Bastion saves copied from the desktop (Steam Cloud) to the GPD;
   locations and naming differences in `docs/saves.md`. Backups of the GPD's old files in
   `~/save-backups/2026-10-07/`.
+- 2026-10-07: Utilities > Save Status (`scripts/save-status` + `desktop/save-status-remote`,
+  mapping in `games/saves.json`). The desktop's authorized_keys allows the GPD key to run only the
+  read-only status script.

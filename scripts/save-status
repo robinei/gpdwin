@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Save status: compare this GPD's game saves with the desktop's, and show Steam Cloud state.
+
+Reads games/saves.json, hashes the GPD's save files, and asks the desktop for its side over ssh
+(restricted key: the desktop only lets this key run desktop/save-status-remote).
+Pegasus: Utilities > Save Status. `--no-pause` when run from a terminal.
+"""
+import hashlib, json, os, subprocess, sys, time
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+CLOUD = {"synced": "in sync", "needs-launch": "NEEDS STEAM LAUNCH on desktop",
+         "no-cloud": "no cloud data", None: "?"}
+
+
+def sha1(p):
+    h = hashlib.sha1()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def when(ts):
+    return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
+
+
+def desktop_state(host):
+    try:
+        r = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", host, "status"],
+                           capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        return None, "timed out"
+    if r.returncode != 0:
+        return None, (r.stderr.strip().splitlines() or ["ssh failed"])[-1]
+    try:
+        return {g["appid"]: g for g in json.loads(r.stdout)["games"]}, None
+    except (ValueError, KeyError):
+        return None, "bad reply from desktop"
+
+
+def compare(local, remote):
+    """Per-file comparison -> (summary, detail lines)."""
+    states, details = set(), []
+    for lf, rf in zip(local, remote or [{}] * len(local)):
+        name = Path(lf["path"]).name
+        if not lf["exists"] and not rf.get("exists"):
+            states.add("missing both"); continue
+        if not lf["exists"]:
+            states.add("only on desktop"); details.append(f"{name}: only on desktop"); continue
+        if not rf.get("exists"):
+            states.add("only on GPD"); details.append(f"{name}: only on GPD"); continue
+        if lf["sha"] == rf["sha"]:
+            states.add("same"); continue
+        if lf["mtime"] > rf["mtime"]:
+            states.add("GPD newer")
+            details.append(f"{name}: GPD {when(lf['mtime'])} > desktop {when(rf['mtime'])}")
+        else:
+            states.add("desktop newer")
+            details.append(f"{name}: desktop {when(rf['mtime'])} > GPD {when(lf['mtime'])}")
+    if states == {"same"}:
+        return "same on both", details
+    order = ["GPD newer", "desktop newer", "only on GPD", "only on desktop", "missing both"]
+    return ", ".join(s for s in order if s in states) or "same on both", details
+
+
+def main():
+    pause = "--no-pause" not in sys.argv
+    cfg = json.loads((REPO / "games/saves.json").read_text())
+    print("Save status (GPD vs desktop, Steam Cloud via desktop)\n")
+    remote, err = desktop_state(cfg["desktop_host"])
+    if err:
+        print(f"Desktop {cfg['desktop_host']} not reachable ({err}); showing GPD side only.\n")
+    for g in cfg["games"]:
+        local = []
+        for f in g["files"]:
+            p = Path(os.path.expanduser(f["gpd"]))
+            if p.exists():
+                st = p.stat()
+                local.append({"path": str(p), "exists": True, "mtime": int(st.st_mtime), "sha": sha1(p)})
+            else:
+                local.append({"path": str(p), "exists": False})
+        r = remote.get(g["appid"]) if remote else None
+        if r:
+            summary, details = compare(local, r["files"])
+            cloud = CLOUD.get(r.get("cloud"), r.get("cloud"))
+        else:
+            newest = max((x["mtime"] for x in local if x["exists"]), default=None)
+            summary = f"GPD last saved {when(newest)}" if newest else "no saves on GPD"
+            details, cloud = [], "?"
+        print(f"{g['name']}")
+        print(f"  saves: {summary}")
+        for d in details:
+            print(f"    {d}")
+        print(f"  Steam Cloud: {cloud}\n")
+    print("GPD newer: copy to the desktop, then start the game once in Steam to upload.\n"
+          "Desktop newer: copy to the GPD (see docs/saves.md for the paths).")
+    if pause:
+        input("\nPress Enter to return ")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
