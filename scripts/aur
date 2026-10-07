@@ -6,7 +6,8 @@ shown as a diff from that commit, and only built after review.
 
 Commands:
   aur search TERM..         search the AUR (name and description), most votes first
-  aur check                 list foreign packages, AUR version, and whether an update is pending
+  aur check                 list foreign packages, AUR version, and whether an update is pending;
+                            for git sources pinned with #commit=, show how far upstream is ahead
   aur review PKG            fetch PKG's AUR repo and show what changed since the reviewed commit
                             (full PKGBUILD/.install/etc. if never reviewed)
   aur build PKG [--yes]     build and install the reviewed state of PKG (asks unless --yes),
@@ -135,6 +136,52 @@ def search(args):
     return 0
 
 
+def pinned_sources(pkg):
+    """[(url, pinned_sha)] for git sources pinned with #commit=, after applying our build-file
+    patches to a temporary copy of the vendored files."""
+    import shutil, tempfile
+    src = VENDOR / pkg
+    if not (src / "PKGBUILD").exists():
+        return []
+    with tempfile.TemporaryDirectory() as tmp:
+        t = Path(tmp) / pkg
+        shutil.copytree(src, t)
+        for pt in sorted((REPO / "aur" / "patches" / pkg / "pkgbuild").glob("*.patch")):
+            subprocess.run(["patch", "-s", "-p1", "-N", "-i", str(pt)], cwd=t, capture_output=True)
+        info = subprocess.run(["makepkg", "--printsrcinfo"], cwd=t, capture_output=True, text=True).stdout
+    pins = []
+    for line in info.splitlines():
+        k, _, v = line.strip().partition(" = ")
+        if k.startswith("source") and "git+" in v and "#commit=" in v:
+            url = v.split("git+", 1)[1].split("#", 1)[0]
+            pins.append((url, v.split("#commit=", 1)[1]))
+    return pins
+
+
+def upstream_status(url, sha):
+    """Short description of how far upstream HEAD is ahead of the pinned commit."""
+    head = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True,
+                          timeout=60).stdout.split()
+    if not head:
+        return "upstream unreachable"
+    if head[0].startswith(sha) or sha.startswith(head[0][:len(sha)]):
+        return "up to date with upstream"
+    m = None
+    if "github.com/" in url:
+        repo = url.split("github.com/", 1)[1].removesuffix(".git").strip("/")
+        try:
+            req = urllib.request.Request(f"https://api.github.com/repos/{repo}/compare/{sha}...{head[0]}",
+                                         headers={"User-Agent": "gpd-aur"})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                m = json.load(r)
+        except Exception:
+            m = None
+    if m and "ahead_by" in m:
+        last = m["commits"][-1]["commit"]["committer"]["date"][:10] if m.get("commits") else "?"
+        return f"upstream {m['ahead_by']} commit(s) ahead (latest {last}, HEAD {head[0][:10]})"
+    return f"upstream HEAD is {head[0][:10]} (differs from pin)"
+
+
 def check(_):
     foreign = [l.split() for l in out(["pacman", "-Qm"]).splitlines()]
     info = aur_info([p for p, _ in foreign])
@@ -155,6 +202,14 @@ def check(_):
             if pkg not in rows:
                 state += ", never reviewed"
         print(f"{pkg:34} {ver:26} {aur:26} {state}")
+    print("\nPinned upstream sources (git #commit=, after our build-file patches):")
+    any_pins = False
+    for pkg, _ in foreign:
+        for url, sha in pinned_sources(pkg):
+            any_pins = True
+            print(f"  {pkg}: {url.rsplit('/', 1)[-1]} pinned at {sha[:10]}: {upstream_status(url, sha)}")
+    if not any_pins:
+        print("  none")
     return 0
 
 
