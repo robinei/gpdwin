@@ -3,7 +3,7 @@
 The Steam password and Steam Guard code are typed by the user into DepotDownloader; this code
 never sees them. The Web API key for refreshing the library is asked for each time, not stored.
 """
-import getpass, json, re, subprocess, tempfile, time, urllib.parse, urllib.request
+import getpass, json, re, subprocess, tempfile, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 from .. import core
@@ -206,6 +206,16 @@ class SteamSource:
         print(f"Looking up PCGamingWiki (50 per request)...")
         old = {g["id"]: g for g in self.load_library()}
         pcgw = self._pcgw([(str(g["appid"]), g["name"]) for g in games])
+        # Names that didn't match a PCGamingWiki page ("Prey" is "Prey (2017)"): find the page by
+        # app id, once per game (games resolved earlier keep their page name in "pcgw").
+        todo = [(str(g["appid"]), old.get(str(g["appid"]), {}).get("pcgw")) for g in games if str(g["appid"]) not in pcgw]
+        known = [(gid, page) for gid, page in todo if page]
+        if known:
+            pcgw.update(self._pcgw(known))
+        missing = [gid for gid, page in todo if not page and gid not in pcgw]
+        if missing:
+            print(f"Looking up {len(missing)} more on PCGamingWiki by app id (one request each)...")
+            pcgw.update(self._pcgw(list(self._pcgw_pages_by_appid(missing).items())))
         out = []
         for g in games:
             gid = str(g["appid"])
@@ -225,6 +235,41 @@ class SteamSource:
         new = len(set(x["id"] for x in out) - set(old))
         print(f"Saved {len(out)} games ({new} new) to {LIBRARY}. New games have no tier yet.")
         return True
+
+    def _pcgw_pages_by_appid(self, ids):
+        """{appid: page title} via PCGamingWiki's app id redirect (one request per game)."""
+        pages = {}
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *a, **k):
+                return None
+        opener = urllib.request.build_opener(NoRedirect)
+        for n, gid in enumerate(ids, 1):
+            req = urllib.request.Request(f"https://www.pcgamingwiki.com/api/appid.php?appid={gid}", headers=UA)
+            try:
+                opener.open(req, timeout=30)
+            except urllib.error.HTTPError as e:
+                loc = e.headers.get("Location", "")
+                if e.code in (301, 302) and "/wiki/" in loc:
+                    pages[gid] = urllib.parse.unquote(loc.split("/wiki/", 1)[1]).replace("_", " ")
+            except Exception:
+                pass
+            if n % 50 == 0:
+                print(f"  {n}/{len(ids)}")
+            time.sleep(0.3)
+        return pages
+
+    def fill_drm_by_appid(self):
+        """Resolve games with unknown DRM via their app id (no Steam key needed); updates the library."""
+        data = json.loads(LIBRARY.read_text())
+        unknown = [g for g in data["games"] if g.get("drm", "unknown") == "unknown"]
+        pages = self._pcgw_pages_by_appid([g["id"] for g in unknown])
+        info = self._pcgw(list(pages.items()))
+        for g in unknown:
+            i = info.get(g["id"])
+            if i:
+                g.update({"drm": i["drm"], "controller": i["controller"], "pcgw": i["page"]})
+        LIBRARY.write_text(json.dumps(data, indent=1) + "\n")
+        return len(unknown), len(pages), len(info)
 
     def _pcgw(self, items):
         def clean(n):

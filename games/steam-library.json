@@ -90,11 +90,11 @@
    "id": "278360",
    "name": "A Story About My Uncle",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "A Story about My Uncle",
    "windows": true
   },
   {
@@ -114,11 +114,11 @@
    "id": "228400",
    "name": "ACE COMBAT ASSAULT HORIZON Enhanced Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Ace Combat: Assault Horizon - Enhanced Edition",
    "windows": true
   },
   {
@@ -174,11 +174,11 @@
    "id": "1765780",
    "name": "ADACA",
    "hours": 1.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Adaca",
    "windows": true
   },
   {
@@ -210,11 +210,11 @@
    "id": "105450",
    "name": "Age of Empires III (2007)",
    "hours": 0.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Age of Empires III",
    "windows": true
   },
   {
@@ -294,11 +294,11 @@
    "id": "801480",
    "name": "Agent A: A puzzle in disguise",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Agent A: A Puzzle in Disguise",
    "windows": true
   },
   {
@@ -545,11 +545,11 @@
    "id": "115220",
    "name": "American Conquest - Fight Back",
    "hours": 1.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "American Conquest: Fight Back",
    "windows": true
   },
   {
@@ -629,11 +629,11 @@
    "id": "1281630",
    "name": "Anno 1404 - History Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Anno 1404: History Edition",
    "windows": true
   },
   {
@@ -641,11 +641,11 @@
    "id": "2820110",
    "name": "Anno 1503 - History Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Anno 1503: History Edition",
    "windows": true
   },
   {
@@ -653,11 +653,11 @@
    "id": "2820130",
    "name": "Anno 1602 - History Edition",
    "hours": 0.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Anno 1602: History Edition",
    "windows": true
   },
   {
@@ -665,11 +665,11 @@
    "id": "2820140",
    "name": "Anno 1701 - History Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Anno 1701: History Edition",
    "windows": true
   },
   {
@@ -737,11 +737,11 @@
    "id": "39690",
    "name": "ArcaniA",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Arcania: Gothic 4",
    "windows": true
   },
   {
@@ -773,11 +773,11 @@
    "id": "407530",
    "name": "ARK: Survival Of The Fittest",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "ARK: Survival of the Fittest",
    "windows": true
   },
   {
@@ -917,11 +917,11 @@
    "id": "228880",
    "name": "Ashes of the Singularity: Classic",
    "hours": 0.7,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": null,
    "tier": null,
-   "pcgw": null
+   "pcgw": "Ashes of the Singularity"
   },
   {
    "source": "steam",
@@ -1228,11 +1228,11 @@
    "id": "208400",
    "name": "Avernum: Escape From the Pit",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Avernum: Escape from the Pit",
    "windows": true
   },
   {
@@ -1264,11 +1264,11 @@
    "id": "31290",
    "name": "Back to the Future: Ep 1 - It's About Time",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Back to the Future: The Game",
    "windows": true
   },
   {
@@ -1492,11 +1492,11 @@
    "id": "1025600",
    "name": "Battle Realms: Zen Edition",
    "hours": 0.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Battle Realms",
    "windows": true
   },
   {
@@ -1611,11 +1611,11 @@
    "id": "637090",
    "name": "BATTLETECH",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "BattleTech",
    "windows": true
   },
   {
@@ -1635,11 +1635,11 @@
    "id": "912570",
    "name": "BEAUTIFUL DESOLATION",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Beautiful Desolation",
    "windows": true
   },
   {
@@ -1923,11 +1923,11 @@
    "id": "823500",
    "name": "BONEWORKS",
    "hours": 0.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Boneworks",
    "windows": true
   },
   {
@@ -1959,11 +1959,11 @@
    "id": "8980",
    "name": "Borderlands GOTY",
    "hours": 32.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Borderlands",
    "windows": true
   },
   {
@@ -1995,11 +1995,11 @@
    "id": "243930",
    "name": "Bound By Flame",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Bound by Flame",
    "windows": true
   },
   {
@@ -2067,11 +2067,11 @@
    "id": "22350",
    "name": "BRINK",
    "hours": 11.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Brink",
    "windows": true
   },
   {
@@ -2127,11 +2127,11 @@
    "id": "262940",
    "name": "Broken Sword 5 - the Serpent's Curse",
    "hours": 0.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Broken Sword 5: The Serpent's Curse",
    "windows": true
   },
   {
@@ -2139,11 +2139,11 @@
    "id": "225080",
    "name": "Brothers - A Tale of Two Sons",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Brothers: A Tale of Two Sons",
    "windows": true
   },
   {
@@ -2222,11 +2222,11 @@
    "id": "50510",
    "name": "Burn Zombie Burn",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Burn Zombie Burn!",
    "windows": true
   },
   {
@@ -2246,11 +2246,11 @@
    "id": "474210",
    "name": "BUTCHER",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Butcher",
    "windows": true
   },
   {
@@ -2294,11 +2294,11 @@
    "id": "2620",
    "name": "Call of Duty (2003)",
    "hours": 0.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Call of Duty",
    "windows": true
   },
   {
@@ -2318,11 +2318,11 @@
    "id": "7940",
    "name": "Call of Duty 4: Modern Warfare (2007)",
    "hours": 11.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Call of Duty 4: Modern Warfare",
    "windows": true
   },
   {
@@ -2342,11 +2342,11 @@
    "id": "10180",
    "name": "Call of Duty: Modern Warfare 2 (2009)",
    "hours": 5.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Call of Duty: Modern Warfare 2",
    "windows": true
   },
   {
@@ -2484,11 +2484,11 @@
    "id": "953490",
    "name": "CARRION",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Carrion",
    "windows": true
   },
   {
@@ -2581,11 +2581,11 @@
    "id": "1016800",
    "name": "Chernobylite Complete Edition",
    "hours": 0.9,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Chernobylite",
    "windows": true
   },
   {
@@ -2653,11 +2653,11 @@
    "id": "1133760",
    "name": "CHRONO CROSS: THE RADICAL DREAMERS EDITION",
    "hours": 2.9,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Chrono Cross: The Radical Dreamers Edition",
    "windows": true
   },
   {
@@ -2665,11 +2665,11 @@
    "id": "613830",
    "name": "CHRONO TRIGGER",
    "hours": 1.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Chrono Trigger",
    "windows": true
   },
   {
@@ -2761,11 +2761,11 @@
    "id": "47700",
    "name": "Command & Conquer 4 Tiberian Twilight",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Command & Conquer 4: Tiberian Twilight",
    "windows": true
   },
   {
@@ -2773,11 +2773,11 @@
    "id": "2229830",
    "name": "Command & Conquer and The Covert Operations",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Command & Conquer",
    "windows": true
   },
   {
@@ -2797,11 +2797,11 @@
    "id": "17480",
    "name": "Command & Conquer Red Alert 3",
    "hours": 2.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Command & Conquer: Red Alert 3",
    "windows": true
   },
   {
@@ -2809,11 +2809,11 @@
    "id": "24800",
    "name": "Command & Conquer Red Alert 3 - Uprising",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Command & Conquer: Red Alert 3 - Uprising",
    "windows": true
   },
   {
@@ -2833,11 +2833,11 @@
    "id": "2229880",
    "name": "Command & Conquer Tiberian Sun and Firestorm",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Command & Conquer: Tiberian Sun",
    "windows": true
   },
   {
@@ -2857,11 +2857,11 @@
    "id": "2229850",
    "name": "Command & Conquer: Red Alert 2 and Yuri\u2019s Revenge",
    "hours": 0.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Command & Conquer: Red Alert 2",
    "windows": true
   },
   {
@@ -2869,11 +2869,11 @@
    "id": "2229840",
    "name": "Command & Conquer: Red Alert, Counterstrike and The Aftermath",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Command & Conquer: Red Alert",
    "windows": true
   },
   {
@@ -2917,11 +2917,11 @@
    "id": "4560",
    "name": "Company of Heroes - Legacy Edition",
    "hours": 4.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Company of Heroes",
    "windows": true
   },
   {
@@ -2977,11 +2977,11 @@
    "id": "1286990",
    "name": "CONSCRIPT: Director's Cut",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Conscript",
    "windows": true
   },
   {
@@ -2989,11 +2989,11 @@
    "id": "264240",
    "name": "CONSORTIUM 2014",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Consortium",
    "windows": true
   },
   {
@@ -3013,11 +3013,11 @@
    "id": "870780",
    "name": "Control Ultimate Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Control",
    "windows": true
   },
   {
@@ -3169,11 +3169,11 @@
    "id": "248390",
    "name": "Craft The World",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Craft the World",
    "windows": true
   },
   {
@@ -3229,11 +3229,11 @@
    "id": "108800",
    "name": "Crysis 2 Maximum Edition",
    "hours": 1.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Crysis 2",
    "windows": true
   },
   {
@@ -3337,11 +3337,11 @@
    "id": "2100",
    "name": "Dark Messiah of Might & Magic Single Player",
    "hours": 16.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dark Messiah of Might and Magic",
    "windows": true
   },
   {
@@ -3349,11 +3349,11 @@
    "id": "236430",
    "name": "DARK SOULS II",
    "hours": 0.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dark Souls II",
    "windows": true
   },
   {
@@ -3361,11 +3361,11 @@
    "id": "335300",
    "name": "DARK SOULS II: Scholar of the First Sin",
    "hours": 28.7,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dark Souls II: Scholar of the First Sin",
    "windows": true
   },
   {
@@ -3373,11 +3373,11 @@
    "id": "374320",
    "name": "DARK SOULS III",
    "hours": 0.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dark Souls III",
    "windows": true
   },
   {
@@ -3385,11 +3385,11 @@
    "id": "211420",
    "name": "DARK SOULS: Prepare To Die Edition",
    "hours": 75.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dark Souls: Prepare to Die Edition",
    "windows": true
   },
   {
@@ -3397,11 +3397,11 @@
    "id": "570940",
    "name": "DARK SOULS: REMASTERED",
    "hours": 5.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dark Souls Remastered",
    "windows": true
   },
   {
@@ -3433,11 +3433,11 @@
    "id": "298950",
    "name": "Darkness Within 2: The Dark Lineage Director's Cut Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Darkness Within 2: The Dark Lineage",
    "windows": true
   },
   {
@@ -3646,11 +3646,11 @@
    "id": "383180",
    "name": "Dead Island Riptide Definitive Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dead Island: Riptide Definitive Edition",
    "windows": true
   },
   {
@@ -3658,11 +3658,11 @@
    "id": "1693980",
    "name": "Dead Space",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dead Space (2023)",
    "windows": true
   },
   {
@@ -3670,11 +3670,11 @@
    "id": "17470",
    "name": "Dead Space (2008)",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dead Space",
    "windows": true
   },
   {
@@ -3790,11 +3790,11 @@
    "id": "1190460",
    "name": "DEATH STRANDING",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Death Stranding",
    "windows": true
   },
   {
@@ -3802,11 +3802,11 @@
    "id": "1850570",
    "name": "DEATH STRANDING DIRECTOR'S CUT",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Death Stranding Director's Cut",
    "windows": true
   },
   {
@@ -3826,11 +3826,11 @@
    "id": "1252330",
    "name": "DEATHLOOP",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Deathloop",
    "windows": true
   },
   {
@@ -3874,11 +3874,11 @@
    "id": "32620",
    "name": "Delta Force 1",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Delta Force",
    "windows": true
   },
   {
@@ -3970,11 +3970,11 @@
    "id": "98600",
    "name": "Demolition, Inc.",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Demolition Inc.",
    "windows": true
   },
   {
@@ -4030,11 +4030,11 @@
    "id": "260730",
    "name": "Desperados - Wanted Dead or Alive",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Desperados: Wanted Dead or Alive",
    "windows": true
   },
   {
@@ -4042,11 +4042,11 @@
    "id": "9710",
    "name": "Desperados 2: Cooper\u2019s Revenge",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Desperados 2: Cooper's Revenge",
    "windows": true
   },
   {
@@ -4351,11 +4351,11 @@
    "id": "373420",
    "name": "Divinity: Original Sin Enhanced Edition",
    "hours": 0.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Divinity: Original Sin - Enhanced Edition",
    "windows": true
   },
   {
@@ -4374,11 +4374,11 @@
    "id": "259060",
    "name": "Dominions 4",
    "hours": 0.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dominions 4: Thrones of Ascension",
    "windows": true
   },
   {
@@ -4410,11 +4410,11 @@
    "id": "379720",
    "name": "DOOM",
    "hours": 1.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Doom (2016)",
    "windows": true
   },
   {
@@ -4434,11 +4434,11 @@
    "id": "9050",
    "name": "DOOM 3",
    "hours": 3.1,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Doom 3",
    "windows": true
   },
   {
@@ -4446,11 +4446,11 @@
    "id": "208200",
    "name": "DOOM 3: BFG Edition",
    "hours": 4.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Doom 3: BFG Edition",
    "windows": true
   },
   {
@@ -4470,11 +4470,11 @@
    "id": "1148590",
    "name": "DOOM 64",
    "hours": 0.1,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Doom 64",
    "windows": true
   },
   {
@@ -4482,11 +4482,11 @@
    "id": "782330",
    "name": "DOOM Eternal",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Doom Eternal",
    "windows": true
   },
   {
@@ -4530,11 +4530,11 @@
    "id": "47810",
    "name": "Dragon Age: Origins - Ultimate Edition",
    "hours": 15.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dragon Age: Origins",
    "windows": true
   },
   {
@@ -4578,11 +4578,11 @@
    "id": "33770",
    "name": "Drakensang The River of Time",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Drakensang: The River of Time",
    "windows": true
   },
   {
@@ -4672,11 +4672,11 @@
    "id": "249050",
    "name": "Dungeon of the ENDLESS",
    "hours": 0.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dungeon of the Endless",
    "windows": true
   },
   {
@@ -4755,11 +4755,11 @@
    "id": "519860",
    "name": "DUSK",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Dusk",
    "windows": true
   },
   {
@@ -4863,11 +4863,11 @@
    "id": "1245620",
    "name": "ELDEN RING",
    "hours": 7.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Elden Ring",
    "windows": true
   },
   {
@@ -4875,11 +4875,11 @@
    "id": "727850",
    "name": "ELDERBORN",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Elderborn",
    "windows": true
   },
   {
@@ -4947,11 +4947,11 @@
    "id": "1369630",
    "name": "ENDER LILIES: Quietus of the Knights",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Ender Lilies: Quietus of the Knights",
    "windows": true
   },
   {
@@ -4959,11 +4959,11 @@
    "id": "289130",
    "name": "ENDLESS Legend",
    "hours": 2.1,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Endless Legend",
    "windows": true
   },
   {
@@ -4983,11 +4983,11 @@
    "id": "208140",
    "name": "ENDLESS Space - Definitive Edition",
    "hours": 0.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Endless Space",
    "windows": true
   },
   {
@@ -5006,11 +5006,11 @@
    "id": "714070",
    "name": "Entropy : Zero",
    "hours": 1.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Entropy: Zero",
    "windows": true
   },
   {
@@ -5018,11 +5018,11 @@
    "id": "300760",
    "name": "EPSILON",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Epsilon",
    "windows": true
   },
   {
@@ -5030,11 +5030,11 @@
    "id": "25600",
    "name": "Eschalon: Book 1",
    "hours": 9.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Eschalon: Book I",
    "windows": true
   },
   {
@@ -5042,11 +5042,11 @@
    "id": "25620",
    "name": "Eschalon: Book 2",
    "hours": 2.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Eschalon: Book II",
    "windows": true
   },
   {
@@ -5054,11 +5054,11 @@
    "id": "257870",
    "name": "Eschalon: Book 3",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Eschalon: Book III",
    "windows": true
   },
   {
@@ -5114,11 +5114,11 @@
    "id": "396750",
    "name": "EVERSPACE",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Everspace",
    "windows": true
   },
   {
@@ -5270,11 +5270,11 @@
    "id": "204030",
    "name": "Fable - The Lost Chapters",
    "hours": 2.1,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Fable: The Lost Chapters",
    "windows": true
   },
   {
@@ -5306,11 +5306,11 @@
    "id": "303790",
    "name": "Faery - Legends of Avalon",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Faery: Legends of Avalon",
    "windows": true
   },
   {
@@ -5318,11 +5318,11 @@
    "id": "113420",
    "name": "Fallen Earth Classic",
    "hours": 1.1,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Fallen Earth",
    "windows": true
   },
   {
@@ -5522,11 +5522,11 @@
    "id": "224760",
    "name": "FEZ",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Fez",
    "windows": true
   },
   {
@@ -5534,11 +5534,11 @@
    "id": "2290",
    "name": "Final DOOM",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Doom",
    "windows": true
   },
   {
@@ -5546,11 +5546,11 @@
    "id": "377840",
    "name": "FINAL FANTASY IX",
    "hours": 22.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy IX",
    "windows": true
   },
   {
@@ -5558,11 +5558,11 @@
    "id": "3837340",
    "name": "FINAL FANTASY VII",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy VII (2020)",
    "windows": true
   },
   {
@@ -5570,11 +5570,11 @@
    "id": "39140",
    "name": "FINAL FANTASY VII (2013)",
    "hours": 7.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy VII (2012)",
    "windows": true
   },
   {
@@ -5582,11 +5582,11 @@
    "id": "2909400",
    "name": "FINAL FANTASY VII REBIRTH",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy VII Rebirth",
    "windows": true
   },
   {
@@ -5594,11 +5594,11 @@
    "id": "1462040",
    "name": "FINAL FANTASY VII REMAKE INTERGRADE",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy VII Remake Intergrade",
    "windows": true
   },
   {
@@ -5606,11 +5606,11 @@
    "id": "39150",
    "name": "FINAL FANTASY VIII",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy VIII (2013)",
    "windows": true
   },
   {
@@ -5618,11 +5618,11 @@
    "id": "1026680",
    "name": "FINAL FANTASY VIII - REMASTERED",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy VIII Remastered",
    "windows": true
   },
   {
@@ -5630,11 +5630,11 @@
    "id": "359870",
    "name": "FINAL FANTASY X/X-2 HD Remaster",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy X/X-2 HD Remaster",
    "windows": true
   },
   {
@@ -5642,11 +5642,11 @@
    "id": "595520",
    "name": "FINAL FANTASY XII THE ZODIAC AGE",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy XII: The Zodiac Age",
    "windows": true
   },
   {
@@ -5654,11 +5654,11 @@
    "id": "292120",
    "name": "FINAL FANTASY XIII",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Final Fantasy XIII",
    "windows": true
   },
   {
@@ -5714,11 +5714,11 @@
    "id": "249990",
    "name": "FORCED",
    "hours": 0.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Forced",
    "windows": true
   },
   {
@@ -5762,11 +5762,11 @@
    "id": "8890",
    "name": "Freedom Force vs. the 3rd Reich",
    "hours": 0.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Freedom Force vs. The 3rd Reich",
    "windows": true
   },
   {
@@ -5918,11 +5918,11 @@
    "id": "201000",
    "name": "Geneforge 4",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Geneforge 4: Rebellion",
    "windows": true
   },
   {
@@ -5930,11 +5930,11 @@
    "id": "201010",
    "name": "Geneforge 5",
    "hours": 11.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Geneforge 5: Overthrow",
    "windows": true
   },
   {
@@ -5942,11 +5942,11 @@
    "id": "2215430",
    "name": "Ghost of Tsushima DIRECTOR'S CUT",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Ghost of Tsushima Director's Cut",
    "windows": true
   },
   {
@@ -6098,11 +6098,11 @@
    "id": "65540",
    "name": "Gothic 1 Classic",
    "hours": 14.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Gothic",
    "windows": true
   },
   {
@@ -6122,11 +6122,11 @@
    "id": "65600",
    "name": "Gothic 3 Forsaken Gods Enhanced Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Gothic 3: Forsaken Gods",
    "windows": true
   },
   {
@@ -6134,11 +6134,11 @@
    "id": "39510",
    "name": "Gothic II: Gold Classic",
    "hours": 0.1,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Gothic II",
    "windows": true
   },
   {
@@ -6146,11 +6146,11 @@
    "id": "12210",
    "name": "Grand Theft Auto IV: The Complete Edition",
    "hours": 0.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Grand Theft Auto IV",
    "windows": true
   },
   {
@@ -6349,11 +6349,11 @@
    "id": "2610",
    "name": "GUN",
    "hours": 0.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Gun",
    "windows": true
   },
   {
@@ -6663,11 +6663,11 @@
    "id": "394510",
    "name": "HELLDIVERS",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Helldivers",
    "windows": true
   },
   {
@@ -6687,11 +6687,11 @@
    "id": "939520",
    "name": "HELLGATE: London",
    "hours": 2.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Hellgate: London",
    "windows": true
   },
   {
@@ -6723,11 +6723,11 @@
    "id": "15170",
    "name": "Heroes of Might & Magic V",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Heroes of Might and Magic V",
    "windows": true
   },
   {
@@ -6759,11 +6759,11 @@
    "id": "9060",
    "name": "HeXen II",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Hexen II",
    "windows": true
   },
   {
@@ -6807,11 +6807,11 @@
    "id": "236870",
    "name": "HITMAN",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Hitman",
    "windows": true
   },
   {
@@ -6819,11 +6819,11 @@
    "id": "863550",
    "name": "HITMAN 2",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Hitman 2",
    "windows": true
   },
   {
@@ -6902,11 +6902,11 @@
    "id": "63000",
    "name": "HOARD",
    "hours": 0.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Hoard",
    "windows": true
   },
   {
@@ -6938,11 +6938,11 @@
    "id": "505730",
    "name": "Holy Potatoes! We\u2019re in Space?!",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Holy Potatoes! We're in Space?!",
    "windows": true
   },
   {
@@ -6950,11 +6950,11 @@
    "id": "215670",
    "name": "Home",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Home (2012)",
    "windows": true
   },
   {
@@ -7082,11 +7082,11 @@
    "id": "1124300",
    "name": "HUMANKIND",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Humankind",
    "windows": true
   },
   {
@@ -7239,11 +7239,11 @@
    "id": "304430",
    "name": "INSIDE",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Inside",
    "windows": true
   },
   {
@@ -7383,11 +7383,11 @@
    "id": "257690",
    "name": "J.U.L.I.A.: Among the Stars",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "J.U.L.I.A. Among the Stars",
    "windows": true
   },
   {
@@ -7407,11 +7407,11 @@
    "id": "57740",
    "name": "Jagged Alliance - Back in Action",
    "hours": 0.7,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Jagged Alliance: Back in Action",
    "windows": true
   },
   {
@@ -7537,11 +7537,11 @@
    "id": "654050",
    "name": "JYDGE",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": null,
    "tier": null,
-   "pcgw": null
+   "pcgw": "Jydge"
   },
   {
    "source": "steam",
@@ -7645,11 +7645,11 @@
    "id": "35420",
    "name": "Killing Floor Mod: Defence Alliance 2",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Defence Alliance 2",
    "windows": true
   },
   {
@@ -7897,11 +7897,11 @@
    "id": "391720",
    "name": "Layers of Fear (2016)",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Layers of Fear",
    "windows": true
   },
   {
@@ -7981,11 +7981,11 @@
    "id": "1898290",
    "name": "LEGO Bricktales",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Lego Bricktales",
    "windows": true
   },
   {
@@ -7993,11 +7993,11 @@
    "id": "1544360",
    "name": "LEGO Builder's Journey",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Lego Builder's Journey",
    "windows": true
   },
   {
@@ -8005,11 +8005,11 @@
    "id": "214510",
    "name": "LEGO The Lord of the Rings",
    "hours": 0.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Lego The Lord of the Rings",
    "windows": true
   },
   {
@@ -8065,11 +8065,11 @@
    "id": "319630",
    "name": "Life is Strange",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Life Is Strange",
    "windows": true
   },
   {
@@ -8077,11 +8077,11 @@
    "id": "48000",
    "name": "LIMBO",
    "hours": 0.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Limbo",
    "windows": true
   },
   {
@@ -8137,11 +8137,11 @@
    "id": "265300",
    "name": "Lords Of The Fallen",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Lords of the Fallen",
    "windows": true
   },
   {
@@ -8353,11 +8353,11 @@
    "id": "17460",
    "name": "Mass Effect (2007)",
    "hours": 3.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Mass Effect",
    "windows": true
   },
   {
@@ -8377,11 +8377,11 @@
    "id": "2362420",
    "name": "Mass Effect 2 (2010) Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Mass Effect 2",
    "windows": true
   },
   {
@@ -8401,11 +8401,11 @@
    "id": "1238000",
    "name": "Mass Effect: Andromeda Deluxe Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Mass Effect: Andromeda",
    "windows": true
   },
   {
@@ -8413,11 +8413,11 @@
    "id": "246110",
    "name": "MASSIVE CHALICE",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Massive Chalice",
    "windows": true
   },
   {
@@ -8485,11 +8485,11 @@
    "id": "47790",
    "name": "Medal of Honor(TM) Single Player",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Medal of Honor (2010)",
    "windows": true
   },
   {
@@ -8509,11 +8509,11 @@
    "id": "311340",
    "name": "METAL GEAR SOLID V: GROUND ZEROES",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Metal Gear Solid V: Ground Zeroes",
    "windows": true
   },
   {
@@ -8521,11 +8521,11 @@
    "id": "287700",
    "name": "METAL GEAR SOLID V: THE PHANTOM PAIN",
    "hours": 1.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Metal Gear Solid V: The Phantom Pain",
    "windows": true
   },
   {
@@ -8581,11 +8581,11 @@
    "id": "43160",
    "name": "Metro: Last Light Complete Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": null,
    "tier": null,
-   "pcgw": null
+   "pcgw": "Metro: Last Light"
   },
   {
    "source": "steam",
@@ -8628,11 +8628,11 @@
    "id": "32740",
    "name": "MiG-29 Fulcrum",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "MiG-29 Fulcrum (1998)",
    "windows": true
   },
   {
@@ -8676,11 +8676,11 @@
    "id": "32460",
    "name": "Monkey Island 2: Special Edition",
    "hours": 2.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Monkey Island 2 Special Edition: LeChuck's Revenge",
    "windows": true
   },
   {
@@ -8688,11 +8688,11 @@
    "id": "449610",
    "name": "Monster Boy And The Cursed Kingdom",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Monster Boy and the Cursed Kingdom",
    "windows": true
   },
   {
@@ -8808,11 +8808,11 @@
    "id": "48720",
    "name": "Mount & Blade: With Fire and Sword",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Mount & Blade: With Fire & Sword",
    "windows": true
   },
   {
@@ -8856,11 +8856,11 @@
    "id": "887570",
    "name": "NEBULOUS: Fleet Command",
    "hours": 0.7,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Nebulous: Fleet Command",
    "windows": true
   },
   {
@@ -8963,11 +8963,11 @@
    "id": "295790",
    "name": "Never Alone (Kisima Ingitchuna)",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Never Alone",
    "windows": true
   },
   {
@@ -8975,11 +8975,11 @@
    "id": "2760",
    "name": "Neverwinter Nights 2: Platinum",
    "hours": 2.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Neverwinter Nights 2",
    "windows": true
   },
   {
@@ -9023,11 +9023,11 @@
    "id": "524220",
    "name": "NieR:Automata",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "NieR: Automata",
    "windows": true
   },
   {
@@ -9035,11 +9035,11 @@
    "id": "284790",
    "name": "Nightmares from the Deep 2: The Siren`s Call",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Nightmares from the Deep 2: The Siren's Call",
    "windows": true
   },
   {
@@ -9121,11 +9121,11 @@
    "id": "466560",
    "name": "Northgard: Definitive Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Northgard",
    "windows": true
   },
   {
@@ -9205,11 +9205,11 @@
    "id": "216910",
    "name": "Of Orcs And Men",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Of Orcs and Men",
    "windows": true
   },
   {
@@ -9217,11 +9217,11 @@
    "id": "243000",
    "name": "Omikron - The Nomad Soul",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Omikron: The Nomad Soul",
    "windows": true
   },
   {
@@ -9229,11 +9229,11 @@
    "id": "18000",
    "name": "On the Rain-Slick Precipice of Darkness, Episode One",
    "hours": 0.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Penny Arcade's On the Rain-Slick Precipice of Darkness: Episode One",
    "windows": true
   },
   {
@@ -9241,11 +9241,11 @@
    "id": "18020",
    "name": "On the Rain-Slick Precipice of Darkness, Episode Two",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Penny Arcade's On the Rain-Slick Precipice of Darkness: Episode Two",
    "windows": true
   },
   {
@@ -9361,11 +9361,11 @@
    "id": "618970",
    "name": "Outcast - Second Contact",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Outcast: Second Contact",
    "windows": true
   },
   {
@@ -9481,11 +9481,11 @@
    "id": "214870",
    "name": "Painkiller Hell & Damnation",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Painkiller: Hell & Damnation",
    "windows": true
   },
   {
@@ -9493,11 +9493,11 @@
    "id": "3270",
    "name": "Painkiller Overdose",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Painkiller: Overdose",
    "windows": true
   },
   {
@@ -9612,11 +9612,11 @@
    "id": "1184370",
    "name": "Pathfinder: Wrath of the Righteous - Enhanced Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Pathfinder: Wrath of the Righteous",
    "windows": true
   },
   {
@@ -9648,11 +9648,11 @@
    "id": "57620",
    "name": "Patrician IV: Steam Special Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Patrician IV: Conquest by Trade",
    "windows": true
   },
   {
@@ -9672,11 +9672,11 @@
    "id": "24240",
    "name": "PAYDAY: The Heist",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Payday: The Heist",
    "windows": true
   },
   {
@@ -9780,11 +9780,11 @@
    "id": "1436590",
    "name": "Phoenotopia Awakening",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Phoenotopia: Awakening",
    "windows": true
   },
   {
@@ -9852,11 +9852,11 @@
    "id": "466300",
    "name": "Planescape: Torment: Enhanced Edition",
    "hours": 18.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Planescape: Torment Enhanced Edition",
    "windows": true
   },
   {
@@ -9886,11 +9886,11 @@
    "id": "386070",
    "name": "Planetary Annihilation: TITANS",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Planetary Annihilation: Titans",
    "windows": true
   },
   {
@@ -9898,11 +9898,11 @@
    "id": "3590",
    "name": "Plants vs. Zombies: Game of the Year",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Plants vs. Zombies",
    "windows": true
   },
   {
@@ -9983,11 +9983,11 @@
    "id": "232770",
    "name": "POSTAL",
    "hours": 0.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Postal (2013)",
    "windows": true
   },
   {
@@ -9995,11 +9995,11 @@
    "id": "223470",
    "name": "POSTAL 2",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Postal 2",
    "windows": true
   },
   {
@@ -10007,11 +10007,11 @@
    "id": "401680",
    "name": "POSTAL Redux",
    "hours": 0.7,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Postal Redux",
    "windows": true
   },
   {
@@ -10019,11 +10019,11 @@
    "id": "480490",
    "name": "Prey",
    "hours": 46.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Prey (2017)",
    "windows": true
   },
   {
@@ -10079,11 +10079,11 @@
    "id": "19980",
    "name": "Prince of Persia",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Prince of Persia (2008)",
    "windows": true
   },
   {
@@ -10333,11 +10333,11 @@
    "id": "9200",
    "name": "RAGE",
    "hours": 21.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Rage",
    "windows": true
   },
   {
@@ -10560,11 +10560,11 @@
    "id": "680360",
    "name": "Regions Of Ruin",
    "hours": 0.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Regions of Ruin",
    "windows": true
   },
   {
@@ -10608,11 +10608,11 @@
    "id": "304240",
    "name": "Resident Evil",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Resident Evil HD Remaster",
    "windows": true
   },
   {
@@ -10812,11 +10812,11 @@
    "id": "40390",
    "name": "Risen 2 - Dark Waters",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Risen 2: Dark Waters",
    "windows": true
   },
   {
@@ -10824,11 +10824,11 @@
    "id": "249230",
    "name": "Risen 3 - Titan Lords",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Risen 3: Titan Lords",
    "windows": true
   },
   {
@@ -10836,11 +10836,11 @@
    "id": "35450",
    "name": "Rising Storm/Red Orchestra 2 Multiplayer",
    "hours": 0.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Red Orchestra 2: Heroes of Stalingrad",
    "windows": true
   },
   {
@@ -10920,11 +10920,11 @@
    "id": "221680",
    "name": "Rocksmith 2014 Edition - Remastered",
    "hours": 2.9,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Rocksmith 2014",
    "windows": true
   },
   {
@@ -10992,11 +10992,11 @@
    "id": "270150",
    "name": "RUNNING WITH RIFLES",
    "hours": 0.7,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Running with Rifles",
    "windows": true
   },
   {
@@ -11028,11 +11028,11 @@
    "id": "2427430",
    "name": "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition",
    "hours": 0.6,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "S.T.A.L.K.E.R.: Call of Prypiat Enhanced Edition",
    "windows": true
   },
   {
@@ -11052,11 +11052,11 @@
    "id": "2427420",
    "name": "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "S.T.A.L.K.E.R.: Clear Sky Enhanced Edition",
    "windows": true
   },
   {
@@ -11076,11 +11076,11 @@
    "id": "2427410",
    "name": "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition",
    "hours": 0.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "S.T.A.L.K.E.R.: Shadow of Chornobyl Enhanced Edition",
    "windows": true
   },
   {
@@ -11507,11 +11507,11 @@
    "id": "564310",
    "name": "Serious Sam Fusion 2017 (beta)",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Serious Sam Fusion 2017",
    "windows": true
   },
   {
@@ -11626,11 +11626,11 @@
    "id": "233130",
    "name": "Shadow Warrior",
    "hours": 8.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Shadow Warrior (2013)",
    "windows": true
   },
   {
@@ -11878,11 +11878,11 @@
    "id": "3920",
    "name": "Sid Meier's Pirates!",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Sid Meier's Pirates! (2004)",
    "windows": true
   },
   {
@@ -12010,11 +12010,11 @@
    "id": "1069160",
    "name": "SKALD: Against the Black Priory",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Skald: Against the Black Priory",
    "windows": true
   },
   {
@@ -12022,11 +12022,11 @@
    "id": "382140",
    "name": "SKYHILL",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Skyhill",
    "windows": true
   },
   {
@@ -12189,11 +12189,11 @@
    "id": "488790",
    "name": "South Park The Fractured But Whole",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "South Park: The Fractured but Whole",
    "windows": true
   },
   {
@@ -12297,11 +12297,11 @@
    "id": "39550",
    "name": "SpellForce 2 - Anniversary Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "SpellForce 2: Shadow Wars",
    "windows": true
   },
   {
@@ -12309,11 +12309,11 @@
    "id": "245050",
    "name": "SpellForce 2 - Demons of the Past",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "SpellForce 2: Demons of the Past",
    "windows": true
   },
   {
@@ -12321,11 +12321,11 @@
    "id": "65530",
    "name": "SpellForce 2 - Faith in Destiny",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "SpellForce 2: Faith in Destiny",
    "windows": true
   },
   {
@@ -12333,11 +12333,11 @@
    "id": "311290",
    "name": "SpellForce 3 Reforced",
    "hours": 2.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "SpellForce 3",
    "windows": true
   },
   {
@@ -12381,11 +12381,11 @@
    "id": "39540",
    "name": "SpellForce: Platinum Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "SpellForce: The Order of Dawn",
    "windows": true
   },
   {
@@ -12416,11 +12416,11 @@
    "id": "972660",
    "name": "Spiritfarer: Farewell Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Spiritfarer",
    "windows": true
   },
   {
@@ -12488,11 +12488,11 @@
    "id": "1237950",
    "name": "STAR WARS Battlefront II",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars Battlefront II (2017)",
    "windows": true
   },
   {
@@ -12524,11 +12524,11 @@
    "id": "6030",
    "name": "STAR WARS Jedi Knight II: Jedi Outcast",
    "hours": 4.1,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Jedi Knight II - Jedi Outcast",
    "windows": true
   },
   {
@@ -12536,11 +12536,11 @@
    "id": "32380",
    "name": "STAR WARS Jedi Knight: Dark Forces II",
    "hours": 1.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Jedi Knight - Dark Forces II",
    "windows": true
   },
   {
@@ -12548,11 +12548,11 @@
    "id": "6020",
    "name": "STAR WARS Jedi Knight: Jedi Academy",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Jedi Knight - Jedi Academy",
    "windows": true
   },
   {
@@ -12560,11 +12560,11 @@
    "id": "32390",
    "name": "STAR WARS Jedi Knight: Mysteries of the Sith",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Jedi Knight - Mysteries of the Sith",
    "windows": true
   },
   {
@@ -12572,11 +12572,11 @@
    "id": "1172380",
    "name": "STAR WARS Jedi: Fallen Order",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars Jedi: Fallen Order",
    "windows": true
   },
   {
@@ -12584,11 +12584,11 @@
    "id": "1774580",
    "name": "STAR WARS Jedi: Survivor",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars Jedi: Survivor",
    "windows": true
   },
   {
@@ -12596,11 +12596,11 @@
    "id": "32370",
    "name": "STAR WARS Knights of the Old Republic",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Knights of the Old Republic",
    "windows": true
   },
   {
@@ -12608,11 +12608,11 @@
    "id": "208580",
    "name": "STAR WARS Knights of the Old Republic II: The Sith Lords",
    "hours": 5.7,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Knights of the Old Republic II - The Sith Lords",
    "windows": true
   },
   {
@@ -12644,11 +12644,11 @@
    "id": "6060",
    "name": "Star Wars: Battlefront 2 (Classic, 2005)",
    "hours": 1.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Battlefront II",
    "windows": true
   },
   {
@@ -12656,11 +12656,11 @@
    "id": "32400",
    "name": "STAR WARS: Dark Forces",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Dark Forces",
    "windows": true
   },
   {
@@ -12668,11 +12668,11 @@
    "id": "1222730",
    "name": "STAR WARS: Squadrons",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Star Wars: Squadrons",
    "windows": true
   },
   {
@@ -12764,11 +12764,11 @@
    "id": "380150",
    "name": "STASIS",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Stasis",
    "windows": true
   },
   {
@@ -12776,11 +12776,11 @@
    "id": "1426010",
    "name": "STASIS: BONE TOTEM",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Stasis: Bone Totem",
    "windows": true
   },
   {
@@ -13090,11 +13090,11 @@
    "id": "535480",
    "name": "Sundered: Eldritch Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Sundered",
    "windows": true
   },
   {
@@ -13222,11 +13222,11 @@
    "id": "42890",
    "name": "Sword of the Stars Complete Collection",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Sword of the Stars",
    "windows": true
   },
   {
@@ -13258,11 +13258,11 @@
    "id": "528230",
    "name": "SYNTHETIK",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Synthetik: Legion Rising",
    "windows": true
   },
   {
@@ -13270,11 +13270,11 @@
    "id": "482400",
    "name": "System Shock",
    "hours": 0.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "System Shock (2023)",
    "windows": true
   },
   {
@@ -13282,11 +13282,11 @@
    "id": "238210",
    "name": "System Shock 2 (1999)",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "System Shock 2",
    "windows": true
   },
   {
@@ -13306,11 +13306,11 @@
    "id": "410700",
    "name": "System Shock: Classic",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": null,
    "tier": null,
-   "pcgw": null
+   "pcgw": "System Shock"
   },
   {
    "source": "steam",
@@ -13377,11 +13377,11 @@
    "id": "31170",
    "name": "Tales of Monkey Island: Chapter 1 - Launch of the Screaming Narwhal",
    "hours": 1.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Tales of Monkey Island",
    "windows": true
   },
   {
@@ -13582,11 +13582,11 @@
    "id": "41900",
    "name": "The Bard's Tale",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "The Bard's Tale (2005)",
    "windows": true
   },
   {
@@ -13702,11 +13702,11 @@
    "id": "22330",
    "name": "The Elder Scrolls IV: Oblivion Game of the Year Edition (2009)",
    "hours": 0.1,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "The Elder Scrolls IV: Oblivion",
    "windows": true
   },
   {
@@ -13810,11 +13810,11 @@
    "id": "39660",
    "name": "The Guild II - Pirates of the European Seas",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "The Guild II: Pirates of the European Seas",
    "windows": true
   },
   {
@@ -14194,11 +14194,11 @@
    "id": "292030",
    "name": "The Witcher 3: Wild Hunt \u2014 Remastered",
    "hours": 24.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "The Witcher 3: Wild Hunt",
    "windows": true
   },
   {
@@ -14504,11 +14504,11 @@
    "id": "13640",
    "name": "Tom Clancy's Ghost Recon: Advanced Warfighter",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Tom Clancy's Ghost Recon Advanced Warfighter",
    "windows": true
   },
   {
@@ -14516,11 +14516,11 @@
    "id": "13510",
    "name": "Tom Clancy's Ghost Recon: Advanced Warfighter 2",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Tom Clancy's Ghost Recon Advanced Warfighter 2",
    "windows": true
   },
   {
@@ -14563,11 +14563,11 @@
    "id": "19830",
    "name": "Tom Clancy's Rainbow Six 3: Gold Edition",
    "hours": 0.5,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Tom Clancy's Rainbow Six 3: Raven Shield",
    "windows": true
   },
   {
@@ -14670,11 +14670,11 @@
    "id": "203160",
    "name": "Tomb Raider",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Tomb Raider (2013)",
    "windows": true
   },
   {
@@ -14766,11 +14766,11 @@
    "id": "10500",
    "name": "Total War: EMPIRE - Definitive Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Empire: Total War",
    "windows": true
   },
   {
@@ -14778,11 +14778,11 @@
    "id": "4700",
    "name": "Total War: MEDIEVAL II - Definitive Edition",
    "hours": 1.2,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Medieval II: Total War",
    "windows": true
   },
   {
@@ -14790,11 +14790,11 @@
    "id": "885970",
    "name": "Total War: ROME REMASTERED",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Total War: Rome Remastered",
    "windows": true
   },
   {
@@ -14802,11 +14802,11 @@
    "id": "34330",
    "name": "Total War: SHOGUN 2",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Total War: Shogun 2",
    "windows": true
   },
   {
@@ -14814,11 +14814,11 @@
    "id": "594570",
    "name": "Total War: WARHAMMER II",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Total War: Warhammer II",
    "windows": true
   },
   {
@@ -14826,11 +14826,11 @@
    "id": "1142710",
    "name": "Total War: WARHAMMER III",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Total War: Warhammer III",
    "windows": true
   },
   {
@@ -14886,11 +14886,11 @@
    "id": "98100",
    "name": "TRAUMA",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Trauma",
    "windows": true
   },
   {
@@ -14946,11 +14946,11 @@
    "id": "23490",
    "name": "Tropico 3 - Steam Special Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Tropico 3",
    "windows": true
   },
   {
@@ -14994,11 +14994,11 @@
    "id": "1601970",
    "name": "Tunguska: The Visitation - Final Cut",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "free",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Tunguska: The Visitation",
    "windows": true
   },
   {
@@ -15030,11 +15030,11 @@
    "id": "1930",
    "name": "Two Worlds: Epic Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Two Worlds",
    "windows": true
   },
   {
@@ -15246,11 +15246,11 @@
    "id": "260230",
    "name": "Valiant Hearts: The Great War / Soldats Inconnus : M\u00e9moires de la Grande Guerre",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Valiant Hearts: The Great War",
    "windows": true
   },
   {
@@ -15353,11 +15353,11 @@
    "id": "298480",
    "name": "Victory At Sea",
    "hours": 0.3,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Victory at Sea",
    "windows": true
   },
   {
@@ -15389,11 +15389,11 @@
    "id": "1316680",
    "name": "VLADiK BRUTAL",
    "hours": 0.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Vladik Brutal",
    "windows": true
   },
   {
@@ -15425,11 +15425,11 @@
    "id": "2464530",
    "name": "VOIN",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Voin",
    "windows": true
   },
   {
@@ -15519,11 +15519,11 @@
    "id": "222750",
    "name": "Wargame: AirLand Battle",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Wargame: Airland Battle",
    "windows": true
   },
   {
@@ -15555,11 +15555,11 @@
    "id": "4570",
    "name": "Warhammer 40,000: Dawn of War - Anniversary Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Warhammer 40,000: Dawn of War",
    "windows": true
   },
   {
@@ -15615,11 +15615,11 @@
    "id": "15620",
    "name": "Warhammer 40,000: Dawn of War II - Anniversary Edition",
    "hours": 9.4,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Warhammer 40,000: Dawn of War II",
    "windows": true
   },
   {
@@ -15627,11 +15627,11 @@
    "id": "20570",
    "name": "Warhammer 40,000: Dawn of War II - Chaos Rising",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": true,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Warhammer 40,000: Dawn of War II: Chaos Rising",
    "windows": true
   },
   {
@@ -15651,11 +15651,11 @@
    "id": "55150",
    "name": "Warhammer 40,000: Space Marine - Anniversary Edition",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Warhammer 40,000: Space Marine",
    "windows": true
   },
   {
@@ -15675,11 +15675,11 @@
    "id": "203630",
    "name": "Warlock - Master of the Arcane",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Warlock: Master of the Arcane",
    "windows": true
   },
   {
@@ -15783,11 +15783,11 @@
    "id": "1097350",
    "name": "Weird West: Definitive Edition",
    "hours": 34.8,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": true,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Weird West",
    "windows": true
   },
   {
@@ -16119,11 +16119,11 @@
    "id": "275530",
    "name": "Z",
    "hours": 0.0,
-   "drm": "unknown",
-   "controller": null,
+   "drm": "steam",
+   "controller": false,
    "linux": false,
    "tier": null,
-   "pcgw": null,
+   "pcgw": "Z (2012)",
    "windows": true
   },
   {
