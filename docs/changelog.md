@@ -181,3 +181,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-07: lib32-openal (SteamWorld Heist); installer writes steam_appid.txt for Steam API games so they run without the Steam client.
 - 2026-10-07: gamepad use keeps the screen awake: inputd pokes sway (zero cursor move) on pad input, at most every 30 s.
 - 2026-10-07: native Psychonauts windowed 1280x720 + floating X11 game windows on ws1 made fullscreen; lib32-mangohud.
+
+- 2026-10-07: AUR `lib32-sdl2-compat` updated to 2.32.74-1 (reviewed AUR commit 9b3db2d26721).
