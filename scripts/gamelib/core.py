@@ -133,27 +133,31 @@ def find_executables(dirpath, osname, game_name):
 
 
 # ---------- fixes for old native games ----------
-def elf_32bit_unsupported(path):
-    """True if path is a 32-bit ELF and this system has no 32-bit loader (no multilib)."""
+def elf_bits(path):
+    """32 or 64 for an ELF file, None otherwise."""
     try:
         with open(path, "rb") as f:
             head = f.read(5)
     except OSError:
-        return False
-    return head[:4] == b"\x7fELF" and head[4] == 1 and not Path("/lib/ld-linux.so.2").exists()
+        return None
+    return {1: 32, 2: 64}.get(head[4]) if head[:4] == b"\x7fELF" and len(head) == 5 else None
 
 
 def launch_target_32bit(dirpath, exe):
-    """For a launch script, check the ELF binaries next to it; for a binary, check it directly."""
-    root = Path(dirpath)
-    target = root / exe
+    """True if the game's entry point is 32-bit only and this system can't run it (no multilib).
+    For a binary, check it; for a launch script, check the binaries next to it: 32-bit ones and
+    no 64-bit one (many games ship both and let the script pick)."""
+    if Path("/lib/ld-linux.so.2").exists():
+        return False
+    target = Path(dirpath) / exe
     cands = [target]
     try:
         if target.read_bytes()[:2] == b"#!":
             cands = [p for p in target.parent.iterdir() if p.is_file() and ".so" not in p.name]
     except OSError:
         pass
-    return any(elf_32bit_unsupported(c) for c in cands)
+    bits = {elf_bits(c) for c in cands}
+    return 32 in bits and 64 not in bits
 
 def disable_old_bundled_sdl(dirpath):
     """Old Linux ports (FNA/MonoKickstart, e.g. Bastion) bundle an SDL2 without Wayland support;

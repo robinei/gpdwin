@@ -156,3 +156,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   entries): bar shows CPU/GPU clocks, updates every second and instantly on events; inputd only wakes
   for the Guide button.
 - 2026-10-07: TXE runtime PM (udev rule, ~80 mW); idle suspend after 20 min instead of 10.
+- 2026-10-07: game installer: platforms from the Steam store (batched, no key; filled for the whole
+  library), only builds that exist are offered; Linux downloads use `-osarch 64`; a 32-bit-only
+  Linux build is removed, marked `linux32` and the Windows build offered instead; store size
+  estimate shown in the list and the game menu.

@@ -10,6 +10,8 @@ from .. import core
 
 LIBRARY = core.REPO / "games" / "steam-library.json"
 UA = {"User-Agent": "gpd-games/1.0 (personal library tool)"}
+STORE_ITEMS = "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/"
+APPDETAILS = "https://store.steampowered.com/api/appdetails?appids={id}"
 COVER_URLS = [
     "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{id}/library_600x900_2x.jpg",
     "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{id}/library_600x900.jpg",
@@ -24,6 +26,31 @@ def _get_json(url, headers=None):
         return json.load(r)
 
 
+def store_platforms(ids):
+    """{appid: {"windows": bool, "linux": bool}} from the Steam store; 100 games per request, no key."""
+    out = {}
+    for i in range(0, len(ids), 100):
+        q = {"ids": [{"appid": int(x)} for x in ids[i:i + 100]],
+             "context": {"language": "english", "country_code": "NO"},
+             "data_request": {"include_platforms": True}}
+        reply = _get_json(STORE_ITEMS + "?" + urllib.parse.urlencode({"input_json": json.dumps(q)}))
+        for item in reply["response"].get("store_items", []):
+            p = item.get("platforms")
+            if item.get("success") == 1 and p is not None:
+                out[str(item["appid"])] = {"windows": bool(p.get("windows")), "linux": bool(p.get("steamos_linux"))}
+    return out
+
+
+def storage_mb(requirements):
+    """Disk space from a store requirements block ("Storage: 2 GB available space"), in MB."""
+    text = re.sub(r"<[^>]+>", " ", requirements.get("minimum", "") if isinstance(requirements, dict) else "")
+    m = re.search(r"(?:Storage|Hard Drive|Hard Disk|Disk Space)[^:\d]*:?\s*([\d.,]+)\s*(GB|MB)", text, re.I)
+    if not m:
+        return None
+    n = float(m.group(1).replace(",", "."))
+    return round(n * 1024 if m.group(2).upper() == "GB" else n)
+
+
 class SteamSource:
     name = "steam"
     title = "Steam"
@@ -35,7 +62,45 @@ class SteamSource:
             return []
 
     def platforms(self, game):
-        return ["linux", "windows"] if game.get("linux") else ["windows", "linux"]
+        """Builds that exist, preferred first. The Steam store is asked the first time a game is
+        opened and the answer is kept in the library. A Linux build found to be 32-bit ("linux32")
+        is left out: it can't run without multilib, while Wine runs 32-bit Windows games."""
+        self._lookup_platforms(game)
+        if "windows" not in game:  # store lookup failed (offline, delisted): offer both
+            return ["linux", "windows"] if game.get("linux") else ["windows", "linux"]
+        linux = game.get("linux") and not game.get("linux32")
+        builds = (["linux"] if linux else []) + (["windows"] if game["windows"] else [])
+        return builds or ["windows", "linux"]
+
+    def _lookup_platforms(self, game):
+        if "windows" in game:
+            return
+        try:
+            found = store_platforms([game["id"]]).get(game["id"])
+        except Exception:
+            return
+        if found:
+            self.update(game, **found)
+
+    def size_hint(self, game):
+        """Publisher's disk space estimate in MB (store requirements), looked up once and kept."""
+        if "size_mb" not in game:
+            try:
+                reply = _get_json(APPDETAILS.format(id=game["id"]))[game["id"]]
+                req = reply["data"].get("pc_requirements") if reply.get("success") else None
+            except Exception:
+                return None
+            self.update(game, size_mb=storage_mb(req or {}))
+        return game["size_mb"]
+
+    def update(self, game, **fields):
+        """Change fields of one game, in memory and in the library file."""
+        game.update(fields)
+        data = json.loads(LIBRARY.read_text())
+        for g in data["games"]:
+            if g["id"] == game["id"]:
+                g.update(fields)
+        LIBRARY.write_text(json.dumps(data, indent=1) + "\n")
 
     def install(self, game, dest, osname):
         cfg = core.load_config()
@@ -47,6 +112,7 @@ class SteamSource:
             cfg["steam_username"] = user
             core.save_config(cfg)
         cmd = ["depotdownloader", "-app", game["id"], "-os", osname, "-username", user,
+               *(["-osarch", "64"] if osname == "linux" else []),
                "-remember-password", "-validate", "-dir", str(dest)]
         print("$", " ".join(cmd))
         print("(DepotDownloader asks for your password / Steam Guard code the first time.)\n")
@@ -88,7 +154,12 @@ class SteamSource:
         owned = _get_json(f"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={key}"
                           f"&steamid={steamid}&include_appinfo=1&include_played_free_games=1")["response"]
         games = owned.get("games", [])
-        print(f"{len(games)} owned games. Looking up PCGamingWiki (50 per request)...")
+        print(f"{len(games)} owned games. Asking the Steam store for platforms...")
+        try:
+            plats = store_platforms([str(g["appid"]) for g in games])
+        except Exception as e:
+            print("  Steam store request failed:", e); plats = {}
+        print(f"Looking up PCGamingWiki (50 per request)...")
         old = {g["id"]: g for g in self.load_library()}
         pcgw = self._pcgw([(str(g["appid"]), g["name"]) for g in games])
         out = []
@@ -101,7 +172,9 @@ class SteamSource:
                         "drm": info.get("drm", prev.get("drm", "unknown")),
                         "controller": info.get("controller", prev.get("controller")),
                         "linux": prev.get("linux"), "tier": prev.get("tier"),
-                        "pcgw": info.get("page", prev.get("pcgw"))})
+                        "pcgw": info.get("page", prev.get("pcgw")),
+                        **{k: prev[k] for k in ("windows", "linux32", "size_mb") if k in prev},
+                        **plats.get(gid, {})})
         out.sort(key=lambda g: g["name"].lower())
         LIBRARY.parent.mkdir(exist_ok=True)
         LIBRARY.write_text(json.dumps({"generated": time.strftime("%Y-%m-%d"), "games": out}, indent=1) + "\n")

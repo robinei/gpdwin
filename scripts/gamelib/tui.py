@@ -1,5 +1,5 @@
 """Curses UI: browse owned games with filters, install/uninstall, add to Pegasus."""
-import curses, locale, os, subprocess, sys
+import curses, locale, os, shutil, subprocess, sys
 from pathlib import Path
 
 from . import core
@@ -12,6 +12,13 @@ TIER_FILTERS = [("any tier", lambda g: True),
                 ("runs well", lambda g: g.get("tier") == "good"),
                 ("well+maybe", lambda g: g.get("tier") in ("good", "maybe")),
                 ("playable", lambda g: g.get("tier") in ("good", "maybe", "mouse"))]
+def size_text(mb):
+    """Approximate install size for the list: 200M, 1.5G; blank when unknown."""
+    if not mb:
+        return ""
+    return f"{mb}M" if mb < 1000 else f"{mb / 1024:.1f}G"
+
+
 CTRL_FILTERS = [("any input", lambda g: True), ("controller", lambda g: g.get("controller"))]
 TIER_SHORT = {"good": "well", "maybe": "maybe", "mouse": "mouse", "heavy": "heavy", None: ""}
 HELP = "↑↓ PgUp/PgDn move  / search  d DRM  t tier  c controller  i installed  s sort  Enter actions  R refresh  q quit"
@@ -57,14 +64,14 @@ class App:
                 f" | {CTRL_FILTERS[self.ctrl][0]}{' | installed' if self.only_installed else ''}"
                 f"{' | search: ' + self.search if self.search else ''} | free {core.human(core.free_space())} ")
         scr.addnstr(0, 0, head.ljust(w), w, curses.A_REVERSE)
-        scr.addnstr(1, 0, f"   {'name':<{max(10, w - 36)}} {'tier':<6}{'drm':<6}{'pad':<4}{'os':<4}{'hours':>6}", w, curses.A_BOLD)
+        scr.addnstr(1, 0, f"   {'name':<{max(10, w - 42)}} {'tier':<6}{'drm':<6}{'pad':<4}{'os':<4}{'size':>6}{'hours':>6}", w, curses.A_BOLD)
         for i, g in enumerate(rows[self.top:self.top + listh]):
             idx = self.top + i
             mark = "✓" if self.is_installed(g) else " "
-            name = g["name"][:max(10, w - 36)]
-            line = (f" {mark} {name:<{max(10, w - 36)}} {TIER_SHORT.get(g.get('tier'), ''):<6}"
-                    f"{g['drm']:<6}{'yes' if g.get('controller') else '':<4}{'L' if g.get('linux') else '':<4}"
-                    f"{g.get('hours', 0):>6}")
+            name = g["name"][:max(10, w - 42)]
+            line = (f" {mark} {name:<{max(10, w - 42)}} {TIER_SHORT.get(g.get('tier'), ''):<6}"
+                    f"{g['drm']:<6}{'yes' if g.get('controller') else '':<4}{('L32' if g.get('linux32') else 'L') if g.get('linux') else '':<4}"
+                    f"{size_text(g.get('size_mb')):>6}{g.get('hours', 0):>6}")
             attr = curses.A_REVERSE if idx == self.pos else 0
             if self.is_installed(g):
                 attr |= curses.color_pair(1)
@@ -124,6 +131,8 @@ class App:
         src = SOURCES[g["source"]]
         rec = self.inst.get((g["source"], g["id"]))
         info = f"{g['name']}  ({src.title} {g['id']})"
+        if not rec and hasattr(src, "size_hint") and src.size_hint(g):
+            info += f"  ~{size_text(g['size_mb'])} (store estimate)"
         if rec:
             opts = [("exe", f"Change executable (now {rec['exe']})"), ("launcher", "Rewrite launcher script"),
                     ("uninstall", f"Uninstall ({core.human(rec.get('size', 0))})"), (None, "Back")]
@@ -179,8 +188,22 @@ class App:
         print(f"Installing {g['name']} ({osname}) into {dest}\nFree space: {core.human(core.free_space())}\n")
         dest.mkdir(parents=True, exist_ok=True)
         if not src.install(g, dest, osname):
+            if osname == "linux" and core.dir_size(dest) == 0:
+                print("\nNothing was downloaded. If DepotDownloader found no depots, this game has no\n"
+                      "64-bit Linux build (32-bit ones are skipped: no multilib here).")
+                shutil.rmtree(dest, ignore_errors=True)
+                return self.offer_windows(g)
             print("\nDownload failed. Files so far are kept in", dest, "(install again to resume).")
             return False
+        if osname == "linux":
+            cands = core.find_executables(dest, "linux", g["name"])
+            if cands and core.launch_target_32bit(dest, cands[0][0]):
+                print("\nThis Linux build is 32-bit only, and this system has no 32-bit runtime (no\n"
+                      "multilib), so it can't start. Removing it.")
+                shutil.rmtree(dest, ignore_errors=True)
+                if hasattr(src, "update"):
+                    src.update(g, linux32=True)   # remembered: only Windows is offered from now on
+                return self.offer_windows(g)
         rec = {"source": g["source"], "id": g["id"], "name": g["name"], "os": osname,
                "dir": str(dest), "exe": "", "size": core.dir_size(dest)}
         print(f"\nDownloaded {core.human(rec['size'])}.")
@@ -193,6 +216,13 @@ class App:
         if self.pick_exe(rec):
             print(f"Added to Pegasus PC Games ({'Wine' if osname == 'windows' else 'native'}).")
         return True
+
+    def offer_windows(self, g):
+        if "windows" not in SOURCES[g["source"]].platforms(g):
+            print("There is no Windows build either.")
+            return False
+        ans = input("Download the Windows build instead (Wine runs 32-bit Windows games)? [Y/n] ").strip().lower()
+        return self.install(g, "windows") if ans in ("", "y", "yes") else False
 
     def refresh(self, scr):
         srcs = [s for s in SOURCES.values() if hasattr(s, "refresh")]
