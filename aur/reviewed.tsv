@@ -1,8 +1,8 @@
 # pkg	AUR commit reviewed	date	note
 devilutionx-bin	93785c4c17216a35f3517e24654010d7132ea817	2026-10-06	baseline: PKGBUILD read by installer session; official GitHub release tarball
 lib32-openal	c1f1bf20b2e7f795952f93d7b5b6ad3e33fdfc13	2026-10-07	full review: former official Arch PKGBUILD, upstream kcat/openal-soft tag pinned (b2sum); patch drops JACK/PortAudio (PortAudio is AUR-only)
-lib32-sdl12-compat	90b185b9f12e499fd4a9d88a50b5f51da495d777	2026-10-07	built
-lib32-sdl2-compat	9b3db2d267214ac9d28cdf806e907b5c4edbc49b	2026-10-07	built
+lib32-sdl12-compat	90b185b9f12e499fd4a9d88a50b5f51da495d777	2026-10-07	full review: upstream libsdl-org tag tarball, sha256 pinned; plain cmake build
+lib32-sdl2-compat	9b3db2d267214ac9d28cdf806e907b5c4edbc49b	2026-10-07	full review: upstream libsdl-org release tarball, sha512 + PGP (Sam Lantinga 0900104363B4C9D4223DE149D913FE7D4B61D39B)
 mangohud-light	aec701d04109fc0ac82b1f280edec72a31861f2f	2026-10-07	built from vendored copy
 pegasus-frontend-stable-git	caec261bd57da02844d0c3cbe401ff69d753b70a	2026-10-07	built
 steamdepotdownloader-bin	16ca53438ecd10a17f9f7fabe2273b2547521054	2026-10-06	PKGBUILD reviewed by installer session: official SteamRE GitHub release; zip sha256 verified against upstream download
