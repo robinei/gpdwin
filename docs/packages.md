@@ -22,6 +22,8 @@ truth; this explains the choices.
   Wi-Fi key; re-add it if the network is re-created). systemd-resolved with LLMNR and mDNS off
   (`resolved.conf.d/90-gpd.conf`). Firewall: `/etc/nftables.conf` (nftables.service), incoming
   dropped except ssh from 192.168.1.0/24 and the LAN's IPv6 prefixes, DHCP replies, ICMP.
+  `nftables.service` is a oneshot that exits after loading, so `systemctl is-active` says
+  inactive: check with `sudo nft list ruleset` instead.
   The desktop is `desktop.lan` (192.168.1.216).
 - iwd does DHCP itself (`/etc/iwd/main.conf`: `EnableNetworkConfiguration=true`,
   `NameResolvingService=systemd`), DNS via systemd-resolved, time via systemd-timesyncd.

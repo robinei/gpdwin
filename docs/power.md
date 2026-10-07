@@ -50,6 +50,10 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
   limit (BIOS was at C1; Linux still spends most idle time in C7/C7S). The BIOS setting may matter
   for s2idle (S0ix), which we can't observe without debugfs: compare suspend drain if needed.
 
+## Audio scheduling
+- `realtime-privileges` (group `realtime`): PipeWire's data loops run SCHED_FIFO (rtprio 83-88)
+  without RTKit; the RTKit warnings at startup are gone (verified after reboot 2026-10-07).
+
 ## Logs
 - journald capped at 200 MB (`/etc/systemd/journald.conf.d/90-gpd.conf`).
 

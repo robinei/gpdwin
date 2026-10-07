@@ -139,3 +139,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   realtime-privileges for PipeWire RT (active after next login), Pegasus without Qt bearer
   polling, `scripts/restart-pegasus`, Save Status uses desktop.lan over IPv4. Corrected: Zelda 3
   saves survive uninstall.
+- 2026-10-07: verified after reboot: PipeWire threads SCHED_FIFO via realtime-privileges, no RTKit
+  warnings; firewall loaded at boot (nftables.service shows inactive by design, oneshot).

@@ -58,6 +58,7 @@ informed in short lines; they are on a small screen with a keyboard.
 6. **Housekeeping.** Orphans: `pacman -Qdtq` (list, ask before removing). Disk: `df -h /` and
    `du -sh ~/.cache/*`. Failed units: `systemctl --failed`. Recent errors: `journalctl -b -p err`
    (compare with known-harmless messages in docs/hardware.md).
+   Firewall loaded: `sudo -n nft list ruleset` shows `table inet filter` with `policy drop`.
    Audio paths still intact: `pacman -Q pipewire-pulse pipewire-alsa`, `pactl info` shows
    "PulseAudio (on PipeWire)", and `/etc/alsa/conf.d/99-pipewire-default.conf` exists.
 
