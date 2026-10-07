@@ -18,7 +18,8 @@ truth; this explains the choices.
   pipewire/libpulse/alsa-lib/alsa-plugins (32-bit games play through PipeWire), X11 libs,
   freetype2/fontconfig, png/jpeg/zlib/vorbis/ogg, curl. About 300 MB. 32-bit SDL 1.2/2 and
   OpenAL are AUR-only now (lib32-sdl12-compat, lib32-sdl2-compat, lib32-openal); most old ports
-  bundle their own, so add them via /aur-add only when a game needs them. The game installer
+  bundle their own, so add them via /aur-add only when a game needs them. Installed:
+  `lib32-openal` (SteamWorld Heist needs libopenal.so.1), built without JACK/PortAudio. The game installer
   then offers 32-bit Linux builds and drops `-osarch 64`. To undo: remove the lib32 packages,
   comment out [multilib].
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
@@ -57,7 +58,9 @@ truth; this explains the choices.
   visible), zelda3-git (pin + backup).
 - AUR packages are built only via `scripts/aur` after reviewing the diff since the last
   reviewed AUR commit (`aur/reviewed.tsv`). `scripts/update` and `/maintain` do this.
-- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin` (yay-bin removed 2026-10-07).
+- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin`, `lib32-openal`
+  (multilib, patched: no JACK/PortAudio), plus our rebuild `mangohud-light` of the repo package
+  (aur/pkgbuilds/mangohud-light, `.arch-package`). yay-bin removed 2026-10-07.
   `-git` packages build upstream HEAD, which the PKGBUILD review doesn't cover.
 - No AUR helper: `scripts/aur search` (AUR RPC) replaces `yay -Ss`; builds only via `scripts/aur`.
 - `~/.config/pacman/makepkg.conf`: `MAKEFLAGS="-j$(nproc)"`, `OPTIONS+=(!debug)`.

@@ -1,0 +1,23 @@
+--- a/PKGBUILD	2026-10-07 22:30:23.489362411 +0200
++++ b/PKGBUILD	2026-10-07 22:30:23.580950452 +0200
+@@ -21,10 +21,8 @@
+   cmake
+   git
+   lib32-alsa-lib
+-  lib32-jack
+   lib32-libpulse
+   lib32-pipewire
+-  lib32-portaudio
+   ninja
+ )
+ source=("git+https://github.com/kcat/openal-soft#tag=$pkgver")
+@@ -41,6 +39,9 @@
+     -DCMAKE_INSTALL_LIBDIR=lib32
+     -DALSOFT_EXAMPLES=OFF
+     -DALSOFT_UTILS=OFF
++    # GPD: audio goes through PipeWire/Pulse; JACK and PortAudio (AUR-only in 32-bit) are not built
++    -DALSOFT_BACKEND_JACK=OFF
++    -DALSOFT_BACKEND_PORTAUDIO=OFF
+   )
+ 
+   export CC="gcc -m32 -mstackrealign"
