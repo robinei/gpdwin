@@ -143,10 +143,27 @@ class SteamSource:
         self.update(game, size_mb=round(disk / 2**20))  # the list shows the real size from now on
         return disk, download
 
+    def _cover_urls(self, game):
+        """Portrait cover first. Newer games keep their art under hashed paths that only the
+        store's asset list knows; the fixed URLs are the fallback for older ones."""
+        urls = []
+        q = {"ids": [{"appid": int(game["id"])}], "context": {"language": "english", "country_code": "NO"},
+             "data_request": {"include_assets": True}}
+        try:
+            reply = _get_json(STORE_ITEMS + "?" + urllib.parse.urlencode({"input_json": json.dumps(q)}))
+            assets = reply["response"]["store_items"][0].get("assets", {})
+            for name in ("library_capsule_2x", "library_capsule"):
+                if assets.get(name):
+                    urls.append("https://shared.cloudflare.steamstatic.com/store_item_assets/"
+                                + assets["asset_url_format"].replace("${FILENAME}", assets[name]))
+        except Exception:
+            pass
+        return urls + [u.format(id=game["id"]) for u in COVER_URLS]
+
     def fetch_cover(self, game, path):
-        for url in COVER_URLS:
+        for url in self._cover_urls(game):
             try:
-                req = urllib.request.Request(url.format(id=game["id"]), headers=UA)
+                req = urllib.request.Request(url, headers=UA)
                 with urllib.request.urlopen(req, timeout=30) as r:
                     data = r.read()
                 if len(data) > 1000:
