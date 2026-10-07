@@ -133,6 +133,23 @@ def find_executables(dirpath, osname, game_name):
 
 
 # ---------- fixes for old native games ----------
+def write_steam_appid(rec):
+    """Steam games built with the Steam API call SteamAPI_RestartAppIfNecessary: with no Steam
+    client they try to start Steam and quit (SteamWorld Heist). A steam_appid.txt next to the
+    executable makes the API skip that; the game then runs without Steam. Returns the files written."""
+    root = Path(rec["dir"])
+    if rec.get("source") != "steam" or not any(
+            p.name.lower() in ("libsteam_api.so", "steam_api.dll", "steam_api64.dll") for p in root.rglob("*")):
+        return []
+    written = []
+    for d in {root, (root / rec["exe"]).parent} if rec.get("exe") else {root}:
+        f = d / "steam_appid.txt"
+        if not f.exists():
+            f.write_text(f"{rec['id']}\n")
+            written.append(f)
+    return written
+
+
 def elf_bits(path):
     """32 or 64 for an ELF file, None otherwise."""
     try:

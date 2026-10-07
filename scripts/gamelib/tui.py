@@ -229,6 +229,8 @@ class App:
             for m in core.disable_old_bundled_sdl(dest):
                 print(f"Bundled SDL2 without Wayland support moved aside: {m}")
         if self.pick_exe(rec):
+            for f in core.write_steam_appid(rec):
+                print(f"Wrote {f.name} (lets the game run without the Steam client).")
             print(f"Added to Pegasus PC Games ({'Wine' if osname == 'windows' else 'native'}).")
         return True
 

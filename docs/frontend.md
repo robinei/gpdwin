@@ -112,6 +112,12 @@
 - DepotDownloader itself: AUR `steamdepotdownloader-bin` (SteamRE release binary, .NET bundled).
   Only games that don't need the Steam client run; PCGamingWiki's "DRM-free" can be wrong.
 
+- Steam API games without the Steam client: games calling `SteamAPI_RestartAppIfNecessary` try to
+  start Steam and quit (SteamWorld Heist: exit 255, "steam.sh: No such file"). A
+  `steam_appid.txt` with the app id next to the executable skips that; the installer writes it
+  when the game ships `libsteam_api.so`/`steam_api(64).dll`. The game then logs
+  `SteamAPI_Init() failed` and runs on (achievements/cloud don't work).
+
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
   default) for everything, to save space; per-game settings go in the game's launcher script
