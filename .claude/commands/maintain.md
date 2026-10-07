@@ -37,7 +37,8 @@ informed in short lines; they are on a small screen with a keyboard.
      whatever upstream HEAD is: say so, and propose pinning them.
    - Build with `scripts/aur build PKG --yes`. It applies our patches to pristine sources, keeps
      sudo alive, installs, records the reviewed commit, re-vendors `aur/pkgbuilds/PKG`, adds a
-     changelog line and cleans the build dir. Long builds (Pegasus ~20 min): run it detached
+     changelog line, cleans the build dir, and commits + pushes that record by itself
+     (so `git pull` first if you have unrelated uncommitted work). Long builds (Pegasus ~20 min): run it detached
      (`setsid -f bash -c "scripts/aur build PKG --yes > /tmp/PKG-build.log 2>&1 < /dev/null"`)
      and poll the log.
    - **A patch fails to apply** (upstream changed the same lines): don't drop it. Fetch the new

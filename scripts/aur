@@ -83,6 +83,19 @@ def fetch(pkg):
     return d, head
 
 
+def commit_record(msg, paths):
+    """Commit (only) the build record so it can't conflict with work from the other clone; push if
+    possible. Leaves the rest of the working tree alone."""
+    rel = [str(Path(x).relative_to(REPO)) for x in paths]
+    subprocess.run(["git", "-C", str(REPO), "add", "-A", "--", *rel], check=True)
+    if subprocess.run(["git", "-C", str(REPO), "diff", "--cached", "--quiet", "--", *rel]).returncode == 0:
+        return
+    subprocess.run(["git", "-C", str(REPO), "commit", "-q", "-m", msg, "--", *rel], check=True)
+    pull = subprocess.run(["git", "-C", str(REPO), "pull", "-q", "--rebase", "--autostash"], capture_output=True)
+    push = subprocess.run(["git", "-C", str(REPO), "push", "-q"], capture_output=True) if pull.returncode == 0 else pull
+    print("build record committed" + (" and pushed" if push.returncode == 0 else " (not pushed: resolve and push by hand)"))
+
+
 def vendor_files(pkg, d, commit):
     """Export the reviewed commit's files into aur/pkgbuilds/PKG (replacing the old copy)."""
     import shutil, tarfile, io
@@ -339,6 +352,8 @@ def build(args):
         extra = f" with local patches {', '.join(x.name for x in patches)}" if patches else ""
         f.write(f"\n- {date.today()}: AUR `{pkg}` updated to {ver} (reviewed AUR commit {head[:12]}){extra}.\n")
     run(["git", "-C", str(d), "clean", "-qffdx"])          # drop src/, pkg/, downloads, packages
+    commit_record(f"AUR {pkg} {ver} built and installed" + (f" ({len(patches)} local patches)" if patches else ""),
+                  [REVIEWED, VENDOR / pkg, CHANGELOG])
     print(f"installed {pkg} {ver}; reviewed commit recorded"
           + (f"; {len(patches)} local patch(es) applied" if patches else ""))
     return 0
@@ -351,6 +366,7 @@ def mark(args):
     rows[pkg] = {"commit": head, "date": date.today().isoformat(), "note": " ".join(args[1:]) or "marked"}
     save_reviewed(rows)
     vendor_files(pkg, CACHE / pkg, head)
+    commit_record(f"AUR {pkg}: marked {head[:12]} as reviewed", [REVIEWED, VENDOR / pkg])
     print(f"{pkg}: marked {head[:12]} as reviewed")
     return 0
 
