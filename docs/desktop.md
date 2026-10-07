@@ -9,7 +9,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
 - `theme`: Catppuccin Mocha palette, `default_border pixel 1`, muted focus colours, no title
   bars, `gaps inner 4` with `smart_gaps`/`smart_borders` (lone windows have no border/gap),
   wallpaper `wallpaper.jpg` (1280x720, Lanczos resize in linear light) on `$crust`. Bar on top.
-- `status.sh`: i3bar JSON; Wi-Fi SSID + signal (from `iwctl`, -90..-30 dBm → 0..100%), battery
+- `status.sh`: i3bar JSON; Wi-Fi SSID + signal (from `iwctl`, -90..-30 dBm → 0..100%), volume
+  (`vol N%`, dimmed `muted N%`; `osd.sh` sends SIGUSR1 so it updates at once), battery
   (colours, see power.md), clock. Updates every 20 s to keep wakeups low.
 - `autostart`: Pegasus on workspace 1 (`assign` + `exec ~/.config/pegasus-frontend/run`),
   `guide-button.py`, `for_window [app_id="pegasus-tool"] fullscreen enable`.

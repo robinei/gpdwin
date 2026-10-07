@@ -73,3 +73,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   controller filters, install via DepotDownloader into `~/Games/installed`, auto-add to Pegasus PC
   Games with cover art and a Wine/native launcher. Utilities > Games. GOG source planned.
 - 2026-10-07: captured RetroArch settings saved from its menu (see git diff of dotfiles/retroarch/retroarch.cfg).
+- 2026-10-07: bar shows volume / mute; the volume keys signal the bar script (SIGUSR1) to redraw
+  immediately instead of waiting for the 20 s tick.
