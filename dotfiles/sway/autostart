@@ -3,8 +3,10 @@ assign [app_id="org.pegasus-frontend.pegasus-fe"] workspace number 1
 exec ~/.config/pegasus-frontend/run
 exec ~/.local/bin/inputd
 
-# Workspace 1 is a stack of fullscreen windows: Pegasus and whatever it starts (games, Utilities
-# tools). New windows open fullscreen, fullscreen-stack.sh restores the one below when the top one
-# closes. Floating windows (dialogs) are left alone.
-for_window [workspace="^1$" tiling] fullscreen enable
+# Workspace 1: Pegasus as a normal window (the bar stays visible; general.fullscreen: false in its
+# settings.txt), and whatever it starts (games, Utilities tools) fullscreen on top of it.
+# fullscreen-stack.sh restores fullscreen to the window below when the top one closes, except for
+# Pegasus. Floating windows (dialogs) are left alone. X11 windows have no app_id, hence two rules.
+for_window [workspace="^1$" tiling shell="xwayland"] fullscreen enable
+for_window [workspace="^1$" tiling app_id="^(?!org\.pegasus-frontend\.pegasus-fe$)"] fullscreen enable
 exec ~/.config/sway/fullscreen-stack.sh

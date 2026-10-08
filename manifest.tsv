@@ -24,6 +24,7 @@ link	dotfiles/pacman/makepkg.conf	~/.config/pacman/makepkg.conf
 link	dotfiles/pegasus-frontend/run	~/.config/pegasus-frontend/run
 link	dotfiles/pegasus-frontend/bin	~/.config/pegasus-frontend/bin
 link	dotfiles/pegasus-frontend/game_dirs.txt	~/.config/pegasus-frontend/game_dirs.txt
+copy	dotfiles/pegasus-frontend/settings.txt	~/.config/pegasus-frontend/settings.txt	robin:robin:0644
 
 # --- Pegasus collections without ROMs (symlinked) ---
 link	pegasus/pc	~/Games/pc

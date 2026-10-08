@@ -19,8 +19,9 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   SIGCONTs it. Only changed lines are written. Measured: sway+swaybar+statusbar together
   1.7 ms CPU/s (0.17% of a core); the GPU stays in RC6.
 - `autostart`: Pegasus on workspace 1 (`assign` + `exec ~/.config/pegasus-frontend/run`),
-  `~/.local/bin/inputd`, `for_window [workspace="^1$" tiling] fullscreen enable` (everything
-  Pegasus starts is fullscreen; dialogs float), `fullscreen-stack.sh` (whichever tiled window on
+  `~/.local/bin/inputd`, `for_window` rules making everything Pegasus starts
+  fullscreen (dialogs float; Pegasus itself is a normal window with the bar visible,
+  `general.fullscreen: false` in its `settings.txt`, a manifest copy entry), `fullscreen-stack.sh` (whichever tiled window on
   workspace 1 gets focus becomes fullscreen, so closing a game brings Pegasus or the window below
   back fullscreen; sway allows one fullscreen window per workspace). New floating X11 windows
   that aren't dialogs (fixed-size old games, e.g. native Psychonauts; sway floats them) are made

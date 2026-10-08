@@ -194,3 +194,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - No .pacnew, no failed units, firewall (policy drop) and PipeWire audio paths intact; journal errors only known-harmless hardware messages.
 - Orphans left in place: qt5-tools, cmake. Disk 19G/53G used.
 - 2026-10-08: installer library: PCGamingWiki lookup by Steam app id for names that don't match a page (unknown DRM 368 -> 125; 40 more DRM-free games found).
+- 2026-10-08: Pegasus no longer fullscreen (bar visible); games still fullscreen on top of it.
