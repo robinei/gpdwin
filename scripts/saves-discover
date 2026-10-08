@@ -10,6 +10,9 @@ It only reports: new games are added to games/saves.json by hand (docs/saves.md)
 
   saves-discover [APPID...]
   saves-discover --refresh      re-download the manifest (17 MB, ~1 min to parse on the GPD)
+  saves-discover --write-extract  write games/save-manifest.json (the cached entries for the
+                                  installed games + games/saves.json): the desktop's `discover`
+                                  command reads it from its own checkout, so commit and pull it
 
 The parsed entries for the games asked about are cached in ~/.cache/gpd/ludusavi.json.
 Manifest: https://github.com/mtkennerly/ludusavi-manifest (data from PCGamingWiki, CC BY-SA).
@@ -81,7 +84,21 @@ def cloud_names(appids):
     return json.loads(r.stdout), None
 
 
+def write_extract():
+    appids = sorted({str(a) for (src, a) in core.installed() if src == "steam"} |
+                    {g["appid"] for g in json.loads((REPO / "games/saves.json").read_text())["games"]})
+    mani = extract(appids)
+    out = {a: {"name": mani[a]["name"], "files": {p: {"os": sp["os"], "tags": sp["tags"]}
+                                                  for p, sp in mani[a]["files"].items() if "save" in sp["tags"]}}
+           for a in appids if a in mani}
+    (REPO / "games/save-manifest.json").write_text(json.dumps(out, indent=1) + "\n")
+    print(f"games/save-manifest.json: {len(out)} games")
+
+
 def main():
+    if "--write-extract" in sys.argv:
+        write_extract()
+        return 0
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     inst = {aid: g for (src, aid), g in core.installed().items() if src == "steam"}
     appids = args or sorted(inst, key=lambda a: inst[a]["name"].lower())

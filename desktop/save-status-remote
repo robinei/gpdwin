@@ -9,13 +9,16 @@ action with the ssh command line (SSH_ORIGINAL_COMMAND):
   get APPID     tar stream on stdout with the game's existing save files. A member is named
                 "N" (file entry N of the game's "files" list in games/saves.json) or "N/rel/path"
                 (a file inside folder entry N, which has "dir": true).
+  discover APPID  JSON: where this machine keeps the game's saves, from Steam's own cloud records
+                (userdata/<id>/<appid>/remotecache.vdf) and from the save paths in
+                games/save-manifest.json (Ludusavi data) that exist here. Read-only, one app only.
   put APPID     tar stream on stdin in the same format; writes those files (mtime kept). Existing
                 files that would be replaced are first copied to ~/save-backups/<time>/<appid>/.
 
 It only ever reads or writes the paths listed in games/saves.json (and below its folder entries);
 tar member names are validated and never used as paths. Anything else is refused.
 """
-import fnmatch, hashlib, importlib.machinery, importlib.util, io, json, os, re, shutil, subprocess, sys, tarfile, time
+import fnmatch, glob, hashlib, importlib.machinery, importlib.util, io, json, os, re, shutil, subprocess, sys, tarfile, time
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
@@ -208,6 +211,99 @@ def do_put(cfg, sc, appid, inp, out):
     out.write(json.dumps({"written": write_files(lambda k: target_path(game, bases, k), got, backup)}).encode())
 
 
+def expand_candidate(raw, os_, install, prefix):
+    """Manifest path -> concrete path on this machine, or None if it needs something we don't have."""
+    home = Path.home()
+    if os_ == "linux":
+        toks = {"<xdgConfig>": home / ".config", "<xdgData>": home / ".local/share", "<home>": home}
+    elif os_ == "windows" and prefix:
+        toks = {"<home>": prefix, "<winAppData>": prefix / "AppData/Roaming",
+                "<winLocalAppData>": prefix / "AppData/Local", "<winDocuments>": prefix / "Documents"}
+    else:
+        toks = {}
+    if install:
+        toks["<base>"] = install
+    for tok, rep in toks.items():
+        raw = raw.replace(tok, str(rep))
+    return None if "<" in raw else raw
+
+
+def match_cloud(candidates, rel, root_dirs):
+    """Desktop path of cloud file `rel` (relative to its Steam root) under an existing candidate:
+    candidate dir B matches when the last k components of B equal the first k of rel
+    (B=~/.config/StardewValley/Saves, rel=StardewValley/Saves/Farm/x -> B/Farm/x), or when rel
+    sits directly below a root dir. Returns a path that exists, or None."""
+    rparts = Path(rel).parts
+    for b in candidates:
+        bp = Path(b)
+        if not bp.is_dir():
+            continue
+        for k in range(len(rparts) - 1, 0, -1):
+            if [x.lower() for x in bp.parts[-k:]] == [x.lower() for x in rparts[:k]]:
+                q = bp.joinpath(*rparts[k:])
+                if q.is_file():
+                    return q
+    for d in root_dirs:
+        q = d / rel
+        if q.is_file():
+            return q
+    return None
+
+
+def template(path, sc, userdirs):
+    """Absolute path on this machine -> the {userdata}/{steam}/{home} form used in saves.json."""
+    if path is None:
+        return None
+    path = str(path)
+    for rep, base in (("{userdata}", userdirs[0] if userdirs else None), ("{steam}", sc.STEAM), ("{home}", Path.home())):
+        if base and path.startswith(str(base) + "/"):
+            return rep + path[len(str(base)):]
+    return path
+
+
+def do_discover(sc, appid, out):
+    manifest = json.loads((REPO / "games/save-manifest.json").read_text()) if (REPO / "games/save-manifest.json").exists() else {}
+    libs = sc.libraries()
+    name, install, prefix = sc.app_info(appid, libs)
+    cands, exist_dirs = [], []
+    for raw, spec in (manifest.get(appid, {}).get("files") or {}).items():
+        for os_ in spec["os"]:
+            if os_ not in ("linux", "windows", "any"):
+                continue
+            path = expand_candidate(raw, "linux" if os_ == "any" else os_, install, prefix)
+            if not path:
+                continue
+            hits = glob.glob(path) if any(c in path for c in "*?[") else ([path] if os.path.exists(path) else [])
+            cands.append({"manifest": raw, "os": os_, "path": path, "exists": bool(hits)})
+            if hits and "*" not in path:
+                exist_dirs.append(path)
+    cloud = []
+    for userdir in userdata_dirs(sc):
+        cache = userdir / appid / "remotecache.vdf"
+        if not cache.exists():
+            continue
+        files = sc.parse_vdf(cache.read_text(errors="replace")).get(appid, {})
+        for rel, meta in files.items():
+            if not isinstance(meta, dict) or set(meta.get("sha", "0")) == {"0"}:
+                continue
+            root = int(meta.get("root", 0))
+            resolved, note = sc.resolve(root, rel, appid, userdir, install, prefix)
+            root_dirs = []
+            if resolved is not None:
+                root_dirs = [Path(str(resolved)[: len(str(resolved)) - len(rel)].rstrip("/"))]
+            m = match_cloud(exist_dirs, rel, root_dirs)
+            cloud.append({"rel": rel, "root": root, "resolved": str(resolved) if resolved else None,
+                          "note": note, "match": str(m) if m else None})
+        break
+    ud = userdata_dirs(sc)
+    for c in cands:
+        c["path_t"] = template(c["path"], sc, ud)
+    for c in cloud:
+        c["match_t"] = template(c["match"], sc, ud)
+    out.write(json.dumps({"appid": appid, "name": name, "install": str(install) if install else None,
+                          "proton": bool(prefix), "candidates": cands, "cloud": cloud}).encode())
+
+
 def main():
     cfg = json.loads((REPO / "games/saves.json").read_text())
     sc = load_cloud()
@@ -218,12 +314,14 @@ def main():
             do_status(cfg, sc, out)
         elif len(cmd) == 2 and cmd[0] == "status":
             do_status(cfg, sc, out, cmd[1])
+        elif len(cmd) == 2 and cmd[0] == "discover":
+            do_discover(sc, cmd[1], out)
         elif len(cmd) == 2 and cmd[0] == "get":
             do_get(cfg, sc, cmd[1], out)
         elif len(cmd) == 2 and cmd[0] == "put":
             do_put(cfg, sc, cmd[1], sys.stdin.buffer, out)
         else:
-            print("usage: status [APPID] | get APPID | put APPID", file=sys.stderr)
+            print("usage: status [APPID] | discover APPID | get APPID | put APPID", file=sys.stderr)
             return 2
     except (ValueError, tarfile.TarError, OSError) as e:
         print(f"error: {e}", file=sys.stderr)
