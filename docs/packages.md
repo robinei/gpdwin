@@ -25,6 +25,7 @@ truth; this explains the choices.
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
 - Performance overlay: `lib32-mangohud` (multilib, for 32-bit games) and `mangohud-light` (own rebuild of the repo package without mangoplot/mangoapp
   and their ~134 MB of python/matplotlib/numpy/glfw; see frontend.md).
+- Native game libs: `sdl2_net` (Strife: Veteran Edition, 2026-10-08).
 - Build: `base-devel git` (AUR builds). `python` is explicit (scripts). `gcc` (base-devel) also builds `src/*.c`.
   `clang` came with zelda3-git and is build-only (~100 MB+).
 - Installed by the user or other work: `firefox`, `yazi`, `7zip`.

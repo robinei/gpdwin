@@ -207,3 +207,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 
 ## 2026-10-08 — idle suspend after 30 min
 - swayidle suspend timeout 1200 → 1800 s (`dotfiles/sway/handheld`). Revert: set it back to 1200, restart swayidle.
+
+## 2026-10-08 — Strife: Veteran Edition starts
+- Installed `sdl2_net`; symlink `libtheoradec.so.1` in the game dir (Arch has .so.2). Revert: `pacman -Rns sdl2_net`, remove the symlink.

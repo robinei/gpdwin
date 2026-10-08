@@ -154,6 +154,12 @@
   the game lacks it (Risk of Rain). These old OpenSSL builds are insecure; the games only use them
   for online features.
 
+- Strife: Veteran Edition (64-bit native) needs `sdl2_net` (repo) and `libtheoradec.so.1`; Arch ships
+  .so.2 with the same `libtheoradec_1.0` symbols, so the game dir has a symlink
+  `libtheoradec.so.1 -> /usr/lib/libtheoradec.so.2` (the launcher puts the game dir on
+  LD_LIBRARY_PATH). Exit code 127 from Pegasus = missing shared library: run `gpd-launch.sh` in a
+  shell and look at the error.
+
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
   default) for everything, to save space; per-game settings go in the game's launcher script
