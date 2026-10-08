@@ -222,3 +222,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Game Saves tool: Steam Cloud as a third source (`c` pulls it to the GPD, read-only; `cloud` names in games/saves.json; `steam-cloud list-many`). Tested with a temp-folder pull of Stardew from the real cloud.
 - Game Saves: added SteamWorld Heist, FEZ, Kingdom, Death Road to Canada, Hyper Light Drifter, Risk of Rain, Heretic + Hexen (desktop paths unverified); new `scripts/saves-discover` (Ludusavi manifest + Steam Cloud report).
 - Game Saves: `ignore` patterns for folder entries (Stardew steam_autocloud.vdf, HLD gameprefs.dat); desktop paths from the desktop session (ad24aea). Desktop needs a git pull.
+
+- 2026-10-08: AUR `ludusavi-bin` updated to 0.31.0-1 (reviewed AUR commit 9b221f35de61).
