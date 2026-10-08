@@ -241,4 +241,11 @@
 - Config `~/.CommanderGenius/cgenius.cfg` is a manifest `copy` (`dotfiles/commandergenius/`; CG rewrites
   it on exit): fullscreen, 1280x720, aspect 4:3 (bars on the 16:9 panel). `dir=PATH` on the command line
   is ignored by this version ("No games detected").
-- Tested: menu lists Keen 1-5, fullscreen. Not tested yet: gamepad navigation and play.
+- Widescreen: the game area is 426x240 (x3 = 1278x720, fills the panel at an integer scale; Keen's own 320x200
+  would leave borders at x3). Set per engine in `cgenius.cfg`: sections `[Galaxy]` (Keen 4-6) and `[Vorticon]`
+  (Keen 1-3), `gameWidth = 426`, `gameHeight = 240`, with `aspect = 16:9` and `integerScaling = true`. The names are
+  the engine names, not the game folders (`[Keen4]` is ignored). The values aren't in the game's resolution
+  list (320x200, 320x240, 640x360, 640x480), so the settings screen can't pick them and may overwrite them
+  if you change the game resolution there. Results: levels are perfect; menus and title pictures (320x200 art
+  stretched to 426x240) show scaling artifacts. A fix would be a patch in the engine, not done.
+- Tested: menu lists Keen 1-5, fullscreen, Keen 4 plays.

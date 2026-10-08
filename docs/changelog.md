@@ -239,3 +239,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 
 - 2026-10-09: AUR `commander-genius-git` updated to 3.6.3.r0.gbee4fcb-1 (reviewed AUR commit 986c16b5ac59).
 - Commander Keen: Pegasus entry now runs Commander Genius (AUR commander-genius-git, pinned v3.6.3, vendored) on the installed Steam files via symlinks in ~/.CommanderGenius/games; cgenius.cfg managed (fullscreen 1280x720). Old launcher ran DOSBox under Wine. Revert: restore the `exec wine ./dosbox.exe` launcher (cd base4).
+- Commander Genius: 426x240 game area for [Galaxy] and [Vorticon] in cgenius.cfg (x3 = 1278x720 integer scale, fills the panel). Menus show scaling artifacts. Revert: delete those two sections.
