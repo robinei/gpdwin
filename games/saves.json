@@ -19,7 +19,7 @@
    "files": [
     {
      "gpd": "~/.config/StardewValley/Saves",
-     "desktop": "{steam}/steamapps/compatdata/413150/pfx/drive_c/users/steamuser/AppData/Roaming/StardewValley/Saves",
+     "desktop": "{home}/.config/StardewValley/Saves",
      "dir": true,
      "cloud": "%WinAppDataRoaming%StardewValley/Saves/"
     }
@@ -53,15 +53,15 @@
    "files": [
     {
      "gpd": "~/.local/share/SteamWorld Heist/savegame_000.dat",
-     "desktop": "{steam}/steamapps/compatdata/322190/pfx/drive_c/users/steamuser/Documents/My Games/SteamWorld Heist/savegame_000.dat"
+     "desktop": "{home}/.local/share/SteamWorld Heist/savegame_000.dat"
     },
     {
      "gpd": "~/.local/share/SteamWorld Heist/savegame_001.dat",
-     "desktop": "{steam}/steamapps/compatdata/322190/pfx/drive_c/users/steamuser/Documents/My Games/SteamWorld Heist/savegame_001.dat"
+     "desktop": "{home}/.local/share/SteamWorld Heist/savegame_001.dat"
     },
     {
      "gpd": "~/.local/share/SteamWorld Heist/savegame_002.dat",
-     "desktop": "{steam}/steamapps/compatdata/322190/pfx/drive_c/users/steamuser/Documents/My Games/SteamWorld Heist/savegame_002.dat"
+     "desktop": "{home}/.local/share/SteamWorld Heist/savegame_002.dat"
     }
    ]
   },
@@ -72,27 +72,27 @@
    "files": [
     {
      "gpd": "~/.local/share/FEZ/SaveSlot0",
-     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot0"
+     "desktop": "{home}/.local/share/FEZ/SaveSlot0"
     },
     {
      "gpd": "~/.local/share/FEZ/SaveSlot0_Backup",
-     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot0_Backup"
+     "desktop": "{home}/.local/share/FEZ/SaveSlot0_Backup"
     },
     {
      "gpd": "~/.local/share/FEZ/SaveSlot1",
-     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot1"
+     "desktop": "{home}/.local/share/FEZ/SaveSlot1"
     },
     {
      "gpd": "~/.local/share/FEZ/SaveSlot1_Backup",
-     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot1_Backup"
+     "desktop": "{home}/.local/share/FEZ/SaveSlot1_Backup"
     },
     {
      "gpd": "~/.local/share/FEZ/SaveSlot2",
-     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot2"
+     "desktop": "{home}/.local/share/FEZ/SaveSlot2"
     },
     {
      "gpd": "~/.local/share/FEZ/SaveSlot2_Backup",
-     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot2_Backup"
+     "desktop": "{home}/.local/share/FEZ/SaveSlot2_Backup"
     }
    ]
   },
@@ -103,7 +103,7 @@
    "files": [
     {
      "gpd": "~/.config/unity3d/noio/Kingdom/storage_v26_AUTO.dat",
-     "desktop": "{steam}/steamapps/compatdata/368230/pfx/drive_c/users/steamuser/AppData/LocalLow/noio/Kingdom/storage_v26_AUTO.dat"
+     "desktop": "{home}/.config/unity3d/noio/Kingdom/storage_v26_AUTO.dat"
     }
    ]
   },
@@ -114,11 +114,11 @@
    "files": [
     {
      "gpd": "~/.madgarden/DR2C/gstats.save",
-     "desktop": "{steam}/steamapps/compatdata/252610/pfx/drive_c/users/steamuser/AppData/Roaming/.madgarden/DR2C/gstats.save"
+     "desktop": "{home}/.madgarden/DR2C/gstats.save"
     },
     {
      "gpd": "~/.madgarden/DR2C/cheevos.save",
-     "desktop": "{steam}/steamapps/compatdata/252610/pfx/drive_c/users/steamuser/AppData/Roaming/.madgarden/DR2C/cheevos.save"
+     "desktop": "{home}/.madgarden/DR2C/cheevos.save"
     }
    ]
   },
@@ -129,7 +129,7 @@
    "files": [
     {
      "gpd": "~/.config/HyperLightDrifter",
-     "desktop": "{steam}/steamapps/compatdata/257850/pfx/drive_c/users/steamuser/AppData/Local/HyperLightDrifter",
+     "desktop": "{home}/.config/HyperLightDrifter",
      "dir": true
     }
    ]
@@ -141,7 +141,7 @@
    "files": [
     {
      "gpd": "~/.config/Risk_of_Rain/save.ini",
-     "desktop": "{steam}/steamapps/common/Risk of Rain/Save.ini"
+     "desktop": "{home}/.config/Risk_of_Rain/save.ini"
     }
    ]
   },
