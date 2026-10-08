@@ -65,11 +65,25 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   desktop's `savegame.dat`; list takes ~3 s. Gotcha: import `requests` only after the gevent
   patching in `connect()` (otherwise the download hangs).
 
-## Finding a game's save locations (`scripts/saves-discover`)
-- Prints, for each installed Steam game: the Linux save paths from the Ludusavi manifest (built from
-  PCGamingWiki; parsed entries cached in `~/.cache/gpd/ludusavi.json`, first run ~1 min), whether they
-  exist here, the Windows paths (for the desktop's Proton prefix) and the game's Steam Cloud file names.
-  It only reports; add a game to `games/saves.json` by hand (GPD path, desktop path, `cloud` name).
+## Finding a game's save locations (`scripts/saves-discover`, needs `ludusavi` on both machines)
+- `ludusavi-bin` (AUR, vendored in `aur/pkgbuilds/`) is installed on the GPD and must be installed on the
+  desktop too. `saves-discover [APPID...]` asks ludusavi what save files exist (GPD: directly; desktop:
+  `save-status-remote discover APPID...` over ssh, so the desktop clone must be pulled), adds the game's
+  Steam Cloud file names (`steam-cloud list-many`) and prints a *draft* `games/saves.json` entry per game
+  plus notes on what it could not pair. It never writes; review the draft and add it by hand.
+- Pairing: a found file belongs to the manifest save path whose literal tail (`StardewValley/Saves`)
+  it sits under; same relative paths on both machines -> `"dir": true` entry, else files are paired by
+  trailing path components. Cloud names match by trailing components (the `%Root%` token is only a
+  prefix). Cloud names that differ in case from the local names (Bastion, Super Meat Boy) force
+  file-level entries, since a folder entry would create lowercase duplicates on Linux.
+- Speed: every ludusavi run re-reads its 17 MB manifest (~3 s on the GPD). `discover` makes at most
+  two runs for any number of apps (one `manifest show --api` dump for apps not cached yet, one
+  `backup --preview` for all of them): all 13 games take ~8 s cold, ~3.6 s cached. Cache:
+  `~/.cache/gpd/ludusavi-slices.json`, dropped when ludusavi updates `~/.cache/ludusavi/manifest.yaml`.
+  (An earlier version parsed the manifest YAML in Python: 65 s.)
+- Limits: ludusavi lists config files too (Stardew `startup_preferences`), those are skipped because they
+  are not under a *save* path; it finds nothing for games it cannot see (Wine prefixes need a `roots`
+  entry in `~/.config/ludusavi/config.yaml`; Strife's manifest path is the game folder; unsaved games).
 - Mapped 2026-10-08 (GPD side verified on disk, desktop paths are Proton-prefix guesses marked
   `"unverified_desktop": true` until the desktop session checks them): SteamWorld Heist, FEZ,
   Kingdom: Classic, Death Road to Canada, Hyper Light Drifter, Risk of Rain, Heretic + Hexen.

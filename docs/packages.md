@@ -61,7 +61,7 @@ truth; this explains the choices.
   visible), zelda3-git (pin + backup).
 - AUR packages are built only via `scripts/aur` after reviewing the diff since the last
   reviewed AUR commit (`aur/reviewed.tsv`). `scripts/update` and `/maintain` do this.
-- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin`, `lib32-openal`
+- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin`, `lib32-openal`, `ludusavi-bin`
   (multilib, patched: no JACK/PortAudio), `lib32-sdl2-compat`, `lib32-sdl12-compat`, plus our rebuild `mangohud-light` of the repo package
   (aur/pkgbuilds/mangohud-light, `.arch-package`). yay-bin removed 2026-10-07.
   `-git` packages build upstream HEAD, which the PKGBUILD review doesn't cover.

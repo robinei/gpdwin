@@ -1,136 +1,235 @@
 #!/usr/bin/env python3
-"""Where does each installed game keep its saves, and what does Steam Cloud hold for it?
+"""Draft games/saves.json entries from what ludusavi finds on the GPD and on the desktop.
 
-For every installed Steam game (or the app ids given), prints:
-  - the Linux save paths from the Ludusavi manifest (built from PCGamingWiki), with whether each
-    exists on this GPD, and the Windows ones (for the desktop's Proton prefix),
-  - the game's Steam Cloud file names (scripts/steam-cloud, needs `steam-cloud login`),
-  - whether the game is already in games/saves.json.
-It only reports: new games are added to games/saves.json by hand (docs/saves.md).
+For each Steam app id (default: all installed Steam games) it asks ludusavi (package `ludusavi-bin`,
+needed on both machines) which save files exist: here directly, on the desktop through
+`save-status-remote discover` over ssh (the desktop clone must be pulled, ludusavi installed there).
+Together with the game's Steam Cloud file names (scripts/steam-cloud) it pairs the files up and prints
+a draft entry (GPD path, desktop path, cloud name) plus notes on what it could not decide. It only
+reports: review the draft, then add it to games/saves.json by hand (docs/saves.md).
 
   saves-discover [APPID...]
-  saves-discover --refresh      re-download the manifest (17 MB, ~1 min to parse on the GPD)
-  saves-discover --write-extract  write games/save-manifest.json (the cached entries for the
-                                  installed games + games/saves.json): the desktop's `discover`
-                                  command reads it from its own checkout, so commit and pull it
+  saves-discover --no-desktop       GPD side and cloud only (desktop paths stay "?")
+  saves-discover --no-cloud
 
-The parsed entries for the games asked about are cached in ~/.cache/gpd/ludusavi.json.
-Manifest: https://github.com/mtkennerly/ludusavi-manifest (data from PCGamingWiki, CC BY-SA).
+All apps are asked in one batch per machine (each ludusavi run re-reads its 17 MB manifest, ~3 s on
+the GPD); results are cached in ~/.cache/gpd/ludusavi-slices.json until ludusavi updates its manifest.
+
+How files are paired: a file belongs to the save path of ludusavi's manifest whose literal tail
+(`StardewValley/Saves` for `<xdgConfig>/StardewValley/Saves`) it sits under; that directory is the
+entry's base. If the files below the GPD base and the desktop base have the same relative paths, the
+entry is a folder ("dir": true); otherwise single files are paired by their trailing path components.
+Cloud names are matched by the same trailing components (the %Root% token is only the prefix).
 """
-import json, os, subprocess, sys, urllib.request
-from pathlib import Path
+import importlib.machinery, importlib.util, json, re, subprocess, sys
+from pathlib import Path, PurePosixPath
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 from gamelib import core   # noqa: E402
 
-URL = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
-CACHE_DIR = Path.home() / ".cache/gpd"
-CACHE = CACHE_DIR / "ludusavi.json"
-MANIFEST = CACHE_DIR / "ludusavi-manifest.yaml"
+_l = importlib.machinery.SourceFileLoader("saveremote", str(REPO / "desktop/save-status-remote"))
+_s = importlib.util.spec_from_loader("saveremote", _l)
+remote = importlib.util.module_from_spec(_s)
+_l.exec_module(remote)
 
-LINUX_TOKENS = {"<xdgConfig>": "~/.config", "<xdgData>": "~/.local/share", "<home>": "~"}
+HOME = str(Path.home())
 
 
-def load_cache():
+def low(parts):
+    return [p.lower() for p in parts]
+
+
+def literal_tail(raw):
+    """Path components of a manifest path after its last <placeholder>, cut at the first wildcard."""
+    parts = raw.split("/")
+    idx = max((i for i, p in enumerate(parts) if "<" in p), default=-1)
+    out = []
+    for p in parts[idx + 1:]:
+        if any(c in p for c in "*?["):
+            break
+        out.append(p)
+    return out
+
+
+def base_of(file, manifest, oses=None):
+    """The base dir (or the file itself) of the manifest save path that `file` sits under, or None.
+    The longest matching literal tail wins; `oses` limits which manifest paths count (the GPD runs
+    native builds: linux/any)."""
+    comps = PurePosixPath(file).parts
+    best = None
+    for raw, raw_oses in manifest.items():
+        if oses and not set(raw_oses) & set(oses):
+            continue
+        tail = literal_tail(raw)
+        n = len(tail)
+        if not n:
+            continue
+        for end in range(len(comps), n - 1, -1):
+            if low(comps[end - n:end]) == low(tail):
+                if best is None or n > best[1]:
+                    best = (str(PurePosixPath(*comps[:end])), n)
+                break
+    return best[0] if best else None
+
+
+def side_files(d, oses=None):
+    """[{file, tmpl, base, rel}] for the found files that sit under a manifest *save* path."""
+    out = []
+    for f, ft in zip(d.get("files", []), d.get("files_t", d.get("files", []))):
+        b = base_of(f, d.get("manifest", {}), oses)
+        if b:
+            out.append({"file": f, "tmpl": ft, "base": b, "rel": PurePosixPath(f).relative_to(b).parts})
+    return out
+
+
+def trailing_match(a, b):
+    """Number of equal trailing components of two component lists (case-insensitive)."""
+    n = 0
+    while n < min(len(a), len(b)) and a[-1 - n].lower() == b[-1 - n].lower():
+        n += 1
+    return n
+
+
+def cloud_match(parts, cloud_names):
+    """The cloud name whose path (without its %Root% token) is a trailing part of `parts`."""
+    best = None
+    for name in cloud_names:
+        cparts = PurePosixPath(re.sub(r"^%[A-Za-z0-9]+%", "", name)).parts
+        n = trailing_match(parts, cparts)
+        if cparts and n == len(cparts) and (best is None or n > best[1]):
+            best = (name, n)
+    return best[0] if best else None
+
+
+def tilde(p):
+    return "~" + p[len(HOME):] if p.startswith(HOME + "/") else p
+
+
+def draft(g, d, cloud):
+    """(entries, notes) for one game: g = ludusavi result here, d = the desktop's (or None), cloud =
+    the game's Steam Cloud file list (or None)."""
+    notes, entries = [], []
+    gf = side_files(g, ("linux", "any"))
+    if not gf:
+        return entries, ["no save files found on the GPD (nothing to base a GPD path on)"]
+    df = side_files(d) if d and "error" not in d else []
+    if d is None:
+        notes.append("desktop not asked: desktop paths are '?'")
+    elif "error" in d:
+        notes.append("desktop: " + d["error"])
+    elif not df:
+        notes.append("ludusavi finds no save files for this game on the desktop (not installed/played there)")
+    cnames = [c["filename"] for c in cloud or []]
+    used = set()
+    bases = {}
+    for f in gf:
+        bases.setdefault(f["base"], []).append(f)
+    for b in list(bases):   # a base inside another base is covered by the outer folder entry
+        if any(o != b and b.startswith(o + "/") for o in bases):
+            del bases[b]
+    for base, files in bases.items():
+        drel = {tuple(low(x["rel"])): x for x in df}
+        paired = [(f, drel.get(tuple(low(f["rel"])))) for f in files]
+        dbases = {p[1]["base"] for p in paired if p[1]}
+        is_dir = any(f["file"] != base for f in files)
+        if df and all(p[1] for p in paired) and len(dbases) == 1 and is_dir:
+            sample = paired[0][1]
+            dt = sample["tmpl"][: len(sample["tmpl"]) - len("/".join(sample["rel"]))].rstrip("/")
+            e = {"gpd": tilde(base), "desktop": dt, "dir": True}
+        elif not df and is_dir and len({f["base"] for f in files}) == 1 and all(f["rel"] for f in files):
+            e = {"gpd": tilde(base), "desktop": "?", "dir": True}
+        else:
+            e = None
+        if e is not None:
+            cm = [(cloud_match(PurePosixPath(f["file"]).parts, cnames) if cnames else None, f) for f in files]
+            cm = [(c, f) for c, f in cm if c]
+            ok = bool(cm)
+            if cm:
+                c0, f0 = cm[0]
+                rest = c0.split("/")
+                pref = "/".join(rest[: len(rest) - len(f0["rel"])])
+                pref = pref + "/" if pref else ""
+                # a folder entry needs the cloud names to equal the local relative paths exactly
+                # (Linux is case-sensitive: lowercase cloud names would create duplicates)
+                ok = all(c == pref + "/".join(f["rel"]) for c, f in cm)
+                if ok:
+                    e["cloud"] = pref
+                    used.update(c for c, _ in cm)
+                else:
+                    notes.append(f"cloud names differ from the local names in {tilde(base)} (case?): file-level entries")
+            if ok or not cm:
+                entries.append(e)
+                continue
+        for f in files:   # file-level pairing (also the fallback for folders that can't be folder entries)
+            comps = PurePosixPath(f["file"]).parts
+            cand = sorted(((trailing_match(comps, PurePosixPath(x["file"]).parts), x) for x in df), key=lambda t: -t[0])
+            dm = cand[0][1] if cand and cand[0][0] >= 1 and (len(cand) == 1 or cand[0][0] > cand[1][0]) else None
+            e = {"gpd": tilde(f["file"]), "desktop": dm["tmpl"] if dm else "?"}
+            if not dm and df:
+                notes.append(f"no desktop file pairs with {tilde(f['file'])}")
+            cm = cloud_match(comps, cnames) if cnames else None
+            if cm:
+                e["cloud"] = cm
+                used.add(cm)
+            entries.append(e)
+    for c in cnames:
+        if c not in used:
+            notes.append(f"cloud file not mapped: {c}")
+    return entries, notes
+
+
+def desktop_discover(host, appids):
+    """{appid: result} from the desktop, or an {"error"} dict applied to every app."""
     try:
-        return json.loads(CACHE.read_text())
-    except (OSError, ValueError):
-        return {}
-
-
-def extract(appids, refresh=False):
-    """{appid: {"name", "files": {path: {"tags", "os": [...]}}, "cloud"}} from the manifest."""
-    cache = load_cache()
-    missing = [a for a in appids if a not in cache]
-    if not missing and not refresh:
-        return cache
-    import yaml
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if refresh or not MANIFEST.exists():
-        print("Downloading the Ludusavi manifest...", file=sys.stderr)
-        urllib.request.urlretrieve(URL, MANIFEST)
-    print("Parsing the manifest (about a minute)...", file=sys.stderr)
-    data = yaml.load(MANIFEST.read_text(), Loader=yaml.CSafeLoader)
-    want = set(appids) | set(cache)
-    for name, e in data.items():
-        sid = str((e.get("steam") or {}).get("id", ""))
-        if sid in want:
-            cache[sid] = {
-                "name": name,
-                "cloud": e.get("cloud"),
-                "files": {p: {"tags": s.get("tags") or [],
-                              "os": sorted({w.get("os", "any") for w in (s.get("when") or [])}) or ["any"]}
-                          for p, s in (e.get("files") or {}).items()},
-            }
-    CACHE.write_text(json.dumps(cache, indent=1))
-    return cache
-
-
-def gpd_path(p, base):
-    for tok, rep in LINUX_TOKENS.items():
-        p = p.replace(tok, rep)
-    return p.replace("<base>", base)
-
-
-def cloud_names(appids):
-    try:
-        r = subprocess.run([str(REPO / "scripts/steam-cloud"), "list-many", *appids],
-                           capture_output=True, text=True, timeout=300)
+        r = subprocess.run(["ssh", "-4", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", host,
+                            "discover " + " ".join(appids)], capture_output=True, text=True, timeout=300)
     except subprocess.TimeoutExpired:
-        return None, "timed out"
+        return {a: {"error": "desktop timed out"} for a in appids}
+    old = {a: {"error": "desktop script out of date or ludusavi missing there (git pull, install ludusavi)"} for a in appids}
     if r.returncode != 0:
-        return None, (r.stderr.strip().splitlines() or ["failed"])[-1]
-    return json.loads(r.stdout), None
+        msg = (r.stderr.strip().splitlines() or ["ssh failed"])[-1]
+        return old if msg.startswith("usage:") else {a: {"error": msg} for a in appids}
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        return old
+    return d if all(a in d for a in appids) else old
 
 
-def write_extract():
-    appids = sorted({str(a) for (src, a) in core.installed() if src == "steam"} |
-                    {g["appid"] for g in json.loads((REPO / "games/saves.json").read_text())["games"]})
-    mani = extract(appids)
-    out = {a: {"name": mani[a]["name"], "files": {p: {"os": sp["os"], "tags": sp["tags"]}
-                                                  for p, sp in mani[a]["files"].items() if "save" in sp["tags"]}}
-           for a in appids if a in mani}
-    (REPO / "games/save-manifest.json").write_text(json.dumps(out, indent=1) + "\n")
-    print(f"games/save-manifest.json: {len(out)} games")
+def cloud_lists(appids):
+    r = subprocess.run([str(REPO / "scripts/steam-cloud"), "list-many", *appids], capture_output=True, text=True, timeout=300)
+    if r.returncode != 0:
+        print("Steam Cloud unavailable: " + (r.stderr.strip().splitlines() or ["failed"])[-1], file=sys.stderr)
+        return {}
+    return json.loads(r.stdout)
 
 
 def main():
-    if "--write-extract" in sys.argv:
-        write_extract()
-        return 0
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     inst = {aid: g for (src, aid), g in core.installed().items() if src == "steam"}
     appids = args or sorted(inst, key=lambda a: inst[a]["name"].lower())
-    mani = extract(appids, "--refresh" in sys.argv)
-    cloud, cerr = cloud_names(appids)
-    mapped = {g["appid"] for g in json.loads((REPO / "games/saves.json").read_text())["games"]}
+    cfg = json.loads((REPO / "games/saves.json").read_text())
+    mapped = {g["appid"] for g in cfg["games"]}
+    cloud = {} if "--no-cloud" in sys.argv else cloud_lists(appids)
+    here = remote.ludusavi_discover(appids)
+    there = None if "--no-desktop" in sys.argv else desktop_discover(cfg["desktop_host"], appids)
     for aid in appids:
-        g = inst.get(aid, {"name": mani.get(aid, {}).get("name", "?"), "dir": "<base>"})
-        print(f"\n== {g['name']} ({aid})  {'[in saves.json]' if aid in mapped else '[not in saves.json]'}")
-        m = mani.get(aid)
-        if not m:
-            print("   not in the manifest")
-        else:
-            for p, spec in m["files"].items():
-                if "save" not in spec["tags"]:
-                    continue
-                oses = ",".join(spec["os"])
-                if "linux" in spec["os"]:
-                    gp = gpd_path(p, g["dir"])
-                    print(f"   linux   {gp}  [{'exists' if '*' not in gp and os.path.exists(os.path.expanduser(gp)) else 'missing or pattern'}]")
-                elif oses != "mac":
-                    print(f"   {oses:<7} {p}")
-            print(f"   manifest cloud flag: {m['cloud']}")
-        if cloud is None:
-            print(f"   Steam Cloud: {cerr}")
-        else:
-            files = cloud.get(aid, [])
-            print(f"   Steam Cloud files: {len(files)}")
-            for f in files[:12]:
-                print(f"     {f['filename']}  ({f['size']} B)")
-            if len(files) > 12:
-                print(f"     ... {len(files) - 12} more")
+        name = inst.get(aid, {}).get("name", aid)
+        print(f"\n== {name} ({aid})  {'[already in saves.json]' if aid in mapped else ''}")
+        g = here[aid]
+        if "error" in g:
+            print("   ", g["error"])
+            continue
+        d = there[aid] if there else None
+        entries, notes = draft(g, d, cloud.get(aid) if cloud else None)
+        print(f"   ludusavi: {g['name']}; GPD files found: {len(g['files'])}"
+              + (f"; desktop files found: {len(d.get('files', []))}" if d and "error" not in d else ""))
+        if entries:
+            print("   draft entries:")
+            print("   " + json.dumps(entries, indent=1).replace("\n", "\n   "))
+        for n in notes:
+            print("   note:", n)
     return 0
 
 

@@ -9,9 +9,9 @@ action with the ssh command line (SSH_ORIGINAL_COMMAND):
   get APPID     tar stream on stdout with the game's existing save files. A member is named
                 "N" (file entry N of the game's "files" list in games/saves.json) or "N/rel/path"
                 (a file inside folder entry N, which has "dir": true).
-  discover APPID  JSON: where this machine keeps the game's saves, from Steam's own cloud records
-                (userdata/<id>/<appid>/remotecache.vdf) and from the save paths in
-                games/save-manifest.json (Ludusavi data) that exist here. Read-only, one app only.
+  discover APPID...  JSON {appid: result}: what ludusavi (must be installed) finds on this machine for the Steam apps:
+                each game's name, the existing save/config files (`ludusavi backup --preview`) and
+                the manifest's save paths for it. Read-only, one app only.
   put APPID     tar stream on stdin in the same format; writes those files (mtime kept). Existing
                 files that would be replaced are first copied to ~/save-backups/<time>/<appid>/.
 
@@ -211,45 +211,6 @@ def do_put(cfg, sc, appid, inp, out):
     out.write(json.dumps({"written": write_files(lambda k: target_path(game, bases, k), got, backup)}).encode())
 
 
-def expand_candidate(raw, os_, install, prefix):
-    """Manifest path -> concrete path on this machine, or None if it needs something we don't have."""
-    home = Path.home()
-    if os_ == "linux":
-        toks = {"<xdgConfig>": home / ".config", "<xdgData>": home / ".local/share", "<home>": home}
-    elif os_ == "windows" and prefix:
-        toks = {"<home>": prefix, "<winAppData>": prefix / "AppData/Roaming",
-                "<winLocalAppData>": prefix / "AppData/Local", "<winDocuments>": prefix / "Documents"}
-    else:
-        toks = {}
-    if install:
-        toks["<base>"] = install
-    for tok, rep in toks.items():
-        raw = raw.replace(tok, str(rep))
-    return None if "<" in raw else raw
-
-
-def match_cloud(candidates, rel, root_dirs):
-    """Desktop path of cloud file `rel` (relative to its Steam root) under an existing candidate:
-    candidate dir B matches when the last k components of B equal the first k of rel
-    (B=~/.config/StardewValley/Saves, rel=StardewValley/Saves/Farm/x -> B/Farm/x), or when rel
-    sits directly below a root dir. Returns a path that exists, or None."""
-    rparts = Path(rel).parts
-    for b in candidates:
-        bp = Path(b)
-        if not bp.is_dir():
-            continue
-        for k in range(len(rparts) - 1, 0, -1):
-            if [x.lower() for x in bp.parts[-k:]] == [x.lower() for x in rparts[:k]]:
-                q = bp.joinpath(*rparts[k:])
-                if q.is_file():
-                    return q
-    for d in root_dirs:
-        q = d / rel
-        if q.is_file():
-            return q
-    return None
-
-
 def template(path, sc, userdirs):
     """Absolute path on this machine -> the {userdata}/{steam}/{home} form used in saves.json."""
     if path is None:
@@ -261,47 +222,89 @@ def template(path, sc, userdirs):
     return path
 
 
-def do_discover(sc, appid, out):
-    manifest = json.loads((REPO / "games/save-manifest.json").read_text()) if (REPO / "games/save-manifest.json").exists() else {}
-    libs = sc.libraries()
-    name, install, prefix = sc.app_info(appid, libs)
-    cands, exist_dirs = [], []
-    for raw, spec in (manifest.get(appid, {}).get("files") or {}).items():
-        for os_ in spec["os"]:
-            if os_ not in ("linux", "windows", "any"):
-                continue
-            path = expand_candidate(raw, "linux" if os_ == "any" else os_, install, prefix)
-            if not path:
-                continue
-            hits = glob.glob(path) if any(c in path for c in "*?[") else ([path] if os.path.exists(path) else [])
-            cands.append({"manifest": raw, "os": os_, "path": path, "exists": bool(hits)})
-            if hits and "*" not in path:
-                exist_dirs.append(path)
-    cloud = []
-    for userdir in userdata_dirs(sc):
-        cache = userdir / appid / "remotecache.vdf"
-        if not cache.exists():
-            continue
-        files = sc.parse_vdf(cache.read_text(errors="replace")).get(appid, {})
-        for rel, meta in files.items():
-            if not isinstance(meta, dict) or set(meta.get("sha", "0")) == {"0"}:
-                continue
-            root = int(meta.get("root", 0))
-            resolved, note = sc.resolve(root, rel, appid, userdir, install, prefix)
-            root_dirs = []
-            if resolved is not None:
-                root_dirs = [Path(str(resolved)[: len(str(resolved)) - len(rel)].rstrip("/"))]
-            m = match_cloud(exist_dirs, rel, root_dirs)
-            cloud.append({"rel": rel, "root": root, "resolved": str(resolved) if resolved else None,
-                          "note": note, "match": str(m) if m else None})
-        break
-    ud = userdata_dirs(sc)
-    for c in cands:
-        c["path_t"] = template(c["path"], sc, ud)
-    for c in cloud:
-        c["match_t"] = template(c["match"], sc, ud)
-    out.write(json.dumps({"appid": appid, "name": name, "install": str(install) if install else None,
-                          "proton": bool(prefix), "candidates": cands, "cloud": cloud}).encode())
+LUD_CACHE = Path.home() / ".cache/gpd/ludusavi-slices.json"
+LUD_MANIFEST = Path.home() / ".cache/ludusavi/manifest.yaml"   # ludusavi's own copy; its mtime keys our cache
+
+
+def lud(*args):
+    """Run ludusavi, return its --api JSON (None on failure)."""
+    try:
+        r = subprocess.run(["ludusavi", *args], capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return None
+
+
+def lud_cache():
+    """On-disk cache {"stamp", "names": {appid: name}, "games": {name: save paths}}; dropped when
+    ludusavi updates its manifest."""
+    stamp = LUD_MANIFEST.stat().st_mtime if LUD_MANIFEST.exists() else 0
+    try:
+        cache = json.loads(LUD_CACHE.read_text())
+    except (OSError, ValueError):
+        cache = {}
+    if cache.get("stamp") != stamp:
+        cache = {"stamp": stamp}
+    cache.setdefault("names", {})
+    cache.setdefault("games", {})
+    return cache
+
+
+def lud_save_cache(cache):
+    LUD_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    LUD_CACHE.write_text(json.dumps(cache))
+
+
+def fill_from_manifest(cache, appids):
+    """Resolve app ids -> game names and save paths from ONE `ludusavi manifest show` (~4 s on the
+    GPD; it holds every game's Steam id), for the app ids the cache doesn't know yet."""
+    whole = lud("manifest", "show", "--api") or {}
+    want = set(appids)
+    for name, entry in whole.items():
+        sid = str((entry.get("steam") or {}).get("id", ""))
+        if sid in want:
+            cache["names"][sid] = name
+            cache["games"][name] = {p: sorted({w.get("os", "any") for w in (sp.get("when") or [])}) or ["any"]
+                                    for p, sp in (entry.get("files") or {}).items() if "save" in (sp.get("tags") or [])}
+
+
+def ludusavi_discover(appids):
+    """What ludusavi finds on this machine for Steam apps: {appid: {appid, name, files, manifest}}.
+    Every ludusavi run re-reads its manifest (~3 s on the GPD), so this makes at most two runs for
+    any number of apps: one manifest dump (only for apps not cached yet) and ONE `backup --preview`."""
+    for appid in appids:
+        if not re.fullmatch(r"\d+", appid):
+            raise ValueError("bad app id")
+    cache = lud_cache()
+    missing = [a for a in appids if a not in cache["names"]]
+    if missing:
+        fill_from_manifest(cache, missing)
+    out, names = {}, {}
+    for appid in appids:
+        if appid in cache["names"]:
+            names[appid] = cache["names"][appid]
+        else:
+            out[appid] = {"appid": appid, "error": "ludusavi doesn't know this app"}
+    prev = (lud("backup", "--preview", "--api", "--force", *sorted(set(names.values()))) or {}).get("games", {}) if names else {}
+    for appid, name in names.items():
+        files = sorted((prev.get(name) or {}).get("files", {}))
+        out[appid] = {"appid": appid, "name": name, "files": files, "manifest": cache["games"].get(name, {})}
+    lud_save_cache(cache)
+    return out
+
+
+def do_discover(sc, appids, out):
+    """ludusavi_discover plus, for each found file, its saves.json-style template path."""
+    res = ludusavi_discover(appids)
+    userdirs = userdata_dirs(sc)
+    for d in res.values():
+        d["files_t"] = [template(f, sc, userdirs) for f in d.get("files", [])]
+    out.write(json.dumps(res).encode())
 
 
 def main():
@@ -314,14 +317,14 @@ def main():
             do_status(cfg, sc, out)
         elif len(cmd) == 2 and cmd[0] == "status":
             do_status(cfg, sc, out, cmd[1])
-        elif len(cmd) == 2 and cmd[0] == "discover":
-            do_discover(sc, cmd[1], out)
+        elif len(cmd) >= 2 and cmd[0] == "discover":
+            do_discover(sc, cmd[1:], out)
         elif len(cmd) == 2 and cmd[0] == "get":
             do_get(cfg, sc, cmd[1], out)
         elif len(cmd) == 2 and cmd[0] == "put":
             do_put(cfg, sc, cmd[1], sys.stdin.buffer, out)
         else:
-            print("usage: status [APPID] | discover APPID | get APPID | put APPID", file=sys.stderr)
+            print("usage: status [APPID] | discover APPID... | get APPID | put APPID", file=sys.stderr)
             return 2
     except (ValueError, tarfile.TarError, OSError) as e:
         print(f"error: {e}", file=sys.stderr)

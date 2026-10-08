@@ -224,3 +224,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Game Saves: `ignore` patterns for folder entries (Stardew steam_autocloud.vdf, HLD gameprefs.dat); desktop paths from the desktop session (ad24aea). Desktop needs a git pull.
 
 - 2026-10-08: AUR `ludusavi-bin` updated to 0.31.0-1 (reviewed AUR commit 9b221f35de61).
+- saves-discover now uses ludusavi (ludusavi-bin, AUR, vendored) on both machines instead of own manifest parsing; `save-status-remote discover APPID...`; batched + cached (13 games ~8 s). Removed the repo manifest extract. Desktop needs git pull + ludusavi installed.
