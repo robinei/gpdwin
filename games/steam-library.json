@@ -93,7 +93,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "maybe",
    "pcgw": "A Story about My Uncle",
    "windows": true
   },
@@ -177,7 +177,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Adaca",
    "windows": true
   },
@@ -740,7 +740,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Arcania: Gothic 4",
    "windows": true
   },
@@ -2132,7 +2132,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Broken Sword 5: The Serpent's Curse",
    "windows": true
   },
@@ -2144,7 +2144,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Brothers: A Tale of Two Sons",
    "windows": true
   },
@@ -2489,7 +2489,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Carrion",
    "windows": true
   },
@@ -2778,7 +2778,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Command & Conquer",
    "windows": true
   },
@@ -2838,7 +2838,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Command & Conquer: Tiberian Sun",
    "windows": true
   },
@@ -2862,7 +2862,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Command & Conquer: Red Alert 2",
    "windows": true
   },
@@ -2994,7 +2994,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Consortium",
    "windows": true
   },
@@ -4358,7 +4358,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Divinity: Original Sin - Enhanced Edition",
    "windows": true
   },
@@ -4453,7 +4453,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Doom 3: BFG Edition",
    "windows": true
   },
@@ -4477,7 +4477,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Doom 64",
    "windows": true
   },
@@ -4762,7 +4762,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Dusk",
    "windows": true
   },
@@ -4954,7 +4954,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "maybe",
    "pcgw": "Ender Lilies: Quietus of the Knights",
    "windows": true
   },
@@ -5013,7 +5013,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Entropy: Zero",
    "windows": true
   },
@@ -5121,7 +5121,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Everspace",
    "windows": true
   },
@@ -5277,7 +5277,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Fable: The Lost Chapters",
    "windows": true
   },
@@ -5529,7 +5529,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Fez",
    "windows": true
   },
@@ -5541,7 +5541,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Final Doom",
    "windows": true
   },
@@ -5553,7 +5553,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "maybe",
    "pcgw": "Final Fantasy IX",
    "windows": true
   },
@@ -5637,7 +5637,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Final Fantasy X/X-2 HD Remaster",
    "windows": true
   },
@@ -5649,7 +5649,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Final Fantasy XII: The Zodiac Age",
    "windows": true
   },
@@ -6105,7 +6105,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Gothic",
    "windows": true
   },
@@ -6141,7 +6141,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Gothic II",
    "windows": true
   },
@@ -9224,7 +9224,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "maybe",
    "pcgw": "Omikron: The Nomad Soul",
    "windows": true
   },
@@ -9619,7 +9619,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Pathfinder: Wrath of the Righteous",
    "windows": true
   },
@@ -9893,7 +9893,7 @@
    "drm": "free",
    "controller": false,
    "linux": true,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Planetary Annihilation: Titans",
    "windows": true
   },
@@ -10002,7 +10002,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "maybe",
    "pcgw": "Postal 2",
    "windows": true
   },
@@ -10567,7 +10567,7 @@
    "drm": "free",
    "controller": true,
    "linux": true,
-   "tier": null,
+   "tier": "maybe",
    "pcgw": "Regions of Ruin",
    "windows": true
   },
@@ -11000,7 +11000,7 @@
    "drm": "free",
    "controller": false,
    "linux": true,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Running with Rifles",
    "windows": true
   },
@@ -12581,7 +12581,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "Star Wars Jedi: Fallen Order",
    "windows": true
   },
@@ -12665,7 +12665,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Star Wars: Dark Forces",
    "windows": true
   },
@@ -13269,7 +13269,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "good",
    "pcgw": "Synthetik: Legion Rising",
    "windows": true
   },
@@ -13281,7 +13281,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "System Shock (2023)",
    "windows": true
   },
@@ -13293,7 +13293,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "System Shock 2",
    "windows": true
   },
@@ -13317,7 +13317,7 @@
    "drm": "free",
    "controller": true,
    "linux": null,
-   "tier": null,
+   "tier": "maybe",
    "pcgw": "System Shock"
   },
   {
@@ -14205,7 +14205,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "heavy",
    "pcgw": "The Witcher 3: Wild Hunt",
    "windows": true
   },
@@ -14897,7 +14897,7 @@
    "drm": "free",
    "controller": false,
    "linux": false,
-   "tier": null,
+   "tier": "mouse",
    "pcgw": "Trauma",
    "windows": true
   },
@@ -15005,7 +15005,7 @@
    "drm": "free",
    "controller": true,
    "linux": false,
-   "tier": null,
+   "tier": "maybe",
    "pcgw": "Tunguska: The Visitation",
    "windows": true
   },
