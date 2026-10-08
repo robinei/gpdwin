@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Read a game's saves straight from Steam Cloud (read-only), without the desktop.
+
+  steam-cloud setup                 create the private venv (steam-next from PyPI, pinned)
+  steam-cloud login                 log in once (password + Steam Guard); keeps a refresh token
+  steam-cloud list APPID [--json]   the app's cloud files: name, size, time, sha1
+  steam-cloud download APPID DIR    download them to DIR (mtimes = cloud times) + DIR/manifest.json
+  steam-cloud logout                forget the token
+
+Why a custom tool: steamctl's login library predates Valve's 2023 login change (Steam refuses
+plaintext passwords at the CM); steam-next implements it and hands out a refresh token that
+`login(access_token=...)` reuses, so the password is only asked once. Uploading is deliberately not
+implemented: pushing to the cloud goes through the desktop Steam client (docs/saves.md).
+
+The refresh token (like a saved login, valid for months) is ~/.local/share/gpd/steam-cloud/token.json,
+mode 600, never in the repo. `logout` deletes it; changing the Steam password or "sign out of all
+devices" in Steam revokes it.
+"""
+import json, os, subprocess, sys
+from pathlib import Path
+
+HOME_DIR = Path.home() / ".local/share/gpd/steam-cloud"
+VENV = HOME_DIR / "venv"
+TOKEN = HOME_DIR / "token.json"
+PIN = ["steam-next[client]==3.0.0"]
+CFG = Path.home() / ".config/gpd/games.json"   # the installer's Steam account name
+
+
+def die(msg, code=1):
+    print(msg, file=sys.stderr)
+    sys.exit(code)
+
+
+def setup():
+    HOME_DIR.mkdir(parents=True, exist_ok=True)
+    HOME_DIR.chmod(0o700)
+    if not (VENV / "bin/python").exists():
+        subprocess.run([sys.executable, "-m", "venv", str(VENV)], check=True)
+    subprocess.run([str(VENV / "bin/pip"), "install", "-q", *PIN, "requests"], check=True)
+    print(f"steam-cloud environment ready in {VENV}")
+
+
+def ensure_venv():
+    """Re-run this script inside the venv (steam-next is only installed there)."""
+    venv_py = VENV / "bin/python"
+    if Path(sys.prefix).resolve() == VENV.resolve():
+        return
+    if not venv_py.exists():
+        die("Not set up yet: run `steam-cloud setup`.")
+    os.execv(str(venv_py), [str(venv_py), "-I", os.path.abspath(__file__), *sys.argv[1:]])
+
+
+def saved():
+    try:
+        return json.loads(TOKEN.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def new_client():
+    import gevent.monkey
+    gevent.monkey.patch_socket()
+    gevent.monkey.patch_ssl()
+    from steam.client import SteamClient
+    return SteamClient()
+
+
+def cmd_login():
+    from steam.enums import EResult
+    c = new_client()
+    user = None
+    if len(sys.argv) > 2:
+        user = sys.argv[2]
+    elif CFG.exists():
+        user = json.loads(CFG.read_text()).get("steam_username")
+    user = user or input("Steam account name: ")
+    print(f"Logging in as {user} (password and Steam Guard are asked here, never stored).")
+    result = c.cli_login(user)
+    if result != EResult.OK or not c.refresh_token:
+        die(f"Login failed: {result!r}")
+    HOME_DIR.mkdir(parents=True, exist_ok=True)
+    HOME_DIR.chmod(0o700)
+    fd = os.open(TOKEN, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump({"username": user, "refresh_token": c.refresh_token}, f)
+    c.disconnect()
+    print(f"Logged in; token saved to {TOKEN}")
+
+
+def connect():
+    from steam.enums import EResult
+    s = saved()
+    if not s:
+        die("Not logged in: run `steam-cloud login`.")
+    c = new_client()
+    try:
+        result = c.login(s["username"], access_token=s["refresh_token"])
+    except ValueError as e:
+        die(f"Saved token is unusable ({e}): run `steam-cloud login`.")
+    if result != EResult.OK:
+        die(f"Steam refused the saved login ({result!r}): run `steam-cloud login`.")
+    return c
+
+
+def cloud_files(c, appid):
+    from steam.enums import EResult
+    from steam.exceptions import SteamError
+    job = c.send_um("Cloud.EnumerateUserFiles#1", {"appid": appid, "extended_details": True})
+    files, total, n = [], None, 0
+    while total != n:
+        msg = c.wait_msg(job, timeout=15)
+        if not msg:
+            die("Timed out listing cloud files.")
+        if msg.header.eresult != EResult.OK:
+            die(f"Steam refused the listing: {EResult(msg.header.eresult)!r}")
+        total = msg.body.total_files
+        n += len(msg.body.files)
+        files.extend(msg.body.files)
+    return files
+
+
+def info(e):
+    return {"filename": e.filename, "size": e.file_size, "mtime": e.timestamp, "sha1": e.file_sha}
+
+
+def cmd_list(appid, as_json):
+    c = connect()
+    rows = [info(e) for e in cloud_files(c, appid)]
+    c.disconnect()
+    if as_json:
+        print(json.dumps(rows))
+    else:
+        for r in rows:
+            print(f"{r['filename']}  {r['size']} bytes  sha1 {r['sha1']}")
+
+
+def safe_rel(name):
+    """Cloud name -> relative path: '%Root%rest/of/path' -> '%Root%/rest/of/path', no traversal."""
+    import re
+    name = re.sub(r"^(%[A-Za-z0-9]+%)", r"\1/", name)
+    parts = [p for p in name.replace("\\", "/").split("/") if p not in ("", ".", "..")]
+    return "/".join(parts)
+
+
+def cmd_download(appid, dest):
+    c = connect()          # patches sockets/ssl (gevent): import requests only after this
+    import requests
+    entries = cloud_files(c, appid)
+    c.disconnect()
+    dest = Path(dest)
+    manifest = []
+    for e in entries:
+        rel = safe_rel(e.filename)
+        if not rel:
+            continue
+        p = dest / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        r = requests.get(e.url, timeout=60)
+        r.raise_for_status()
+        p.write_bytes(r.content)
+        os.utime(p, (e.timestamp, e.timestamp))
+        manifest.append({**info(e), "path": rel})
+    (dest / "manifest.json").write_text(json.dumps(manifest, indent=1))
+    print(f"{len(manifest)} file(s) downloaded to {dest}")
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__)
+        return 0
+    cmd = args[0]
+    if cmd == "setup":
+        setup()
+        return 0
+    if cmd == "logout":
+        TOKEN.unlink(missing_ok=True)
+        print("Token removed.")
+        return 0
+    ensure_venv()
+    if cmd == "login":
+        cmd_login()
+    elif cmd == "list" and len(args) >= 2:
+        cmd_list(int(args[1]), "--json" in args)
+    elif cmd == "download" and len(args) == 3:
+        cmd_download(int(args[1]), args[2])
+    else:
+        die(__doc__, 2)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

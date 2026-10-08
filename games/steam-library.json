@@ -5531,7 +5531,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Fez",
-   "windows": true
+   "windows": true,
+   "size_mb": 421
   },
   {
    "source": "steam",

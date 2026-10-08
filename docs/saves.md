@@ -38,6 +38,24 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 - New game: add it to `games/saves.json` (both paths) and `docs/saves.md`.
 - `desktop_host` in `games/saves.json` is the desktop (`robin@desktop.lan`).
 
+## Steam Cloud directly from the GPD (`scripts/steam-cloud`)
+- Read-only access to a game's cloud files without the desktop: `steam-cloud list APPID`,
+  `steam-cloud download APPID DIR` (files keep Steam's names, e.g. `%GameInstall%/UserData/savegame.dat`,
+  mtime = cloud time, plus `manifest.json`). Uploading is not implemented: pushing back to the
+  cloud goes through the desktop's Steam client (push with Game Saves, then start the game once).
+- Why a custom tool: `steamctl` (PyPI) uses a library that predates Valve's 2023 login change
+  ("Steam no longer accepts plaintext passwords at the CM"), so its logins fail with a bogus
+  "invalid password". `steam-next` (fork of the same library) implements the new flow; `steamctl` on
+  top of it also fails (renamed helpers, missing `Cloud.EnumerateUserApps`), so we use `steam-next` directly.
+- Setup: `scripts/steam-cloud setup` (private venv in `~/.local/share/gpd/steam-cloud/venv`, steam-next
+  pinned to 3.0.0 from PyPI; not a pacman/AUR package). `scripts/steam-cloud login` once (password + Steam
+  Guard, asked in the terminal; use `! ` from Claude): it keeps a refresh token in
+  `~/.local/share/gpd/steam-cloud/token.json` (mode 600, not in the repo, valid for months; `logout` deletes it,
+  changing the Steam password revokes it). No password is stored.
+- Verified 2026-10-08: Super Meat Boy (40800) cloud files are byte-identical to the GPD's and the
+  desktop's `savegame.dat`; list takes ~3 s. Gotcha: import `requests` only after the gevent
+  patching in `connect()` (otherwise the download hangs).
+
 ## History
 - 2026-10-07: desktop (cloud-synced) saves copied to the GPD for both games; previous GPD files
   in `~/save-backups/2026-10-07/` on the GPD (SMB had only the default savegame, Bastion none).

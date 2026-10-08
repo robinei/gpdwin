@@ -216,3 +216,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Pegasus Utilities > Game Saves (was Save Status): curses UI to compare and copy saves GPD⇄desktop per game, with backups. `desktop/save-status-remote` gained `get`/`put` (restricted key unchanged; it can now write the mapped save files). Needs `git pull` on the desktop. Revert: git revert; the old script only did `status`.
 
 - 2026-10-08: AUR `mangohud-light` updated to 0.8.4-1 (reviewed AUR commit aec701d04109) with local patches 0002-battery-by-type.patch.
+
+## 2026-10-08 — steam-cloud (read Steam Cloud from the GPD)
+- New `scripts/steam-cloud` (list/download, read-only) with a private PyPI venv (steam-next 3.0.0) and a refresh token outside the repo. Revert: delete `~/.local/share/gpd/steam-cloud`, git revert.
