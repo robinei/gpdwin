@@ -203,3 +203,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - `HandleLidSwitch=ignore` in `logind.conf.d/handheld.conf` (was `suspend-then-hibernate`). Power key unchanged.
 - Revert: set it back to `suspend-then-hibernate`, `scripts/sync install`, restart systemd-logind (or reboot).
 - inputd watches the lid switch: closed → `output * power off`, opened → `power on` (backlight 0 does not turn the panel off). Revert: git revert the commit, `scripts/sync install`, restart inputd.
+- Lid closed also disables all input (sway events + pad grab) and runs `dotfiles/sway/lid.sh` (GPU limit to min, statusbar paused). Revert: git revert, `scripts/sync install`, restart inputd.

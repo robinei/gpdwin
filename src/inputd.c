@@ -8,8 +8,9 @@
  * let swayidle dim the screen and suspend. Any pad event (at most every POKE_EVERY seconds)
  * sends sway a zero pointer move (`seat seat0 cursor move 0 0`), which resets its idle timers.
  *
- * Lid switch: closing the lid powers the output off, opening it powers it on (the brightness is
- * left alone; level 0 doesn't turn this panel off). logind ignores the lid, see docs/power.md.
+ * Lid switch: closing the lid powers the output off and disables all input (sway's devices;
+ * the pad is grabbed), opening it undoes that (the CPU/GPU are also throttled and the status bar paused, dotfiles/sway/lid.sh; brightness is left alone; level 0 doesn't turn this
+ * panel off). logind ignores the lid, see docs/power.md.
  *
  * Sleeps until there is something to do: the untouched pad sends no events, and inotify on
  * /dev/input reports when the pad (re)appears (it disconnects while the screen is off and across
@@ -125,10 +126,33 @@ static void activity(void)
     swaymsg("seat seat0 cursor move 0 0");
 }
 
-/* Lid closed: switch the screen off; opened: switch it on. */
+static void swaymsg_sh(const char *command)
+{
+    char *argv[] = { "sh", "-c", (char *)command, NULL };
+    pid_t pid;
+    if (posix_spawnp(&pid, "sh", NULL, NULL, argv, environ) != 0)
+        perror("inputd: sh");
+}
+
+static int lid_closed;
+static int pad_fd = -1;
+
+/* While the lid is closed the pad is grabbed, so nobody else (games, sway) sees its events. */
+static void grab_pad(void)
+{
+    if (pad_fd >= 0)
+        ioctl(pad_fd, EVIOCGRAB, lid_closed);
+}
+
+/* Lid closed: switch the screen off and all input off (sway's devices, and the pad by grabbing
+ * it); opened: back on. */
 static void on_lid(int closed)
 {
-    swaymsg(closed ? "output * power off" : "output * power on");
+    lid_closed = closed;
+    swaymsg(closed ? "output * power off; input * events disabled"
+                   : "input * events enabled; output * power on");
+    grab_pad();
+    swaymsg_sh(closed ? "~/.config/sway/lid.sh close" : "~/.config/sway/lid.sh open");
 }
 
 static void on_guide(void)
@@ -150,9 +174,13 @@ int main(void)
 
     struct pollfd fds[3] = {
         { .fd = watch, .events = POLLIN },
-        { .fd = open_pad(), .events = POLLIN },
+        { .fd = (pad_fd = open_pad()), .events = POLLIN },
         { .fd = open_named(LID_NAME), .events = POLLIN },
     };
+
+    unsigned long sw[1] = { 0 };
+    if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0 && (sw[0] >> SW_LID & 1))
+        on_lid(1); /* started with the lid already closed */
 
     for (;;) {
         if (poll(fds, 3, -1) < 0)
@@ -162,8 +190,10 @@ int main(void)
             char buf[4096];
             while (read(watch, buf, sizeof buf) > 0)
                 ;
-            if (fds[1].fd < 0)
-                fds[1].fd = open_pad();
+            if (fds[1].fd < 0) {
+                fds[1].fd = pad_fd = open_pad();
+                grab_pad();
+            }
         }
 
         if (fds[1].fd >= 0 && fds[1].revents) {
@@ -172,12 +202,12 @@ int main(void)
             while ((n = read(fds[1].fd, &ev, sizeof ev)) == sizeof ev) {
                 if (ev.type == EV_KEY && ev.code == BTN_MODE && ev.value == 1)
                     on_guide();
-                if (ev.type == EV_KEY || ev.type == EV_ABS)
+                if (!lid_closed && (ev.type == EV_KEY || ev.type == EV_ABS))
                     activity();
             }
             if (n < 0 && errno != EAGAIN) { /* ENODEV once the pad is unplugged */
                 close(fds[1].fd); /* pad went away; inotify brings it back */
-                fds[1].fd = -1;
+                fds[1].fd = pad_fd = -1;
             }
         }
 

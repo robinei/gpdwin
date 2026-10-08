@@ -37,8 +37,12 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   The untouched pad sends nothing and inotify on /dev/input reopens it when it reappears (screen
   off, resume), so it never polls.
   Also watches the lid switch (`Lid Switch` input device, logind ignores the lid): closing it
-  runs `swaymsg output * power off`, opening it `power on`. Brightness is not touched (level 0
-  does not turn the panel off). Input while the lid is closed can wake the screen via swayidle.
+  runs `swaymsg output * power off; input * events disabled`, grabs the pad (EVIOCGRAB, so games
+  don't see it either) and runs `lid.sh close` (CPU turbo off, GPU limit to RPn, statusbar
+  SIGSTOP; saved values in `$XDG_RUNTIME_DIR/lid-saved`). Opening it undoes all of that. Brightness
+  is not touched (level 0 does not turn the panel off). If inputd dies while closed, input stays
+  disabled: `swaymsg input '*' events enabled`. Measured: the throttling saves nothing visible
+  (~305 mA idle either way, Claude Code and Wi-Fi dominate).
 - C programs (`src/`): manifest `build` entries; `scripts/sync install` compiles them when the
   source is newer (`sync check` reports `BUILD outdated`). Restart after a rebuild:
   `swaymsg reload` (statusbar, swaybar's child) and
