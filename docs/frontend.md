@@ -147,6 +147,13 @@
   Saves `~/.config/HyperLightDrifter/`. Windows saves did not load in the Linux build (copied
   with lowercase names and mixed-case links: only "New game"), so they were dropped.
 
+- Old GameMaker Linux games (2015-16 runner, 32-bit: Hyper Light Drifter, Risk of Rain) need
+  OpenSSL 1.0 and a Steam-runtime libcurl (`CURL_OPENSSL_3`). HLD ships them in `lib/`; a copy
+  lives in `~/.local/share/gpd/compat/gamemaker-lib32/` (not in git: third-party binaries), and the
+  installer copies them into a game's `lib/` when one of its binaries needs libcrypto.so.1.0.0 and
+  the game lacks it (Risk of Rain). These old OpenSSL builds are insecure; the games only use them
+  for online features.
+
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
   default) for everything, to save space; per-game settings go in the game's launcher script

@@ -1,6 +1,6 @@
 """Shared game-installer logic: installed-game registry, executable detection, launchers,
 Pegasus metadata. Source-specific code (downloading, library lists) lives in gamelib/sources/."""
-import json, os, re, shutil, stat
+import json, os, re, shutil, stat, subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -207,6 +207,32 @@ def disable_old_bundled_sdl(dirpath):
             lib.rename(target)
             moved.append(str(target))
     return moved
+
+
+COMPAT_LIBS = Path.home() / ".local/share/gpd/compat/gamemaker-lib32"
+
+
+def add_compat_libs(dirpath):
+    """Old GameMaker Linux runners (2015-2016: Hyper Light Drifter, Risk of Rain) need OpenSSL 1.0
+    and a Steam-runtime libcurl (symbol version CURL_OPENSSL_3), which Arch doesn't have. HLD ships
+    them in lib/, others don't. If a 32-bit binary in the game needs libcrypto.so.1.0.0 and the
+    game lacks it, copy our saved set (taken from HLD, see docs/frontend.md) into its lib/, which
+    the game's run.sh puts on LD_LIBRARY_PATH. Returns the files copied."""
+    root = Path(dirpath)
+    if not COMPAT_LIBS.is_dir() or any(root.rglob("libcrypto.so.1.0.0")):
+        return []
+    for p in root.rglob("*"):
+        if p.is_file() and elf_bits(p) == 32 and ".so" not in p.name:
+            r = subprocess.run(["readelf", "-d", str(p)], capture_output=True, text=True)
+            if "[libcrypto.so.1.0.0]" in r.stdout:
+                lib = root / "lib"
+                lib.mkdir(exist_ok=True)
+                copied = []
+                for f in COMPAT_LIBS.iterdir():
+                    shutil.copy2(f, lib / f.name)
+                    copied.append(str(lib / f.name))
+                return copied
+    return []
 
 
 # ---------- launcher + Pegasus ----------

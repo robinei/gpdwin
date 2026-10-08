@@ -227,7 +227,9 @@ class App:
         core.save_record(rec)
         if osname == "linux":
             for m in core.disable_old_bundled_sdl(dest):
-                print(f"Bundled SDL2 without Wayland support moved aside: {m}")
+                print(f"Bundled old SDL moved aside (the system's compat library is used): {m}")
+            for f in core.add_compat_libs(dest):
+                print(f"Added old-GameMaker library: {f}")
         if self.pick_exe(rec):
             for f in core.write_steam_appid(rec):
                 print(f"Wrote {f.name} (lets the game run without the Steam client).")
