@@ -199,27 +199,59 @@ class SteamSource:
                     print("Could not resolve that name."); return False
             cfg["steamid"] = steamid
             core.save_config(cfg)
-        owned = _get_json(f"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={key}"
-                          f"&steamid={steamid}&include_appinfo=1&include_played_free_games=1")["response"]
-        games = owned.get("games", [])
-        print(f"{len(games)} owned games. Asking the Steam store for platforms...")
-        try:
-            plats = store_platforms([str(g["appid"]) for g in games])
-        except Exception as e:
-            print("  Steam store request failed:", e); plats = {}
-        print(f"Looking up PCGamingWiki (50 per request)...")
+        games = self._owned(key, steamid)
         old = {g["id"]: g for g in self.load_library()}
-        pcgw = self._pcgw([(str(g["appid"]), g["name"]) for g in games])
-        # Names that didn't match a PCGamingWiki page ("Prey" is "Prey (2017)"): find the page by
-        # app id, once per game (games resolved earlier keep their page name in "pcgw").
-        todo = [(str(g["appid"]), old.get(str(g["appid"]), {}).get("pcgw")) for g in games if str(g["appid"]) not in pcgw]
-        known = [(gid, page) for gid, page in todo if page]
-        if known:
-            pcgw.update(self._pcgw(known))
-        missing = [gid for gid, page in todo if not page and gid not in pcgw]
-        if missing:
-            print(f"Looking up {len(missing)} more on PCGamingWiki by app id (one request each)...")
-            pcgw.update(self._pcgw(list(self._pcgw_pages_by_appid(missing).items())))
+        print(f"{len(games)} owned games.")
+        out = self._merge(games, old, games)
+        self._save(out)
+        new = len(set(x["id"] for x in out) - set(old))
+        print(f"Saved {len(out)} games ({new} new) to {LIBRARY}. New games have no tier yet.")
+        return True
+
+    def quick_sync(self):
+        """Startup update, no prompts: owned games and hours from the Web API (one request);
+        store platforms and PCGamingWiki only for games not in the library yet. Needs the key file
+        and a saved steamid. Returns a status line, or None when there was nothing to do."""
+        key = API_KEY_FILE.read_text().strip() if API_KEY_FILE.exists() else ""
+        steamid = core.load_config().get("steamid")
+        if not key or not steamid:
+            return None
+        games = self._owned(key, steamid)
+        old = {g["id"]: g for g in self.load_library()}
+        added = [g for g in games if str(g["appid"]) not in old]
+        out = self._merge(games, old, added)
+        if out == sorted(old.values(), key=lambda g: g["name"].lower()):
+            return None
+        self._save(out)
+        gone = len(set(old) - set(x["id"] for x in out))
+        return f"Steam library updated: {len(added)} new, {gone} no longer owned."
+
+    def _owned(self, key, steamid):
+        return _get_json(f"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={key}"
+                         f"&steamid={steamid}&include_appinfo=1&include_played_free_games=1")["response"].get("games", [])
+
+    def _merge(self, games, old, lookup):
+        """Library entries for the owned games (Web API list), keeping what `old` knows. Games in
+        `lookup` get fresh platforms (Steam store) and DRM/controller data (PCGamingWiki)."""
+        plats, pcgw = {}, {}
+        if lookup:
+            print(f"Asking the Steam store for platforms ({len(lookup)} games)...")
+            try:
+                plats = store_platforms([str(g["appid"]) for g in lookup])
+            except Exception as e:
+                print("  Steam store request failed:", e)
+            print(f"Looking up PCGamingWiki (50 per request)...")
+            pcgw = self._pcgw([(str(g["appid"]), g["name"]) for g in lookup])
+            # Names that didn't match a PCGamingWiki page ("Prey" is "Prey (2017)"): find the page
+            # by app id, once per game (games resolved earlier keep their page name in "pcgw").
+            todo = [(str(g["appid"]), old.get(str(g["appid"]), {}).get("pcgw")) for g in lookup if str(g["appid"]) not in pcgw]
+            known = [(gid, page) for gid, page in todo if page]
+            if known:
+                pcgw.update(self._pcgw(known))
+            missing = [gid for gid, page in todo if not page and gid not in pcgw]
+            if missing:
+                print(f"Looking up {len(missing)} more on PCGamingWiki by app id (one request each)...")
+                pcgw.update(self._pcgw(list(self._pcgw_pages_by_appid(missing).items())))
         out = []
         for g in games:
             gid = str(g["appid"])
@@ -234,11 +266,11 @@ class SteamSource:
                         **{k: prev[k] for k in ("windows", "linux32", "size_mb") if k in prev},
                         **plats.get(gid, {})})
         out.sort(key=lambda g: g["name"].lower())
+        return out
+
+    def _save(self, games):
         LIBRARY.parent.mkdir(exist_ok=True)
-        LIBRARY.write_text(json.dumps({"generated": time.strftime("%Y-%m-%d"), "games": out}, indent=1) + "\n")
-        new = len(set(x["id"] for x in out) - set(old))
-        print(f"Saved {len(out)} games ({new} new) to {LIBRARY}. New games have no tier yet.")
-        return True
+        LIBRARY.write_text(json.dumps({"generated": time.strftime("%Y-%m-%d"), "games": games}, indent=1) + "\n")
 
     def _pcgw_pages_by_appid(self, ids):
         """{appid: page title} via PCGamingWiki's app id redirect (one request per game)."""

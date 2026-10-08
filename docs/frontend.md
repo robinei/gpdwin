@@ -88,7 +88,7 @@
 ## Game installer (`scripts/games`, Pegasus: Utilities > Games)
 - Curses UI over all owned games (`games/steam-library.json`: DRM status and controller support
   from PCGamingWiki, tier = expected performance here, native Linux build, hours). Filters: DRM
-  (default DRM-free), tier, controller, installed-only, text search; `s` sorts by hours played.
+  (default any), tier, controller, installed-only, text search; `s` sorts by hours played.
 - Install: DepotDownloader (`-remember-password -validate`, Linux build preferred when one exists)
   into `~/Games/installed/<slug>/`. The user types the Steam password/Guard code; username and
   SteamID are saved in `~/.config/gpd/games.json` (not in the repo). Interrupted downloads resume
@@ -105,8 +105,14 @@
   (verified). `~/Games/installed` is in `game_dirs.txt`. Launchers are not overwritten on
   regeneration (edit them for per-game env vars); "Rewrite launcher" in the UI does.
 - On quit after changes it offers to restart Pegasus (Pegasus only rescans on start).
-- `R` refreshes the library: Web API key from `~/.config/gpd/steam-api-key` (mode 600, outside
-  the repo; typed if missing), then PCGamingWiki lookups. Existing tiers and Linux flags are kept; new games have no tier.
+- On start it updates the library (owned games and hours, one Web API request, ~0.5 s); only
+  games new to the library get store platforms and PCGamingWiki lookups. Needs the key file
+  below and `steamid` in `~/.config/gpd/games.json`; offline it uses the library as it is.
+- `R` refreshes the whole library: Web API key from `~/.config/gpd/steam-api-key` (mode 600,
+  outside the repo; typed if missing), then PCGamingWiki lookups for every game. Existing tiers
+  and Linux flags are kept; new games have no tier.
+- The list starts with all games (any DRM, any tier). `?` marks data the library doesn't have:
+  no tier yet, no PCGamingWiki page (DRM, controller), platforms or size not looked up.
 - Code: `scripts/gamelib/` (`core.py` shared, `sources/steam.py`, `tui.py`). Sources are
   pluggable for GOG later (see `sources/__init__.py`).
 - DepotDownloader itself: AUR `steamdepotdownloader-bin` (SteamRE release binary, .NET bundled).

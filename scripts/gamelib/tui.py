@@ -5,22 +5,30 @@ from pathlib import Path
 from . import core
 from .sources import SOURCES
 
-DRM_FILTERS = [("DRM-free", lambda g: g["drm"] == "free"),
-               ("not Steam-DRM", lambda g: g["drm"] != "steam"),
-               ("any DRM", lambda g: True)]
+DRM_FILTERS = [("any DRM", lambda g: True),
+               ("DRM-free", lambda g: g["drm"] == "free"),
+               ("not Steam-DRM", lambda g: g["drm"] != "steam")]
 TIER_FILTERS = [("any tier", lambda g: True),
                 ("runs well", lambda g: g.get("tier") == "good"),
                 ("well+maybe", lambda g: g.get("tier") in ("good", "maybe")),
                 ("playable", lambda g: g.get("tier") in ("good", "maybe", "mouse"))]
 def size_text(mb):
-    """Approximate install size for the list: 200M, 1.5G; blank when unknown."""
+    """Approximate install size for the list: 200M, 1.5G; "?" when unknown."""
     if not mb:
-        return ""
+        return "?"
     return f"{mb}M" if mb < 1000 else f"{mb / 1024:.1f}G"
 
 
+UNKNOWN = "?"   # shown for data the library doesn't have (no PCGamingWiki page, not looked up yet)
+
+
+def flag(value, text):
+    """A yes/no column: text when true, blank when false, "?" when unknown."""
+    return UNKNOWN if value is None else text if value else ""
+
+
 CTRL_FILTERS = [("any input", lambda g: True), ("controller", lambda g: g.get("controller"))]
-TIER_SHORT = {"good": "well", "maybe": "maybe", "mouse": "mouse", "heavy": "heavy", None: ""}
+TIER_SHORT = {"good": "well", "maybe": "maybe", "mouse": "mouse", "heavy": "heavy", None: "?"}
 HELP = "↑↓ PgUp/PgDn move  / search  d DRM  t tier  c controller  i installed  s sort  Enter actions  R refresh  q quit"
 
 
@@ -69,8 +77,9 @@ class App:
             idx = self.top + i
             mark = "✓" if self.is_installed(g) else " "
             name = g["name"][:max(10, w - 42)]
-            line = (f" {mark} {name:<{max(10, w - 42)}} {TIER_SHORT.get(g.get('tier'), ''):<6}"
-                    f"{g['drm']:<6}{'yes' if g.get('controller') else '':<4}{('L32' if g.get('linux32') else 'L') if g.get('linux') else '':<4}"
+            line = (f" {mark} {name:<{max(10, w - 42)}} {TIER_SHORT.get(g.get('tier'), UNKNOWN):<6}"
+                    f"{UNKNOWN if g['drm'] == 'unknown' else g['drm']:<6}{flag(g.get('controller'), 'yes'):<4}"
+                    f"{flag(g.get('linux'), 'L32' if g.get('linux32') else 'L'):<4}"
                     f"{size_text(g.get('size_mb')):>6}{g.get('hours', 0):>6}")
             attr = curses.A_REVERSE if idx == self.pos else 0
             if self.is_installed(g):
@@ -295,7 +304,16 @@ def restart_pegasus_after_exit():
 
 def main():
     locale.setlocale(locale.LC_ALL, "")
+    msgs = []
+    for src in SOURCES.values():
+        if hasattr(src, "quick_sync"):
+            print(f"Checking the {src.title} library...")
+            try:
+                msgs.append(src.quick_sync())
+            except Exception as e:   # offline: use the library as it is
+                msgs.append(f"{src.title} library not updated ({e}).")
     app = App()
+    app.msg = "  ".join(m for m in msgs if m)
     curses.wrapper(app.run)
     if app.changed:
         ans = input("Games changed. Restart Pegasus now so they show up? [Y/n] ").strip().lower()
