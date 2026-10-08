@@ -365,6 +365,10 @@ class UI:
             self.add(y + 2 + j, 60, f"{t(r['gpd']):<18}{t(r['desk']):<18}{t(r['cloud']):<18}", 0)
         if not rows:
             self.add(y + 2, 3, "no save files anywhere")
+        if e["game"].get("unverified_desktop"):
+            self.add(y + 4 + min(len(rows), room), 3,
+                     "Desktop paths for this game are unverified guesses: don't push until they are checked.",
+                     curses.color_pair(2))
         if e["desk_cloud"] == "needs Steam launch":
             self.add(y + 3 + min(len(rows), room), 3,
                      "Steam Cloud has not received the desktop's files yet: start the game once in Steam there.",
@@ -411,6 +415,8 @@ class UI:
             warn = " Files differ in both directions."
         if source == "push" and self.steam:
             warn += " Steam is running."
+        if source != "cloud" and e["game"].get("unverified_desktop"):
+            warn += " Desktop paths unverified!"
         if not self.confirm(f"Copy {name} {src} → {dst}?{warn}"):
             self.say("Cancelled.")
             return

@@ -65,6 +65,20 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   desktop's `savegame.dat`; list takes ~3 s. Gotcha: import `requests` only after the gevent
   patching in `connect()` (otherwise the download hangs).
 
+## Finding a game's save locations (`scripts/saves-discover`)
+- Prints, for each installed Steam game: the Linux save paths from the Ludusavi manifest (built from
+  PCGamingWiki; parsed entries cached in `~/.cache/gpd/ludusavi.json`, first run ~1 min), whether they
+  exist here, the Windows paths (for the desktop's Proton prefix) and the game's Steam Cloud file names.
+  It only reports; add a game to `games/saves.json` by hand (GPD path, desktop path, `cloud` name).
+- Mapped 2026-10-08 (GPD side verified on disk, desktop paths are Proton-prefix guesses marked
+  `"unverified_desktop": true` until the desktop session checks them): SteamWorld Heist, FEZ,
+  Kingdom: Classic, Death Road to Canada, Hyper Light Drifter, Risk of Rain, Heretic + Hexen.
+- Not mapped yet: Psychonauts (cloud names are lowercase, `%GameInstall%profiles/profile 1/savedgame0`,
+  GPD has `Profiles/Profile 1/SavedGame0`: needs case-insensitive matching), Strife VE (GPD saves in
+  `~/.local/share/strife-ve/savegames`; desktop location unclear), Cave Story+ (`Profile-*.dat` in the game folder).
+- Cloud facts: SteamWorld Heist's cloud holds only controls.cfg/gamepads.cfg (not saves); FEZ, Kingdom,
+  Risk of Rain, Hyper Light Drifter, Death Road to Canada have no cloud files for this account.
+
 ## History
 - 2026-10-07: desktop (cloud-synced) saves copied to the GPD for both games; previous GPD files
   in `~/save-backups/2026-10-07/` on the GPD (SMB had only the default savegame, Bastion none).

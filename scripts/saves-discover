@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Where does each installed game keep its saves, and what does Steam Cloud hold for it?
+
+For every installed Steam game (or the app ids given), prints:
+  - the Linux save paths from the Ludusavi manifest (built from PCGamingWiki), with whether each
+    exists on this GPD, and the Windows ones (for the desktop's Proton prefix),
+  - the game's Steam Cloud file names (scripts/steam-cloud, needs `steam-cloud login`),
+  - whether the game is already in games/saves.json.
+It only reports: new games are added to games/saves.json by hand (docs/saves.md).
+
+  saves-discover [APPID...]
+  saves-discover --refresh      re-download the manifest (17 MB, ~1 min to parse on the GPD)
+
+The parsed entries for the games asked about are cached in ~/.cache/gpd/ludusavi.json.
+Manifest: https://github.com/mtkennerly/ludusavi-manifest (data from PCGamingWiki, CC BY-SA).
+"""
+import json, os, subprocess, sys, urllib.request
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "scripts"))
+from gamelib import core   # noqa: E402
+
+URL = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
+CACHE_DIR = Path.home() / ".cache/gpd"
+CACHE = CACHE_DIR / "ludusavi.json"
+MANIFEST = CACHE_DIR / "ludusavi-manifest.yaml"
+
+LINUX_TOKENS = {"<xdgConfig>": "~/.config", "<xdgData>": "~/.local/share", "<home>": "~"}
+
+
+def load_cache():
+    try:
+        return json.loads(CACHE.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def extract(appids, refresh=False):
+    """{appid: {"name", "files": {path: {"tags", "os": [...]}}, "cloud"}} from the manifest."""
+    cache = load_cache()
+    missing = [a for a in appids if a not in cache]
+    if not missing and not refresh:
+        return cache
+    import yaml
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if refresh or not MANIFEST.exists():
+        print("Downloading the Ludusavi manifest...", file=sys.stderr)
+        urllib.request.urlretrieve(URL, MANIFEST)
+    print("Parsing the manifest (about a minute)...", file=sys.stderr)
+    data = yaml.load(MANIFEST.read_text(), Loader=yaml.CSafeLoader)
+    want = set(appids) | set(cache)
+    for name, e in data.items():
+        sid = str((e.get("steam") or {}).get("id", ""))
+        if sid in want:
+            cache[sid] = {
+                "name": name,
+                "cloud": e.get("cloud"),
+                "files": {p: {"tags": s.get("tags") or [],
+                              "os": sorted({w.get("os", "any") for w in (s.get("when") or [])}) or ["any"]}
+                          for p, s in (e.get("files") or {}).items()},
+            }
+    CACHE.write_text(json.dumps(cache, indent=1))
+    return cache
+
+
+def gpd_path(p, base):
+    for tok, rep in LINUX_TOKENS.items():
+        p = p.replace(tok, rep)
+    return p.replace("<base>", base)
+
+
+def cloud_names(appids):
+    try:
+        r = subprocess.run([str(REPO / "scripts/steam-cloud"), "list-many", *appids],
+                           capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        return None, "timed out"
+    if r.returncode != 0:
+        return None, (r.stderr.strip().splitlines() or ["failed"])[-1]
+    return json.loads(r.stdout), None
+
+
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    inst = {aid: g for (src, aid), g in core.installed().items() if src == "steam"}
+    appids = args or sorted(inst, key=lambda a: inst[a]["name"].lower())
+    mani = extract(appids, "--refresh" in sys.argv)
+    cloud, cerr = cloud_names(appids)
+    mapped = {g["appid"] for g in json.loads((REPO / "games/saves.json").read_text())["games"]}
+    for aid in appids:
+        g = inst.get(aid, {"name": mani.get(aid, {}).get("name", "?"), "dir": "<base>"})
+        print(f"\n== {g['name']} ({aid})  {'[in saves.json]' if aid in mapped else '[not in saves.json]'}")
+        m = mani.get(aid)
+        if not m:
+            print("   not in the manifest")
+        else:
+            for p, spec in m["files"].items():
+                if "save" not in spec["tags"]:
+                    continue
+                oses = ",".join(spec["os"])
+                if "linux" in spec["os"]:
+                    gp = gpd_path(p, g["dir"])
+                    print(f"   linux   {gp}  [{'exists' if '*' not in gp and os.path.exists(os.path.expanduser(gp)) else 'missing or pattern'}]")
+                elif oses != "mac":
+                    print(f"   {oses:<7} {p}")
+            print(f"   manifest cloud flag: {m['cloud']}")
+        if cloud is None:
+            print(f"   Steam Cloud: {cerr}")
+        else:
+            files = cloud.get(aid, [])
+            print(f"   Steam Cloud files: {len(files)}")
+            for f in files[:12]:
+                print(f"     {f['filename']}  ({f['size']} B)")
+            if len(files) > 12:
+                print(f"     ... {len(files) - 12} more")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

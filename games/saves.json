@@ -1,5 +1,5 @@
 {
- "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>, {home} = desktop home. \"dir\": true = a folder: everything below it is synced file by file. \"cloud\" = the file's name in Steam Cloud (for a folder entry: its name prefix); entries without it aren't read from the cloud. Used by scripts/save-status (GPD) and desktop/save-status-remote.",
+ "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>, {home} = desktop home. \"dir\": true = a folder: everything below it is synced file by file. \"cloud\" = the file's name in Steam Cloud (for a folder entry: its name prefix); entries without it aren't read from the cloud. Used by scripts/save-status (GPD) and desktop/save-status-remote. \"unverified_desktop\": true = the desktop paths are guesses (Proton prefix layout) that the desktop session has not checked yet: don't push until they are.",
  "desktop_host": "robin@desktop.lan",
  "games": [
   {
@@ -43,6 +43,118 @@
      "gpd": "~/.local/share/Bastion/Profile1.mousectrls",
      "desktop": "{userdata}/107100/remote/profile1.mousectrls",
      "cloud": "profile1.mousectrls"
+    }
+   ]
+  },
+  {
+   "name": "SteamWorld Heist",
+   "appid": "322190",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.local/share/SteamWorld Heist/savegame_000.dat",
+     "desktop": "{steam}/steamapps/compatdata/322190/pfx/drive_c/users/steamuser/Documents/My Games/SteamWorld Heist/savegame_000.dat"
+    },
+    {
+     "gpd": "~/.local/share/SteamWorld Heist/savegame_001.dat",
+     "desktop": "{steam}/steamapps/compatdata/322190/pfx/drive_c/users/steamuser/Documents/My Games/SteamWorld Heist/savegame_001.dat"
+    },
+    {
+     "gpd": "~/.local/share/SteamWorld Heist/savegame_002.dat",
+     "desktop": "{steam}/steamapps/compatdata/322190/pfx/drive_c/users/steamuser/Documents/My Games/SteamWorld Heist/savegame_002.dat"
+    }
+   ]
+  },
+  {
+   "name": "FEZ",
+   "appid": "224760",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.local/share/FEZ/SaveSlot0",
+     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot0"
+    },
+    {
+     "gpd": "~/.local/share/FEZ/SaveSlot0_Backup",
+     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot0_Backup"
+    },
+    {
+     "gpd": "~/.local/share/FEZ/SaveSlot1",
+     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot1"
+    },
+    {
+     "gpd": "~/.local/share/FEZ/SaveSlot1_Backup",
+     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot1_Backup"
+    },
+    {
+     "gpd": "~/.local/share/FEZ/SaveSlot2",
+     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot2"
+    },
+    {
+     "gpd": "~/.local/share/FEZ/SaveSlot2_Backup",
+     "desktop": "{steam}/steamapps/compatdata/224760/pfx/drive_c/users/steamuser/AppData/Roaming/FEZ/SaveSlot2_Backup"
+    }
+   ]
+  },
+  {
+   "name": "Kingdom: Classic",
+   "appid": "368230",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.config/unity3d/noio/Kingdom/storage_v26_AUTO.dat",
+     "desktop": "{steam}/steamapps/compatdata/368230/pfx/drive_c/users/steamuser/AppData/LocalLow/noio/Kingdom/storage_v26_AUTO.dat"
+    }
+   ]
+  },
+  {
+   "name": "Death Road to Canada",
+   "appid": "252610",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.madgarden/DR2C/gstats.save",
+     "desktop": "{steam}/steamapps/compatdata/252610/pfx/drive_c/users/steamuser/AppData/Roaming/.madgarden/DR2C/gstats.save"
+    },
+    {
+     "gpd": "~/.madgarden/DR2C/cheevos.save",
+     "desktop": "{steam}/steamapps/compatdata/252610/pfx/drive_c/users/steamuser/AppData/Roaming/.madgarden/DR2C/cheevos.save"
+    }
+   ]
+  },
+  {
+   "name": "Hyper Light Drifter",
+   "appid": "257850",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.config/HyperLightDrifter",
+     "desktop": "{steam}/steamapps/compatdata/257850/pfx/drive_c/users/steamuser/AppData/Local/HyperLightDrifter",
+     "dir": true
+    }
+   ]
+  },
+  {
+   "name": "Risk of Rain",
+   "appid": "248820",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.config/Risk_of_Rain/save.ini",
+     "desktop": "{steam}/steamapps/common/Risk of Rain/Save.ini"
+    }
+   ]
+  },
+  {
+   "name": "Heretic + Hexen",
+   "appid": "3286930",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.wine/drive_c/users/robin/Saved Games/Nightdive Studios/Heretic/saves",
+     "desktop": "{steam}/steamapps/compatdata/3286930/pfx/drive_c/users/steamuser/Saved Games/Nightdive Studios/Heretic/saves",
+     "cloud": "%WinSavedGames%Nightdive Studios/Heretic/saves/",
+     "dir": true
     }
    ]
   }
