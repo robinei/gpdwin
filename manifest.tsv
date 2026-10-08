@@ -69,3 +69,4 @@ copy	system/usr/lib/systemd/system-sleep/backlight	/usr/lib/systemd/system-sleep
 copy	system/opt/zelda3-git/zelda3.ini	/opt/zelda3-git/zelda3.ini	root:root:0644
 build	src/statusbar.c	~/.local/bin/statusbar
 build	src/inputd.c	~/.local/bin/inputd
+copy	dotfiles/commandergenius/cgenius.cfg	~/.CommanderGenius/cgenius.cfg	robin:robin:0644

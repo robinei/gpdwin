@@ -1,0 +1,22 @@
+--- a/PKGBUILD	2026-10-09 00:24:43.481241941 +0200
++++ b/PKGBUILD	2026-10-09 00:24:43.562273661 +0200
+@@ -14,7 +14,8 @@
+ makedepends=('git' 'cmake')
+ provides=(commander-genius)
+ conflicts=(commander-genius)
+-source=(git+https://gitlab.com/Dringgstein/Commander-Genius.git)
++# GPD: pinned to the v3.6.3 release commit; bump deliberately
++source=(git+https://gitlab.com/Dringgstein/Commander-Genius.git#commit=bee4fcbd235b9d3d804a50cc6ecaccbbe89490f7)
+ sha256sums=('SKIP')
+ 
+ pkgver() {
+@@ -41,7 +42,8 @@
+     -DBUILD_COSMOS=YES \
+     -DUSE_BOOST=NO
+ 
+-  cmake --build "$srcdir/$_pkgname-build"
++  # GPD: 2 jobs, the C++ build would run the 3.7 GB RAM Atom out of memory with 4
++  cmake --build "$srcdir/$_pkgname-build" --parallel 2
+ }
+ 
+ package() {

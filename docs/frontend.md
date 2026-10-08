@@ -231,3 +231,14 @@
 - Rule of thumb when a game's audio stutters or pulses: match the app to 48 kHz, look at `pw-top`
   (ERR column, QUANT of the stream), and check which backend/library the game uses. Speaker sink
   `alsa_output.platform-cht-bsw-rt5645.HiFi__Speaker__sink`. Check xruns with `pw-top` (ERR).
+
+## Commander Keen (Commander Genius)
+- The Pegasus entry "Commander Keen Complete Pack" runs Commander Genius (AUR `commander-genius-git`,
+  `CGeniusExe`) on the Steam game files in `~/Games/installed/commander-keen-complete-pack/base1..5`
+  instead of the DOSBox/Wine versions (that is the Steam pack's `dosbox.exe`).
+- CG only looks in `~/.CommanderGenius/games`: `gpd-launch.sh` (hand-edited, kept on metadata regen)
+  symlinks `base1..5` there as `Keen 1..5` each launch, then starts CG, which shows its game picker.
+- Config `~/.CommanderGenius/cgenius.cfg` is a manifest `copy` (`dotfiles/commandergenius/`; CG rewrites
+  it on exit): fullscreen, 1280x720, aspect 4:3 (bars on the 16:9 panel). `dir=PATH` on the command line
+  is ignored by this version ("No games detected").
+- Tested: menu lists Keen 1-5, fullscreen. Not tested yet: gamepad navigation and play.

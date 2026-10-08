@@ -58,10 +58,11 @@ truth; this explains the choices.
 - `scripts/aur build` checks sudo first and keeps the timestamp alive during long builds.
 - Current patches: pegasus-frontend-stable-git (adds qt5-wayland/sdl2-compat deps, tolerant
   .install, no top-level echo; splash progress animation and grid-theme spinner only run while
-  visible), zelda3-git (pin + backup).
+  visible), zelda3-git (pin + backup), commander-genius-git (pin to v3.6.3 commit bee4fcb, `--parallel 2`
+  so the C++ build fits in 3.7 GB RAM; ~35 min build).
 - AUR packages are built only via `scripts/aur` after reviewing the diff since the last
   reviewed AUR commit (`aur/reviewed.tsv`). `scripts/update` and `/maintain` do this.
-- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin`, `lib32-openal`, `ludusavi-bin`
+- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin`, `lib32-openal`, `ludusavi-bin`, `commander-genius-git`
   (multilib, patched: no JACK/PortAudio), `lib32-sdl2-compat`, `lib32-sdl12-compat`, plus our rebuild `mangohud-light` of the repo package
   (aur/pkgbuilds/mangohud-light, `.arch-package`). yay-bin removed 2026-10-07.
   `-git` packages build upstream HEAD, which the PKGBUILD review doesn't cover.

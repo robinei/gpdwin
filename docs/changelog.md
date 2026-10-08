@@ -238,3 +238,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Spelunky (Wine) runs: gbe_fork Windows steam_api.dll replaces the game DLL (original .orig), steam_settings added. Recipe in docs/steam-library.md. Revert: copy steam_api.dll.orig back.
 
 - 2026-10-09: AUR `commander-genius-git` updated to 3.6.3.r0.gbee4fcb-1 (reviewed AUR commit 986c16b5ac59).
+- Commander Keen: Pegasus entry now runs Commander Genius (AUR commander-genius-git, pinned v3.6.3, vendored) on the installed Steam files via symlinks in ~/.CommanderGenius/games; cgenius.cfg managed (fullscreen 1280x720). Old launcher ran DOSBox under Wine. Revert: restore the `exec wine ./dosbox.exe` launcher (cd base4).
