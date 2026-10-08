@@ -10,6 +10,13 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
 - Controller = PCGamingWiki says it has controller support (full vs partial not known).
 - Download: `depotdownloader -app APPID [-os linux|windows] -username NAME -remember-password -dir ~/Games/steam/<name>`
   (the user types their password / Steam Guard code; don't handle Steam credentials).
+- Games that exit with "SteamAPI_Init() failed" (PCGamingWiki still said DRM-free, e.g. Unepic 233980):
+  they only need a Steam API, not the client. Fix: replace the game's `libsteam_api.so` (64-bit: `lib64/`,
+  32-bit: `lib32/`) with the gbe_fork emulator (github.com/Detanup01/gbe_fork, release
+  `emu-linux-release.tar.bz2`, `regular/x64|x86/libsteam_api.so`; unpacked in `~/Games/tools/gbe`, not in
+  the repo), keep `libsteam_api.so.orig`, add `steam_settings/steam_appid.txt` with the app id. Native
+  Linux builds only: Steamless is for SteamStub-wrapped Windows exes, not needed here. Unepic also
+  needed `gpd-launch.sh` edited to `exec ./unepic64s` (its `unepic.sh` wanted a missing `unepic64steam`).
 
 ## Very likely runs well, controller support
 

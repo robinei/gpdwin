@@ -229,3 +229,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Psychonauts Profile 2 (the 2026 saves) pulled from Steam Cloud and tracked in Game Saves; steam-cloud download: --only and per-file failures.
 - Psychonauts Profile 2 is a Windows profile: Linux pad bindings applied to its .ini (backup .gpd-bak), .ini removed from Game Saves tracking.
 - Psychonauts has no profile selector (always Profile 1): cloud profile 2 (2026 saves) copied into the Profile 1 slot, old Profile 1 backed up; Game Saves maps cloud profile 2 -> Profile 1.
+
+## 2026-10-08 — Unepic runs without Steam
+- Unepic exited on `SteamAPI_Init()`. Replaced its `lib64/` and `lib32/` `libsteam_api.so` with the gbe_fork emulator (sha256 of the release checked), originals kept as `.orig`; launcher fixed to run `unepic64s`. Recipe in docs/steam-library.md. Revert: copy the `.orig` files back.
