@@ -87,7 +87,9 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
 ## Audio jack after hibernation (2026-10-08)
 - After waking from hibernation the rt5645 codec reported headphones (and mic) plugged in with
   nothing in the jack: UCM switched the speaker off, PipeWire showed only "Headphones", no sound.
-  Rebinding only the machine driver didn't help; rebinding the codec (i2c `i2c-10EC5645:00`) and
-  then the machine driver (`cht-bsw-rt5645`) did. The sleep hook
-  `/usr/lib/systemd/system-sleep/audio-jack` does that after every hibernation (not after a plain
-  suspend). Manual fix: same steps, or plug something into the jack and pull it out.
+  Rebinding only the machine driver didn't help. Rebinding the codec (i2c `i2c-10EC5645:00`) and
+  then the machine driver (`cht-bsw-rt5645`) fixed it once, but the second time the codec unbind
+  hung in the kernel (D state in `rt5645_i2c_remove` -> `cancel_delayed_work_sync`, waiting for
+  its jack-detect work), leaving audio dead until reboot. Do NOT automate that in a sleep hook
+  (a hang there could block resume; the hook was added and removed again the same day).
+  Safe manual fix: plug something into the jack and pull it out, or reboot.
