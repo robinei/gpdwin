@@ -8,6 +8,9 @@
  * let swayidle dim the screen and suspend. Any pad event (at most every POKE_EVERY seconds)
  * sends sway a zero pointer move (`seat seat0 cursor move 0 0`), which resets its idle timers.
  *
+ * Lid switch: closing the lid powers the output off, opening it powers it on (the brightness is
+ * left alone; level 0 doesn't turn this panel off). logind ignores the lid, see docs/power.md.
+ *
  * Sleeps until there is something to do: the untouched pad sends no events, and inotify on
  * /dev/input reports when the pad (re)appears (it disconnects while the screen is off and across
  * suspend).
@@ -32,11 +35,12 @@
 #include <unistd.h>
 
 #define PAD_NAME "Microsoft X-Box 360 pad"
+#define LID_NAME "Lid Switch"
 #define POKE_EVERY 30 /* seconds; the first idle step (dim) comes after 2 min */
 
 extern char **environ;
 
-static int open_pad(void)
+static int open_named(const char *want)
 {
     DIR *d = opendir("/dev/input");
     struct dirent *e;
@@ -49,7 +53,7 @@ static int open_pad(void)
         int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         if (fd < 0)
             continue;
-        if (ioctl(fd, EVIOCGNAME(sizeof name - 1), name) >= 0 && strcmp(name, PAD_NAME) == 0) {
+        if (ioctl(fd, EVIOCGNAME(sizeof name - 1), name) >= 0 && strcmp(name, want) == 0) {
             found = fd;
         } else {
             close(fd);
@@ -58,6 +62,11 @@ static int open_pad(void)
     if (d)
         closedir(d);
     return found;
+}
+
+static int open_pad(void)
+{
+    return open_named(PAD_NAME);
 }
 
 /* pid of pegasus-fe (0 if not running), and whether it has a child process (a game). */
@@ -116,6 +125,12 @@ static void activity(void)
     swaymsg("seat seat0 cursor move 0 0");
 }
 
+/* Lid closed: switch the screen off; opened: switch it on. */
+static void on_lid(int closed)
+{
+    swaymsg(closed ? "output * power off" : "output * power on");
+}
+
 static void on_guide(void)
 {
     int game;
@@ -133,13 +148,14 @@ int main(void)
     /* IN_ATTRIB: udev sets the node's permissions just after the kernel creates it */
     inotify_add_watch(watch, "/dev/input", IN_CREATE | IN_ATTRIB);
 
-    struct pollfd fds[2] = {
+    struct pollfd fds[3] = {
         { .fd = watch, .events = POLLIN },
         { .fd = open_pad(), .events = POLLIN },
+        { .fd = open_named(LID_NAME), .events = POLLIN },
     };
 
     for (;;) {
-        if (poll(fds, 2, -1) < 0)
+        if (poll(fds, 3, -1) < 0)
             continue;
 
         if (fds[0].revents) {
@@ -163,6 +179,13 @@ int main(void)
                 close(fds[1].fd); /* pad went away; inotify brings it back */
                 fds[1].fd = -1;
             }
+        }
+
+        if (fds[2].fd >= 0 && fds[2].revents) {
+            struct input_event ev;
+            while (read(fds[2].fd, &ev, sizeof ev) == sizeof ev)
+                if (ev.type == EV_SW && ev.code == SW_LID)
+                    on_lid(ev.value);
         }
     }
 }

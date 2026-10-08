@@ -198,3 +198,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-08: Risk of Rain runs (OpenSSL 1.0/curl from HLD); installer adds these to old GameMaker games automatically.
 - 2026-10-08: sleep hook audio-jack: redo jack detection after hibernation (phantom headphones, no speaker sound).
 - 2026-10-08: audio-jack sleep hook removed again: the codec unbind can deadlock in the kernel (rt5645_i2c_remove).
+
+## 2026-10-08 — lid no longer suspends
+- `HandleLidSwitch=ignore` in `logind.conf.d/handheld.conf` (was `suspend-then-hibernate`). Power key unchanged.
+- Revert: set it back to `suspend-then-hibernate`, `scripts/sync install`, restart systemd-logind (or reboot).
+- inputd watches the lid switch: closed → `output * power off`, opened → `power on` (backlight 0 does not turn the panel off). Revert: git revert the commit, `scripts/sync install`, restart inputd.

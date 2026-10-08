@@ -36,6 +36,9 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   most every 30 s) makes inputd send `seat seat0 cursor move 0 0`, which resets swayidle (tested).
   The untouched pad sends nothing and inotify on /dev/input reopens it when it reappears (screen
   off, resume), so it never polls.
+  Also watches the lid switch (`Lid Switch` input device, logind ignores the lid): closing it
+  runs `swaymsg output * power off`, opening it `power on`. Brightness is not touched (level 0
+  does not turn the panel off). Input while the lid is closed can wake the screen via swayidle.
 - C programs (`src/`): manifest `build` entries; `scripts/sync install` compiles them when the
   source is newer (`sync check` reports `BUILD outdated`). Restart after a rebuild:
   `swaymsg reload` (statusbar, swaybar's child) and
