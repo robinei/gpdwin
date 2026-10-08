@@ -214,3 +214,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 
 ## 2026-10-08 — Game Saves tool (copy either way)
 - Pegasus Utilities > Game Saves (was Save Status): curses UI to compare and copy saves GPD⇄desktop per game, with backups. `desktop/save-status-remote` gained `get`/`put` (restricted key unchanged; it can now write the mapped save files). Needs `git pull` on the desktop. Revert: git revert; the old script only did `status`.
+
+- 2026-10-08: AUR `mangohud-light` updated to 0.8.4-1 (reviewed AUR commit aec701d04109) with local patches 0002-battery-by-type.patch.
