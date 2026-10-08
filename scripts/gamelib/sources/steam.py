@@ -1,7 +1,8 @@
 """Steam source: library from games/steam-library.json, downloads via DepotDownloader.
 
 The Steam password and Steam Guard code are typed by the user into DepotDownloader; this code
-never sees them. The Web API key for refreshing the library is asked for each time, not stored.
+never sees them. The Web API key for refreshing the library is read from API_KEY_FILE (outside the
+repo, mode 600) if it exists, otherwise asked for.
 """
 import getpass, json, re, subprocess, tempfile, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 from .. import core
 
 LIBRARY = core.REPO / "games" / "steam-library.json"
+API_KEY_FILE = core.CONFIG.parent / "steam-api-key"
 UA = {"User-Agent": "gpd-games/1.0 (personal library tool)"}
 STORE_ITEMS = "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/"
 APPDETAILS = "https://store.steampowered.com/api/appdetails?appids={id}"
@@ -179,8 +181,10 @@ class SteamSource:
     def refresh(self):
         cfg = core.load_config()
         print("Refresh the Steam library (owned games, DRM status from PCGamingWiki).")
-        print("Get a Web API key at https://steamcommunity.com/dev/apikey (it is not stored).")
-        key = getpass.getpass("Web API key: ").strip()
+        key = API_KEY_FILE.read_text().strip() if API_KEY_FILE.exists() else ""
+        if not key:
+            print(f"Get a Web API key at https://steamcommunity.com/dev/apikey (or put it in {API_KEY_FILE}).")
+            key = getpass.getpass("Web API key: ").strip()
         if not key:
             return False
         steamid = cfg.get("steamid")

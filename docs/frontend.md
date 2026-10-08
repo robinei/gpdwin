@@ -105,8 +105,8 @@
   (verified). `~/Games/installed` is in `game_dirs.txt`. Launchers are not overwritten on
   regeneration (edit them for per-game env vars); "Rewrite launcher" in the UI does.
 - On quit after changes it offers to restart Pegasus (Pegasus only rescans on start).
-- `R` refreshes the library: Web API key typed each time (never stored), then PCGamingWiki
-  lookups. Existing tiers and Linux flags are kept; new games have no tier.
+- `R` refreshes the library: Web API key from `~/.config/gpd/steam-api-key` (mode 600, outside
+  the repo; typed if missing), then PCGamingWiki lookups. Existing tiers and Linux flags are kept; new games have no tier.
 - Code: `scripts/gamelib/` (`core.py` shared, `sources/steam.py`, `tui.py`). Sources are
   pluggable for GOG later (see `sources/__init__.py`).
 - DepotDownloader itself: AUR `steamdepotdownloader-bin` (SteamRE release binary, .NET bundled).
