@@ -17,6 +17,11 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   the repo), keep `libsteam_api.so.orig`, add `steam_settings/steam_appid.txt` with the app id. Native
   Linux builds only: Steamless is for SteamStub-wrapped Windows exes, not needed here. Unepic also
   needed `gpd-launch.sh` edited to `exec ./unepic64s` (its `unepic.sh` wanted a missing `unepic64steam`).
+  Unepic then crashed after the loading screen: the game checks `SteamFriends()` persona-name history
+  against a blocklist and gbe returns a junk pointer (0x64) into `strcmp`. Fix: `31 c0 c3`
+  (`xor eax,eax; ret`) at file offset 0xe0b60 of `unepic64s` (original: `unepic64s.orig`); also put the
+  game's interface list in `steam_settings/steam_interfaces.txt` (`tools/generate_interfaces` on the
+  `.orig` lib). Found with gdb: break on the fault, read the stack/registers, disassemble the caller.
 
 ## Very likely runs well, controller support
 
