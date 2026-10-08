@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-07",
+ "generated": "2026-10-08",
  "games": [
   {
    "source": "steam",
@@ -7717,6 +7717,18 @@
   },
   {
    "source": "steam",
+   "id": "701160",
+   "name": "Kingdom Two Crowns",
+   "hours": 0.0,
+   "drm": "steam",
+   "controller": true,
+   "linux": true,
+   "tier": null,
+   "pcgw": "Kingdom: Two Crowns",
+   "windows": true
+  },
+  {
+   "source": "steam",
    "id": "368230",
    "name": "Kingdom: Classic",
    "hours": 0.0,
@@ -12861,8 +12873,8 @@
    "tier": "good",
    "pcgw": "SteamWorld Heist",
    "windows": true,
-   "size_mb": 186,
-   "linux32": true
+   "linux32": true,
+   "size_mb": 186
   },
   {
    "source": "steam",
