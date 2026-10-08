@@ -139,7 +139,8 @@
   and the triggers are axes (the game has no half-axis inputs, so they can't be buttons). Set:
   Jump=Joy1, Attack=Joy3, Cancel=Joy2, Use=Joy4, LockOn/Float=Joy5, PsiPower1=Joy6,
   PsiPower2/3=DPadUp/DPadDown, Journal=Joy8, Stats=Joy7, FirstPerson=Joy11 (all `_Alt`).
-  Original profile kept as `Profile 1- Raz.ini.gpd-bak`.
+  Original profile kept as `Profile 1- Raz.ini.gpd-bak`. Profile 2 (a Windows profile pulled from Steam Cloud,
+  2026-10-08) got the same bindings (CRLF line endings kept; backup `Profile 2- Raz.ini.gpd-bak`).
   Runs well and much faster than the Wine version. SDL 1.2 games only look for controllers at
   start: switch the GPD to gamepad mode before launching, and the pad is lost for the rest of the
   session if it disconnects (screen off at the battery idle step, suspend).

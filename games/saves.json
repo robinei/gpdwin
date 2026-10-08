@@ -175,11 +175,6 @@
      "cloud": "%GameInstall%profiles/profile 2/profile 2- raz"
     },
     {
-     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/Profile 2- Raz.ini",
-     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/profile 2- raz.ini",
-     "cloud": "%GameInstall%profiles/profile 2/profile 2- raz.ini"
-    },
-    {
      "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/SavedGame0",
      "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame0",
      "cloud": "%GameInstall%profiles/profile 2/savedgame0"

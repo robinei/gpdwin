@@ -105,7 +105,10 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   in the cloud is from 2010-2011 and the GPD's own Profile 1 is newer, so it is not tracked (it would show
   as 'GPD newer'). Cloud names are lowercase (`%GameInstall%profiles/profile 2/savedgame0`) while the GPD
   uses `SavedGame0`/`Profile 2- Raz`, hence file-level entries with explicit cloud names. Desktop paths
-  are unverified guesses. Loading in the game: not tested.
+  are unverified guesses. Profile 2 comes from a Windows install (its `.ini` has CRLF line endings and the
+  Windows pad numbering): the `Profile 2- Raz.ini` is NOT tracked, because on the GPD it carries the Linux
+  pad bindings from docs/frontend.md (original kept as `Profile 2- Raz.ini.gpd-bak`) and a cloud pull
+  would overwrite them. After pulling a Windows profile, re-apply those bindings. Loading in the game: not tested.
 - Not mapped yet: Strife VE (GPD saves in
   `~/.local/share/strife-ve/savegames`; desktop location unclear), Cave Story+ (`Profile-*.dat` in the game folder).
 - Cloud facts: SteamWorld Heist's cloud holds only controls.cfg/gamepads.cfg (not saves); FEZ, Kingdom,
