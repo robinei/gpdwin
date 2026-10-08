@@ -236,3 +236,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Tried the gbe emulator (libsteam_api and steamclient_loader) on The Binding of Isaac: Rebirth: its binaries are Steam-DRM wrapped (.bind section), does not work. Original libs restored; note in docs/steam-library.md.
 - The Binding of Isaac: Rebirth runs: Steam DRM unpacked (steamstub-remover) -> isaac.x64.unpacked, gbe emulator libsteam_api, LD_PRELOAD shim games/shims/xkbshim.c for Xwayland. Recipe in docs/steam-library.md. Revert: restore lib64/lib32 libsteam_api.so.orig, launcher runs isaac.x64.
 - Spelunky (Wine) runs: gbe_fork Windows steam_api.dll replaces the game DLL (original .orig), steam_settings added. Recipe in docs/steam-library.md. Revert: copy steam_api.dll.orig back.
+
+- 2026-10-09: AUR `commander-genius-git` updated to 3.6.3.r0.gbee4fcb-1 (reviewed AUR commit 986c16b5ac59).

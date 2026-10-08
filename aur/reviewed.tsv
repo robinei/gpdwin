@@ -1,4 +1,5 @@
 # pkg	AUR commit reviewed	date	note
+commander-genius-git	986c16b5ac598a3703664b44311777d0934eb0b9	2026-10-09	built
 devilutionx-bin	93785c4c17216a35f3517e24654010d7132ea817	2026-10-06	baseline: PKGBUILD read by installer session; official GitHub release tarball
 lib32-openal	c1f1bf20b2e7f795952f93d7b5b6ad3e33fdfc13	2026-10-07	full review: former official Arch PKGBUILD, upstream kcat/openal-soft tag pinned (b2sum); patch drops JACK/PortAudio (PortAudio is AUR-only)
 lib32-sdl12-compat	90b185b9f12e499fd4a9d88a50b5f51da495d777	2026-10-07	full review: upstream libsdl-org tag tarball, sha256 pinned; plain cmake build
