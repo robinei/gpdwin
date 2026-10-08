@@ -32,6 +32,11 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   `games/shims/xkbshim.c` (LD_PRELOAD, builds the description from XkbGetMap + XkbGetNames) fixes it;
   built to `~/Games/tools/shim/xkbshim.so` with `gcc -shared -fPIC -o xkbshim.so xkbshim.c -lX11`.
   Isaac's launcher `gpd-launch.sh` runs `isaac.x64.unpacked` with that preload.
+  Windows games under Wine (e.g. Spelunky 239350, "Error initializing Steam API"): same idea with the
+  Windows release `emu-win-release-vs22.7z` (7z; sha256 checked): `regular/x86/steam_api.dll` (32-bit) or
+  `regular/x64/steam_api64.dll` replaces the game's DLL (original kept as `.orig`), `steam_settings/` with
+  the app id and `steam_interfaces.txt` (`wine tools/generate_interfaces/generate_interfaces_x86.exe
+  steam_api.dll.orig` run inside `steam_settings/`). Unpacked in `~/Games/tools/gbe/w`.
 
 ## Very likely runs well, controller support
 
