@@ -223,7 +223,8 @@ def template(path, sc, userdirs):
 
 
 LUD_CACHE = Path.home() / ".cache/gpd/ludusavi-slices.json"
-LUD_MANIFEST = Path.home() / ".cache/ludusavi/manifest.yaml"   # ludusavi's own copy; its mtime keys our cache
+# ludusavi's own copy of the manifest (its location differs between installs); the newest mtime keys our cache
+LUD_MANIFESTS = [Path.home() / ".cache/ludusavi/manifest.yaml", Path.home() / ".config/ludusavi/manifest.yaml"]
 
 
 def lud(*args):
@@ -243,7 +244,7 @@ def lud(*args):
 def lud_cache():
     """On-disk cache {"stamp", "names": {appid: name}, "games": {name: save paths}}; dropped when
     ludusavi updates its manifest."""
-    stamp = LUD_MANIFEST.stat().st_mtime if LUD_MANIFEST.exists() else 0
+    stamp = max((m.stat().st_mtime for m in LUD_MANIFESTS if m.exists()), default=0)
     try:
         cache = json.loads(LUD_CACHE.read_text())
     except (OSError, ValueError):
