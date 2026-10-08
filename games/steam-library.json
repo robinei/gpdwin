@@ -1880,7 +1880,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Blasphemous",
-   "windows": true
+   "windows": true,
+   "size_mb": 4096
   },
   {
    "source": "steam",
@@ -2084,7 +2085,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Broforce",
-   "windows": true
+   "windows": true,
+   "size_mb": 1300
   },
   {
    "source": "steam",
@@ -3582,7 +3584,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Day of the Tentacle Remastered",
-   "windows": true
+   "windows": true,
+   "size_mb": 3000
   },
   {
    "source": "steam",
@@ -3783,7 +3786,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Death Road to Canada",
-   "windows": true
+   "windows": true,
+   "size_mb": 103
   },
   {
    "source": "steam",
@@ -10853,7 +10857,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Risk of Rain",
-   "windows": true
+   "windows": true,
+   "size_mb": 98
   },
   {
    "source": "steam",
@@ -11153,7 +11158,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Salt and Sanctuary",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -12721,7 +12727,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Stardew Valley",
-   "windows": true
+   "windows": true,
+   "size_mb": 676
   },
   {
    "source": "steam",
@@ -12951,7 +12958,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Strife: Veteran Edition",
-   "windows": true
+   "windows": true,
+   "size_mb": 429
   },
   {
    "source": "steam",
