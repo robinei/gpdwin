@@ -299,12 +299,34 @@ def ludusavi_discover(appids):
     return out
 
 
+def steam_synced(sc, appid, userdirs, libs):
+    """Templated paths of the files Steam itself syncs for this app (its remotecache.vdf records,
+    resolved by root): the authority on which copy reaches Steam Cloud when a game has several."""
+    _, install, prefix = sc.app_info(appid, libs)
+    out = []
+    for userdir in userdirs:
+        cache = userdir / appid / "remotecache.vdf"
+        if not cache.exists():
+            continue
+        for rel, meta in sc.parse_vdf(cache.read_text(errors="replace")).get(appid, {}).items():
+            if not isinstance(meta, dict) or set(meta.get("sha", "0")) == {"0"}:
+                continue
+            path, _ = sc.resolve(int(meta.get("root", 0)), rel, appid, userdir, install, prefix)
+            if path is not None and Path(path).is_file():
+                out.append(template(path, sc, userdirs))
+        break
+    return out
+
+
 def do_discover(sc, appids, out):
-    """ludusavi_discover plus, for each found file, its saves.json-style template path."""
+    """ludusavi_discover plus, for each found file, its saves.json-style template path, and the
+    files Steam syncs for the app ("steam_synced")."""
     res = ludusavi_discover(appids)
     userdirs = userdata_dirs(sc)
-    for d in res.values():
+    libs = sc.libraries()
+    for appid, d in res.items():
         d["files_t"] = [template(f, sc, userdirs) for f in d.get("files", [])]
+        d["steam_synced"] = steam_synced(sc, appid, userdirs, libs)
     out.write(json.dumps(res).encode())
 
 

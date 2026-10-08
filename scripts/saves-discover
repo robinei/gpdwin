@@ -74,12 +74,15 @@ def base_of(file, manifest, oses=None):
 
 
 def side_files(d, oses=None):
-    """[{file, tmpl, base, rel}] for the found files that sit under a manifest *save* path."""
+    """[{file, tmpl, base, rel, synced}] for the found files that sit under a manifest *save* path.
+    synced: the desktop's Steam syncs this very file to Steam Cloud (remotecache.vdf)."""
     out = []
+    synced = set(d.get("steam_synced", []))
     for f, ft in zip(d.get("files", []), d.get("files_t", d.get("files", []))):
         b = base_of(f, d.get("manifest", {}), oses)
         if b:
-            out.append({"file": f, "tmpl": ft, "base": b, "rel": PurePosixPath(f).relative_to(b).parts})
+            out.append({"file": f, "tmpl": ft, "base": b, "rel": PurePosixPath(f).relative_to(b).parts,
+                        "synced": ft in synced})
     return out
 
 
@@ -163,12 +166,22 @@ def draft(g, d, cloud):
                 continue
         for f in files:   # file-level pairing (also the fallback for folders that can't be folder entries)
             comps = PurePosixPath(f["file"]).parts
-            cand = sorted(((trailing_match(comps, PurePosixPath(x["file"]).parts), x) for x in df), key=lambda t: -t[0])
-            dm = cand[0][1] if cand and cand[0][0] >= 1 and (len(cand) == 1 or cand[0][0] > cand[1][0]) else None
+            cm = cloud_match(comps, cnames) if cnames else None
+            dm = None
+            if cm:   # prefer the desktop copy that Steam itself syncs to the cloud (several can exist)
+                cparts = PurePosixPath(re.sub(r"^%[A-Za-z0-9]+%", "", cm)).parts
+                syn = [x for x in df if x["synced"] and trailing_match(PurePosixPath(x["file"]).parts, cparts) == len(cparts)]
+                if len(syn) == 1:
+                    dm = syn[0]
+                    others = [x for x in df if x is not dm and trailing_match(PurePosixPath(x["file"]).parts, comps) >= 1]
+                    if any(trailing_match(PurePosixPath(x["file"]).parts, comps) > trailing_match(PurePosixPath(dm["file"]).parts, comps) for x in others):
+                        notes.append(f"desktop has other copies of {Path(f['file']).name}; using the one Steam syncs ({dm['tmpl']})")
+            if dm is None:
+                cand = sorted(((trailing_match(comps, PurePosixPath(x["file"]).parts), x) for x in df), key=lambda t: -t[0])
+                dm = cand[0][1] if cand and cand[0][0] >= 1 and (len(cand) == 1 or cand[0][0] > cand[1][0]) else None
             e = {"gpd": tilde(f["file"]), "desktop": dm["tmpl"] if dm else "?"}
             if not dm and df:
                 notes.append(f"no desktop file pairs with {tilde(f['file'])}")
-            cm = cloud_match(comps, cnames) if cnames else None
             if cm:
                 e["cloud"] = cm
                 used.add(cm)

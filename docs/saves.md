@@ -81,6 +81,9 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   `backup --preview` for all of them): all 13 games take ~8 s cold, ~3.6 s cached. Cache:
   `~/.cache/gpd/ludusavi-slices.json`, dropped when ludusavi updates `~/.cache/ludusavi/manifest.yaml`.
   (An earlier version parsed the manifest YAML in Python: 65 s.)
+- A game can have several copies on the desktop. `discover` also returns `steam_synced`, the files
+  Steam's own records (`remotecache.vdf`, resolved by root) say it syncs to the cloud, and the draft
+  prefers that copy over a path-similar one.
 - Limits: ludusavi lists config files too (Stardew `startup_preferences`), those are skipped because they
   are not under a *save* path; it finds nothing for games it cannot see (Wine prefixes need a `roots`
   entry in `~/.config/ludusavi/config.yaml`; Strife's manifest path is the game folder; unsaved games).
@@ -99,6 +102,16 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   `~/.local/share/strife-ve/savegames`; desktop location unclear), Cave Story+ (`Profile-*.dat` in the game folder).
 - Cloud facts: SteamWorld Heist's cloud holds only controls.cfg/gamepads.cfg (not saves); FEZ, Kingdom,
   Risk of Rain, Hyper Light Drifter, Death Road to Canada have no cloud files for this account.
+
+## Super Meat Boy: two copies on the desktop (checked by the desktop session, 2026-10-08)
+- Steam's cloud record uses root 1 (the install folder) even for the Linux build: the cloud copy is
+  `steamapps/common/Super Meat Boy/UserData/savegame.dat` (record time and hash match it, and Steam's
+  `steam_autocloud.vdf` marker is there). That is the desktop path in `saves.json`, and it is right.
+- The native Linux game plays from `~/.local/share/SuperMeatBoy/UserData/` (created on its first start,
+  with the Linux-only `reg0.dat`), which Steam does not upload. All three files had the cloud's hash.
+- Open: progress made on the desktop may never reach Steam Cloud unless the game also writes the
+  install-folder copy, and a save pushed to the install folder may not be read by the desktop's Linux
+  game once its native copy exists. Settle it by playing on the desktop and watching which file changes.
 
 ## History
 - 2026-10-07: desktop (cloud-synced) saves copied to the GPD for both games; previous GPD files
