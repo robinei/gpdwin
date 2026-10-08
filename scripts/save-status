@@ -339,7 +339,7 @@ class UI:
             self.add(y, cols[3], when(newest(e["local"])), sel)
             self.add(y, cols[4], when(newest(e["remote"])), sel)
             self.add(y, cols[5], when(newest(e["cloud"])), sel)
-        if self.entries:
+        if self.pos < len(self.entries):   # during a refresh the list is still filling up
             self.detail(5 + len(self.entries))
         self.add(h - 2, 1, self.msg, curses.A_BOLD)
         self.add(h - 1, 1, KEYS, curses.A_DIM)
