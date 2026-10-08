@@ -22,6 +22,12 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   (`xor eax,eax; ret`) at file offset 0xe0b60 of `unepic64s` (original: `unepic64s.orig`); also put the
   game's interface list in `steam_settings/steam_interfaces.txt` (`tools/generate_interfaces` on the
   `.orig` lib). Found with gdb: break on the fault, read the stack/registers, disassemble the caller.
+  Not every "DRM-free" native game works this way. The Binding of Isaac: Rebirth (250900) ships
+  `isaac.x64`/`isaac.i386` wrapped in Valve's Steam DRM (a `.bind` ELF section, SteamStub): with the
+  original lib + gbe `steamclient.so` via `tools/steamclient_loader` it stops with "Steam Error:
+  Application load error 3:0000067431", with only the gbe `libsteam_api.so` it prints "did not locate a
+  running instance of Steam". Test: `readelf -SW BINARY | grep .bind` before trying. Steamless handles
+  Windows PE stubs only; no Linux unpacker was found. Left with its original libs.
 
 ## Very likely runs well, controller support
 
