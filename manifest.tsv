@@ -66,6 +66,7 @@ copy	system/etc/pacman.conf	/etc/pacman.conf	root:root:0644
 copy	system/etc/conf.d/pacman-contrib	/etc/conf.d/pacman-contrib	root:root:0644
 copy	system/usr/local/bin/low-battery-hibernate	/usr/local/bin/low-battery-hibernate	root:root:0755
 copy	system/usr/lib/systemd/system-sleep/backlight	/usr/lib/systemd/system-sleep/backlight	root:root:0755
+copy	system/usr/lib/systemd/system-sleep/audio-jack	/usr/lib/systemd/system-sleep/audio-jack	root:root:0755
 copy	system/opt/zelda3-git/zelda3.ini	/opt/zelda3-git/zelda3.ini	root:root:0644
 build	src/statusbar.c	~/.local/bin/statusbar
 build	src/inputd.c	~/.local/bin/inputd

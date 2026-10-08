@@ -196,3 +196,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-08: installer library: PCGamingWiki lookup by Steam app id for names that don't match a page (unknown DRM 368 -> 125; 40 more DRM-free games found).
 - 2026-10-08: Pegasus no longer fullscreen (bar visible); games still fullscreen on top of it.
 - 2026-10-08: Risk of Rain runs (OpenSSL 1.0/curl from HLD); installer adds these to old GameMaker games automatically.
+- 2026-10-08: sleep hook audio-jack: redo jack detection after hibernation (phantom headphones, no speaker sound).

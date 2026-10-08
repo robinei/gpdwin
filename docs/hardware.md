@@ -83,3 +83,11 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   nothing (xpad `flat 128`, `fuzz 16` of +-32768).
 - No firmware update path known for the Win 1 (GPD's tools are Windows-only and for later
   models). A uinput remapper could only smooth the jump at the threshold; decided to leave it.
+
+## Audio jack after hibernation (2026-10-08)
+- After waking from hibernation the rt5645 codec reported headphones (and mic) plugged in with
+  nothing in the jack: UCM switched the speaker off, PipeWire showed only "Headphones", no sound.
+  Rebinding only the machine driver didn't help; rebinding the codec (i2c `i2c-10EC5645:00`) and
+  then the machine driver (`cht-bsw-rt5645`) did. The sleep hook
+  `/usr/lib/systemd/system-sleep/audio-jack` does that after every hibernation (not after a plain
+  suspend). Manual fix: same steps, or plug something into the jack and pull it out.
