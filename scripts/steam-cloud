@@ -5,7 +5,9 @@
   steam-cloud login                 log in once (password + Steam Guard); keeps a refresh token
   steam-cloud list APPID [--json]   the app's cloud files: name, size, time, sha1
   steam-cloud list-many APPID...    JSON {appid: [files]} for several apps over one connection
-  steam-cloud download APPID DIR    download them to DIR (mtimes = cloud times) + DIR/manifest.json
+  steam-cloud download APPID DIR [--only NAME]...
+                                    download them to DIR (mtimes = cloud times) + DIR/manifest.json;
+                                    --only: just these files (exact name, or a prefix ending in /)
   steam-cloud logout                forget the token
 
 Why a custom tool: steamctl's login library predates Valve's 2023 login change (Steam refuses
@@ -151,26 +153,38 @@ def safe_rel(name):
     return "/".join(parts)
 
 
-def cmd_download(appid, dest):
+def wanted(name, only):
+    return not only or any(name == o or (o.endswith("/") and name.startswith(o)) for o in only)
+
+
+def cmd_download(appid, dest, only):
     c = connect()          # patches sockets/ssl (gevent): import requests only after this
     import requests
-    entries = cloud_files(c, appid)
+    entries = [e for e in cloud_files(c, appid) if wanted(e.filename, only)]
     c.disconnect()
     dest = Path(dest)
-    manifest = []
+    manifest, failed = [], []
     for e in entries:
         rel = safe_rel(e.filename)
         if not rel:
             continue
+        try:
+            r = requests.get(e.url, timeout=60)
+            r.raise_for_status()
+        except requests.RequestException as ex:
+            failed.append(f"{e.filename} ({ex.__class__.__name__}: {str(ex)[:60]})")
+            continue
         p = dest / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        r = requests.get(e.url, timeout=60)
-        r.raise_for_status()
         p.write_bytes(r.content)
         os.utime(p, (e.timestamp, e.timestamp))
         manifest.append({**info(e), "path": rel})
+    dest.mkdir(parents=True, exist_ok=True)
     (dest / "manifest.json").write_text(json.dumps(manifest, indent=1))
     print(f"{len(manifest)} file(s) downloaded to {dest}")
+    for f in failed:
+        print(f"FAILED: {f}", file=sys.stderr)
+    return 3 if failed else 0
 
 
 def main():
@@ -193,8 +207,9 @@ def main():
         cmd_list(int(args[1]), "--json" in args)
     elif cmd == "list-many" and len(args) >= 2:
         cmd_list_many([int(a) for a in args[1:]])
-    elif cmd == "download" and len(args) == 3:
-        cmd_download(int(args[1]), args[2])
+    elif cmd == "download" and len(args) >= 3:
+        only = [args[i + 1] for i, a in enumerate(args) if a == "--only" and i + 1 < len(args)]
+        return cmd_download(int(args[1]), args[2], only)
     else:
         die(__doc__, 2)
     return 0

@@ -163,6 +163,58 @@
      "dir": true
     }
    ]
+  },
+  {
+   "name": "Psychonauts (Profile 2)",
+   "appid": "3830",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/Profile 2- Raz",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/profile 2- raz",
+     "cloud": "%GameInstall%profiles/profile 2/profile 2- raz"
+    },
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/Profile 2- Raz.ini",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/profile 2- raz.ini",
+     "cloud": "%GameInstall%profiles/profile 2/profile 2- raz.ini"
+    },
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/SavedGame0",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame0",
+     "cloud": "%GameInstall%profiles/profile 2/savedgame0"
+    },
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/SavedGame1",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame1",
+     "cloud": "%GameInstall%profiles/profile 2/savedgame1"
+    },
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/SavedGame2",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame2",
+     "cloud": "%GameInstall%profiles/profile 2/savedgame2"
+    },
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/SavedGame3",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame3",
+     "cloud": "%GameInstall%profiles/profile 2/savedgame3"
+    },
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/SavedGame4",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame4",
+     "cloud": "%GameInstall%profiles/profile 2/savedgame4"
+    },
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/SavedGame5",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame5",
+     "cloud": "%GameInstall%profiles/profile 2/savedgame5"
+    },
+    {
+     "gpd": "~/.local/share/Psychonauts/Profiles/Profile 2/SavedGame6",
+     "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame6",
+     "cloud": "%GameInstall%profiles/profile 2/savedgame6"
+    }
+   ]
   }
  ]
 }

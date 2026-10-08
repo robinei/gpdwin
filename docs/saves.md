@@ -61,6 +61,9 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   Guard, asked in the terminal; use `! ` from Claude): it keeps a refresh token in
   `~/.local/share/gpd/steam-cloud/token.json` (mode 600, not in the repo, valid for months; `logout` deletes it,
   changing the Steam password revokes it). No password is stored.
+- `download ... --only NAME` fetches just those files (exact name, or a prefix ending in `/`); a file whose
+  download link fails (a 404 on an old Psychonauts Profile 1 file) is skipped and reported instead of
+  aborting, exit code 3. The Game Saves tool passes only the files it tracks.
 - Verified 2026-10-08: Super Meat Boy (40800) cloud files are byte-identical to the GPD's and the
   desktop's `savegame.dat`; list takes ~3 s. Gotcha: import `requests` only after the gevent
   patching in `connect()` (otherwise the download hangs).
@@ -97,8 +100,13 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 - A folder entry can have `"ignore": [patterns]` (fnmatch on the path inside it): Stardew ignores
   Steam's `steam_autocloud.vdf` marker, Hyper Light Drifter ignores `gameprefs.dat` (settings, would
   otherwise be copied between devices). Narrow HLD to its save files once one exists.
-- Not mapped yet: Psychonauts (cloud names are lowercase, `%GameInstall%profiles/profile 1/savedgame0`,
-  GPD has `Profiles/Profile 1/SavedGame0`: needs case-insensitive matching), Strife VE (GPD saves in
+- Psychonauts (Profile 2 only, 2026-10-08): the cloud holds two profiles. Profile 2 has the 2026 saves
+  (slots 0-3 from 2026-04-28) and was pulled to `~/.local/share/Psychonauts/Profiles/Profile 2/`; Profile 1
+  in the cloud is from 2010-2011 and the GPD's own Profile 1 is newer, so it is not tracked (it would show
+  as 'GPD newer'). Cloud names are lowercase (`%GameInstall%profiles/profile 2/savedgame0`) while the GPD
+  uses `SavedGame0`/`Profile 2- Raz`, hence file-level entries with explicit cloud names. Desktop paths
+  are unverified guesses. Loading in the game: not tested.
+- Not mapped yet: Strife VE (GPD saves in
   `~/.local/share/strife-ve/savegames`; desktop location unclear), Cave Story+ (`Profile-*.dat` in the game folder).
 - Cloud facts: SteamWorld Heist's cloud holds only controls.cfg/gamepads.cfg (not saves); FEZ, Kingdom,
   Risk of Rain, Hyper Light Drifter, Death Road to Canada have no cloud files for this account.

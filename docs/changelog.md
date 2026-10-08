@@ -226,3 +226,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-08: AUR `ludusavi-bin` updated to 0.31.0-1 (reviewed AUR commit 9b221f35de61).
 - saves-discover now uses ludusavi (ludusavi-bin, AUR, vendored) on both machines instead of own manifest parsing; `save-status-remote discover APPID...`; batched + cached (13 games ~8 s). Removed the repo manifest extract. Desktop needs git pull + ludusavi installed.
 - discover: reports steam_synced (files Steam syncs, from remotecache.vdf); saves-discover prefers that desktop copy (Super Meat Boy has two). Super Meat Boy desktop finding in docs/saves.md.
+- Psychonauts Profile 2 (the 2026 saves) pulled from Steam Cloud and tracked in Game Saves; steam-cloud download: --only and per-file failures.

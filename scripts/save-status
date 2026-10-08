@@ -97,8 +97,12 @@ class Cloud:
     def list_many(self, appids):
         return json.loads(self._run("list-many", *appids))
 
-    def download(self, appid, dest):
-        self._run("download", appid, str(dest))
+    def download(self, appid, dest, names=()):
+        """Download the named cloud files (all if none given); returns the manifest list."""
+        args = ["download", appid, str(dest)]
+        for n in names:
+            args += ["--only", n]
+        self._run(*args)
         return json.loads((Path(dest) / "manifest.json").read_text())
 
 
@@ -256,7 +260,7 @@ def pull_cloud(entry, cloud):
     target = lambda k: remote.target_path(g, bases, k)
     with tempfile.TemporaryDirectory() as tmp:
         got = {}
-        for m in cloud.download(g["appid"], tmp):
+        for m in cloud.download(g["appid"], tmp, [c["path"] for c in entry["cloud"]]):
             key = cloud_key(g, m["filename"])
             if key:
                 target(key)   # validates
