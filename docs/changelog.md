@@ -204,3 +204,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Revert: set it back to `suspend-then-hibernate`, `scripts/sync install`, restart systemd-logind (or reboot).
 - inputd watches the lid switch: closed → `output * power off`, opened → `power on` (backlight 0 does not turn the panel off). Revert: git revert the commit, `scripts/sync install`, restart inputd.
 - Lid closed also disables all input (sway events + pad grab) and runs `dotfiles/sway/lid.sh` (GPU limit to min, statusbar paused). Revert: git revert, `scripts/sync install`, restart inputd.
+
+## 2026-10-08 — idle suspend after 30 min
+- swayidle suspend timeout 1200 → 1800 s (`dotfiles/sway/handheld`). Revert: set it back to 1200, restart swayidle.

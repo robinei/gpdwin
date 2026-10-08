@@ -17,7 +17,7 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - 5 min: screen off, on battery only (`idle-screen-off.sh`); on AC the screen stays on.
 - 10 min: dim to 1% (`dim-low.sh`; matters on AC). Resume restores the brightness saved at the
   first level.
-- 20 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
+- 30 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
   `bq24190-charger/online`).
 - The charger state is checked when the timeout fires: unplugging while already dimmed doesn't
   turn the screen off until the next idle period.

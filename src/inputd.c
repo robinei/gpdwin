@@ -145,12 +145,12 @@ static void grab_pad(void)
 }
 
 /* Lid closed: switch the screen off and all input off (sway's devices, and the pad by grabbing
- * it); opened: back on. */
+ * it); opened: back on, and counts as activity (resets the idle timers). */
 static void on_lid(int closed)
 {
     lid_closed = closed;
     swaymsg(closed ? "output * power off; input * events disabled"
-                   : "input * events enabled; output * power on");
+                   : "input * events enabled; output * power on; seat seat0 cursor move 0 0");
     grab_pad();
     swaymsg_sh(closed ? "~/.config/sway/lid.sh close" : "~/.config/sway/lid.sh open");
 }
