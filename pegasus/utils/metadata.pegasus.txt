@@ -8,10 +8,10 @@ file: tools/games.sh
 assets.boxFront: media/games.png
 description: Browse your Steam library (DRM-free and performance filters), install games with DepotDownloader, and add them to PC Games (Wine or native).
 
-game: Save Status
+game: Game Saves
 file: tools/save-status.sh
 assets.boxFront: media/save-status.png
-description: Compare game saves on the GPD with the desktop's, and show whether Steam Cloud needs a launch on the desktop to upload them.
+description: Compare game saves on the GPD with the desktop's (which is newer, in sync), and copy either way per game. Shows whether Steam Cloud needs a launch on the desktop to upload them.
 
 game: Terminal
 file: tools/terminal.sh

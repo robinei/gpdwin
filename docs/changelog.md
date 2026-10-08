@@ -211,3 +211,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 ## 2026-10-08 — Strife: Veteran Edition starts
 - Installed `sdl2_net`; symlink `libtheoradec.so.1` in the game dir (Arch has .so.2). Revert: `pacman -Rns sdl2_net`, remove the symlink.
 - Strife VE gamepad: config set to the game's Xbox profile (details in frontend.md). Not in the repo.
+
+## 2026-10-08 — Game Saves tool (copy either way)
+- Pegasus Utilities > Game Saves (was Save Status): curses UI to compare and copy saves GPD⇄desktop per game, with backups. `desktop/save-status-remote` gained `get`/`put` (restricted key unchanged; it can now write the mapped save files). Needs `git pull` on the desktop. Revert: git revert; the old script only did `status`.

@@ -1,102 +1,333 @@
 #!/usr/bin/env python3
-"""Save status: compare this GPD's game saves with the desktop's, and show Steam Cloud state.
+"""Game saves: compare this GPD's saves with the desktop's and copy either way, per game.
 
-Reads games/saves.json, hashes the GPD's save files, and asks the desktop for its side over ssh
-(restricted key: the desktop only lets this key run desktop/save-status-remote).
-Pegasus: Utilities > Save Status. `--no-pause` when run from a terminal.
+Full-screen curses UI (Pegasus: Utilities > Game Saves). Reads games/saves.json; the desktop's
+side comes over ssh from desktop/save-status-remote (restricted key: it can only run that script,
+which only touches the paths in saves.json and backs up what it overwrites). Local files are
+backed up to ~/save-backups/<time>/<appid>/ before they are overwritten.
+
+  save-status            the UI
+  save-status --list     print the table and exit
 """
-import hashlib, json, os, subprocess, sys, time
+import curses, importlib.machinery, importlib.util, io, json, os, subprocess, sys, tarfile, time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-CLOUD = {"synced": "in sync", "needs-launch": "NEEDS STEAM LAUNCH on desktop",
-         "no-cloud": "no cloud data", None: "?"}
 
+# Reuse the desktop script's tar validation and file writing (same format both ways).
+_loader = importlib.machinery.SourceFileLoader("saveremote", str(REPO / "desktop/save-status-remote"))
+_spec = importlib.util.spec_from_loader("saveremote", _loader)
+remote = importlib.util.module_from_spec(_spec)
+_loader.exec_module(remote)
 
-def sha1(p):
-    h = hashlib.sha1()
-    with open(p, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+SAME, GPD_NEWER, DESK_NEWER, ONLY_GPD, ONLY_DESK, MIXED, NONE, UNKNOWN = (
+    "in sync", "GPD newer", "desktop newer", "only on GPD", "only on desktop", "differ", "no saves", "?")
+CLOUD = {"synced": "in sync", "needs-launch": "needs Steam launch", "no-cloud": "no cloud data", None: ""}
+SSH = ["ssh", "-4", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5"]
 
 
 def when(ts):
-    return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
+    return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts)) if ts else "-"
 
 
-def desktop_state(host):
-    try:
-        r = subprocess.run(["ssh", "-4", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", host, "status"],
-                           capture_output=True, text=True, timeout=60)
-    except subprocess.TimeoutExpired:
-        return None, "timed out"
-    if r.returncode != 0:
-        return None, (r.stderr.strip().splitlines() or ["ssh failed"])[-1]
-    try:
-        return {g["appid"]: g for g in json.loads(r.stdout)["games"]}, None
-    except (ValueError, KeyError):
-        return None, "bad reply from desktop"
+# ----- desktop transport -----
+class Desktop:
+    def __init__(self, host):
+        self.host = host
+
+    def _run(self, cmd, data=None):
+        try:
+            r = subprocess.run(SSH + [self.host, cmd], input=data, capture_output=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("desktop timed out")
+        if r.returncode != 0:
+            err = r.stderr.decode(errors="replace").strip().splitlines()
+            raise RuntimeError(err[-1] if err else "ssh failed")
+        return r.stdout
+
+    def status(self):
+        d = json.loads(self._run("status"))
+        return {g["appid"]: g for g in d["games"]}, d.get("steam_running", False)
+
+    OLD = "the desktop's save-status-remote is out of date: git pull in ~/Code/gpdwin there"
+
+    def get(self, appid):
+        data = self._run(f"get {appid}")
+        if data.startswith(b'{"games"'):   # old script ignores the command and prints status
+            raise RuntimeError(self.OLD)
+        return data
+
+    def put(self, appid, data):
+        try:
+            return json.loads(self._run(f"put {appid}", data))["written"]
+        except (KeyError, ValueError):
+            raise RuntimeError(self.OLD)
 
 
-def compare(local, remote):
-    """Per-file comparison -> (summary, detail lines)."""
-    states, details = set(), []
-    for lf, rf in zip(local, remote or [{}] * len(local)):
-        name = Path(lf["path"]).name
-        if not lf["exists"] and not rf.get("exists"):
-            states.add("missing both"); continue
-        if not lf["exists"]:
-            states.add("only on desktop"); details.append(f"{name}: only on desktop"); continue
-        if not rf.get("exists"):
-            states.add("only on GPD"); details.append(f"{name}: only on GPD"); continue
-        if lf["sha"] == rf["sha"]:
-            states.add("same"); continue
-        if lf["mtime"] > rf["mtime"]:
-            states.add("GPD newer")
-            details.append(f"{name}: GPD {when(lf['mtime'])} > desktop {when(rf['mtime'])}")
+# ----- save data -----
+def local_files(game):
+    out = []
+    for f in game["files"]:
+        p = Path(os.path.expanduser(f["gpd"]))
+        if p.is_file():
+            st = p.stat()
+            out.append({"path": str(p), "exists": True, "size": st.st_size,
+                        "mtime": int(st.st_mtime), "sha": remote.sha1(p)})
         else:
-            states.add("desktop newer")
-            details.append(f"{name}: desktop {when(rf['mtime'])} > GPD {when(lf['mtime'])}")
-    if states == {"same"}:
-        return "same on both", details
-    order = ["GPD newer", "desktop newer", "only on GPD", "only on desktop", "missing both"]
-    return ", ".join(s for s in order if s in states) or "same on both", details
+            out.append({"path": str(p), "exists": False})
+    return out
+
+
+def classify(local, rem):
+    """-> (state, per-file rows [(name, state, gpd file, desktop file)])."""
+    rows, kinds = [], set()
+    for lf, rf in zip(local, rem if rem is not None else [{"exists": False}] * len(local)):
+        name = Path(lf["path"]).name
+        le, re_ = lf["exists"], rf.get("exists", False)
+        if not le and not re_:
+            continue
+        if not re_:
+            k = ONLY_GPD
+        elif not le:
+            k = ONLY_DESK
+        elif lf["sha"] == rf["sha"]:
+            k = SAME
+        elif lf["mtime"] > rf["mtime"]:
+            k = GPD_NEWER
+        elif lf["mtime"] < rf["mtime"]:
+            k = DESK_NEWER
+        else:
+            k = MIXED
+        rows.append((name, k, lf, rf))
+        kinds.add(k)
+    if rem is None:
+        return UNKNOWN, rows
+    if not kinds:
+        return NONE, rows
+    if kinds == {SAME}:
+        return SAME, rows
+    kinds.discard(SAME)
+    return (kinds.pop() if len(kinds) == 1 else MIXED), rows
+
+
+def newest(files):
+    return max((f["mtime"] for f in files if f.get("exists")), default=0)
+
+
+def load(cfg, dt):
+    """Scan everything -> (entries, steam_running, error)."""
+    rem, steam, err = None, False, None
+    try:
+        rem, steam = dt.status()
+    except (RuntimeError, ValueError, KeyError, OSError) as e:
+        err = str(e)
+    entries = []
+    for g in cfg["games"]:
+        local = local_files(g)
+        r = rem.get(g["appid"]) if rem else None
+        state, rows = classify(local, r["files"] if r else None)
+        entries.append({"game": g, "local": local, "remote": r["files"] if r else None,
+                        "state": state, "rows": rows, "cloud": CLOUD.get(r.get("cloud"), "") if r else ""})
+    return entries, steam, err
+
+
+def backup_dir(appid):
+    return Path.home() / "save-backups" / time.strftime("%Y%m%d-%H%M%S") / appid
+
+
+def pull(entry, dt):
+    """Desktop -> GPD: every save file the desktop has. Returns number of files written."""
+    g = entry["game"]
+    got = remote.read_members(io.BytesIO(dt.get(g["appid"])), len(g["files"]))
+    paths = [Path(f["path"]) for f in entry["local"]]
+    return len(remote.write_files(paths, got, backup_dir(g["appid"])))
+
+
+def push(entry, dt):
+    """GPD -> desktop: every save file the GPD has. Returns number of files written."""
+    g = entry["game"]
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tf:
+        for i, lf in enumerate(entry["local"]):
+            if lf["exists"]:
+                ti = tarfile.TarInfo(str(i))
+                ti.size, ti.mtime = lf["size"], lf["mtime"]
+                with open(lf["path"], "rb") as fh:
+                    tf.addfile(ti, io.BytesIO(fh.read()))
+    return len(dt.put(g["appid"], buf.getvalue()))
+
+
+# ----- UI -----
+KEYS = ("↑↓ select   p push GPD→desktop   g pull desktop→GPD   Enter copy newer→older   "
+        "r refresh   q quit")
+
+
+class UI:
+    def __init__(self, scr, cfg, dt):
+        self.scr, self.cfg, self.dt = scr, cfg, dt
+        self.pos = 0
+        self.msg = ""
+        self.entries, self.steam, self.err = [], False, None
+        self.refresh()
+
+    def refresh(self):
+        self.say("Checking desktop...")
+        self.draw()
+        self.entries, self.steam, self.err = load(self.cfg, self.dt)
+        self.msg = f"Desktop not reachable: {self.err}" if self.err else ""
+
+    def say(self, text):
+        self.msg = text
+
+    def add(self, y, x, text, attr=0):
+        h, w = self.scr.getmaxyx()
+        if 0 <= y < h and x < w:
+            try:
+                self.scr.addnstr(y, x, text, w - x - 1, attr)
+            except curses.error:
+                pass
+
+    def state_attr(self, s):
+        return {SAME: curses.color_pair(1), NONE: curses.A_DIM, UNKNOWN: curses.A_DIM,
+                MIXED: curses.color_pair(3)}.get(s, curses.color_pair(2))
+
+    def draw(self):
+        scr = self.scr
+        scr.erase()
+        h, w = scr.getmaxyx()
+        host = self.cfg["desktop_host"].split("@")[-1]
+        self.add(0, 1, f"Game saves   GPD ⇄ {host}", curses.A_BOLD)
+        if self.steam:
+            self.add(1, 1, "Steam is running on the desktop", curses.color_pair(2))
+        cols = (1, 24, 42, 60, 78)
+        for x, t in zip(cols, ("Game", "Status", "GPD saved", "Desktop saved", "Steam Cloud")):
+            self.add(3, x, t, curses.A_UNDERLINE)
+        for i, e in enumerate(self.entries):
+            y = 4 + i
+            sel = curses.A_REVERSE if i == self.pos else 0
+            self.add(y, 0, " " * (w - 1), sel)
+            self.add(y, cols[0], e["game"]["name"], sel)
+            self.add(y, cols[1], e["state"], sel | self.state_attr(e["state"]))
+            self.add(y, cols[2], when(newest(e["local"])), sel)
+            self.add(y, cols[3], when(newest(e["remote"] or [])), sel)
+            self.add(y, cols[4], e["cloud"], sel)
+        if self.entries:
+            self.detail(5 + len(self.entries))
+        self.add(h - 2, 1, self.msg, curses.A_BOLD)
+        self.add(h - 1, 1, KEYS, curses.A_DIM)
+        scr.refresh()
+
+    def detail(self, y):
+        e = self.entries[self.pos]
+        self.add(y, 1, e["game"]["name"], curses.A_BOLD)
+        self.add(y + 1, 3, f"{'file':<28}{'status':<18}{'GPD':<20}{'desktop':<20}", curses.A_UNDERLINE)
+        for j, (name, k, lf, rf) in enumerate(e["rows"]):
+            gt = f"{when(lf['mtime'])}" if lf["exists"] else "-"
+            dt_ = f"{when(rf['mtime'])}" if rf.get("exists") else "-"
+            self.add(y + 2 + j, 3, f"{name:<28}", 0)
+            self.add(y + 2 + j, 31, f"{k:<18}", self.state_attr(k))
+            self.add(y + 2 + j, 49, f"{gt:<20}{dt_:<20}", 0)
+        if not e["rows"]:
+            self.add(y + 2, 3, "no save files on either side")
+        if e["cloud"] == "needs Steam launch":
+            self.add(y + 3 + len(e["rows"]), 3,
+                     "Steam Cloud has not uploaded the desktop's files yet: start the game once in Steam.",
+                     curses.color_pair(2))
+
+    def confirm(self, text):
+        self.say(text + "  [y/N]")
+        self.draw()
+        k = self.scr.getch()
+        self.say("")
+        return k in (ord("y"), ord("Y"))
+
+    def copy(self, direction):
+        if self.err:
+            self.say(f"Desktop not reachable: {self.err}")
+            return
+        e = self.entries[self.pos]
+        name = e["game"]["name"]
+        has = [f for f in (e["local"] if direction == "push" else e["remote"] or []) if f.get("exists")]
+        if not has:
+            self.say(f"Nothing to copy: {'GPD' if direction == 'push' else 'desktop'} has no saves for {name}.")
+            return
+        st = e["state"]
+        if st == SAME:
+            self.say(f"{name} is already in sync.")
+            return
+        src, dst = ("GPD", "desktop") if direction == "push" else ("desktop", "GPD")
+        warn = ""
+        if (direction == "push" and st == DESK_NEWER) or (direction == "pull" and st == GPD_NEWER):
+            warn = f" WARNING: {dst} is newer!"
+        elif st == MIXED:
+            warn = " Files differ in both directions."
+        if direction == "push" and self.steam:
+            warn += " Steam is running."
+        if not self.confirm(f"Copy {name} {src} → {dst}?{warn}"):
+            self.say("Cancelled.")
+            return
+        self.say("Copying...")
+        self.draw()
+        try:
+            n = (push if direction == "push" else pull)(e, self.dt)
+        except (RuntimeError, ValueError, tarfile.TarError, OSError) as ex:
+            self.say(f"Copy failed: {ex}")
+            return
+        self.refresh()
+        extra = "  Start the game once in Steam to upload to Steam Cloud." if direction == "push" else ""
+        self.msg = f"Copied {n} file(s) {src} → {dst} (old copies backed up).{extra}"
+
+    def run(self):
+        while True:
+            self.draw()
+            k = self.scr.getch()
+            n = len(self.entries)
+            if k in (ord("q"), 27):
+                return
+            elif k in (curses.KEY_UP, ord("k")) and n:
+                self.pos = (self.pos - 1) % n
+            elif k in (curses.KEY_DOWN, ord("j")) and n:
+                self.pos = (self.pos + 1) % n
+            elif k == ord("r"):
+                self.refresh()
+            elif k == ord("p"):
+                self.copy("push")
+            elif k == ord("g"):
+                self.copy("pull")
+            elif k in (10, 13, curses.KEY_ENTER) and n:
+                st = self.entries[self.pos]["state"]
+                if st in (GPD_NEWER, ONLY_GPD):
+                    self.copy("push")
+                elif st in (DESK_NEWER, ONLY_DESK):
+                    self.copy("pull")
+                else:
+                    self.say("Not clear which side to copy: use p (push) or g (pull).")
+
+
+def tui(scr, cfg):
+    curses.curs_set(0)
+    curses.use_default_colors()
+    curses.init_pair(1, curses.COLOR_GREEN, -1)
+    curses.init_pair(2, curses.COLOR_YELLOW, -1)
+    curses.init_pair(3, curses.COLOR_RED, -1)
+    UI(scr, cfg, Desktop(cfg["desktop_host"])).run()
 
 
 def main():
-    pause = "--no-pause" not in sys.argv
     cfg = json.loads((REPO / "games/saves.json").read_text())
-    print("Save status (GPD vs desktop, Steam Cloud via desktop)\n")
-    remote, err = desktop_state(cfg["desktop_host"])
-    if err:
-        print(f"Desktop {cfg['desktop_host']} not reachable ({err}); showing GPD side only.\n")
-    for g in cfg["games"]:
-        local = []
-        for f in g["files"]:
-            p = Path(os.path.expanduser(f["gpd"]))
-            if p.exists():
-                st = p.stat()
-                local.append({"path": str(p), "exists": True, "mtime": int(st.st_mtime), "sha": sha1(p)})
-            else:
-                local.append({"path": str(p), "exists": False})
-        r = remote.get(g["appid"]) if remote else None
-        if r:
-            summary, details = compare(local, r["files"])
-            cloud = CLOUD.get(r.get("cloud"), r.get("cloud"))
-        else:
-            newest = max((x["mtime"] for x in local if x["exists"]), default=None)
-            summary = f"GPD last saved {when(newest)}" if newest else "no saves on GPD"
-            details, cloud = [], "?"
-        print(f"{g['name']}")
-        print(f"  saves: {summary}")
-        for d in details:
-            print(f"    {d}")
-        print(f"  Steam Cloud: {cloud}\n")
-    print("GPD newer: copy to the desktop, then start the game once in Steam to upload.\n"
-          "Desktop newer: copy to the GPD (see docs/saves.md for the paths).")
-    if pause:
-        input("\nPress Enter to return ")
+    if "--list" in sys.argv:
+        entries, steam, err = load(cfg, Desktop(cfg["desktop_host"]))
+        if err:
+            print(f"desktop not reachable: {err}")
+        for e in entries:
+            print(f"{e['game']['name']:<22}{e['state']:<18}GPD {when(newest(e['local']))}  "
+                  f"desktop {when(newest(e['remote'] or []))}  {e['cloud']}")
+            for name, k, lf, rf in e["rows"]:
+                print(f"    {name:<26}{k}")
+        return 0
+    import locale
+    locale.setlocale(locale.LC_ALL, "")
+    curses.wrapper(tui, cfg)
     return 0
 
 

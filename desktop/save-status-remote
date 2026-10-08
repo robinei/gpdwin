@@ -1,20 +1,33 @@
 #!/usr/bin/env python3
-"""Desktop side of the GPD's Save Status tool. Prints JSON, read-only.
+"""Desktop side of the GPD's game saves tool (scripts/save-status).
 
-For every game in games/saves.json: size, mtime and SHA-1 of the desktop's save files, plus the
-Steam Cloud state of the game (from desktop/steam-cloud-status). The GPD runs this over ssh with
-a restricted key (authorized_keys forced command), so it takes no arguments.
+The GPD runs this over ssh with a restricted key (authorized_keys forced command), choosing the
+action with the ssh command line (SSH_ORIGINAL_COMMAND):
+
+  status        JSON: size, mtime, SHA-1 of the desktop's save files for every game in
+                games/saves.json, the Steam Cloud state of the game, and whether Steam is running.
+  get APPID     tar stream on stdout with the game's existing save files, named "0", "1", ...
+                (index into the game's "files" list in games/saves.json).
+  put APPID     tar stream on stdin in the same format; writes those files (mtime kept). Existing
+                files that would be replaced are first copied to ~/save-backups/<time>/<appid>/.
+
+It only ever reads or writes the paths listed in games/saves.json; tar member names are indexes,
+never paths. Anything else is refused.
 """
-import hashlib, importlib.machinery, importlib.util, json, sys
+import hashlib, importlib.machinery, importlib.util, io, json, os, re, shutil, subprocess, sys, tarfile, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
+MAX_FILE = 64 << 20   # bytes per save file
 
-loader = importlib.machinery.SourceFileLoader("steamcloud", str(HERE / "steam-cloud-status"))
-spec = importlib.util.spec_from_loader("steamcloud", loader)
-sc = importlib.util.module_from_spec(spec)
-loader.exec_module(sc)
+
+def load_cloud():
+    loader = importlib.machinery.SourceFileLoader("steamcloud", str(HERE / "steam-cloud-status"))
+    spec = importlib.util.spec_from_loader("steamcloud", loader)
+    sc = importlib.util.module_from_spec(spec)
+    loader.exec_module(sc)
+    return sc
 
 
 def sha1(p):
@@ -25,7 +38,22 @@ def sha1(p):
     return h.hexdigest()
 
 
-def cloud_state(appid, userdirs, libs):
+def userdata_dirs(sc):
+    return [d for d in sorted((sc.STEAM / "userdata").glob("*")) if d.is_dir() and d.name != "0"]
+
+
+def game_paths(game, sc, userdirs):
+    """The desktop path of each of the game's files, in order."""
+    out = []
+    for f in game["files"]:
+        raw = f["desktop"].replace("{steam}", str(sc.STEAM))
+        if "{userdata}" in raw and userdirs:
+            raw = raw.replace("{userdata}", str(userdirs[0]))
+        out.append(Path(raw))
+    return out
+
+
+def cloud_state(sc, appid, userdirs, libs):
     """'synced' | 'needs-launch' | 'no-cloud' for one app (same logic as steam-cloud-status)."""
     for userdir in userdirs:
         cache = userdir / appid / "remotecache.vdf"
@@ -45,27 +73,108 @@ def cloud_state(appid, userdirs, libs):
     return "no-cloud"
 
 
-def main():
-    cfg = json.loads((REPO / "games/saves.json").read_text())
-    userdirs = [d for d in sorted((sc.STEAM / "userdata").glob("*")) if d.is_dir() and d.name != "0"]
+def steam_running():
+    return subprocess.run(["pgrep", "-x", "steam"], capture_output=True).returncode == 0
+
+
+def find_game(cfg, appid):
+    for g in cfg["games"]:
+        if g["appid"] == appid:
+            return g
+    raise SystemExit(f"unknown game {appid!r}")
+
+
+def do_status(cfg, sc, out):
+    userdirs = userdata_dirs(sc)
     libs = sc.libraries()
-    out = {"games": []}
+    res = {"steam_running": steam_running(), "games": []}
     for g in cfg["games"]:
         files = []
-        for f in g["files"]:
-            raw = f["desktop"].replace("{steam}", str(sc.STEAM))
-            if "{userdata}" in raw:
-                raw = raw.replace("{userdata}", str(userdirs[0])) if userdirs else raw
-            p = Path(raw)
-            if p.exists():
+        for p in game_paths(g, sc, userdirs):
+            if p.is_file():
                 st = p.stat()
                 files.append({"path": str(p), "exists": True, "size": st.st_size,
                               "mtime": int(st.st_mtime), "sha": sha1(p)})
             else:
                 files.append({"path": str(p), "exists": False})
-        out["games"].append({"appid": g["appid"], "files": files,
-                             "cloud": cloud_state(g["appid"], userdirs, libs)})
-    json.dump(out, sys.stdout)
+        res["games"].append({"appid": g["appid"], "files": files,
+                             "cloud": cloud_state(sc, g["appid"], userdirs, libs)})
+    out.write(json.dumps(res).encode())
+
+
+def do_get(cfg, sc, appid, out):
+    game = find_game(cfg, appid)
+    with tarfile.open(fileobj=out, mode="w|") as tf:
+        for i, p in enumerate(game_paths(game, sc, userdata_dirs(sc))):
+            if not p.is_file():
+                continue
+            ti = tf.gettarinfo(str(p), arcname=str(i))
+            ti.uid = ti.gid = 0
+            ti.uname = ti.gname = ""
+            with open(p, "rb") as fh:
+                tf.addfile(ti, fh)
+
+
+def read_members(inp, nfiles):
+    """Validate and read a tar stream of saves -> {index: (bytes, mtime)}. Raises ValueError."""
+    got = {}
+    with tarfile.open(fileobj=inp, mode="r|") as tf:
+        for m in tf:
+            if not m.isfile() or not re.fullmatch(r"\d+", m.name) or int(m.name) >= nfiles:
+                raise ValueError(f"unexpected member {m.name!r}")
+            if m.size > MAX_FILE:
+                raise ValueError(f"member {m.name!r} too large")
+            idx = int(m.name)
+            if idx in got:
+                raise ValueError(f"duplicate member {m.name!r}")
+            got[idx] = (tf.extractfile(m).read(), int(m.mtime))
+    return got
+
+
+def write_files(paths, got, backup_dir):
+    """Write {index: (data, mtime)} to paths; back up anything replaced. Returns written paths."""
+    written = []
+    for idx, (data, mtime) in sorted(got.items()):
+        p = paths[idx]
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if p.exists():
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, backup_dir / p.name)
+        tmp = p.with_name(p.name + ".gpd-tmp")
+        tmp.write_bytes(data)
+        os.utime(tmp, (mtime, mtime))
+        os.replace(tmp, p)
+        written.append(str(p))
+    return written
+
+
+def do_put(cfg, sc, appid, inp, out):
+    game = find_game(cfg, appid)
+    paths = game_paths(game, sc, userdata_dirs(sc))
+    got = read_members(inp, len(paths))
+    backup = Path.home() / "save-backups" / time.strftime("%Y%m%d-%H%M%S") / appid
+    out.write(json.dumps({"written": write_files(paths, got, backup)}).encode())
+
+
+def main():
+    cfg = json.loads((REPO / "games/saves.json").read_text())
+    sc = load_cloud()
+    cmd = os.environ.get("SSH_ORIGINAL_COMMAND", "status").split()
+    out = sys.stdout.buffer
+    try:
+        if cmd == ["status"]:
+            do_status(cfg, sc, out)
+        elif len(cmd) == 2 and cmd[0] == "get":
+            do_get(cfg, sc, cmd[1], out)
+        elif len(cmd) == 2 and cmd[0] == "put":
+            do_put(cfg, sc, cmd[1], sys.stdin.buffer, out)
+        else:
+            print("usage: status | get APPID | put APPID", file=sys.stderr)
+            return 2
+    except (ValueError, tarfile.TarError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    out.flush()
     return 0
 
 
