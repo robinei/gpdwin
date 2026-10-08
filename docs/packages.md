@@ -23,8 +23,10 @@ truth; this explains the choices.
   then offers 32-bit Linux builds and drops `-osarch 64`. To undo: remove the lib32 packages,
   comment out [multilib].
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
-- Performance overlay: `lib32-mangohud` (multilib, for 32-bit games) and `mangohud-light` (own rebuild of the repo package without mangoplot/mangoapp
-  and their ~134 MB of python/matplotlib/numpy/glfw; see frontend.md).
+- Performance overlay: `mangohud-light` and `lib32-mangohud-light` (for 32-bit games), one own
+  rebuild of the repo package without mangoplot/mangoapp and their ~134 MB of
+  python/matplotlib/numpy/glfw, building both halves from one source so our source patches
+  (battery detection) cover both; replaces multilib's `lib32-mangohud`. See frontend.md.
 - Native game libs: `sdl2_net` (Strife: Veteran Edition, 2026-10-08).
 - Build: `base-devel git` (AUR builds). `python` is explicit (scripts). `gcc` (base-devel) also builds `src/*.c`.
   `clang` came with zelda3-git and is build-only (~100 MB+).
