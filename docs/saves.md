@@ -100,10 +100,11 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 - A folder entry can have `"ignore": [patterns]` (fnmatch on the path inside it): Stardew ignores
   Steam's `steam_autocloud.vdf` marker, Hyper Light Drifter ignores `gameprefs.dat` (settings, would
   otherwise be copied between devices). Narrow HLD to its save files once one exists.
-- Psychonauts (Profile 2 only, 2026-10-08): the cloud holds two profiles. Profile 2 has the 2026 saves
-  (slots 0-3 from 2026-04-28) and was pulled to `~/.local/share/Psychonauts/Profiles/Profile 2/`; Profile 1
-  in the cloud is from 2010-2011 and the GPD's own Profile 1 is newer, so it is not tracked (it would show
-  as 'GPD newer'). Cloud names are lowercase (`%GameInstall%profiles/profile 2/savedgame0`) while the GPD
+- Psychonauts (2026-10-08): the cloud holds two profiles; **cloud profile 2** has the 2026 saves (slots 0-3
+  from 2026-04-28), profile 1 is from 2010-2011. The game has **no profile selector and always uses
+  `Profiles/Profile 1/`**, so the tool maps cloud `profile 2/...` onto the GPD's `Profile 1/` folder (the
+  GPD's own yesterday's Profile 1 was backed up to `~/save-backups/20261008-163010/psychonauts-gpd-profile1`).
+  A stray copy in `Profiles/Profile 2/` (pulled first) is unused. Cloud names are lowercase (`%GameInstall%profiles/profile 2/savedgame0`) while the GPD
   uses `SavedGame0`/`Profile 2- Raz`, hence file-level entries with explicit cloud names. Desktop paths
   are unverified guesses. Profile 2 comes from a Windows install (its `.ini` has CRLF line endings and the
   Windows pad numbering): the `Profile 2- Raz.ini` is NOT tracked, because on the GPD it carries the Linux

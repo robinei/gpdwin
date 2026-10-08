@@ -228,3 +228,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - discover: reports steam_synced (files Steam syncs, from remotecache.vdf); saves-discover prefers that desktop copy (Super Meat Boy has two). Super Meat Boy desktop finding in docs/saves.md.
 - Psychonauts Profile 2 (the 2026 saves) pulled from Steam Cloud and tracked in Game Saves; steam-cloud download: --only and per-file failures.
 - Psychonauts Profile 2 is a Windows profile: Linux pad bindings applied to its .ini (backup .gpd-bak), .ini removed from Game Saves tracking.
+- Psychonauts has no profile selector (always Profile 1): cloud profile 2 (2026 saves) copied into the Profile 1 slot, old Profile 1 backed up; Game Saves maps cloud profile 2 -> Profile 1.
