@@ -1,0 +1,16 @@
+--- a/src/battery.cpp
++++ b/src/battery.cpp
+@@ -13,7 +13,12 @@
+     fs::path path("/sys/class/power_supply/");
+     for (auto& p : fs::directory_iterator(path)) {
+         string fileName = p.path().filename();
+-        if (fileName.find("BAT") != std::string::npos) {
++        // GPD: also any supply of type "Battery" (the GPD Win's is "max170xx_battery"), but not
++        // a device's own battery (scope "Device", e.g. a wireless gamepad)
++        std::string type, scope;
++        std::ifstream((p.path() / "type").string()) >> type;
++        std::ifstream((p.path() / "scope").string()) >> scope;
++        if (fileName.find("BAT") != std::string::npos || (type == "Battery" && scope != "Device")) {
+             battPath[batteryCount] = p.path();
+             batteryCount += 1;
+         }
