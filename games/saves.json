@@ -1,5 +1,5 @@
 {
- "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>, {home} = desktop home. \"dir\": true = a folder: everything below it is synced file by file. Used by scripts/save-status (GPD) and desktop/save-status-remote.",
+ "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>, {home} = desktop home. \"dir\": true = a folder: everything below it is synced file by file. \"cloud\" = the file's name in Steam Cloud (for a folder entry: its name prefix); entries without it aren't read from the cloud. Used by scripts/save-status (GPD) and desktop/save-status-remote.",
  "desktop_host": "robin@desktop.lan",
  "games": [
   {
@@ -8,7 +8,8 @@
    "files": [
     {
      "gpd": "~/.local/share/SuperMeatBoy/UserData/savegame.dat",
-     "desktop": "{steam}/steamapps/common/Super Meat Boy/UserData/savegame.dat"
+     "desktop": "{steam}/steamapps/common/Super Meat Boy/UserData/savegame.dat",
+     "cloud": "%GameInstall%UserData/savegame.dat"
     }
    ]
   },
@@ -19,7 +20,8 @@
     {
      "gpd": "~/.config/StardewValley/Saves",
      "desktop": "{steam}/steamapps/compatdata/413150/pfx/drive_c/users/steamuser/AppData/Roaming/StardewValley/Saves",
-     "dir": true
+     "dir": true,
+     "cloud": "%WinAppDataRoaming%StardewValley/Saves/"
     }
    ]
   },
@@ -29,15 +31,18 @@
    "files": [
     {
      "gpd": "~/.local/share/Bastion/Profile1.sav",
-     "desktop": "{userdata}/107100/remote/profile1.sav"
+     "desktop": "{userdata}/107100/remote/profile1.sav",
+     "cloud": "profile1.sav"
     },
     {
      "gpd": "~/.local/share/Bastion/Profile1.keyctrls",
-     "desktop": "{userdata}/107100/remote/profile1.keyctrls"
+     "desktop": "{userdata}/107100/remote/profile1.keyctrls",
+     "cloud": "profile1.keyctrls"
     },
     {
      "gpd": "~/.local/share/Bastion/Profile1.mousectrls",
-     "desktop": "{userdata}/107100/remote/profile1.mousectrls"
+     "desktop": "{userdata}/107100/remote/profile1.mousectrls",
+     "cloud": "profile1.mousectrls"
     }
    ]
   }

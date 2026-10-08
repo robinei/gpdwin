@@ -12,10 +12,19 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 
 ## Game Saves (Pegasus: Utilities > Game Saves; `scripts/save-status`)
 - Full-screen curses UI, manual per game, no automatic sync (Syncthing was rejected). One row
-  per game in `games/saves.json`: status (in sync / GPD newer / desktop newer / only on one side /
-  differ), newest save time on each side, Steam Cloud state; below it the per-file detail.
-  Keys: `p` push GPD→desktop, `g` pull desktop→GPD, Enter copy newer→older, `r` refresh, `q` quit.
-  Each copy asks for confirmation and warns when the target side is newer or Steam is running.
+  per game in `games/saves.json`: status against the desktop and against Steam Cloud (in sync /
+  GPD newer / other side newer / only on one side / differ), newest save time on GPD, desktop and
+  cloud; below it the per-file detail for the selected game.
+  Keys: `c` pull Steam Cloud→GPD (works with the desktop off), `g` pull desktop→GPD, `p` push
+  GPD→desktop, Enter pull from whichever is newer (cloud, then desktop; or push if the GPD is
+  newer), `r` refresh, `q` quit. Each copy asks for confirmation and warns when the target side is
+  newer or Steam is running. The cloud is read-only: to get a save into it, push to the desktop and
+  start the game once in Steam there.
+- Cloud names per file: `"cloud"` in `games/saves.json` (a folder entry uses a name prefix, e.g.
+  Stardew `%WinAppDataRoaming%StardewValley/Saves/`; Bastion's cloud names are lowercase). Files
+  are matched by name only: the cloud's per-file platform flag (`All` for the games here) is ignored,
+  so saves made by a Windows install (Proton on the desktop) can be pulled onto the Linux build; the
+  games' formats are the same on both (Stardew: XML), but the game version should match.
   `scripts/save-status --list` prints the same table.
 - Copies overwrite every save file the source side has for that game; files only on the target
   side are left alone. Overwritten files are backed up first: GPD `~/save-backups/<time>/<appid>/`,

@@ -219,3 +219,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 
 ## 2026-10-08 — steam-cloud (read Steam Cloud from the GPD)
 - New `scripts/steam-cloud` (list/download, read-only) with a private PyPI venv (steam-next 3.0.0) and a refresh token outside the repo. Revert: delete `~/.local/share/gpd/steam-cloud`, git revert.
+- Game Saves tool: Steam Cloud as a third source (`c` pulls it to the GPD, read-only; `cloud` names in games/saves.json; `steam-cloud list-many`). Tested with a temp-folder pull of Stardew from the real cloud.

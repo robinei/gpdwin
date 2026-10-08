@@ -4,6 +4,7 @@
   steam-cloud setup                 create the private venv (steam-next from PyPI, pinned)
   steam-cloud login                 log in once (password + Steam Guard); keeps a refresh token
   steam-cloud list APPID [--json]   the app's cloud files: name, size, time, sha1
+  steam-cloud list-many APPID...    JSON {appid: [files]} for several apps over one connection
   steam-cloud download APPID DIR    download them to DIR (mtimes = cloud times) + DIR/manifest.json
   steam-cloud logout                forget the token
 
@@ -120,7 +121,8 @@ def cloud_files(c, appid):
 
 
 def info(e):
-    return {"filename": e.filename, "size": e.file_size, "mtime": e.timestamp, "sha1": e.file_sha}
+    return {"filename": e.filename, "size": e.file_size, "mtime": e.timestamp, "sha1": e.file_sha,
+            "platforms": list(e.platforms_to_sync)}
 
 
 def cmd_list(appid, as_json):
@@ -132,6 +134,13 @@ def cmd_list(appid, as_json):
     else:
         for r in rows:
             print(f"{r['filename']}  {r['size']} bytes  sha1 {r['sha1']}")
+
+
+def cmd_list_many(appids):
+    c = connect()
+    out = {str(a): [info(e) for e in cloud_files(c, a)] for a in appids}
+    c.disconnect()
+    print(json.dumps(out))
 
 
 def safe_rel(name):
@@ -182,6 +191,8 @@ def main():
         cmd_login()
     elif cmd == "list" and len(args) >= 2:
         cmd_list(int(args[1]), "--json" in args)
+    elif cmd == "list-many" and len(args) >= 2:
+        cmd_list_many([int(a) for a in args[1:]])
     elif cmd == "download" and len(args) == 3:
         cmd_download(int(args[1]), args[2])
     else:

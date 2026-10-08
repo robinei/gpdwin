@@ -3,8 +3,10 @@
 
 Full-screen curses UI (Pegasus: Utilities > Game Saves). Reads games/saves.json; the desktop's
 side comes over ssh from desktop/save-status-remote (restricted key: it can only run that script,
-which only touches the paths in saves.json and backs up what it overwrites). Local files are
-backed up to ~/save-backups/<time>/<appid>/ before they are overwritten.
+which only touches the paths in saves.json and backs up what it overwrites). Steam Cloud is read
+directly with scripts/steam-cloud (read-only: needs `steam-cloud login` once); the cloud can only be
+pulled from. To get a save into the cloud: push GPD -> desktop, then start the game in Steam there.
+Local files are backed up to ~/save-backups/<time>/<appid>/ before they are overwritten.
 
   save-status            the UI
   save-status --list     print the table and exit
@@ -20,10 +22,18 @@ _spec = importlib.util.spec_from_loader("saveremote", _loader)
 remote = importlib.util.module_from_spec(_spec)
 _loader.exec_module(remote)
 
-SAME, GPD_NEWER, DESK_NEWER, ONLY_GPD, ONLY_DESK, MIXED, NONE, UNKNOWN = (
-    "in sync", "GPD newer", "desktop newer", "only on GPD", "only on desktop", "differ", "no saves",
-    "no desktop info")
-CLOUD = {"synced": "in sync", "needs-launch": "needs Steam launch", "no-cloud": "no cloud data", None: ""}
+SAME, GPD_NEWER, OTHER_NEWER, ONLY_GPD, ONLY_OTHER, MIXED, NONE, UNKNOWN = (
+    "same", "gpd-newer", "other-newer", "only-gpd", "only-other", "differ", "none", "unknown")
+
+
+def text(code, other):
+    """Display text of a state code; `other` is "desktop" or "cloud"."""
+    return {SAME: "in sync", GPD_NEWER: "GPD newer", OTHER_NEWER: f"{other} newer",
+            ONLY_GPD: "only on GPD", ONLY_OTHER: f"only {'on desktop' if other == 'desktop' else 'in cloud'}",
+            MIXED: "differ", NONE: "no saves", UNKNOWN: f"no {other} info"}[code]
+
+
+DESK_CLOUD = {"synced": "in sync", "needs-launch": "needs Steam launch", "no-cloud": "no cloud data", None: ""}
 SSH = ["ssh", "-4", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5"]
 
 
@@ -70,6 +80,28 @@ class Desktop:
             raise RuntimeError(self.OLD)
 
 
+class Cloud:
+    """Steam Cloud, read-only, through scripts/steam-cloud."""
+    CMD = str(REPO / "scripts/steam-cloud")
+
+    def _run(self, *args):
+        try:
+            r = subprocess.run([self.CMD, *args], capture_output=True, text=True, timeout=180)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Steam Cloud timed out")
+        if r.returncode != 0:
+            err = r.stderr.strip().splitlines()
+            raise RuntimeError(err[-1] if err else "steam-cloud failed")
+        return r.stdout
+
+    def list_many(self, appids):
+        return json.loads(self._run("list-many", *appids))
+
+    def download(self, appid, dest):
+        self._run("download", appid, str(dest))
+        return json.loads((Path(dest) / "manifest.json").read_text())
+
+
 # ----- save data -----
 def gpd_bases(game):
     return [Path(os.path.expanduser(f["gpd"])) for f in game["files"]]
@@ -84,46 +116,83 @@ def label(e):
     return e["key"].split("/", 1)[1] if "/" in e["key"] else Path(e["path"]).name
 
 
-def classify(local, rem):
-    """-> (state, per-file rows [(name, state, gpd file, desktop file)], problem files first)."""
-    lmap = {e["key"]: e for e in local if e["exists"]}
-    rmap = {e["key"]: e for e in (rem or []) if e["exists"]}
-    rows, kinds = [], set()
-    for key in sorted(lmap.keys() | rmap.keys()):
-        lf, rf = lmap.get(key), rmap.get(key)
-        if rf is None:
-            k = ONLY_GPD
-        elif lf is None:
-            k = ONLY_DESK
-        elif lf["sha"] == rf["sha"]:
-            k = SAME
-        elif lf["mtime"] > rf["mtime"]:
-            k = GPD_NEWER
-        elif lf["mtime"] < rf["mtime"]:
-            k = DESK_NEWER
-        else:
-            k = MIXED
-        rows.append((label(lf or rf), k, lf or {"exists": False}, rf or {"exists": False}))
-        kinds.add(k)
-    rows.sort(key=lambda r: r[1] == SAME)
-    if rem is None:
-        return UNKNOWN, rows
-    if not kinds:
-        return NONE, rows
-    if kinds == {SAME}:
-        return SAME, rows
-    kinds.discard(SAME)
-    return (kinds.pop() if len(kinds) == 1 else MIXED), rows
+def pair_code(lf, of):
+    """State of one file on the GPD (lf) versus another source (of); either may be None."""
+    if lf is None and of is None:
+        return NONE   # the file exists in neither (only in a third source)
+    if of is None:
+        return ONLY_GPD
+    if lf is None:
+        return ONLY_OTHER
+    if lf["sha"] == of["sha"]:
+        return SAME
+    if lf["mtime"] > of["mtime"]:
+        return GPD_NEWER
+    if lf["mtime"] < of["mtime"]:
+        return OTHER_NEWER
+    return MIXED
+
+
+def overall(codes, known):
+    codes = set(codes)
+    if not known:
+        return UNKNOWN
+    if not codes:
+        return NONE
+    if codes == {SAME}:
+        return SAME
+    codes.discard(SAME)
+    return codes.pop() if len(codes) == 1 else MIXED
+
+
+def cloud_key(game, name):
+    """Entry key (as in scan()) of a Steam Cloud file name, or None if the game doesn't track it."""
+    for i, f in enumerate(game["files"]):
+        c = f.get("cloud")
+        if not c:
+            continue
+        if f.get("dir"):
+            if name.startswith(c) and len(name) > len(c):
+                return f"{i}/{name[len(c):]}"
+        elif name == c:
+            return str(i)
+    return None
+
+
+def cloud_entries(game, files):
+    out = []
+    for cf in files:
+        key = cloud_key(game, cf["filename"])
+        if key:
+            out.append({"key": key, "path": cf["filename"], "exists": True, "size": cf["size"],
+                        "mtime": cf["mtime"], "sha": cf["sha1"]})
+    return out
+
+
+def file_rows(local, desk, cloud):
+    """Per-file rows over the union of keys: dicts with the three files and both state codes.
+    desk / cloud may be None (unknown). Files that differ somewhere come first."""
+    maps = [{e["key"]: e for e in (src or []) if e["exists"]} for src in (local, desk, cloud)]
+    rows = []
+    for key in sorted(set().union(*[m.keys() for m in maps])):
+        lf, df, cf = (m.get(key) for m in maps)
+        e = lf or df or cf
+        rows.append({"name": label(e), "gpd": lf, "desk": df, "cloud": cf,
+                     "dcode": pair_code(lf, df) if desk is not None else UNKNOWN,
+                     "ccode": pair_code(lf, cf) if cloud is not None else UNKNOWN})
+    quiet = (SAME, UNKNOWN, NONE)
+    rows.sort(key=lambda r: r["dcode"] in quiet and r["ccode"] in quiet)
+    return rows
 
 
 def newest(files):
-    return max((f["mtime"] for f in files if f.get("exists")), default=0)
+    return max((f["mtime"] for f in files or [] if f.get("exists")), default=0)
 
 
-def scan_game(g, dt, fail=None):
-    """One game's entry. `fail` (an earlier connection error) skips asking the desktop again.
-    The entry has "err" set when the desktop side is unknown (unreachable, old script, or the
-    desktop's saves.json doesn't list the game)."""
+def scan_game(g, dt, cloud_files, cloud_err, fail=None):
+    """One game's entry. `fail` (an earlier desktop connection error) skips asking the desktop again.
+    "err" is set when the desktop side is unknown (unreachable, old script, or the desktop's
+    saves.json doesn't list the game); "cloud_err" when Steam Cloud couldn't be read."""
     local = local_files(g)
     rem, steam, err = None, None, fail
     if not fail:
@@ -135,19 +204,31 @@ def scan_game(g, dt, fail=None):
                 rem = r
         except (RuntimeError, ValueError, KeyError, OSError) as e:
             err = str(e)
-    state, rows = classify(local, rem["files"] if rem else None)
-    return {"game": g, "local": local, "remote": rem["files"] if rem else None, "state": state,
-            "rows": rows, "cloud": CLOUD.get(rem.get("cloud"), "") if rem else "", "err": err,
-            "steam": steam, "conn_failed": bool(err and not (rem or "doesn't know" in err))}
+    desk = rem["files"] if rem else None
+    cloud = cloud_entries(g, cloud_files[g["appid"]]) if cloud_files and g["appid"] in cloud_files else None
+    rows = file_rows(local, desk, cloud)
+    return {"game": g, "local": local, "remote": desk, "cloud": cloud, "rows": rows,
+            "state": overall([r["dcode"] for r in rows if r["dcode"] not in (UNKNOWN, NONE)], desk is not None),
+            "cstate": overall([r["ccode"] for r in rows if r["ccode"] not in (UNKNOWN, NONE)], cloud is not None),
+            "desk_cloud": DESK_CLOUD.get(rem.get("cloud"), "") if rem else "",
+            "err": err, "cloud_err": cloud_err if cloud is None else None, "steam": steam,
+            "conn_failed": bool(err and not (rem or "doesn't know" in err))}
 
 
-def load(cfg, dt, progress=None):
-    """Scan every game (asking the desktop about each one separately) -> entries."""
+def load(cfg, dt, cloud, progress=None):
+    """Scan every game (asking the desktop about each one separately; Steam Cloud once) -> entries."""
+    cloud_files, cloud_err = None, None
+    if progress:
+        progress("Steam Cloud", [])
+    try:
+        cloud_files = cloud.list_many([g["appid"] for g in cfg["games"] if any(f.get("cloud") for f in g["files"])])
+    except (RuntimeError, ValueError, OSError) as e:
+        cloud_err = str(e)
     entries, fail = [], None
     for g in cfg["games"]:
         if progress:
             progress(g["name"], entries)
-        e = scan_game(g, dt, fail)
+        e = scan_game(g, dt, cloud_files, cloud_err, fail)
         if e["conn_failed"]:
             fail = e["err"]
         entries.append(e)
@@ -167,6 +248,22 @@ def pull(entry, dt):
     return len(remote.write_files(target, got, backup_dir(g["appid"])))
 
 
+def pull_cloud(entry, cloud):
+    """Steam Cloud -> GPD: every tracked file the cloud has. Returns number of files written."""
+    import tempfile
+    g = entry["game"]
+    bases = gpd_bases(g)
+    target = lambda k: remote.target_path(g, bases, k)
+    with tempfile.TemporaryDirectory() as tmp:
+        got = {}
+        for m in cloud.download(g["appid"], tmp):
+            key = cloud_key(g, m["filename"])
+            if key:
+                target(key)   # validates
+                got[key] = ((Path(tmp) / m["path"]).read_bytes(), m["mtime"])
+        return len(remote.write_files(target, got, backup_dir(g["appid"])))
+
+
 def push(entry, dt):
     """GPD -> desktop: every save file the GPD has. Returns number of files written."""
     g = entry["game"]
@@ -182,13 +279,13 @@ def push(entry, dt):
 
 
 # ----- UI -----
-KEYS = ("↑↓ select   p push GPD→desktop   g pull desktop→GPD   Enter copy newer→older   "
-        "r refresh   q quit")
+KEYS = ("↑↓ select   c pull cloud→GPD   g pull desktop→GPD   p push GPD→desktop   "
+        "Enter copy newest→GPD   r refresh   q quit")
 
 
 class UI:
-    def __init__(self, scr, cfg, dt):
-        self.scr, self.cfg, self.dt = scr, cfg, dt
+    def __init__(self, scr, cfg, dt, cloud):
+        self.scr, self.cfg, self.dt, self.cloud = scr, cfg, dt, cloud
         self.pos = 0
         self.msg = ""
         self.entries, self.steam = [], False
@@ -197,12 +294,13 @@ class UI:
     def refresh(self):
         def progress(name, done):
             self.entries = done
-            self.say(f"Checking desktop: {name}...")
+            self.say(f"Checking {name}...")
             self.draw()
-        self.entries = load(self.cfg, self.dt, progress)
+        self.entries = load(self.cfg, self.dt, self.cloud, progress)
         self.steam = any(e["steam"] for e in self.entries)
         errs = {e["err"] for e in self.entries if e["err"]}
-        self.msg = "; ".join(sorted(errs))[:200]
+        errs |= {"Steam Cloud: " + e["cloud_err"] for e in self.entries if e["cloud_err"]}
+        self.msg = "; ".join(sorted(errs))[:300]
         self.pos = min(self.pos, max(0, len(self.entries) - 1))
 
     def say(self, text):
@@ -225,21 +323,22 @@ class UI:
         scr.erase()
         h, w = scr.getmaxyx()
         host = self.cfg["desktop_host"].split("@")[-1]
-        self.add(0, 1, f"Game saves   GPD ⇄ {host}", curses.A_BOLD)
+        self.add(0, 1, f"Game saves   GPD ⇄ {host}, Steam Cloud → GPD", curses.A_BOLD)
         if self.steam:
             self.add(1, 1, "Steam is running on the desktop", curses.color_pair(2))
-        cols = (1, 24, 42, 60, 78)
-        for x, t in zip(cols, ("Game", "Status", "GPD saved", "Desktop saved", "Steam Cloud")):
+        cols = (1, 22, 40, 56, 74, 92)
+        for x, t in zip(cols, ("Game", "vs desktop", "vs Steam Cloud", "GPD saved", "Desktop saved", "Cloud saved")):
             self.add(3, x, t, curses.A_UNDERLINE)
         for i, e in enumerate(self.entries):
             y = 4 + i
             sel = curses.A_REVERSE if i == self.pos else 0
             self.add(y, 0, " " * (w - 1), sel)
             self.add(y, cols[0], e["game"]["name"], sel)
-            self.add(y, cols[1], e["state"], sel | self.state_attr(e["state"]))
-            self.add(y, cols[2], when(newest(e["local"])), sel)
-            self.add(y, cols[3], when(newest(e["remote"] or [])), sel)
-            self.add(y, cols[4], e["cloud"], sel)
+            self.add(y, cols[1], text(e["state"], "desktop"), sel | self.state_attr(e["state"]))
+            self.add(y, cols[2], text(e["cstate"], "cloud"), sel | self.state_attr(e["cstate"]))
+            self.add(y, cols[3], when(newest(e["local"])), sel)
+            self.add(y, cols[4], when(newest(e["remote"])), sel)
+            self.add(y, cols[5], when(newest(e["cloud"])), sel)
         if self.entries:
             self.detail(5 + len(self.entries))
         self.add(h - 2, 1, self.msg, curses.A_BOLD)
@@ -251,55 +350,66 @@ class UI:
         self.add(y, 1, e["game"]["name"], curses.A_BOLD)
         if e["err"]:
             self.add(y, 3 + len(e["game"]["name"]), e["err"], curses.color_pair(3))
-        self.add(y + 1, 3, f"{'file':<28}{'status':<18}{'GPD':<20}{'desktop':<20}", curses.A_UNDERLINE)
+        self.add(y + 1, 3, f"{'file':<26}{'vs desktop':<16}{'vs cloud':<15}{'GPD':<18}{'desktop':<18}{'cloud':<18}",
+                 curses.A_UNDERLINE)
         h = self.scr.getmaxyx()[0]
         room = max(1, h - y - 6)
-        shown = e["rows"][:room]
-        if len(e["rows"]) > room:
-            self.add(y + 2 + room, 3, f"... {len(e['rows']) - room} more file(s) (all in sync)"
-                     if all(r[1] == SAME for r in e["rows"][room:]) else
-                     f"... {len(e['rows']) - room} more file(s)")
-        for j, (name, k, lf, rf) in enumerate(shown):
-            gt = f"{when(lf['mtime'])}" if lf["exists"] else "-"
-            dt_ = f"{when(rf['mtime'])}" if rf.get("exists") else "-"
-            self.add(y + 2 + j, 3, f"{name[-27:]:<28}", 0)
-            self.add(y + 2 + j, 31, f"{k:<18}", self.state_attr(k))
-            self.add(y + 2 + j, 49, f"{gt:<20}{dt_:<20}", 0)
-        if not e["rows"]:
-            self.add(y + 2, 3, "no save files on either side")
-        if e["cloud"] == "needs Steam launch":
-            self.add(y + 3 + min(len(e["rows"]), room), 3,
-                     "Steam Cloud has not uploaded the desktop's files yet: start the game once in Steam.",
+        rows = e["rows"]
+        if len(rows) > room:
+            self.add(y + 2 + room, 3, f"... {len(rows) - room} more file(s)")
+        for j, r in enumerate(rows[:room]):
+            t = lambda f: when(f["mtime"]) if f else "-"
+            self.add(y + 2 + j, 3, f"{r['name'][-25:]:<26}", 0)
+            self.add(y + 2 + j, 29, f"{text(r['dcode'], 'desktop'):<16}", self.state_attr(r["dcode"]))
+            self.add(y + 2 + j, 45, f"{text(r['ccode'], 'cloud'):<15}", self.state_attr(r["ccode"]))
+            self.add(y + 2 + j, 60, f"{t(r['gpd']):<18}{t(r['desk']):<18}{t(r['cloud']):<18}", 0)
+        if not rows:
+            self.add(y + 2, 3, "no save files anywhere")
+        if e["desk_cloud"] == "needs Steam launch":
+            self.add(y + 3 + min(len(rows), room), 3,
+                     "Steam Cloud has not received the desktop's files yet: start the game once in Steam there.",
                      curses.color_pair(2))
 
-    def confirm(self, text):
-        self.say(text + "  [y/N]")
+    def confirm(self, text_):
+        self.say(text_ + "  [y/N]")
         self.draw()
         k = self.scr.getch()
         self.say("")
         return k in (ord("y"), ord("Y"))
 
-    def copy(self, direction):
+    def copy(self, source):
+        """source: "cloud" (cloud -> GPD), "desktop" (desktop -> GPD) or "push" (GPD -> desktop)."""
         e = self.entries[self.pos]
         name = e["game"]["name"]
-        if e["err"]:
-            self.say(f"{name}: {e['err']}")
+        if source == "cloud":
+            if e["cloud"] is None:
+                self.say(f"{name}: Steam Cloud not available ({e['cloud_err'] or 'game not mapped'}).")
+                return
+            files, st, src, dst, other = e["cloud"], e["cstate"], "Steam Cloud", "GPD", "cloud"
+        elif source == "desktop":
+            if e["err"]:
+                self.say(f"{name}: {e['err']}")
+                return
+            files, st, src, dst, other = e["remote"] or [], e["state"], "desktop", "GPD", "desktop"
+        else:
+            if e["err"]:
+                self.say(f"{name}: {e['err']}")
+                return
+            files, st, src, dst, other = e["local"], e["state"], "GPD", "desktop", "desktop"
+        if not [f for f in files if f.get("exists")]:
+            self.say(f"Nothing to copy: {src} has no saves for {name}.")
             return
-        has = [f for f in (e["local"] if direction == "push" else e["remote"] or []) if f.get("exists")]
-        if not has:
-            self.say(f"Nothing to copy: {'GPD' if direction == 'push' else 'desktop'} has no saves for {name}.")
-            return
-        st = e["state"]
         if st == SAME:
             self.say(f"{name} is already in sync.")
             return
-        src, dst = ("GPD", "desktop") if direction == "push" else ("desktop", "GPD")
         warn = ""
-        if (direction == "push" and st == DESK_NEWER) or (direction == "pull" and st == GPD_NEWER):
-            warn = f" WARNING: {dst} is newer!"
+        if source == "push" and st == OTHER_NEWER:
+            warn = " WARNING: the desktop is newer!"
+        elif source != "push" and st == GPD_NEWER:
+            warn = " WARNING: the GPD is newer!"
         elif st == MIXED:
             warn = " Files differ in both directions."
-        if direction == "push" and self.steam:
+        if source == "push" and self.steam:
             warn += " Steam is running."
         if not self.confirm(f"Copy {name} {src} → {dst}?{warn}"):
             self.say("Cancelled.")
@@ -307,13 +417,24 @@ class UI:
         self.say("Copying...")
         self.draw()
         try:
-            n = (push if direction == "push" else pull)(e, self.dt)
+            n = {"cloud": lambda: pull_cloud(e, self.cloud), "desktop": lambda: pull(e, self.dt),
+                 "push": lambda: push(e, self.dt)}[source]()
         except (RuntimeError, ValueError, tarfile.TarError, OSError) as ex:
             self.say(f"Copy failed: {ex}")
             return
         self.refresh()
-        extra = "  Start the game once in Steam to upload to Steam Cloud." if direction == "push" else ""
+        extra = "  Start the game once in Steam on the desktop to upload to Steam Cloud." if source == "push" else ""
         self.msg = f"Copied {n} file(s) {src} → {dst} (old copies backed up).{extra}"
+
+    def best_source(self, e):
+        """Where Enter pulls from: the cloud if it is newer/only there, else the desktop if so."""
+        if e["cloud"] is not None and e["cstate"] in (OTHER_NEWER, ONLY_OTHER):
+            return "cloud"
+        if not e["err"] and e["state"] in (OTHER_NEWER, ONLY_OTHER):
+            return "desktop"
+        if not e["err"] and e["state"] in (GPD_NEWER, ONLY_GPD):
+            return "push"
+        return None
 
     def run(self):
         while True:
@@ -328,18 +449,18 @@ class UI:
                 self.pos = (self.pos + 1) % n
             elif k == ord("r"):
                 self.refresh()
-            elif k == ord("p"):
+            elif k == ord("c") and n:
+                self.copy("cloud")
+            elif k == ord("g") and n:
+                self.copy("desktop")
+            elif k == ord("p") and n:
                 self.copy("push")
-            elif k == ord("g"):
-                self.copy("pull")
             elif k in (10, 13, curses.KEY_ENTER) and n:
-                st = self.entries[self.pos]["state"]
-                if st in (GPD_NEWER, ONLY_GPD):
-                    self.copy("push")
-                elif st in (DESK_NEWER, ONLY_DESK):
-                    self.copy("pull")
+                src = self.best_source(self.entries[self.pos])
+                if src:
+                    self.copy(src)
                 else:
-                    self.say("Not clear which side to copy: use p (push) or g (pull).")
+                    self.say("Nothing newer to copy (or unclear): use c, g or p.")
 
 
 def tui(scr, cfg):
@@ -348,19 +469,20 @@ def tui(scr, cfg):
     curses.init_pair(1, curses.COLOR_GREEN, -1)
     curses.init_pair(2, curses.COLOR_YELLOW, -1)
     curses.init_pair(3, curses.COLOR_RED, -1)
-    UI(scr, cfg, Desktop(cfg["desktop_host"])).run()
+    UI(scr, cfg, Desktop(cfg["desktop_host"]), Cloud()).run()
 
 
 def main():
     cfg = json.loads((REPO / "games/saves.json").read_text())
     if "--list" in sys.argv:
-        for e in load(cfg, Desktop(cfg["desktop_host"])):
-            if e["err"]:
-                print(f"{e['game']['name']}: {e['err']}")
-            print(f"{e['game']['name']:<22}{e['state']:<18}GPD {when(newest(e['local']))}  "
-                  f"desktop {when(newest(e['remote'] or []))}  {e['cloud']}")
-            for name, k, lf, rf in e["rows"]:
-                print(f"    {name:<40}{k}")
+        for e in load(cfg, Desktop(cfg["desktop_host"]), Cloud()):
+            for msg in (e["err"], e["cloud_err"] and "Steam Cloud: " + e["cloud_err"]):
+                if msg:
+                    print(f"{e['game']['name']}: {msg}")
+            print(f"{e['game']['name']:<22}desktop: {text(e['state'], 'desktop'):<18}cloud: {text(e['cstate'], 'cloud'):<16}"
+                  f"GPD {when(newest(e['local']))}  desktop {when(newest(e['remote']))}  cloud {when(newest(e['cloud']))}")
+            for r in e["rows"]:
+                print(f"    {r['name']:<40}{text(r['dcode'], 'desktop'):<18}{text(r['ccode'], 'cloud')}")
         return 0
     import locale
     locale.setlocale(locale.LC_ALL, "")
