@@ -73,6 +73,13 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 - Mapped 2026-10-08 (GPD side verified on disk, desktop paths are Proton-prefix guesses marked
   `"unverified_desktop": true` until the desktop session checks them): SteamWorld Heist, FEZ,
   Kingdom: Classic, Death Road to Canada, Hyper Light Drifter, Risk of Rain, Heretic + Hexen.
+- Desktop paths checked by the desktop session (2026-10-08): Stardew Valley runs the native Linux
+  build there (`~/.config/StardewValley/Saves`, both farms match the cloud); the other six native
+  games were changed to the same paths as on the GPD but could not be verified (not installed on the
+  desktop); Heretic + Hexen stays a Proton guess. All still carry `unverified_desktop`.
+- A folder entry can have `"ignore": [patterns]` (fnmatch on the path inside it): Stardew ignores
+  Steam's `steam_autocloud.vdf` marker, Hyper Light Drifter ignores `gameprefs.dat` (settings, would
+  otherwise be copied between devices). Narrow HLD to its save files once one exists.
 - Not mapped yet: Psychonauts (cloud names are lowercase, `%GameInstall%profiles/profile 1/savedgame0`,
   GPD has `Profiles/Profile 1/SavedGame0`: needs case-insensitive matching), Strife VE (GPD saves in
   `~/.local/share/strife-ve/savegames`; desktop location unclear), Cave Story+ (`Profile-*.dat` in the game folder).

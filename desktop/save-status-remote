@@ -15,7 +15,7 @@ action with the ssh command line (SSH_ORIGINAL_COMMAND):
 It only ever reads or writes the paths listed in games/saves.json (and below its folder entries);
 tar member names are validated and never used as paths. Anything else is refused.
 """
-import hashlib, importlib.machinery, importlib.util, io, json, os, re, shutil, subprocess, sys, tarfile, time
+import fnmatch, hashlib, importlib.machinery, importlib.util, io, json, os, re, shutil, subprocess, sys, tarfile, time
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
@@ -66,8 +66,10 @@ def scan(game, bases):
         if f.get("dir"):
             if not base.is_dir():
                 continue
+            ignore = f.get("ignore", [])   # fnmatch patterns on the path inside the folder
             found = [(f"{i}/{p.relative_to(base).as_posix()}", p) for p in sorted(base.rglob("*"))
-                     if p.is_file() and not p.is_symlink()]
+                     if p.is_file() and not p.is_symlink()
+                     and not any(fnmatch.fnmatch(p.relative_to(base).as_posix(), pat) for pat in ignore)]
         else:
             found = [(str(i), base)]
         for key, p in found:

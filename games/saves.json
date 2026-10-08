@@ -1,5 +1,5 @@
 {
- "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>, {home} = desktop home. \"dir\": true = a folder: everything below it is synced file by file. \"cloud\" = the file's name in Steam Cloud (for a folder entry: its name prefix); entries without it aren't read from the cloud. Used by scripts/save-status (GPD) and desktop/save-status-remote. \"unverified_desktop\": true = the desktop paths are guesses (Proton prefix layout) that the desktop session has not checked yet: don't push until they are.",
+ "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>, {home} = desktop home. \"dir\": true = a folder: everything below it is synced file by file. \"cloud\" = the file's name in Steam Cloud (for a folder entry: its name prefix); entries without it aren't read from the cloud. Used by scripts/save-status (GPD) and desktop/save-status-remote. \"unverified_desktop\": true = the desktop paths are guesses (Proton prefix layout) that the desktop session has not checked yet: don't push until they are. \"ignore\": [patterns] on a folder entry skips matching files (path inside the folder, fnmatch), e.g. settings or Steam marker files.",
  "desktop_host": "robin@desktop.lan",
  "games": [
   {
@@ -21,7 +21,10 @@
      "gpd": "~/.config/StardewValley/Saves",
      "desktop": "{home}/.config/StardewValley/Saves",
      "dir": true,
-     "cloud": "%WinAppDataRoaming%StardewValley/Saves/"
+     "cloud": "%WinAppDataRoaming%StardewValley/Saves/",
+     "ignore": [
+      "steam_autocloud.vdf"
+     ]
     }
    ]
   },
@@ -130,7 +133,10 @@
     {
      "gpd": "~/.config/HyperLightDrifter",
      "desktop": "{home}/.config/HyperLightDrifter",
-     "dir": true
+     "dir": true,
+     "ignore": [
+      "gameprefs.dat"
+     ]
     }
    ]
   },
