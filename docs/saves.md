@@ -24,10 +24,12 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   (Steam Cloud column: "needs Steam launch" until it has).
 - Desktop side: `desktop/save-status-remote`, run over ssh by the GPD's restricted key
   (`~/.ssh/authorized_keys`: `restrict,command="/home/robin/Code/gpdwin/desktop/save-status-remote"`).
-  The command line picks the action (`SSH_ORIGINAL_COMMAND`): `status`, `get APPID` (tar of the
-  game's files named by index), `put APPID` (same format in). It only touches the paths in
-  `games/saves.json` (tar member names are indexes, anything else is rejected), so the key can
-  read and write only those files. Remove the authorized_keys line to revoke. PTY requests fail and
+  The command line picks the action (`SSH_ORIGINAL_COMMAND`): `status [APPID]`, `get APPID`
+  (tar of the game's files), `put APPID` (same format in). A tar member is named `N` (file entry
+  N of the game) or `N/rel/path` (file inside folder entry N, `"dir": true` in saves.json); other
+  names are rejected. So the key can only read and write the paths in the desktop's own copy of
+  `games/saves.json` (and below its folders). The GPD asks about each game separately at startup;
+  a game the desktop's copy doesn't list shows "git pull in ~/Code/gpdwin there". Remove the authorized_keys line to revoke. PTY requests fail and
   port forwarding is prohibited (`restrict`).
   Desktop firewall (ufw): `sudo ufw allow from 192.168.1.218 to any port 22 proto tcp comment
   'GPD save status'` (tied to the GPD's IP; reserve both IPs in the router).

@@ -4,22 +4,24 @@
 The GPD runs this over ssh with a restricted key (authorized_keys forced command), choosing the
 action with the ssh command line (SSH_ORIGINAL_COMMAND):
 
-  status        JSON: size, mtime, SHA-1 of the desktop's save files for every game in
+  status [APPID] JSON: size, mtime, SHA-1 of the desktop's save files for every game in
                 games/saves.json, the Steam Cloud state of the game, and whether Steam is running.
-  get APPID     tar stream on stdout with the game's existing save files, named "0", "1", ...
-                (index into the game's "files" list in games/saves.json).
+  get APPID     tar stream on stdout with the game's existing save files. A member is named
+                "N" (file entry N of the game's "files" list in games/saves.json) or "N/rel/path"
+                (a file inside folder entry N, which has "dir": true).
   put APPID     tar stream on stdin in the same format; writes those files (mtime kept). Existing
                 files that would be replaced are first copied to ~/save-backups/<time>/<appid>/.
 
-It only ever reads or writes the paths listed in games/saves.json; tar member names are indexes,
-never paths. Anything else is refused.
+It only ever reads or writes the paths listed in games/saves.json (and below its folder entries);
+tar member names are validated and never used as paths. Anything else is refused.
 """
 import hashlib, importlib.machinery, importlib.util, io, json, os, re, shutil, subprocess, sys, tarfile, time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 MAX_FILE = 64 << 20   # bytes per save file
+MAX_FILES = 2000      # files per game
 
 
 def load_cloud():
@@ -43,14 +45,57 @@ def userdata_dirs(sc):
 
 
 def game_paths(game, sc, userdirs):
-    """The desktop path of each of the game's files, in order."""
+    """The desktop path of each entry in the game's "files" list (a file, or a folder if "dir")."""
     out = []
     for f in game["files"]:
-        raw = f["desktop"].replace("{steam}", str(sc.STEAM))
+        raw = f["desktop"].replace("{steam}", str(sc.STEAM)).replace("{home}", str(Path.home()))
         if "{userdata}" in raw and userdirs:
             raw = raw.replace("{userdata}", str(userdirs[0]))
         out.append(Path(raw))
     return out
+
+
+def scan(game, bases):
+    """Every save file of the game -> [{key, path, exists, size, mtime, sha}].
+
+    key is the tar member name: "N" for file entry N, "N/rel/path" for a file inside folder entry
+    N. A file entry that doesn't exist is listed with exists False; a missing folder lists nothing.
+    """
+    out = []
+    for i, (f, base) in enumerate(zip(game["files"], bases)):
+        if f.get("dir"):
+            if not base.is_dir():
+                continue
+            found = [(f"{i}/{p.relative_to(base).as_posix()}", p) for p in sorted(base.rglob("*"))
+                     if p.is_file() and not p.is_symlink()]
+        else:
+            found = [(str(i), base)]
+        for key, p in found:
+            if p.is_file():
+                st = p.stat()
+                out.append({"key": key, "path": str(p), "exists": True, "size": st.st_size,
+                            "mtime": int(st.st_mtime), "sha": sha1(p)})
+            else:
+                out.append({"key": key, "path": str(p), "exists": False})
+        if len(out) > MAX_FILES:
+            raise ValueError("too many files")
+    return out
+
+
+def target_path(game, bases, key):
+    """Validate a tar member name and return the path it stands for. Raises ValueError."""
+    m = re.fullmatch(r"(\d+)(?:/(.+))?", key)
+    if not m or int(m[1]) >= len(bases):
+        raise ValueError(f"unexpected member {key!r}")
+    i, rel = int(m[1]), m[2]
+    if game["files"][i].get("dir"):
+        parts = PurePosixPath(rel or "").parts
+        if not parts or PurePosixPath(rel).is_absolute() or any(x in ("", ".", "..") for x in parts):
+            raise ValueError(f"unexpected member {key!r}")
+        return bases[i].joinpath(*parts)
+    if rel:
+        raise ValueError(f"unexpected member {key!r}")
+    return bases[i]
 
 
 def cloud_state(sc, appid, userdirs, libs):
@@ -84,20 +129,18 @@ def find_game(cfg, appid):
     raise SystemExit(f"unknown game {appid!r}")
 
 
-def do_status(cfg, sc, out):
+def do_status(cfg, sc, out, only=None):
+    """Status of every game, or of one (`only`). An APPID this copy of saves.json doesn't list
+    comes back as {"appid", "unknown": true}: the desktop clone needs a git pull."""
     userdirs = userdata_dirs(sc)
     libs = sc.libraries()
     res = {"steam_running": steam_running(), "games": []}
+    if only and not any(g["appid"] == only for g in cfg["games"]):
+        res["games"].append({"appid": only, "unknown": True})
     for g in cfg["games"]:
-        files = []
-        for p in game_paths(g, sc, userdirs):
-            if p.is_file():
-                st = p.stat()
-                files.append({"path": str(p), "exists": True, "size": st.st_size,
-                              "mtime": int(st.st_mtime), "sha": sha1(p)})
-            else:
-                files.append({"path": str(p), "exists": False})
-        res["games"].append({"appid": g["appid"], "files": files,
+        if only and g["appid"] != only:
+            continue
+        res["games"].append({"appid": g["appid"], "files": scan(g, game_paths(g, sc, userdirs)),
                              "cloud": cloud_state(sc, g["appid"], userdirs, libs)})
     out.write(json.dumps(res).encode())
 
@@ -105,41 +148,48 @@ def do_status(cfg, sc, out):
 def do_get(cfg, sc, appid, out):
     game = find_game(cfg, appid)
     with tarfile.open(fileobj=out, mode="w|") as tf:
-        for i, p in enumerate(game_paths(game, sc, userdata_dirs(sc))):
-            if not p.is_file():
+        for e in scan(game, game_paths(game, sc, userdata_dirs(sc))):
+            if not e["exists"]:
                 continue
-            ti = tf.gettarinfo(str(p), arcname=str(i))
+            ti = tf.gettarinfo(e["path"], arcname=e["key"])
             ti.uid = ti.gid = 0
             ti.uname = ti.gname = ""
-            with open(p, "rb") as fh:
+            with open(e["path"], "rb") as fh:
                 tf.addfile(ti, fh)
 
 
-def read_members(inp, nfiles):
-    """Validate and read a tar stream of saves -> {index: (bytes, mtime)}. Raises ValueError."""
+def read_members(inp, check):
+    """Read a tar stream of saves -> {key: (bytes, mtime)}. check(key) validates a member name
+    (raises ValueError). Nothing is written here."""
     got = {}
     with tarfile.open(fileobj=inp, mode="r|") as tf:
         for m in tf:
-            if not m.isfile() or not re.fullmatch(r"\d+", m.name) or int(m.name) >= nfiles:
+            if not m.isfile():
                 raise ValueError(f"unexpected member {m.name!r}")
+            check(m.name)
             if m.size > MAX_FILE:
                 raise ValueError(f"member {m.name!r} too large")
-            idx = int(m.name)
-            if idx in got:
+            if m.name in got:
                 raise ValueError(f"duplicate member {m.name!r}")
-            got[idx] = (tf.extractfile(m).read(), int(m.mtime))
+            if len(got) >= MAX_FILES:
+                raise ValueError("too many files")
+            got[m.name] = (tf.extractfile(m).read(), int(m.mtime))
     return got
 
 
-def write_files(paths, got, backup_dir):
-    """Write {index: (data, mtime)} to paths; back up anything replaced. Returns written paths."""
+def write_files(target, got, backup_dir):
+    """Write {key: (data, mtime)} to target(key); back up anything replaced under backup_dir/key.
+    Returns the written paths."""
     written = []
-    for idx, (data, mtime) in sorted(got.items()):
-        p = paths[idx]
+    for key, (data, mtime) in sorted(got.items()):
+        p = target(key)
+        if p.is_file() and p.read_bytes() == data:
+            continue   # identical content: leave it (and its mtime) alone
         p.parent.mkdir(parents=True, exist_ok=True)
         if p.exists():
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(p, backup_dir / p.name)
+            b = backup_dir / key
+            b.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, b)
         tmp = p.with_name(p.name + ".gpd-tmp")
         tmp.write_bytes(data)
         os.utime(tmp, (mtime, mtime))
@@ -150,10 +200,10 @@ def write_files(paths, got, backup_dir):
 
 def do_put(cfg, sc, appid, inp, out):
     game = find_game(cfg, appid)
-    paths = game_paths(game, sc, userdata_dirs(sc))
-    got = read_members(inp, len(paths))
+    bases = game_paths(game, sc, userdata_dirs(sc))
+    got = read_members(inp, lambda k: target_path(game, bases, k))
     backup = Path.home() / "save-backups" / time.strftime("%Y%m%d-%H%M%S") / appid
-    out.write(json.dumps({"written": write_files(paths, got, backup)}).encode())
+    out.write(json.dumps({"written": write_files(lambda k: target_path(game, bases, k), got, backup)}).encode())
 
 
 def main():
@@ -164,12 +214,14 @@ def main():
     try:
         if cmd == ["status"]:
             do_status(cfg, sc, out)
+        elif len(cmd) == 2 and cmd[0] == "status":
+            do_status(cfg, sc, out, cmd[1])
         elif len(cmd) == 2 and cmd[0] == "get":
             do_get(cfg, sc, cmd[1], out)
         elif len(cmd) == 2 and cmd[0] == "put":
             do_put(cfg, sc, cmd[1], sys.stdin.buffer, out)
         else:
-            print("usage: status | get APPID | put APPID", file=sys.stderr)
+            print("usage: status [APPID] | get APPID | put APPID", file=sys.stderr)
             return 2
     except (ValueError, tarfile.TarError, OSError) as e:
         print(f"error: {e}", file=sys.stderr)

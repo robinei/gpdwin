@@ -21,7 +21,8 @@ remote = importlib.util.module_from_spec(_spec)
 _loader.exec_module(remote)
 
 SAME, GPD_NEWER, DESK_NEWER, ONLY_GPD, ONLY_DESK, MIXED, NONE, UNKNOWN = (
-    "in sync", "GPD newer", "desktop newer", "only on GPD", "only on desktop", "differ", "no saves", "?")
+    "in sync", "GPD newer", "desktop newer", "only on GPD", "only on desktop", "differ", "no saves",
+    "no desktop info")
 CLOUD = {"synced": "in sync", "needs-launch": "needs Steam launch", "no-cloud": "no cloud data", None: ""}
 SSH = ["ssh", "-4", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5"]
 
@@ -42,12 +43,17 @@ class Desktop:
             raise RuntimeError("desktop timed out")
         if r.returncode != 0:
             err = r.stderr.decode(errors="replace").strip().splitlines()
-            raise RuntimeError(err[-1] if err else "ssh failed")
+            msg = err[-1] if err else "ssh failed"
+            raise RuntimeError(self.OLD if msg.startswith("usage:") else msg)
         return r.stdout
 
-    def status(self):
-        d = json.loads(self._run("status"))
-        return {g["appid"]: g for g in d["games"]}, d.get("steam_running", False)
+    def status(self, appid):
+        """One game's desktop state (dict with "files", "cloud"; or "unknown": true), steam_running."""
+        d = json.loads(self._run(f"status {appid}"))
+        games = [g for g in d["games"] if g["appid"] == appid]
+        if len(games) != 1 or any("key" not in f for f in games[0].get("files", [])):
+            raise RuntimeError(self.OLD)
+        return games[0], d.get("steam_running", False)
 
     OLD = "the desktop's save-status-remote is out of date: git pull in ~/Code/gpdwin there"
 
@@ -65,30 +71,29 @@ class Desktop:
 
 
 # ----- save data -----
+def gpd_bases(game):
+    return [Path(os.path.expanduser(f["gpd"])) for f in game["files"]]
+
+
 def local_files(game):
-    out = []
-    for f in game["files"]:
-        p = Path(os.path.expanduser(f["gpd"]))
-        if p.is_file():
-            st = p.stat()
-            out.append({"path": str(p), "exists": True, "size": st.st_size,
-                        "mtime": int(st.st_mtime), "sha": remote.sha1(p)})
-        else:
-            out.append({"path": str(p), "exists": False})
-    return out
+    return remote.scan(game, gpd_bases(game))
+
+
+def label(e):
+    """Name to show for a scanned file: the path inside its folder, or the file name."""
+    return e["key"].split("/", 1)[1] if "/" in e["key"] else Path(e["path"]).name
 
 
 def classify(local, rem):
-    """-> (state, per-file rows [(name, state, gpd file, desktop file)])."""
+    """-> (state, per-file rows [(name, state, gpd file, desktop file)], problem files first)."""
+    lmap = {e["key"]: e for e in local if e["exists"]}
+    rmap = {e["key"]: e for e in (rem or []) if e["exists"]}
     rows, kinds = [], set()
-    for lf, rf in zip(local, rem if rem is not None else [{"exists": False}] * len(local)):
-        name = Path(lf["path"]).name
-        le, re_ = lf["exists"], rf.get("exists", False)
-        if not le and not re_:
-            continue
-        if not re_:
+    for key in sorted(lmap.keys() | rmap.keys()):
+        lf, rf = lmap.get(key), rmap.get(key)
+        if rf is None:
             k = ONLY_GPD
-        elif not le:
+        elif lf is None:
             k = ONLY_DESK
         elif lf["sha"] == rf["sha"]:
             k = SAME
@@ -98,8 +103,9 @@ def classify(local, rem):
             k = DESK_NEWER
         else:
             k = MIXED
-        rows.append((name, k, lf, rf))
+        rows.append((label(lf or rf), k, lf or {"exists": False}, rf or {"exists": False}))
         kinds.add(k)
+    rows.sort(key=lambda r: r[1] == SAME)
     if rem is None:
         return UNKNOWN, rows
     if not kinds:
@@ -114,21 +120,38 @@ def newest(files):
     return max((f["mtime"] for f in files if f.get("exists")), default=0)
 
 
-def load(cfg, dt):
-    """Scan everything -> (entries, steam_running, error)."""
-    rem, steam, err = None, False, None
-    try:
-        rem, steam = dt.status()
-    except (RuntimeError, ValueError, KeyError, OSError) as e:
-        err = str(e)
-    entries = []
+def scan_game(g, dt, fail=None):
+    """One game's entry. `fail` (an earlier connection error) skips asking the desktop again.
+    The entry has "err" set when the desktop side is unknown (unreachable, old script, or the
+    desktop's saves.json doesn't list the game)."""
+    local = local_files(g)
+    rem, steam, err = None, None, fail
+    if not fail:
+        try:
+            r, steam = dt.status(g["appid"])
+            if r.get("unknown"):
+                err = "the desktop doesn't know this game: git pull in ~/Code/gpdwin there"
+            else:
+                rem = r
+        except (RuntimeError, ValueError, KeyError, OSError) as e:
+            err = str(e)
+    state, rows = classify(local, rem["files"] if rem else None)
+    return {"game": g, "local": local, "remote": rem["files"] if rem else None, "state": state,
+            "rows": rows, "cloud": CLOUD.get(rem.get("cloud"), "") if rem else "", "err": err,
+            "steam": steam, "conn_failed": bool(err and not (rem or "doesn't know" in err))}
+
+
+def load(cfg, dt, progress=None):
+    """Scan every game (asking the desktop about each one separately) -> entries."""
+    entries, fail = [], None
     for g in cfg["games"]:
-        local = local_files(g)
-        r = rem.get(g["appid"]) if rem else None
-        state, rows = classify(local, r["files"] if r else None)
-        entries.append({"game": g, "local": local, "remote": r["files"] if r else None,
-                        "state": state, "rows": rows, "cloud": CLOUD.get(r.get("cloud"), "") if r else ""})
-    return entries, steam, err
+        if progress:
+            progress(g["name"], entries)
+        e = scan_game(g, dt, fail)
+        if e["conn_failed"]:
+            fail = e["err"]
+        entries.append(e)
+    return entries
 
 
 def backup_dir(appid):
@@ -138,9 +161,10 @@ def backup_dir(appid):
 def pull(entry, dt):
     """Desktop -> GPD: every save file the desktop has. Returns number of files written."""
     g = entry["game"]
-    got = remote.read_members(io.BytesIO(dt.get(g["appid"])), len(g["files"]))
-    paths = [Path(f["path"]) for f in entry["local"]]
-    return len(remote.write_files(paths, got, backup_dir(g["appid"])))
+    bases = gpd_bases(g)
+    target = lambda k: remote.target_path(g, bases, k)
+    got = remote.read_members(io.BytesIO(dt.get(g["appid"])), target)
+    return len(remote.write_files(target, got, backup_dir(g["appid"])))
 
 
 def push(entry, dt):
@@ -148,9 +172,9 @@ def push(entry, dt):
     g = entry["game"]
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w") as tf:
-        for i, lf in enumerate(entry["local"]):
+        for lf in entry["local"]:
             if lf["exists"]:
-                ti = tarfile.TarInfo(str(i))
+                ti = tarfile.TarInfo(lf["key"])
                 ti.size, ti.mtime = lf["size"], lf["mtime"]
                 with open(lf["path"], "rb") as fh:
                     tf.addfile(ti, io.BytesIO(fh.read()))
@@ -167,14 +191,19 @@ class UI:
         self.scr, self.cfg, self.dt = scr, cfg, dt
         self.pos = 0
         self.msg = ""
-        self.entries, self.steam, self.err = [], False, None
+        self.entries, self.steam = [], False
         self.refresh()
 
     def refresh(self):
-        self.say("Checking desktop...")
-        self.draw()
-        self.entries, self.steam, self.err = load(self.cfg, self.dt)
-        self.msg = f"Desktop not reachable: {self.err}" if self.err else ""
+        def progress(name, done):
+            self.entries = done
+            self.say(f"Checking desktop: {name}...")
+            self.draw()
+        self.entries = load(self.cfg, self.dt, progress)
+        self.steam = any(e["steam"] for e in self.entries)
+        errs = {e["err"] for e in self.entries if e["err"]}
+        self.msg = "; ".join(sorted(errs))[:200]
+        self.pos = min(self.pos, max(0, len(self.entries) - 1))
 
     def say(self, text):
         self.msg = text
@@ -220,17 +249,26 @@ class UI:
     def detail(self, y):
         e = self.entries[self.pos]
         self.add(y, 1, e["game"]["name"], curses.A_BOLD)
+        if e["err"]:
+            self.add(y, 3 + len(e["game"]["name"]), e["err"], curses.color_pair(3))
         self.add(y + 1, 3, f"{'file':<28}{'status':<18}{'GPD':<20}{'desktop':<20}", curses.A_UNDERLINE)
-        for j, (name, k, lf, rf) in enumerate(e["rows"]):
+        h = self.scr.getmaxyx()[0]
+        room = max(1, h - y - 6)
+        shown = e["rows"][:room]
+        if len(e["rows"]) > room:
+            self.add(y + 2 + room, 3, f"... {len(e['rows']) - room} more file(s) (all in sync)"
+                     if all(r[1] == SAME for r in e["rows"][room:]) else
+                     f"... {len(e['rows']) - room} more file(s)")
+        for j, (name, k, lf, rf) in enumerate(shown):
             gt = f"{when(lf['mtime'])}" if lf["exists"] else "-"
             dt_ = f"{when(rf['mtime'])}" if rf.get("exists") else "-"
-            self.add(y + 2 + j, 3, f"{name:<28}", 0)
+            self.add(y + 2 + j, 3, f"{name[-27:]:<28}", 0)
             self.add(y + 2 + j, 31, f"{k:<18}", self.state_attr(k))
             self.add(y + 2 + j, 49, f"{gt:<20}{dt_:<20}", 0)
         if not e["rows"]:
             self.add(y + 2, 3, "no save files on either side")
         if e["cloud"] == "needs Steam launch":
-            self.add(y + 3 + len(e["rows"]), 3,
+            self.add(y + 3 + min(len(e["rows"]), room), 3,
                      "Steam Cloud has not uploaded the desktop's files yet: start the game once in Steam.",
                      curses.color_pair(2))
 
@@ -242,11 +280,11 @@ class UI:
         return k in (ord("y"), ord("Y"))
 
     def copy(self, direction):
-        if self.err:
-            self.say(f"Desktop not reachable: {self.err}")
-            return
         e = self.entries[self.pos]
         name = e["game"]["name"]
+        if e["err"]:
+            self.say(f"{name}: {e['err']}")
+            return
         has = [f for f in (e["local"] if direction == "push" else e["remote"] or []) if f.get("exists")]
         if not has:
             self.say(f"Nothing to copy: {'GPD' if direction == 'push' else 'desktop'} has no saves for {name}.")
@@ -316,14 +354,13 @@ def tui(scr, cfg):
 def main():
     cfg = json.loads((REPO / "games/saves.json").read_text())
     if "--list" in sys.argv:
-        entries, steam, err = load(cfg, Desktop(cfg["desktop_host"]))
-        if err:
-            print(f"desktop not reachable: {err}")
-        for e in entries:
+        for e in load(cfg, Desktop(cfg["desktop_host"])):
+            if e["err"]:
+                print(f"{e['game']['name']}: {e['err']}")
             print(f"{e['game']['name']:<22}{e['state']:<18}GPD {when(newest(e['local']))}  "
                   f"desktop {when(newest(e['remote'] or []))}  {e['cloud']}")
             for name, k, lf, rf in e["rows"]:
-                print(f"    {name:<26}{k}")
+                print(f"    {name:<40}{k}")
         return 0
     import locale
     locale.setlocale(locale.LC_ALL, "")

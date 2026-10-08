@@ -1,5 +1,5 @@
 {
- "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>. Used by scripts/save-status (GPD) and desktop/save-status-remote.",
+ "_doc": "Save files per game on the GPD and the desktop (see docs/saves.md). {steam} = desktop Steam root, {userdata} = desktop Steam userdata/<id>, {home} = desktop home. \"dir\": true = a folder: everything below it is synced file by file. Used by scripts/save-status (GPD) and desktop/save-status-remote.",
  "desktop_host": "robin@desktop.lan",
  "games": [
   {
@@ -9,6 +9,17 @@
     {
      "gpd": "~/.local/share/SuperMeatBoy/UserData/savegame.dat",
      "desktop": "{steam}/steamapps/common/Super Meat Boy/UserData/savegame.dat"
+    }
+   ]
+  },
+  {
+   "name": "Stardew Valley",
+   "appid": "413150",
+   "files": [
+    {
+     "gpd": "~/.config/StardewValley/Saves",
+     "desktop": "{steam}/steamapps/compatdata/413150/pfx/drive_c/users/steamuser/AppData/Roaming/StardewValley/Saves",
+     "dir": true
     }
    ]
   },
