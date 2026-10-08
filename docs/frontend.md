@@ -159,6 +159,14 @@
   `libtheoradec.so.1 -> /usr/lib/libtheoradec.so.2` (the launcher puts the game dir on
   LD_LIBRARY_PATH). Exit code 127 from Pegasus = missing shared library: run `gpd-launch.sh` in a
   shell and look at the error.
+  Gamepad: its first-run config has bogus bindings (e.g. `joyb_fire 29`) and the in-game binding
+  screen is unreliable (ignores buttons held/pressed in the first 1.5 s; axes are SDL controller
+  indices: 0 LX, 1 LY, 2 RX, 3 RY). Fix: edit `~/.local/share/strife-ve/strife.cfg` and
+  `chocolate-strife.cfg` with the game's own Xbox profile (`XInputProfile` in
+  `src/strife/fe_gamepad.c` of the bundled source): axes y=1 x=2 strafe=0 look=3; fire=31 (RT),
+  use=1, speed=30 (LT), jump=0, prev/next weapon=9/10 (LB/RB), invleft/right=13/14. Button values
+  0-14 are SDL controller buttons, 16+ axis-as-button (30 LT, 31 RT). Edit with the game closed
+  (it rewrites the files on exit). Not in the repo (game data).
 
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
