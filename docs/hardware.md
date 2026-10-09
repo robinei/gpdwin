@@ -39,8 +39,13 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
 ## Display
 - Only mode: 720x1280 @ 60.253 Hz, rotated to 1280x720. ~267 ppi, sway scale 1.
 - A game's fullscreen switch sometimes leaves the picture split (bottom half on top); seen with
-  DevilutionX and Zelda 3. Fix: `Mod4+F10` (`dotfiles/sway/screen-reset.sh`: output power off,
-  2 s, power on). Root cause unknown (panel/DSI resync after a mode or buffer change).
+  DevilutionX, Zelda 3 and Sam & Max (2026-10-09, also with red/blue swapped; it persisted into
+  Pegasus after the game quit). It is in the display engine, after the compositor: a `grim`
+  screenshot of the same moment looked normal. Fix: `Mod4+F10` (`dotfiles/sway/screen-reset.sh`:
+  output power off, 2 s, power on); `swaymsg 'output DSI-1 power off'` then `power on` does the same
+  remotely. Root cause unknown (panel/DSI resync after a mode or buffer change). Not specific to
+  Wine/DXVK/Vulkan: native SDL games do it too. Ideas if it gets annoying: i915 `enable_fbc=0` /
+  `enable_psr=0` / `disable_power_well=0` (kernel args, reboot), or run screen-reset after a game exits.
 
 ## Prior art: ViccRondo/gpd-win1-atomic-gaming (checked 2026-10-07, commit 325f405)
 An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful findings:
