@@ -259,6 +259,14 @@
   Likely applies to other D3D8/D3D9 games that are CPU-bound under wined3d on WoW64 (try d3d9-only
   games with just DXVK 1.10.3).
 
+- Sam & Max 101, Options menu (2026-10-10): opening Options, or Alt+Enter, hung the game in plain
+  fullscreen (menu still highlighted on hover and clicked, nothing else; Esc dead). Known for these
+  games on modern Windows too: the Options screen resets the display/mode, which fails here.
+  **Fix: `gpd-launch.sh` runs it in a Wine virtual desktop** (`wine explorer
+  /desktop=samandmax,1280x720 "$PWD/sammax101.exe"`, old-style Wine as before; sway fullscreens the
+  desktop window). Options works, no speed loss. The plain launcher is
+  `old-launchers/gpd-launch-fullscreen.sh`. The game has no gamepad support (mouse only).
+
 - **WoW64 Wine vs old-style Wine (2026-10-09, measured on Sam & Max, Telltale D3D8, 32-bit):** the system
   `wine` (Arch, new WoW64 build, no 32-bit unix side) ran Wine's OpenGL D3D path at ~5 fps with two
   threads pinned: `perf` showed `wined3d_cs` in a big libc memcpy, the game thread yielding, and the log
