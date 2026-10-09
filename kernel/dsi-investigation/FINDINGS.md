@@ -26,6 +26,25 @@ modeset). So the GOP and the driver program the same link; the desync happens wi
 not set `EOT_DISABLE` bit 9 on port C; port A `EOT_DISABLE` = 0x100 (bit 8), not written by the driver.
 Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
 
+## MEASURED: the DSI link paces the pipe (2026-10-09, trace-logger.py, stock-equivalent module)
+- i915 tracepoints `intel_pipe_update_*` record the hardware frame counter and scanline at every flip.
+  Over 271 s / 16,344 frames of DevilutionX the frame period is **16.6094 ms (60.207 Hz)**. Models:
+  pipe free-running at 61.111 MHz (774 px lines) 16.5664 ms; DSI link with lines of 540+14+14+14 = 582
+  byte clocks at 45.833 MHz **16.6093 ms**; link with HSYNC_PADDING ignored (568) 16.2097 ms.
+  => the link sets the frame rate, the HSYNC count IS used in sync-events mode (contrary to the code
+  comment), and the pipe is held back 1.5 byte clocks per line (43 us per frame) because
+  `set_dsi_timings()` rounds each 13.5-clock segment up to 14 (`vlv_dsi.c:1245-1249`). The GOP programs
+  the same 14/14/14. Data: `data/trace-2026-10-09/` (pipe-update-end.txt.zst: time, frame, scanline).
+- In the same 5 minutes the pipe **stalled for exactly one frame twice** (frame counter +1 over 33.7 ms
+  with the scanline +34 lines; 568.126 s and 601.544 s), and both match a flash Robin reported (17:02:01,
+  logger caught the DPI underrun; ~17:02:34). No other timing anomaly in the session. No cursor/sprite,
+  cxsr, FIFO re-split or watermark events in the minutes before (`events.log`): the plane-toggle hypothesis
+  is not supported.
+- Hypothesis (patch 0005): a link line longer than the pipe line keeps the pipe permanently
+  back-pressured; occasionally the flow control fails (one-frame stall, DPI underrun, byte slip =
+  split/color-rotated picture). 0005 rounds the line positions down: 540+13+14+13 = 580 <= 580.5.
+  Expected immediately visible in the trace: frame period 16.566 ms instead of 16.609.
+
 ## CONFIRMED bug
 
 ### 1. `MIPI_HS_TX_TIMEOUT` truncated to 16 bits (patch 0001)
@@ -81,9 +100,8 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
   it frame after frame; nothing re-aligns at frame start.
 
 ### 4. Other hypotheses, no patch
-- HSYNC_PADDING programmed (14) in sync-events mode where the code comment says it is ignored; if the
-  hardware used it, the link line would be 582 byte clocks vs 580.5 pipe (overflow, not underrun). The
-  GOP programs the same value. Not actionable.
+- HSYNC_PADDING programmed (14) in sync-events mode where the code comment says it is ignored: the
+  measured frame period shows the hardware uses it (see MEASURED above).
 - h-counts rounded up (13.5 -> 14) where gma500 Medfield (same IP) rounded down; semantics undocumented;
   GOP does the same.
 - `vlv_dsi.c:1719`: `hs_to_lp_switch` adds `ths_trail` in ns (60) to `tlpx` in UI (19); should be UI

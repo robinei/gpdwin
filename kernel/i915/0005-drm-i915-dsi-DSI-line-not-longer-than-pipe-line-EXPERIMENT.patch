@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 17:05:23 +0200
+Subject: [PATCH] drm/i915/dsi: Don't make the DSI line longer than the pipe
+ line on VLV/CHV
+
+EXPERIMENT, not for upstream until tested.
+
+set_dsi_timings() converts hfp, hsync and hbp to byte clocks one by
+one, each rounded up. When htotal * bpp / (8 * lanes) is not an
+integer, the DSI line becomes longer than the pipe line. On a GPD Win 1
+(CHV, 720x1280, htotal 774, RGB888, 4 lanes, non-burst with sync
+events) each 18 px segment is 13.5 byte clocks and is programmed as 14,
+so a DSI line takes 540 + 3 * 14 = 582 byte clocks while the pipe
+produces a line in 580.5.
+
+The hardware evidently honors this: the measured frame period (from the
+pipe frame counter and scanline in the i915 tracepoints over 271 s) is
+16.6094 ms, which is 1308 lines of 582 byte clocks at 45.833 MHz
+(16.6093 ms), not the 16.5664 ms of the pipe's 61.111 MHz pixel clock.
+So the DSI link paces the pipe and holds it back by 1.5 byte clocks per
+line. Twice in five minutes the pipe then stalled for exactly one frame,
+each time with a visible flash and MIPI_INTR_STAT DPI_FIFO_UNDERRUN
+latched.
+
+Compute the line positions in byte clocks and round them down, so the
+segments add up to at most the pipe line: 540 + 13 + 14 + 13 = 580.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 32 +++++++++++++++++++++-----
+ 1 file changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..08ad31b 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1241,12 +1241,32 @@ static void set_dsi_timings(struct intel_encoder *encoder,
+ 	vbp = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_end;
+ 
+ 	/* horizontal values are in terms of high speed byte clock */
+-	hactive = txbyteclkhs(hactive, bpp, lane_count,
+-			      intel_dsi->burst_mode_ratio);
+-	hfp = txbyteclkhs(hfp, bpp, lane_count, intel_dsi->burst_mode_ratio);
+-	hsync = txbyteclkhs(hsync, bpp, lane_count,
+-			    intel_dsi->burst_mode_ratio);
+-	hbp = txbyteclkhs(hbp, bpp, lane_count, intel_dsi->burst_mode_ratio);
++	if (!intel_dsi->dual_link && intel_dsi->burst_mode_ratio == 100 &&
++	    (display->platform.valleyview || display->platform.cherryview)) {
++		/*
++		 * EXPERIMENT: round the line positions (not each segment) down,
++		 * so the DSI line is never longer than the pipe line. Rounding
++		 * each of hfp/hsync/hbp up makes the link line longer than the
++		 * pipe line when htotal * bpp / (8 * lanes) is not an integer.
++		 */
++		u32 hs = adjusted_mode->crtc_hsync_start * bpp / (8 * lane_count);
++		u32 he = adjusted_mode->crtc_hsync_end * bpp / (8 * lane_count);
++		u32 ht = adjusted_mode->crtc_htotal * bpp / (8 * lane_count);
++		u32 ha = adjusted_mode->crtc_hdisplay * bpp / (8 * lane_count);
++
++		hactive = txbyteclkhs(hactive, bpp, lane_count,
++				      intel_dsi->burst_mode_ratio);
++		hfp = hs - ha;
++		hsync = he - hs;
++		hbp = ht - he;
++	} else {
++		hactive = txbyteclkhs(hactive, bpp, lane_count,
++				      intel_dsi->burst_mode_ratio);
++		hfp = txbyteclkhs(hfp, bpp, lane_count, intel_dsi->burst_mode_ratio);
++		hsync = txbyteclkhs(hsync, bpp, lane_count,
++				    intel_dsi->burst_mode_ratio);
++		hbp = txbyteclkhs(hbp, bpp, lane_count, intel_dsi->burst_mode_ratio);
++	}
+ 
+ 	for_each_dsi_port(port, intel_dsi->ports) {
+ 		if (display->platform.geminilake || display->platform.broxton) {
+-- 
+2.56.0
+
