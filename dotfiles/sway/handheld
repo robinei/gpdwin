@@ -8,7 +8,7 @@ seat * hide_cursor 3000
 exec swayidle -w \
     timeout 120 '~/.config/sway/dim.sh' resume 'brightnessctl -q -r' \
     timeout 180 '~/.config/sway/dim-low.sh battery' resume 'brightnessctl -q -r' \
-    timeout 300 '~/.config/sway/idle-screen-off.sh' resume 'swaymsg "output * power on"; pkill -CONT -x statusbar; ~/.config/sway/freeze-games.sh cont' \
+    timeout 300 '~/.config/sway/idle-screen-off.sh' resume '~/.config/sway/screen.sh on' \
     timeout 600 '~/.config/sway/dim-low.sh' resume 'brightnessctl -q -r' \
     timeout 1800 '~/.config/sway/idle-suspend.sh'
 

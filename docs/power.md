@@ -4,7 +4,7 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 
 ## Sleep
 - `/etc/systemd/sleep.conf.d/handheld.conf`: `MemorySleepMode=s2idle`, `HibernateDelaySec=30min`.
-- `/etc/systemd/logind.conf.d/handheld.conf`: power key → `suspend-then-hibernate`; lid switch is ignored (`HandleLidSwitch=ignore`); `inputd` powers the output off while it is closed (desktop.md).
+- `/etc/systemd/logind.conf.d/handheld.conf`: power key → `suspend-then-hibernate`; lid switch is ignored (`HandleLidSwitch=ignore`); `inputd` disables input and runs `lid.sh` (screen off via `screen.sh`, games frozen, CPU/GPU throttled) while it is closed (desktop.md).
 - Pegasus' Suspend also does suspend-then-hibernate (dbus-send shim, see frontend.md).
 - Hibernation: 4 GB swap partition (UUID in fstab). Resume works without `resume=`: the systemd
   initramfs finds the image via the `HibernateLocation` EFI variable. The RTC alarm does not wake

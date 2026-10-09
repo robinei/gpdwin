@@ -8,9 +8,10 @@
  * let swayidle dim the screen and suspend. Any pad event (at most every POKE_EVERY seconds)
  * sends sway a zero pointer move (`seat seat0 cursor move 0 0`), which resets its idle timers.
  *
- * Lid switch: closing the lid powers the output off and disables all input (sway's devices;
- * the pad is grabbed), opening it undoes that (the CPU/GPU are also throttled and the status bar paused, dotfiles/sway/lid.sh; brightness is left alone; level 0 doesn't turn this
- * panel off). logind ignores the lid, see docs/power.md.
+ * Lid switch: closing the lid disables all input (sway's devices; the pad is grabbed) and runs
+ * dotfiles/sway/lid.sh close (screen off and games frozen via screen.sh, CPU/GPU throttled);
+ * opening it undoes that. Brightness is left alone (level 0 doesn't turn this panel off). logind
+ * ignores the lid, see docs/power.md.
  *
  * Sleeps until there is something to do: the untouched pad sends no events, and inotify on
  * /dev/input reports when the pad (re)appears (it disconnects while the screen is off and across
@@ -144,13 +145,12 @@ static void grab_pad(void)
         ioctl(pad_fd, EVIOCGRAB, lid_closed);
 }
 
-/* Lid closed: switch the screen off and all input off (sway's devices, and the pad by grabbing
- * it); opened: back on, and counts as activity (resets the idle timers). */
+/* Lid closed: all input off (sway's devices, and the pad by grabbing it); lid.sh does the rest
+ * (screen, freezing, throttling). Opened: back on, and counts as activity (resets the idle timers). */
 static void on_lid(int closed)
 {
     lid_closed = closed;
-    swaymsg(closed ? "output * power off; input * events disabled"
-                   : "input * events enabled; output * power on; seat seat0 cursor move 0 0");
+    swaymsg(closed ? "input * events disabled" : "input * events enabled; seat seat0 cursor move 0 0");
     grab_pad();
     swaymsg_sh(closed ? "~/.config/sway/lid.sh close" : "~/.config/sway/lid.sh open");
 }

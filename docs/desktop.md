@@ -38,18 +38,20 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   The untouched pad sends nothing and inotify on /dev/input reopens it when it reappears (screen
   off, resume), so it never polls.
   Also watches the lid switch (`Lid Switch` input device, logind ignores the lid): closing it
-  runs `swaymsg output * power off; input * events disabled`, grabs the pad (EVIOCGRAB, so games
-  don't see it either) and runs `lid.sh close` (CPU turbo off, GPU limit to RPn, statusbar
-  SIGSTOP; saved values in `$XDG_RUNTIME_DIR/lid-saved`) and `freeze-games.sh stop`. Opening it undoes all of that and counts as activity (cursor move 0 0 resets swayidle). Brightness
-  is not touched (level 0 does not turn the panel off). If inputd dies while closed, input stays
-  disabled: `swaymsg input '*' events enabled`. Measured: the throttling saves nothing visible
-  (~305 mA idle either way, Claude Code and Wi-Fi dominate).
-- `freeze-games.sh stop|cont`: SIGSTOP/SIGCONT Pegasus and everything it started (the game's whole
-  process tree, Wine included; wineserver is not a descendant and just waits), pids in
-  `$XDG_RUNTIME_DIR/frozen-games` (a second stop does nothing; cont only thaws those). Called on lid
-  close/open (`lid.sh`) and by the idle screen-off step (`idle-screen-off.sh`, battery only; swayidle's
-  resume thaws). A frozen game continues where it was; its audio stops meanwhile. Games started
-  outside Pegasus are not covered. If something is left frozen: `~/.config/sway/freeze-games.sh cont`.
+  runs `swaymsg input * events disabled`, grabs the pad (EVIOCGRAB, so games don't see it either)
+  and runs `lid.sh close`: `screen.sh off`, CPU turbo off, GPU limit to RPn (saved values in
+  `$XDG_RUNTIME_DIR/lid-saved`). Opening it undoes all of that and counts as activity (cursor move
+  0 0 resets swayidle). Brightness is not touched (level 0 does not turn the panel off). If inputd
+  dies while closed, input stays disabled: `swaymsg input '*' events enabled`. Measured: the
+  throttling saves nothing visible (~305 mA idle either way, Claude Code and Wi-Fi dominate).
+- `screen.sh off|on`: the one place for screen off/on, used by the lid (`lid.sh`) and the idle
+  screen-off step (`idle-screen-off.sh`, battery only; swayidle's resume runs `screen.sh on`).
+  `off`: SIGSTOP Pegasus and everything it started (the game's whole process tree, Wine included;
+  wineserver is not a descendant and just waits), SIGSTOP statusbar, `output * power off`; `on`
+  reverses it. Frozen pids in `$XDG_RUNTIME_DIR/frozen`; every step is safe to repeat (idle and
+  then lid in one off period). A frozen game continues where it was; its audio stops meanwhile.
+  Games started outside Pegasus are not covered. If something is left frozen or dark:
+  `~/.config/sway/screen.sh on`.
 - C programs (`src/`): manifest `build` entries; `scripts/sync install` compiles them when the
   source is newer (`sync check` reports `BUILD outdated`). Restart after a rebuild:
   `swaymsg reload` (statusbar, swaybar's child) and

@@ -359,3 +359,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-10: removed `libretro-beetle-psx` (PS1 runs on PCSX ReARMed).
 - 2026-10-10: Sam & Max 101 runs in a Wine virtual desktop (Options menu and Alt+Enter hung in plain fullscreen).
 - 2026-10-10: `freeze-games.sh`: Pegasus and the games it started are frozen (SIGSTOP) while the lid is closed or the screen is off on idle.
+- 2026-10-10: screen off/on centralized in `dotfiles/sway/screen.sh` (lid and idle screen-off; replaces `freeze-games.sh`); inputd only handles input on lid close.
