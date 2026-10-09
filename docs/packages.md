@@ -23,6 +23,7 @@ truth; this explains the choices.
   then offers 32-bit Linux builds and drops `-osarch 64`. To undo: remove the lib32 packages,
   comment out [multilib].
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
+- Profiling: `perf` (installed 2026-10-09 to find a Wine bottleneck; run as `sudo perf record -g -p PID`).
 - Performance overlay: `mangohud-light` and `lib32-mangohud-light` (for 32-bit games), one own
   rebuild of the repo package without mangoplot/mangoapp and their ~134 MB of
   python/matplotlib/numpy/glfw, building both halves from one source so our source patches

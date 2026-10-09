@@ -247,6 +247,8 @@ Details before 2026-10-06 are in `docs/archive/`.
   docs/hardware.md "Audio jack". Tried a 10 s s2idle suspend: no effect.
 - Revert: delete the script; `scripts/audio-speaker auto` or reboot restores the normal profile.
 
-## 2026-10-09 — Sam & Max 101 runs fullscreen (still slow)
-- Patched the game's `prefs.prop` (Fullscreen/Window Size 800x600 -> 1280x720); plain `wine`
-  launcher. Details in docs/frontend.md. Revert: copy `prefs.prop.orig` back.
+## 2026-10-09 — Sam & Max 101 playable: d3d8to9 + DXVK 1.10.3
+- Patched `prefs.prop` to 1280x720 (fullscreen with plain wine); the game is D3D8 and ran ~5 fps on
+  wined3d (WoW64 GL buffer copies). Added d3d8to9 + DXVK 1.10.3 DLLs to its folder and overrides in
+  its launcher: ~39 fps. Details in docs/frontend.md. Revert: remove the three DLLs and override.
+- Installed `perf` (official repo, explicit) for profiling; remove with `pacman -Rns perf`.

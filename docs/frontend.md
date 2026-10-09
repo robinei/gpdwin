@@ -203,16 +203,30 @@
   (`wine explorer /desktop=game,1280x720 game.exe`) gives Wine's own mode list.
   (The Windows Psychonauts needed `DisplaySettings.ini` in its game folder at 1280x720.)
 
-- Sam & Max 101 (Telltale, Steamless-unpacked, 2026-10-09): its `prefs.prop` asked for 800x600, a
-  mode Wine doesn't offer here, so it opened a white window and spun on
-  `NtUserChangeDisplaySettings returned -2` (retry every 0.4 s, CPU ~190%). Fix: set the resolution
-  in `prefs.prop` (WSGF "Telltale Games Custom Resolution Tool" idea). The file is every byte
-  bit-inverted (`~b`); "Fullscreen Size" and "Window Size" are Vector2 floats (800,600). We
-  replaced both with 1280,720 (original kept as `prefs.prop.orig`): game is then truly fullscreen
-  with plain `wine`, no virtual desktop needed. (A virtual desktop also worked but needs the exe's
-  full path with `wine explorer`; a relative name silently starts nothing.)
-  Still a slideshow: ~190% CPU in the intro (wined3d, 3D game); see the performance notes below
-  if tuned. Launcher is outside the repo (`~/Games/installed/sam-max-101-culture-shock/`).
+- Sam & Max 101 (Telltale, Steamless-unpacked, 2026-10-09): needed three fixes.
+  1. Resolution: its `prefs.prop` asked for 800x600, a mode Wine doesn't offer here, so it opened
+     a white window and spun on `NtUserChangeDisplaySettings returned -2` (retry every 0.4 s).
+     `prefs.prop` is bit-inverted (`~b` per byte); "Fullscreen Size" and "Window Size" are Vector2
+     floats. Both replaced by 1280x720 (original `prefs.prop.orig`; idea from WSGF "Telltale Games
+     Custom Resolution Tool"). Then plain `wine` is truly fullscreen (no virtual desktop needed;
+     `wine explorer /desktop=...` needs the exe's full path, a relative name silently starts nothing).
+  2. Speed: the game is **Direct3D 8** (`Direct3DCreate8`) and ran at ~5 fps with Wine's wined3d
+     (CPU ~200%, GPU idle). `perf` showed the wined3d_cs thread in a huge memcpy and the game
+     thread yielding: the 32-bit game on WoW64 Wine makes Wine copy whole GL buffers on every map
+     (`wow64_map_buffer: Doing a copy of a mapped buffer (expect performance issues)`).
+     `mesa_glthread` and `vblank_mode=0` changed nothing. DXVK sidesteps it.
+  3. DXVK route: plain DXVK d3d9 isn't used by a D3D8 game, so put **d3d8to9** (crosire v1.16.0
+     `d3d8.dll`, translates D3D8->D3D9) plus **DXVK 1.10.3** `x32/d3d9.dll` and `dxgi.dll` (last 1.x:
+     needs only Vulkan 1.1; hasvk reports 1.2; 2.x needs 1.3 and D3D8 inside DXVK 2.4+ likewise) in
+     the game folder, and `WINEDLLOVERRIDES="d3d8,d3d9,dxgi=n,b"` in its launcher. Result: ~39 fps,
+     CPU ~45%. Downloads kept in `~/Games/tools/dxvk` (tarball sha256 `8d1a3c91...fd53c6`) and
+     `~/Games/tools/d3d8to9` (d3d8.dll sha256 `122928cf...f8ab8`); GitHub publishes no checksums, so
+     these are what we got, not verified against upstream. Check it is active with `DXVK_HUD=fps`
+     (overlay) and `DXVK_LOG_PATH=dir` (log names "Intel(R) HD Graphics (CHV)", Vulkan 1.2).
+     Revert: delete `d3d8.dll`, `d3d9.dll`, `dxgi.dll` from the game folder and the override line.
+  Launcher and files live outside the repo (`~/Games/installed/sam-max-101-culture-shock/`).
+  Likely applies to other D3D8/D3D9 games that are CPU-bound under wined3d on WoW64 (try d3d9-only
+  games with just DXVK 1.10.3).
 
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them
