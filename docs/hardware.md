@@ -113,7 +113,7 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     kernel's source from kernel.org (+ Arch's i915 changes), applies the patches and compiles (**634 s on the
     Atom**). If that fails (patch no longer applies, download), DKMS installs nothing and the stock i915 is used.
     `scripts/update` and `/maintain` warn before a kernel update and offer to hold the kernel.
-    Boot menu (3 s): **Arch Linux** = patched; **Arch Linux (stock)** = initramfs with Arch's own modules
+    Boot menu (hold Space at power-on; or Pegasus Utilities "Reboot (stock display driver)"): **Arch Linux** = patched; **Arch Linux (stock)** = initramfs with Arch's own modules
     (`/usr/local/bin/gpd-stock-initramfs`, rebuilt by `95-gpd-stock-initramfs.hook` after kernel/DKMS changes;
     stock i915, the audio modules still come patched from disk). Remove the patch: `kernel/i915/uninstall-dkms.sh`.
     Note: DKMS moves the replaced stock modules to `/var/lib/dkms/<pkg>/original_module/` (restored on

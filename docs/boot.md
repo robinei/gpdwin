@@ -4,8 +4,10 @@
 - GPT on the eMMC: p1 512 MiB ESP mounted at `/boot` (FAT32, kernels live here), p2 4 GiB swap,
   p3 ext4 `/`. fstab and the boot entry use UUIDs.
 - systemd-boot (`systemd-boot-update.service` enabled). `loader.conf`: `timeout 0`,
-  `console-mode keep`, `editor no`. Since 2026-10-09 the EFI variable `LoaderConfigTimeout` = 3 s
-  overrides it (`sudo bootctl set-timeout 3`; revert `set-timeout 0`), default `arch.conf`. Second entry
+  `console-mode keep`, `editor no`. Menu hidden (timeout 0): **hold Space while powering on** to get it. From
+  the running system: `systemctl reboot --boot-loader-entry=arch-stock.conf` (one boot with the stock entry;
+  Pegasus Utilities "Reboot (stock display driver)", sudoers `22-boot-stock`) or
+  `systemctl reboot --boot-loader-menu=10` (menu for 10 s once). Default `arch.conf`. Second entry
   `arch-stock.conf` = `initramfs-linux-stock.img` with Arch's own modules (stock i915) as fallback for the
   patched i915 (docs/hardware.md "Display"); built by `/usr/local/bin/gpd-stock-initramfs` (pacman hook
   `95-gpd-stock-initramfs.hook`). Entry `arch.conf`: `linux` kernel, options

@@ -346,3 +346,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   is patched; new fallback entry `arch-stock.conf` with a stock-module initramfs (`gpd-stock-initramfs`, hook
   `95-gpd-stock-initramfs.hook`, both in manifest). `scripts/update` and `/maintain` warn before kernel updates
   and can hold the kernel. Revert: `kernel/i915/uninstall-dkms.sh`, delete `arch-stock.conf`, `bootctl set-timeout 0`.
+- 2026-10-09: boot menu timeout back to 0 (EFI override removed; hold Space at power-on for the menu). New Pegasus
+  utility "Reboot (stock display driver)" (`pegasus/utils/tools/stock-boot.sh`, sudoers `22-boot-stock`).

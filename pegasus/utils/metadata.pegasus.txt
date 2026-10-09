@@ -48,6 +48,11 @@ file: tools/retroarch.sh
 assets.boxFront: media/retroarch.png
 description: RetroArch settings, shaders and online updater.
 
+game: Reboot (stock display driver)
+file: tools/stock-boot.sh
+assets.boxFront: media/bios.png
+description: Reboot once into the boot entry "Arch Linux (stock)" (Arch's own i915, without the DSI split fix). Asks for confirmation first.
+
 game: BIOS Setup
 file: tools/bios.sh
 assets.boxFront: media/bios.png
