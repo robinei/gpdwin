@@ -113,29 +113,43 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   (a hang there could block resume; the hook was added and removed again the same day).
   Safe manual fix: plug something into the jack and pull it out, or reboot.
 
-### Audio broken after an aborted hibernate: codec reset without re-init (2026-10-09)
-- Symptoms 2026-10-09: speaker silent although the whole path was powered and unmuted (DAPM Ext Spk,
-  SPK amp, SPOL, DAC L1 On); headphones gave static instead of the tone; plugging/unplugging a
-  plug changed nothing (the `chtrt5645 Headset` input switch stayed "headphone+mic inserted"); a
-  real s2idle suspend did not help; `scripts/audio-speaker` only fixes the routing. Only a reboot
-  fixed it (after it: jack switch follows the plug, speaker/headphone sinks switch by themselves).
-- Cause (from `scripts/audio-snapshot`, bad vs good, codec registers via debugfs regmap): the codec had
-  been reset to power-on defaults and not re-initialised. In the bad state `0xbd` (RT5645_IRQ_CTRL2,
-  jack-detect IRQ enable/polarity) was 0 in hardware *and* in the regmap cache (good: `0x0280`), so no
-  jack interrupt was ever delivered and the switch stayed stuck at "inserted"; `0x8a` (clock/ASRC)
-  read 0 in hardware while the cache said `0x0120`, so the DAC clock did not match the 48 kHz I2S
-  stream (static); `0xf8` (JD_CTRL3) had extra bits (`70f0` vs `00f0`). Good vs bad also differs in
-  routing registers (0x01/0x02/0x61-0x66) simply because headphones vs speaker were in use.
-  Registers `0xe0`, `0xe7`, `0x100` differ between cache and hardware in the good state too (volatile).
-- Likely trigger: the hibernate attempt on 10-08 22:42 failed (an i2c read from the PMIC
-  `intel_cht_wc_pmic_update_power`, from `acpi_resume_power_resources`) and the SST DSP logged
-  `sst: Busy wait failed, can't send this msg` (19:04 on 10-08 and 11:22 on 10-09). The first
-  hibernate-then-resume on 10-08 also left the jack stuck. So hibernate (the 30 min suspend-then-
-  hibernate) can leave the codec in this state: if sound is gone and the jack ignores plugs, don't
-  spend time on routing, reboot.
-- Not tried: re-init without reboot (rebinding the codec hung the kernel once; rebinding only
-  `cht-bsw-rt5645` didn't help once); writing the lost registers back (`0xbd`, `0x8a`, ...) with
-  i2c tools. `scripts/audio-snapshot LABEL` captures the state (needs sudo, plays a tone) for diffing.
+### Audio broken after hibernate: codec not restored (kernel driver bug, 2026-10-09)
+- Symptoms after any hibernate: speaker silent although the whole path is powered and unmuted,
+  headphones give static instead of sound, plugging/unplugging does nothing (the `chtrt5645 Headset`
+  input switch stays "headphone+mic inserted"). `scripts/audio-speaker` only fixes routing; a
+  reboot, or reloading the sound card (below), fixes it. Not an aborted hibernate: the machine
+  really powers off and resumes (the `acpi_resume_power_resources` / `P18W._ON` warning and "i2c
+  Transfer while suspended" in the log are a separate, harmless resume-path error: P18W is a PMIC
+  1.8 V rail for the SD controller/cameras, not the codec; the codec's only power resource is CLK3).
+- Root cause, shown with a trace of the whole hibernate (events `power:device_pm_callback_*` and
+  `regmap:*` filtered to the codec, see below): the codec loses power; on `[restore]` the driver
+  (`rt5645_sys_resume`) runs `regcache_sync()`, which writes ~30 registers but skips (a) registers
+  whose cached value equals the reset default in its defaults table (it assumes a freshly reset
+  chip, but the power-on value of e.g. `0x8a` ASRC_4 is 0, the table says `0x0120`: ASRC stays off,
+  so the DAC clock does not match the 48 kHz I2S stream: static), and (b) volatile registers, which
+  are not cached at all: `IRQ_CTRL2` (`0xbd`, the jack-detect interrupt enable, set once in probe)
+  and `A_JD_CTRL1`. With `0xbd` = 0 no jack interrupt ever fires, so the jack state is frozen.
+  Evidence: codec registers via `/sys/kernel/debug/regmap/i2c-10EC5645:00-nocache/registers`
+  (`0bd: 0000`, `08a: 0000` after, `0280` / `0120` before) and `scripts/audio-snapshot`.
+- Workaround that works without a reboot: stop PipeWire/WirePlumber, `modprobe -r
+  snd_soc_sst_cht_bsw_rt5645` (also unloads the codec), `modprobe snd_soc_sst_cht_bsw_rt5645`, start
+  PipeWire (re-probes the codec; stop PipeWire first, unbinding with the card open hung the kernel once).
+  Writing only the lost registers (`0xbd`, `0x8a`, `0x83`, `0xf8`) with `i2ctransfer -f -y 1 w3@0x1a REG HI LO`
+  fixed the jack but not the sound (private registers can't be read back).
+- Proper fix: `kernel/rt5645/` (patch against the 7.2.9 `sound/soc/codecs/rt5645.c` + `build.sh`):
+  a `.restore` PM handler that soft-resets the codec, resyncs the cache and redoes the jack setup
+  (`rt5645_jd_init()`, factored out of probe). `kernel/rt5645/build.sh` builds `build/snd-soc-rt5645.ko`
+  against `linux-headers` (does not load anything). Status: builds; NOT yet loaded/tested (loading a
+  self-built module as root needs the user's go-ahead); worth sending upstream (alsa-devel, Realtek
+  rt5645 maintainers) once it is proven.
+- Reproduce and trace: `sudo systemctl hibernate`, power on, compare `scripts/audio-snapshot`
+  dirs. Tracing: `/sys/kernel/tracing/events/regmap/{regmap_reg_write,regcache_sync,regmap_cache_only}`
+  with filter `name == "i2c-10EC5645:00"` and `events/power/device_pm_callback_{start,end}` with
+  `device ~ "*10EC5645*" || device ~ "*808622A8*" || device ~ "*cht-bsw*"`.
+- Loudness check without ears: play a 440 Hz tone at 100% and record the internal mic
+  (`pw-record --target alsa_input.platform-cht-bsw-rt5645.HiFi__Mic__source`): -31.0 dBFS on 2026-10-09
+  after a card reload (compare after changes). The reported volume looked "low" after the reload; all
+  codec/DSP gain registers equalled the pre-hibernate ones, cause not found.
 
 ### Quick fix: `scripts/audio-speaker` (2026-10-09)
 - Recurred on 2026-10-09 with no plug/unplug by anyone: stale "headphones plugged in" since the

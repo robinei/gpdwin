@@ -261,3 +261,12 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Root cause still unknown (docs/hardware.md "Display"). Revert: remove the tmpfiles file
   (`sudo rm /etc/tmpfiles.d/display-underrun.conf`, reboot or `chmod 600` the BAR), `git revert` the
   inputd change, `scripts/sync install`, restart inputd.
+
+## 2026-10-09 — audio after hibernate: root cause found, driver patch prepared
+- Traced the hibernate/restore of the RT5645 codec (see docs/hardware.md "Audio broken after hibernate"):
+  the driver's `regcache_sync()` skips default-valued and volatile registers, so after the power loss the
+  jack interrupt (0xbd) and the ASRC (0x8a) stay off. Wrote `kernel/rt5645/` (patch for 7.2.9 + `build.sh`):
+  not loaded yet. Manual workaround: reload the sound card (stop PipeWire, modprobe -r/modprobe
+  `snd_soc_sst_cht_bsw_rt5645`), tested OK.
+- Installed for debugging (official repo): `perf`, `intel-gpu-tools`, `i2c-tools`, `alsa-utils`, `acpica`,
+  `linux-headers` (needed to build the module). Remove with `pacman -Rns` when not needed.
