@@ -1,0 +1,866 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 21:30:00 +0200
+Subject: [PATCH] drm/i915/dsi: Resync the DPI FIFO after a lone underrun on VLV/CHV
+
+EXPERIMENT, applies on top of 0011 (keeps its logging), not for upstream as is.
+
+Model from the 0011 data (GPD Win 1, CHV, 720x1280 video mode): the MIPI
+port's timing generator paces the pipe through the DPI FIFO. An underrun
+leaves the pipe k bytes behind. If k fits in the FIFO the pipe finishes its
+frame in the TG's vertical blanking and k stale bytes remain in the FIFO:
+every later frame is sent k bytes late (split picture, rotated colors). If
+k does not fit, the pipe cannot finish its last line, misses the TG's frame
+start, parks on scanline 1279 for one frame (second underrun when the TG
+runs dry, frame counter +1 over two frame times) and restarts aligned (the
+flash). 7/7 pairs realigned, 2/2 lone underruns split.
+
+This patch:
+- classifies each underrun as PAIR (second underrun or pipe stall within
+  60 ms) or LONE, with a pipe stall detector (hardware position vs time);
+- samples MIPI_GEN_FIFO_STAT DPI_FIFO_EMPTY a few lines into the pipe's
+  vertical blanking from a drm_vblank_work (aligned: empty, misaligned: the
+  k stale bytes) and logs state changes;
+- on a LONE underrun (vlv_dsi_resync=1, default; =2 on the detector; =3
+  both; =0 log only) performs a resync under the crtc and plane modeset
+  locks after the previous commit's hw_done/flip_done:
+  method 1 (default): planes off, pipe off, dwell inside the next TG frame
+    so the TG drains the FIFO, pipe on (restarts at the next TG frame
+    start), planes on: what the hardware does by itself in a flash;
+  method 2 (vlv_dsi_resync_method=2): DPI_ENABLE off, wait for DPI FIFO
+    empty, DPI_ENABLE on (the modeset's port restart, lower risk, drain
+    not guaranteed);
+  and logs each attempt, the pipe/FIFO state during it, and after 1 s
+  whether the vblank samples say aligned.
+No panel command, no panel power sequence, no write to MIPI_HS_TX_TIMEOUT
+or to MIPI_INTR_STAT bits other than DPI_FIFO_UNDERRUN. All waits bounded.
+Parameters are writable at runtime (/sys/module/i915/parameters/).
+---
+diff --git a/drivers/gpu/drm/i915/display/intel_dsi.h b/drivers/gpu/drm/i915/display/intel_dsi.h
+--- a/drivers/gpu/drm/i915/display/intel_dsi.h
++++ b/drivers/gpu/drm/i915/display/intel_dsi.h
+@@ -24,10 +24,12 @@
+ #ifndef _INTEL_DSI_H
+ #define _INTEL_DSI_H
+ 
++#include <linux/ktime.h>
+ #include <linux/workqueue.h>
+ 
+ #include <drm/drm_crtc.h>
+ #include <drm/drm_mipi_dsi.h>
++#include <drm/drm_vblank_work.h>
+ 
+ #include "intel_display_types.h"
+ 
+@@ -45,10 +47,47 @@
+ struct intel_dsi {
+ 	struct intel_encoder base;
+ 
+-	/* EXPERIMENT: per-underrun logging of MIPI_INTR_STAT DPI_FIFO_UNDERRUN */
+-	struct delayed_work underrun_work;
+-	enum pipe underrun_pipe;
+-	unsigned int underrun_count;
++	/*
++	 * EXPERIMENT (0011/0012): DPI FIFO underrun logging, pipe stall
++	 * detection, DPI-FIFO-in-vblank alignment detector and resync.
++	 */
++	struct vlv_dsi_ur {
++		struct delayed_work underrun_work;	/* 5 ms poll */
++		struct work_struct resync_work;		/* takes modeset locks */
++		struct drm_vblank_work fifo_work;	/* samples DPI FIFO state in vblank */
++		struct intel_crtc *crtc;
++		enum pipe pipe;
++		bool enabled;
++		ktime_t enable_t;
++		/* pipe timing for position arithmetic */
++		int vtotal, vblank_start_raw, line_ns;
++		/* underrun log */
++		unsigned int underrun_count;
++		/* position samples (one per poll) */
++		struct { ktime_t t; s64 pos; } sample[16];
++		unsigned int sample_idx, sample_count;
++		bool stall_cand, stalled;
++		unsigned int stall_count;
++		ktime_t last_stall_t;
++		/* lone/pair classification of underruns */
++		bool pend;
++		ktime_t pend_t;
++		unsigned int pend_count, pend_no;
++		unsigned int lone_count, pair_count;
++		/* DPI FIFO empty in vblank detector (written by fifo_work) */
++		bool fifo_pending, fifo_new;
++		ktime_t fifo_last_sched, fifo_fast_until;
++		unsigned int fifo_samples, fifo_nonempty, fifo_invalid;
++		u32 fifo_hist, fifo_last_stat, fifo_last_raw;
++		unsigned int fifo_hist_n;
++		int fifo_state;				/* -1 unknown, 0 aligned, 1 misaligned */
++		/* resync */
++		bool resync_pending, resync_running, post_pending;
++		int resync_trigger;
++		unsigned int resync_trigger_no, resync_count, resync_fail;
++		ktime_t last_resync_t;
++		unsigned int post_underruns, post_stalls, post_samples, post_nonempty;
++	} ur;
+ 
+ 	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
+ 	struct ref_tracker *io_wakeref[I915_MAX_PORTS];
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -23,15 +23,24 @@
+  * Author: Jani Nikula <jani.nikula@intel.com>
+  */
+ 
++#include <linux/delay.h>
+ #include <linux/dmi.h>
++#include <linux/iopoll.h>
++#include <linux/math64.h>
++#include <linux/module.h>
++#include <linux/moduleparam.h>
+ #include <linux/slab.h>
++#include <linux/string_choices.h>
+ 
++#include <drm/drm_atomic.h>
+ #include <drm/drm_atomic_helper.h>
+ #include <drm/drm_crtc.h>
+ #include <drm/drm_edid.h>
+ #include <drm/drm_mipi_dsi.h>
+ #include <drm/drm_print.h>
+ #include <drm/drm_probe_helper.h>
++#include <drm/drm_vblank.h>
++#include <drm/drm_vblank_work.h>
+ 
+ #include "intel_atomic.h"
+ #include "intel_backlight.h"
+@@ -44,8 +53,10 @@
+ #include "intel_dsi.h"
+ #include "intel_dsi_vbt.h"
+ #include "intel_fifo_underrun.h"
++#include "intel_modeset_lock.h"
+ #include "intel_panel.h"
+ #include "intel_pfit.h"
++#include "intel_plane.h"
+ #include "skl_scaler.h"
+ #include "vlv_dsi.h"
+ #include "vlv_dsi_pll.h"
+@@ -720,35 +731,665 @@
+  * the pre_enable hook instead of the enable hook.
+  */
+ /*
+- * EXPERIMENT (diagnostic): the DPI FIFO underrun bit is a sticky latch that
+- * nothing reads. Poll it, log each occurrence with the pipe's frame counter
+- * and scanline, and clear only that bit (write 1 to clear). Clearing other
+- * bits (e.g. HS TX timeout) can start recovery actions, so they are left alone.
++ * EXPERIMENT (0011 diagnostic + 0012 resync), VLV/CHV video mode only.
++ *
++ * Model (GPD Win 1 data, 2026-10-09): the MIPI port's timing generator (TG)
++ * paces the pipe through the DPI FIFO. A DPI FIFO underrun means the pipe fell
++ * behind the TG by k bytes. If k fits in the FIFO the pipe finishes its frame
++ * during the TG's vertical blanking and k stale bytes stay in the FIFO; every
++ * following frame is sent k bytes late (picture split, colors rotated when k
++ * is not a multiple of 3) until something drains the FIFO. If k does not fit,
++ * the pipe cannot finish its last line, misses the TG's frame start, parks on
++ * the last active line for one frame (second underrun latched when the TG
++ * drains the stale bytes and runs dry, frame counter +1 over two frame
++ * times), and restarts aligned: the "flash".
++ *
++ * 0011: poll MIPI_INTR_STAT every 5 ms, log each DPI FIFO underrun with frame
++ * counter and scanline, clear only that bit (write 1 to clear; clearing other
++ * bits such as HS TX timeout can start recovery actions).
++ *
++ * 0012: classify each underrun as pair (second underrun or pipe stall within
++ * 60 ms: hardware realigned by itself) or lone (misaligned); sample the DPI
++ * FIFO empty flag (MIPI_GEN_FIFO_STAT bit 28) a few lines into the pipe's
++ * vertical blanking from a vblank work (aligned: empty; misaligned: k stale
++ * bytes, not empty); and on a lone underrun (or on the detector, see the
++ * vlv_dsi_resync parameter) do what the hardware does by accident: let the
++ * TG read one frame while the pipe writes none.
++ *   method 1 "pipe skip": planes off, pipe off (takes effect at frame end),
++ *     dwell inside the next TG frame (FIFO drains), pipe on (restarts at the
++ *     next TG frame start), planes on. One garbage frame + one black frame.
++ *   method 2 "port restart": DPI_ENABLE off (TG finishes the frame per
++ *     IP_TG_CONFIG), wait for DPI FIFO empty, DPI_ENABLE on. Lower risk, may
++ *     not drain the FIFO (unknown whether a TG restart resets it).
++ * Everything runs under the crtc and plane modeset locks after the previous
++ * commit's hw_done/flip_done, so it cannot race a commit; all waits are
++ * bounded; no panel command or power sequence is used.
+  */
++static int vlv_dsi_resync = 1;
++module_param_named(vlv_dsi_resync, vlv_dsi_resync, int, 0644);
++MODULE_PARM_DESC(vlv_dsi_resync,
++		 "VLV/CHV DSI DPI FIFO resync trigger: 0=log only, 1=lone underrun (default), 2=DPI FIFO not empty in vblank, 3=both");
++
++static int vlv_dsi_resync_method = 1;
++module_param_named(vlv_dsi_resync_method, vlv_dsi_resync_method, int, 0644);
++MODULE_PARM_DESC(vlv_dsi_resync_method,
++		 "VLV/CHV DSI resync method: 1=pipe skip (planes+pipe off for one frame, default), 2=DSI port timing generator restart");
++
++static int vlv_dsi_resync_max = 50;
++module_param_named(vlv_dsi_resync_max, vlv_dsi_resync_max, int, 0644);
++MODULE_PARM_DESC(vlv_dsi_resync_max,
++		 "VLV/CHV DSI: maximum number of automatic resyncs per boot (default 50)");
++
++static int vlv_dsi_resync_dwell_us = 3000;
++module_param_named(vlv_dsi_resync_dwell_us, vlv_dsi_resync_dwell_us, int, 0644);
++MODULE_PARM_DESC(vlv_dsi_resync_dwell_us,
++		 "VLV/CHV DSI resync method 1: time the pipe stays off after it turned off, us (default 3000)");
++
++#define UR_POLL_MS		5
++#define UR_WINDOW_NS		(60 * NSEC_PER_MSEC)	/* pair/lone decision after the first underrun */
++#define UR_STALL_LOOKBACK	9			/* polls (~45 ms) */
++#define UR_FIFO_IDLE_NS		(250 * NSEC_PER_MSEC)	/* detector cadence when nothing happens */
++#define UR_FIFO_FAST_NS		(1000 * NSEC_PER_MSEC)	/* every poll for 1 s after an event */
++#define UR_FIFO_LINE_MIN	3			/* lines after vblank start: FIFO drained when aligned */
++#define UR_FIFO_LINE_MAX	24
++#define UR_RESYNC_MIN_GAP_NS	(2 * NSEC_PER_SEC)
++
++static const char *const ur_trigger_name[] = { "none", "lone underrun", "fifo detector", "post-check" };
++
++/* 0 = first line of vblank (frame counter increments there), increasing */
++static int vlv_dsi_ur_line(struct vlv_dsi_ur *ur, u32 raw)
++{
++	return (raw + ur->vtotal - ur->vblank_start_raw) % ur->vtotal;
++}
++
++static s64 vlv_dsi_ur_position(struct intel_dsi *intel_dsi, u32 *frame_out, u32 *raw_out)
++{
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	u32 frame = intel_de_read(display, PIPE_FRMCOUNT_G4X(display, ur->pipe));
++	u32 raw = intel_de_read(display, PIPEDSL(display, ur->pipe)) & PIPEDSL_LINE_MASK;
++
++	if (frame_out)
++		*frame_out = frame;
++	if (raw_out)
++		*raw_out = raw;
++	return (s64)frame * ur->vtotal + vlv_dsi_ur_line(ur, raw);
++}
++
++static u32 vlv_dsi_ur_fifo_stat(struct intel_dsi *intel_dsi)
++{
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	enum port port;
++
++	for_each_dsi_port(port, intel_dsi->ports)
++		return intel_de_read(display, MIPI_GEN_FIFO_STAT(display, port));
++	return 0;
++}
++
++/* Runs on the vblank worker right after the vblank interrupt. */
++static void vlv_dsi_fifo_work(struct kthread_work *base)
++{
++	struct drm_vblank_work *work = to_drm_vblank_work(base);
++	struct intel_dsi *intel_dsi = container_of(work, struct intel_dsi, ur.fifo_work);
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	u32 raw, raw2, stat;
++	int line, i;
++
++	raw = intel_de_read(display, PIPEDSL(display, ur->pipe)) & PIPEDSL_LINE_MASK;
++	line = vlv_dsi_ur_line(ur, raw);
++	/* give the TG time to drain the last active line (a few lines at most) */
++	for (i = 0; i < 12 && line < UR_FIFO_LINE_MIN; i++) {
++		udelay(5);
++		raw = intel_de_read(display, PIPEDSL(display, ur->pipe)) & PIPEDSL_LINE_MASK;
++		line = vlv_dsi_ur_line(ur, raw);
++	}
++	if (line < UR_FIFO_LINE_MIN || line > UR_FIFO_LINE_MAX) {
++		ur->fifo_invalid++;
++		goto out;
++	}
++	stat = vlv_dsi_ur_fifo_stat(intel_dsi);
++	raw2 = intel_de_read(display, PIPEDSL(display, ur->pipe)) & PIPEDSL_LINE_MASK;
++	if (vlv_dsi_ur_line(ur, raw2) > UR_FIFO_LINE_MAX + 1) {
++		ur->fifo_invalid++;
++		goto out;
++	}
++	ur->fifo_last_stat = stat;
++	ur->fifo_last_raw = raw;
++	ur->fifo_hist = (ur->fifo_hist << 1) | !(stat & DPI_FIFO_EMPTY);
++	if (ur->fifo_hist_n < 32)
++		ur->fifo_hist_n++;
++	ur->fifo_samples++;
++	if (!(stat & DPI_FIFO_EMPTY))
++		ur->fifo_nonempty++;
++	if (ur->post_pending) {
++		ur->post_samples++;
++		if (!(stat & DPI_FIFO_EMPTY))
++			ur->post_nonempty++;
++	}
++	ur->fifo_new = true;
++out:
++	ur->fifo_pending = false;
++}
++
++static void vlv_dsi_request_resync(struct intel_dsi *intel_dsi, int trigger, unsigned int no)
++{
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	ktime_t now = ktime_get();
++
++	if (ur->resync_pending || ur->resync_running)
++		return;
++	if (ur->resync_count + ur->resync_fail >= vlv_dsi_resync_max) {
++		drm_info(display->drm, "DSI resync limit (%d) reached, not resyncing (%s #%u)\n",
++			 vlv_dsi_resync_max, ur_trigger_name[trigger], no);
++		return;
++	}
++	if (ur->resync_count && ktime_sub(now, ur->last_resync_t) < UR_RESYNC_MIN_GAP_NS) {
++		drm_info(display->drm, "DSI resync rate limited (%s #%u)\n",
++			 ur_trigger_name[trigger], no);
++		return;
++	}
++	ur->resync_trigger = trigger;
++	ur->resync_trigger_no = no;
++	ur->resync_pending = true;
++	drm_info(display->drm, "DSI resync requested: %s #%u\n", ur_trigger_name[trigger], no);
++	schedule_work(&ur->resync_work);
++}
++
+ static void vlv_dsi_underrun_work(struct work_struct *work)
+ {
+ 	struct intel_dsi *intel_dsi =
+-		container_of(to_delayed_work(work), struct intel_dsi, underrun_work);
++		container_of(to_delayed_work(work), struct intel_dsi, ur.underrun_work);
+ 	struct intel_display *display = to_intel_display(&intel_dsi->base);
+-	enum pipe pipe = intel_dsi->underrun_pipe;
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	ktime_t now = ktime_get();
++	bool underrun = false;
++	u32 frame, raw;
++	s64 pos;
+ 	enum port port;
+ 
++	if (!ur->enabled)
++		return;
++
++	pos = vlv_dsi_ur_position(intel_dsi, &frame, &raw);
++
+ 	for_each_dsi_port(port, intel_dsi->ports) {
+ 		u32 stat = intel_de_read(display, MIPI_INTR_STAT(display, port));
+-		u32 frame, line;
+ 
+ 		if (!(stat & DPI_FIFO_UNDERRUN))
+ 			continue;
+ 
+-		frame = intel_de_read(display, PIPE_FRMCOUNT_G4X(display, pipe));
+-		line = intel_de_read(display, PIPEDSL(display, pipe)) & PIPEDSL_LINE_MASK;
+ 		intel_de_write(display, MIPI_INTR_STAT(display, port), DPI_FIFO_UNDERRUN);
+ 		drm_info(display->drm,
+-			 "DSI %c DPI FIFO underrun #%u: frame %u scanline %u INTR_STAT 0x%08x\n",
+-			 port_name(port), ++intel_dsi->underrun_count, frame, line, stat);
++			 "DSI %c DPI FIFO underrun #%u: frame %u scanline %u INTR_STAT 0x%08x%s\n",
++			 port_name(port), ++ur->underrun_count, frame, raw, stat,
++			 ur->resync_running ? " (during resync)" : "");
++		underrun = true;
++	}
++
++	/*
++	 * Pipe stall detection: hardware position (frame * vtotal + line)
++	 * against time, ~45 ms back. A lost frame shows as -vtotal lines,
++	 * confirmed by two consecutive polls (a sample in the 1/3 line where
++	 * the DSI scanline counter runs ahead of the frame counter could
++	 * glitch once).
++	 */
++	if (ur->sample_count >= UR_STALL_LOOKBACK + 1 && !ur->resync_running &&
++	    ktime_sub(now, ur->enable_t) > 2 * NSEC_PER_SEC) {
++		unsigned int oi = (ur->sample_idx + 16 - UR_STALL_LOOKBACK) % 16;
++		s64 dt = ktime_sub(now, ur->sample[oi].t);
++		s64 resid = (pos - ur->sample[oi].pos) - div_s64(dt, ur->line_ns);
++
++		if (resid < -(ur->vtotal * 6 / 10)) {
++			if (!ur->stall_cand) {
++				ur->stall_cand = true;
++			} else if (!ur->stalled) {
++				ur->stalled = true;
++				ur->stall_count++;
++				ur->last_stall_t = now;
++				if (ur->post_pending)
++					ur->post_stalls++;
++				drm_info(display->drm,
++					 "DSI pipe %c stall #%u: %lld lines lost over %lld us (frame %u scanline %u)%s\n",
++					 pipe_name(ur->pipe), ur->stall_count, -resid,
++					 div_s64(dt, 1000), frame, raw,
++					 ur->resync_running ? " (during resync)" : "");
++			}
++		} else {
++			ur->stall_cand = false;
++			ur->stalled = false;
++		}
++	}
++	ur->sample[ur->sample_idx].t = now;
++	ur->sample[ur->sample_idx].pos = pos;
++	ur->sample_idx = (ur->sample_idx + 1) % 16;
++	if (ur->sample_count < 16)
++		ur->sample_count++;
++
++	/* lone / pair classification */
++	if (underrun) {
++		if (ur->post_pending)
++			ur->post_underruns++;
++		if (!ur->resync_running) {
++			if (ur->pend) {
++				ur->pend_count++;
++			} else {
++				ur->pend = true;
++				ur->pend_t = now;
++				ur->pend_count = 1;
++				ur->pend_no = ur->underrun_count;
++			}
++			ur->fifo_fast_until = ktime_add(now, UR_FIFO_FAST_NS);
++		}
++	}
++	if (ur->pend && ktime_sub(now, ur->pend_t) >= UR_WINDOW_NS) {
++		bool stall = ur->stall_count &&
++			ktime_after(ur->last_stall_t, ktime_sub(ur->pend_t, 10 * NSEC_PER_MSEC));
++		const char *kind;
++
++		if (ur->pend_count >= 2) {
++			kind = "PAIR (hardware realigned)";
++			ur->pair_count++;
++		} else if (stall) {
++			kind = "lone + stall (treated as realigned)";
++			ur->pair_count++;
++		} else {
++			kind = "LONE (misaligned)";
++			ur->lone_count++;
++		}
++		drm_info(display->drm,
++			 "DSI underrun #%u classified: %s: %u underruns in %lld ms, stall %s; totals lone %u pair %u\n",
++			 ur->pend_no, kind, ur->pend_count,
++			 div_s64(ktime_sub(now, ur->pend_t), NSEC_PER_MSEC),
++			 str_yes_no(stall), ur->lone_count, ur->pair_count);
++		if (ur->pend_count < 2 && !stall && (vlv_dsi_resync & 1))
++			vlv_dsi_request_resync(intel_dsi, 1, ur->pend_no);
++		ur->pend = false;
++	}
++
++	/* DPI FIFO in vblank detector: evaluate new samples */
++	if (ur->fifo_new) {
++		ur->fifo_new = false;
++		if (ur->fifo_samples <= 6)
++			drm_info(display->drm,
++				 "DSI DPI FIFO vblank sample #%u: scanline %u empty %d GEN_FIFO_STAT 0x%08x\n",
++				 ur->fifo_samples, ur->fifo_last_raw,
++				 !!(ur->fifo_last_stat & DPI_FIFO_EMPTY), ur->fifo_last_stat);
++		if (ur->fifo_hist_n >= 3) {
++			int state = -1;
++
++			if ((ur->fifo_hist & 7) == 7)
++				state = 1;
++			else if ((ur->fifo_hist & 7) == 0)
++				state = 0;
++			if (state >= 0 && state != ur->fifo_state) {
++				drm_info(display->drm,
++					 "DSI DPI FIFO in vblank now %s (3 consecutive; last scanline %u GEN_FIFO_STAT 0x%08x; samples %u, non-empty %u, invalid %u)%s\n",
++					 state ? "NOT EMPTY: misaligned?" : "EMPTY: aligned",
++					 ur->fifo_last_raw, ur->fifo_last_stat,
++					 ur->fifo_samples, ur->fifo_nonempty, ur->fifo_invalid,
++					 ur->resync_running ? " (during resync)" : "");
++				ur->fifo_state = state;
++				if (state == 1 && (vlv_dsi_resync & 2) && !ur->resync_running)
++					vlv_dsi_request_resync(intel_dsi, 2, ur->fifo_samples);
++			}
++		}
++	}
++
++	/* schedule the next vblank sample */
++	if (!ur->fifo_pending && !ur->resync_running && !ur->resync_pending &&
++	    (ktime_before(now, ur->fifo_fast_until) ||
++	     ktime_sub(now, ur->fifo_last_sched) >= UR_FIFO_IDLE_NS)) {
++		u64 count = drm_crtc_vblank_count(&ur->crtc->base) + 1;
++
++		ur->fifo_pending = true;
++		ur->fifo_last_sched = now;
++		/* 1 = queued for that vblank; 0 = inmodeset or dropped, <0 = vblank off */
++		if (drm_vblank_work_schedule(&ur->fifo_work, count, true) != 1)
++			ur->fifo_pending = false;
++	} else if (ur->fifo_pending &&
++		   ktime_sub(now, ur->fifo_last_sched) > 200 * NSEC_PER_MSEC) {
++		/* cancelled by a vblank off we did not see */
++		ur->fifo_pending = false;
++	}
++
++	/* result of a resync, 1 s later */
++	if (ur->post_pending && !ur->resync_running &&
++	    ktime_sub(now, ur->last_resync_t) >= NSEC_PER_SEC) {
++		ur->post_pending = false;
++		drm_info(display->drm,
++			 "DSI resync #%u result after 1 s: vblank samples %u, non-empty %u (%s); underruns since %u, stalls since %u\n",
++			 ur->resync_count, ur->post_samples, ur->post_nonempty,
++			 ur->post_samples == 0 ? "no samples" :
++			 ur->post_nonempty == 0 ? "ALIGNED" :
++			 ur->post_nonempty == ur->post_samples ? "STILL MISALIGNED" : "mixed",
++			 ur->post_underruns, ur->post_stalls);
++		if (ur->post_samples && ur->post_nonempty == ur->post_samples &&
++		    (vlv_dsi_resync & 2))
++			vlv_dsi_request_resync(intel_dsi, 3, ur->resync_count);
++	}
++
++	schedule_delayed_work(&ur->underrun_work, msecs_to_jiffies(UR_POLL_MS));
++}
++
++static int vlv_dsi_ur_wait_pipe_moving(struct intel_dsi *intel_dsi, u32 raw_before, int timeout_ms)
++{
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	u32 raw;
++
++	return poll_timeout_us(raw = intel_de_read(display, PIPEDSL(display, ur->pipe)) & PIPEDSL_LINE_MASK,
++			       raw != raw_before, 200, timeout_ms * 1000, false);
++}
++
++static int vlv_dsi_ur_wait_frame(struct intel_dsi *intel_dsi, int timeout_ms)
++{
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	u32 frame0 = intel_de_read(display, PIPE_FRMCOUNT_G4X(display, ur->pipe));
++	u32 frame;
++
++	return poll_timeout_us(frame = intel_de_read(display, PIPE_FRMCOUNT_G4X(display, ur->pipe)),
++			       frame != frame0, 200, timeout_ms * 1000, false);
++}
++
++/*
++ * Method 1: planes off, pipe off (completes at the end of the current frame),
++ * dwell while the TG reads the FIFO empty, pipe on, planes on. Same order as
++ * i9xx_crtc_disable()/valleyview_crtc_enable() minus encoder, PLL and panel.
++ */
++static void vlv_dsi_resync_pipe(struct intel_dsi *intel_dsi,
++				const struct intel_crtc_state *crtc_state)
++{
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	struct intel_crtc *crtc = ur->crtc;
++	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
++	enum pipe pipe = crtc->pipe;
++	struct intel_plane *plane;
++	ktime_t t0 = ktime_get(), t_off = 0, t_on = 0;
++	u32 frame0, raw0, raw, stat0, stat_mid, istat, val, tmp;
++	unsigned int plane_mask = 0;
++	bool reporting, drained_underrun = false, off_ok, on_ok = false;
++	int attempt = 0, ret;
++	enum port port;
++
++	vlv_dsi_ur_position(intel_dsi, &frame0, &raw0);
++	stat0 = vlv_dsi_ur_fifo_stat(intel_dsi);
++
++	reporting = intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
++
++	for_each_intel_plane_on_crtc(display->drm, crtc, plane) {
++		const struct intel_plane_state *plane_state =
++			to_intel_plane_state(plane->base.state);
++
++		if (!plane_state->uapi.visible)
++			continue;
++		intel_plane_disable_arm(NULL, plane, crtc_state);
++		plane_mask |= BIT(plane->id);
++	}
++
++	/* pending cursor unpin works etc., as intel_atomic_commit_tail() does */
++	drm_vblank_work_flush_all(&crtc->base);
++	intel_crtc_vblank_off(crtc_state);
++
++	val = intel_de_read(display, TRANSCONF(display, cpu_transcoder));
++	intel_de_write(display, TRANSCONF(display, cpu_transcoder), val & ~TRANSCONF_ENABLE);
++	intel_de_posting_read(display, TRANSCONF(display, cpu_transcoder));
++	ret = poll_timeout_us(tmp = intel_de_read(display, TRANSCONF(display, cpu_transcoder)),
++			      !(tmp & TRANSCONF_STATE_ENABLE), 100, 100 * 1000, false);
++	t_off = ktime_get();
++	off_ok = ret == 0;
++
++	if (off_ok) {
++		/* the TG starts its next frame ~28 lines later and drains the FIFO */
++		usleep_range(vlv_dsi_resync_dwell_us, vlv_dsi_resync_dwell_us + 500);
++	}
++	stat_mid = vlv_dsi_ur_fifo_stat(intel_dsi);
++	for_each_dsi_port(port, intel_dsi->ports) {
++		istat = intel_de_read(display, MIPI_INTR_STAT(display, port));
++		if (istat & DPI_FIFO_UNDERRUN) {
++			intel_de_write(display, MIPI_INTR_STAT(display, port), DPI_FIFO_UNDERRUN);
++			drained_underrun = true;
++		}
++	}
++
++	for (attempt = 1; attempt <= 3; attempt++) {
++		raw = intel_de_read(display, PIPEDSL(display, pipe)) & PIPEDSL_LINE_MASK;
++		intel_de_write(display, TRANSCONF(display, cpu_transcoder), val | TRANSCONF_ENABLE);
++		intel_de_posting_read(display, TRANSCONF(display, cpu_transcoder));
++		ret = vlv_dsi_ur_wait_pipe_moving(intel_dsi, raw, 60);
++		t_on = ktime_get();
++		if (ret == 0) {
++			on_ok = true;
++			break;
++		}
++		drm_info(display->drm,
++			 "DSI resync: pipe %c did not start (attempt %d), toggling again\n",
++			 pipe_name(pipe), attempt);
++		intel_de_write(display, TRANSCONF(display, cpu_transcoder), val & ~TRANSCONF_ENABLE);
++		intel_de_posting_read(display, TRANSCONF(display, cpu_transcoder));
++		poll_timeout_us(tmp = intel_de_read(display, TRANSCONF(display, cpu_transcoder)),
++				!(tmp & TRANSCONF_STATE_ENABLE), 100, 100 * 1000, false);
++		usleep_range(2000, 2500);
++	}
++
++	intel_crtc_vblank_on(crtc_state);
++
++	for_each_intel_plane_on_crtc(display->drm, crtc, plane) {
++		const struct intel_plane_state *plane_state =
++			to_intel_plane_state(plane->base.state);
++
++		if (!(plane_mask & BIT(plane->id)))
++			continue;
++		intel_plane_update_noarm(NULL, plane, crtc_state, plane_state);
++		intel_plane_update_arm(NULL, plane, crtc_state, plane_state);
++	}
++
++	if (on_ok)
++		vlv_dsi_ur_wait_frame(intel_dsi, 50);
++	if (reporting)
++		intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
++
++	drm_info(display->drm,
++		 "DSI resync #%u (pipe skip, %s #%u): pre frame %u scanline %u fifo_empty %d | pipe off %s after %lld us | drained: fifo_empty %d underrun latched %d | pipe on %s attempt %d after %lld us | planes 0x%x | total %lld us\n",
++		 ur->resync_count + 1, ur_trigger_name[ur->resync_trigger], ur->resync_trigger_no,
++		 frame0, raw0, !!(stat0 & DPI_FIFO_EMPTY),
++		 off_ok ? "ok" : "TIMEOUT", ktime_us_delta(t_off, t0),
++		 !!(stat_mid & DPI_FIFO_EMPTY), drained_underrun,
++		 on_ok ? "ok" : "FAILED", attempt, ktime_us_delta(t_on, t_off),
++		 plane_mask, ktime_us_delta(ktime_get(), t0));
++	if (!on_ok)
++		ur->resync_fail++;
++}
++
++/*
++ * Method 2: restart the port's timing generator (DPI_ENABLE off/on, as the
++ * modeset does), waiting for the DPI FIFO to report empty in between.
++ */
++static void vlv_dsi_resync_port(struct intel_dsi *intel_dsi,
++				const struct intel_crtc_state *crtc_state)
++{
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	enum pipe pipe = ur->crtc->pipe;
++	ktime_t t0 = ktime_get(), t_empty, t_on;
++	u32 frame0, raw0, raw, stat0, stat;
++	bool reporting, empty_ok, on_ok;
++	int ret;
++
++	vlv_dsi_ur_position(intel_dsi, &frame0, &raw0);
++	stat0 = vlv_dsi_ur_fifo_stat(intel_dsi);
++
++	reporting = intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
++
++	intel_dsi_port_disable(&intel_dsi->base);
++	/* IP_TG_CONFIG: the TG finishes the current frame first (up to one frame) */
++	ret = poll_timeout_us(stat = vlv_dsi_ur_fifo_stat(intel_dsi),
++			      stat & DPI_FIFO_EMPTY, 100, 40 * 1000, false);
++	t_empty = ktime_get();
++	empty_ok = ret == 0;
++	usleep_range(2000, 3000);
++
++	raw = intel_de_read(display, PIPEDSL(display, pipe)) & PIPEDSL_LINE_MASK;
++	intel_dsi_port_enable(&intel_dsi->base, crtc_state);
++	ret = vlv_dsi_ur_wait_pipe_moving(intel_dsi, raw, 60);
++	t_on = ktime_get();
++	on_ok = ret == 0;
++	if (on_ok)
++		vlv_dsi_ur_wait_frame(intel_dsi, 50);
++	if (reporting)
++		intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
++
++	drm_info(display->drm,
++		 "DSI resync #%u (port restart, %s #%u): pre frame %u scanline %u fifo_empty %d | TG off, fifo empty %s after %lld us (GEN_FIFO_STAT 0x%08x) | TG on, pipe moving %s after %lld us | total %lld us\n",
++		 ur->resync_count + 1, ur_trigger_name[ur->resync_trigger], ur->resync_trigger_no,
++		 frame0, raw0, !!(stat0 & DPI_FIFO_EMPTY),
++		 empty_ok ? "yes" : "NO (timeout)", ktime_us_delta(t_empty, t0), stat,
++		 on_ok ? "yes" : "NO", ktime_us_delta(t_on, t_empty),
++		 ktime_us_delta(ktime_get(), t0));
++	if (!on_ok)
++		ur->resync_fail++;
++}
++
++static int vlv_dsi_resync_locked(struct intel_dsi *intel_dsi,
++				 struct drm_modeset_acquire_ctx *ctx)
++{
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct intel_encoder *encoder = &intel_dsi->base;
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	struct intel_crtc *crtc = ur->crtc;
++	const struct intel_crtc_state *crtc_state;
++	struct drm_crtc_commit *commit;
++	struct intel_plane *plane;
++	int ret;
++
++	if (!crtc)
++		return 0;
++
++	ret = drm_modeset_lock(&crtc->base.mutex, ctx);
++	if (ret)
++		return ret;
++	for_each_intel_plane_on_crtc(display->drm, crtc, plane) {
++		ret = drm_modeset_lock(&plane->base.mutex, ctx);
++		if (ret)
++			return ret;
++	}
++
++	crtc_state = to_intel_crtc_state(crtc->base.state);
++	if (!crtc_state->hw.active ||
++	    !(crtc_state->uapi.encoder_mask & drm_encoder_mask(&encoder->base)) ||
++	    !ur->enabled) {
++		drm_info(display->drm, "DSI resync skipped: crtc not active with this encoder\n");
++		return 0;
+ 	}
+ 
+-	schedule_delayed_work(&intel_dsi->underrun_work, msecs_to_jiffies(5));
++	/* the last commit on this crtc must be fully done with the hardware */
++	commit = crtc_state->uapi.commit;
++	if (commit &&
++	    (!wait_for_completion_timeout(&commit->hw_done, msecs_to_jiffies(200)) ||
++	     !wait_for_completion_timeout(&commit->flip_done, msecs_to_jiffies(200)))) {
++		drm_info(display->drm, "DSI resync skipped: previous commit still in flight\n");
++		return 0;
++	}
++
++	ur->resync_running = true;
++	/* no vblank work may be pending across drm_crtc_vblank_off() */
++	flush_delayed_work(&ur->underrun_work);
++	drm_vblank_work_cancel_sync(&ur->fifo_work);
++	ur->fifo_pending = false;
++
++	if (vlv_dsi_resync_method == 2)
++		vlv_dsi_resync_port(intel_dsi, crtc_state);
++	else
++		vlv_dsi_resync_pipe(intel_dsi, crtc_state);
++
++	ur->resync_count++;
++	ur->last_resync_t = ktime_get();
++	ur->sample_count = 0;
++	ur->stall_cand = false;
++	ur->stalled = false;
++	ur->pend = false;
++	ur->fifo_fast_until = ktime_add(ur->last_resync_t, UR_FIFO_FAST_NS);
++	ur->fifo_state = -1;
++	ur->fifo_hist_n = 0;
++	ur->post_underruns = 0;
++	ur->post_stalls = 0;
++	ur->post_samples = 0;
++	ur->post_nonempty = 0;
++	ur->post_pending = true;
++	ur->resync_running = false;
++	return 0;
++}
++
++static void vlv_dsi_resync_work(struct work_struct *work)
++{
++	struct intel_dsi *intel_dsi = container_of(work, struct intel_dsi, ur.resync_work);
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	struct drm_modeset_acquire_ctx ctx;
++	int ret;
++
++	intel_modeset_lock_ctx_retry(&ctx, NULL, 0, ret)
++		ret = vlv_dsi_resync_locked(intel_dsi, &ctx);
++
++	if (ret)
++		drm_info(display->drm, "DSI resync aborted: %pe\n", ERR_PTR(ret));
++	intel_dsi->ur.resync_pending = false;
++}
++
++static void vlv_dsi_ur_enable(struct intel_dsi *intel_dsi,
++			      const struct intel_crtc_state *crtc_state)
++{
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
++	const struct drm_display_mode *mode = &crtc_state->hw.adjusted_mode;
++
++	ur->crtc = crtc;
++	ur->pipe = crtc->pipe;
++	drm_vblank_work_init(&ur->fifo_work, &crtc->base, vlv_dsi_fifo_work);
++	ur->vtotal = mode->crtc_vtotal;
++	ur->vblank_start_raw = mode->crtc_vblank_start - 1;
++	ur->line_ns = mode->crtc_clock ?
++		div_u64((u64)mode->crtc_htotal * NSEC_PER_MSEC, mode->crtc_clock) : 12665;
++	ur->sample_idx = 0;
++	ur->sample_count = 0;
++	ur->stall_cand = false;
++	ur->stalled = false;
++	ur->pend = false;
++	ur->fifo_pending = false;
++	ur->fifo_new = false;
++	ur->fifo_last_sched = 0;
++	ur->fifo_fast_until = 0;
++	ur->fifo_hist_n = 0;
++	ur->fifo_state = -1;
++	ur->post_pending = false;
++	ur->enable_t = ktime_get();
++	ur->enabled = true;
++	schedule_delayed_work(&ur->underrun_work, msecs_to_jiffies(20));
++}
++
++static void vlv_dsi_ur_disable(struct intel_dsi *intel_dsi)
++{
++	struct vlv_dsi_ur *ur = &intel_dsi->ur;
++
++	ur->enabled = false;
++	cancel_delayed_work_sync(&ur->underrun_work);
++	drm_vblank_work_cancel_sync(&ur->fifo_work);
++	/*
++	 * resync_work is not cancelled here: it waits for the modeset locks a
++	 * blocking commit holds while running this, and once it gets them it
++	 * sees the crtc inactive (or ur->enabled false) and does nothing.
++	 */
++}
++
++static void vlv_dsi_encoder_destroy(struct drm_encoder *encoder)
++{
++	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(encoder));
++
++	cancel_work_sync(&intel_dsi->ur.resync_work);
++	cancel_delayed_work_sync(&intel_dsi->ur.underrun_work);
++	intel_encoder_destroy(encoder);
+ }
+ 
+ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
+@@ -847,10 +1488,8 @@
+ 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
+ 
+ 	if ((display->platform.valleyview || display->platform.cherryview) &&
+-	    is_vid_mode(intel_dsi)) {
+-		intel_dsi->underrun_pipe = pipe;
+-		schedule_delayed_work(&intel_dsi->underrun_work, 0);
+-	}
++	    is_vid_mode(intel_dsi))
++		vlv_dsi_ur_enable(intel_dsi, pipe_config);
+ }
+ 
+ static void bxt_dsi_enable(struct intel_atomic_state *state,
+@@ -876,7 +1515,7 @@
+ 
+ 	drm_dbg_kms(display->drm, "\n");
+ 
+-	cancel_delayed_work_sync(&intel_dsi->underrun_work);
++	vlv_dsi_ur_disable(intel_dsi);
+ 
+ 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
+ 	intel_backlight_disable(old_conn_state);
+@@ -1571,7 +2210,7 @@
+ }
+ 
+ static const struct drm_encoder_funcs intel_dsi_funcs = {
+-	.destroy = intel_encoder_destroy,
++	.destroy = vlv_dsi_encoder_destroy,
+ };
+ 
+ static enum drm_mode_status vlv_dsi_mode_valid(struct drm_connector *connector,
+@@ -1970,7 +2609,8 @@
+ 
+ 	encoder = &intel_dsi->base;
+ 	intel_dsi->attached_connector = connector;
+-	INIT_DELAYED_WORK(&intel_dsi->underrun_work, vlv_dsi_underrun_work);
++	INIT_DELAYED_WORK(&intel_dsi->ur.underrun_work, vlv_dsi_underrun_work);
++	INIT_WORK(&intel_dsi->ur.resync_work, vlv_dsi_resync_work);
+ 
+ 	drm_encoder_init(display->drm, &encoder->base, &intel_dsi_funcs,
+ 			 DRM_MODE_ENCODER_DSI, "DSI %c", port_name(port));
+-- 
+2.56.0
