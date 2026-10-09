@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 16:11:38 +0200
+Subject: [PATCH] drm/i915/dsi: Fix u16 overflow of MIPI_HS_TX_TIMEOUT on
+ VLV/CHV
+
+txbyteclkhs() takes and returns the pixel/byte-clock count as u16. For
+non-burst video mode intel_dsi_prepare() passes a whole frame,
+crtc_vtotal * crtc_htotal, to compute MIPI_HS_TX_TIMEOUT, which the
+comment above it says must be more than one DPI frame in byte clocks.
+Every panel with more than 65535 pixels per frame overflows.
+
+On a GPD Win 1 (Cherry Trail, 720x1280 DSI, 4 lanes, RGB888, non-burst
+with sync events, htotal 774, vtotal 1308) the frame is 1012392 pixels,
+truncated to 29352, so the register gets 0x55ff (22015 byte clocks,
+~0.48 ms, ~38 lines) instead of 0xb95ff (759295 byte clocks, one frame
+plus one). 0x55ff is the value read back from the hardware after a
+modeset by the driver, and the HS_TX_TIMEOUT status bit in
+MIPI_INTR_STAT is then found set.
+
+Widen the count and the return value of txbyteclkhs() and, for
+symmetry, pixels_from_txbyteclkhs() to u32, and do the multiplication
+in 64 bits: pixels * bpp * 100 exceeds 32 bits for frames above ~1.79M
+pixels (e.g. 1920x1200 with blanking). The per-segment callers
+(hactive/hfp/hsync/hbp) are unaffected.
+
+Fixes: 4e646495c615 ("drm/i915: add basic MIPI DSI output support")
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..a5d92ef 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -53,16 +53,16 @@
+ #include "vlv_sideband.h"
+ 
+ /* return pixels in terms of txbyteclkhs */
+-static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
++static u32 txbyteclkhs(u32 pixels, int bpp, int lane_count,
+ 		       u16 burst_mode_ratio)
+ {
+-	return DIV_ROUND_UP(DIV_ROUND_UP(pixels * bpp * burst_mode_ratio,
+-					 8 * 100), lane_count);
++	return DIV_ROUND_UP(DIV_ROUND_UP_ULL((u64)pixels * bpp * burst_mode_ratio,
++					     8 * 100), lane_count);
+ }
+ 
+ /* return pixels equivalent to txbyteclkhs */
+-static u16 pixels_from_txbyteclkhs(u16 clk_hs, int bpp, int lane_count,
+-			u16 burst_mode_ratio)
++static u32 pixels_from_txbyteclkhs(u32 clk_hs, int bpp, int lane_count,
++				   u16 burst_mode_ratio)
+ {
+ 	return DIV_ROUND_UP((clk_hs * lane_count * 8 * 100),
+ 						(bpp * burst_mode_ratio));
+-- 
+2.56.0
+

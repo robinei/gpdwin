@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 16:13:23 +0200
+Subject: [PATCH] drm/i915/dsi: Apply the 320 MHz minimum cdclk for DSI on CHV
+ too
+
+EXPERIMENT, not for upstream until tested.
+
+Commit c8dae55a8ced ("drm/i915/vlv: Add cdclk workaround for DSI") made
+DSI on Valleyview require a cdclk of at least 320000 kHz, because at
+266667 kHz a Chuwi Vi8 panel showed the image shifted with wraparound
+and sometimes wrong colors, the panel sampling the stream from mid-line.
+Cherryview has the same DSI block, but vlv_dsi_min_cdclk() returns 0
+for it.
+
+On a GPD Win 1 (Cherry Trail, 720x1280 DSI, 61.1 MHz pixel clock) the
+driver runs cdclk at 266667 kHz, and under load the picture
+intermittently ends up split (bottom part on top), sometimes with red
+and blue swapped, until the next modeset; MIPI_INTR_STAT then has
+DPI_FIFO_UNDERRUN latched while the pipe reports no FIFO underrun.
+
+Extend the minimum to Cherryview. 320000 kHz is the maximum cdclk there
+(intel_update_max_cdclk()), so it is always reachable.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..781af8e 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1761,10 +1761,10 @@ int vlv_dsi_min_cdclk(const struct intel_crtc_state *crtc_state)
+ 		return 0;
+ 
+ 	/*
+-	 * On Valleyview some DSI panels lose (v|h)sync when the clock is lower
+-	 * than 320000KHz.
++	 * On Valleyview and Cherryview some DSI panels lose (v|h)sync when the
++	 * clock is lower than 320000KHz.
+ 	 */
+-	if (display->platform.valleyview)
++	if (display->platform.valleyview || display->platform.cherryview)
+ 		return 320000;
+ 
+ 	/*
+-- 
+2.56.0
+
