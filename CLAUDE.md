@@ -59,6 +59,9 @@ The user is Robin (they/them).
   codec sometimes falsely reports a headphone plug (esp. after hibernate); the script forces the
   speaker profile and default sink. `scripts/audio-speaker auto` undoes it. Details and what
   doesn't work (suspend, codec unbind hangs the kernel): docs/hardware.md "Audio jack".
+- Never `pkill wineserver` (SIGTERM): it exits without stopping its helpers, leaving `services.exe`,
+  `winedevice.exe`, `explorer.exe /desktop` etc. orphaned (dozens after a test session, ~1 GB). Use
+  `wineserver -k`. Pegasus launchers (`exec wine`) and force-kill clean up fine by themselves.
 - Claude Code uses ~400 MB of RAM; don't run heavy work while a game is running.
 - Verify every edit took effect (grep the file afterwards) before documenting it. Some files
   have CRLF line endings (`/opt/zelda3-git/zelda3.ini`), so `sed` patterns ending in `$` miss.
