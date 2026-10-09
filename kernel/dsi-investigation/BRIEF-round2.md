@@ -104,3 +104,7 @@ Run each on the stock module (reboot normally first) with the residual flash det
   Flash rate unchanged; held split after ~11 min. No effect. (Note: Intel's formula (htotal*5ns*delay >= 8000 ns) gives 3, not 4; with the real 12.7 us line even
   delay 1 exceeds 8 us.) All round-2 patches (0006, 0007, 0008) refuted. Remaining: read-only/no-kernel tests E1-E3
   (PMIC-bus polling), flipping vs non-flipping client A/B, GEN_FIFO_STAT vs PIPEDSL sampling.
+- 2026-10-09 18:53-18:59: 0009 (video-mode BTA enabled, diagnostic). Panel acks with no error (bit 24). Through
+  flashes and a held split no panel error bit (0-13, 25, 26) and no TA timeout (23) ever latched; only bit 20.
+  => host-side fault: the DSI controller sends valid packets with byte-offset pixel data after a DPI FIFO
+  underrun. D-PHY/receiver margin (0010) ruled out as the mechanism; 0010 not tested.

@@ -54,6 +54,12 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
   began (Robin reported one at 17:21; smooth creep since 17:20:07). Flashes do show: each is one stalled frame
   (2 s windows at 16.6899 ms = one extra frame, 17:20:03 and 17:20:05), as with stock.
 
+## Panel side is clean (2026-10-09, patch 0009, diagnostic)
+With the video-mode BTA enabled the panel acknowledges every frame (MIPI_INTR_STAT bit 24 ACK With No Error). Through
+flashes and a held split it never reported a receive error (SoT/EoT sync, ECC, checksum, protocol: bits 0-13, 25, 26)
+and never missed a turnaround (bit 23). The panel gets a protocol-clean stream; the misalignment is in the pixel data
+the host packs after a DPI FIFO underrun. Round-2 patch results (0006-0008, all no effect) are in `BRIEF-round2.md`.
+
 ## CONFIRMED bug
 
 ### 1. `MIPI_HS_TX_TIMEOUT` truncated to 16 bits (patch 0001)
