@@ -59,6 +59,11 @@ The user is Robin (they/them).
   codec sometimes falsely reports a headphone plug (esp. after hibernate); the script forces the
   speaker profile and default sink. `scripts/audio-speaker auto` undoes it. Details and what
   doesn't work (suspend, codec unbind hangs the kernel): docs/hardware.md "Audio jack".
+- Never unload/unbind the sound codec at runtime (`rmmod snd_soc_rt5645`, unbinding `i2c-10EC5645:00`):
+  it hangs the unload for good (`rt5645_i2c_remove` waits for `rt5645_jack_detect_work`, `rmmod` stuck in
+  D state, only a reboot clears it; seen twice, the second time after a kernel oops in that work).
+  Reloading just `snd_soc_sst_cht_bsw_rt5645` (while PipeWire is stopped) worked once on a fresh boot.
+  Test kernel module changes by installing them (DKMS / `updates/`) and rebooting, not by live swapping.
 - Never `pkill wineserver` (SIGTERM): it exits without stopping its helpers, leaving `services.exe`,
   `winedevice.exe`, `explorer.exe /desktop` etc. orphaned (dozens after a test session, ~1 GB). Use
   `wineserver -k`. Pegasus launchers (`exec wine`) and force-kill clean up fine by themselves.

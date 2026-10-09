@@ -149,6 +149,12 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   PipeWire (re-probes the codec; stop PipeWire first, unbinding with the card open hung the kernel once).
   Writing only the lost registers (`0xbd`, `0x8a`, `0x83`, `0xf8`) with `i2ctransfer -f -y 1 w3@0x1a REG HI LO`
   fixed the jack but not the sound (private registers can't be read back).
+- Live module swapping is not safe (2026-10-09): replacing `snd_soc_rt5645` by `insmod` of the patched
+  module while the machine was running hung twice. Unloading the codec waits in `rt5645_i2c_remove` ->
+  `cancel_delayed_work_sync(jack_detect_work)` forever (`rmmod` in D state), after the kernel oops'd in
+  `rt5645_jack_detect_work` (page fault in `mutex_lock`, the DSP was wedged and the work hit
+  `PRE_PMD ... event failed: -16` errors). Only a reboot clears it. So test the patches by installing them
+  in `/usr/lib/modules/$(uname -r)/updates/` (or DKMS) and rebooting.
 - Proper fix: `kernel/rt5645/` (patch against the 7.2.9 `sound/soc/codecs/rt5645.c` + `build.sh`):
   a `.restore` PM handler that soft-resets the codec, redoes the one-time setup of probe (now
   `rt5645_hw_init()`, used by probe and restore) and then resyncs the cache. v1 only redid the jack
