@@ -17,7 +17,19 @@ sudo -v || exit 1
 before=$(pacman -Q)
 
 echo; echo "== Repo packages"
-sudo pacman -Syu
+if checkupdates 2>/dev/null | grep -q '^linux '; then
+    echo "Kernel update pending ($(checkupdates 2>/dev/null | grep '^linux ')). The patched display driver"
+    echo "(DKMS gpd-i915, docs/hardware.md \"Display\") is then rebuilt on this device during the update:"
+    echo "about 10-15 minutes of full CPU load (download ~150 MB + compile). If that build fails, the stock"
+    echo "driver is used until the patches are updated (lasting split pictures possible again)."
+    if ask "Update the kernel now? (N = update everything else, keep the current kernel)"; then
+        sudo pacman -Syu
+    else
+        sudo pacman -Syu --ignore linux,linux-headers
+    fi
+else
+    sudo pacman -Syu
+fi
 
 echo; echo "== AUR packages"
 scripts/aur check
