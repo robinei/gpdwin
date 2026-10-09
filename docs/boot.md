@@ -20,10 +20,9 @@
   image.
 - Autologin: `getty@tty1` drop-in `autologin.conf` (`-o '-p -f -- \\u' --skip-login --noissue --nohostname
   --nonewline --autologin robin`: no banner or login line, and the screen is cleared); `~/.hushlogin` hides
-  "Last login"; no shutdown watchdog
-  (`system.conf.d/90-gpd.conf` `RebootWatchdogSec=0`: its "watchdog did not stop!" lines are gone,
-  but a hung shutdown is no longer force-rebooted after 10 min);
-  fish `conf.d/sway.fish` runs `exec sway` on tty1. Sway gets its seat from seatd.
+  "Last login"; fish `conf.d/sway.fish` runs `exec sway` on tty1. Sway gets its seat from seatd.
+- Shutdown: no hardware watchdog (`system.conf.d/90-gpd.conf` `RebootWatchdogSec=0`), so no
+  "watchdog did not stop!" lines; a hung shutdown is no longer force-rebooted after 10 min.
 
 ## Timings (`systemd-analyze`)
 | Boot | Firmware | Loader | Kernel | Initrd | Userspace | Total | getty@tty1 at |
