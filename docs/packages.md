@@ -12,6 +12,8 @@ truth; this explains the choices.
   (robin in group `realtime`, so PipeWire gets RT scheduling without RTKit/polkit) (all explicit;
   pulse and ALSA apps both need their PipeWire bridge).
 - Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus.
+- PSP: standalone `ppsspp` (SDL build, `PPSSPPSDL`; pulls `ppsspp-assets`, `openxr`, `libzip`,
+  `miniupnpc`), installed 2026-10-09. Not in Pegasus yet.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
 - Multilib (enabled 2026-10-07, `system/etc/pacman.conf`) for 32-bit-only native Linux ports
   (e.g. Psychonauts): lib32 glibc/gcc-libs (now in core), mesa, libglvnd, vulkan loader + intel,
