@@ -119,3 +119,6 @@ Run each on the stock module (reboot normally first) with the residual flash det
   and both split recoveries: 19:20:42, 19:25:25). 2 LONE underruns (scanline 89 at 19:18:12, 1152 at 19:25:20; no 1279
   underrun, no stall) -> split both times, held until the next pair (2.5 min, 4 s). No underruns at all during a held
   split. Logs: `data/trace-2026-10-09/underruns-0011.log`, `period-0011.log`.
+- 2026-10-09 22:53-23:07: burst mode (0014, link 120%, panel accepts it) did not reduce underruns (10 events in ~12 min,
+  ~0.8/min vs ~0.5/min non-burst). The pipe pauses exceed the burst slack (~1 us/line). Cause hunt (memory/power
+  events upstream of the pipe) remains open.
