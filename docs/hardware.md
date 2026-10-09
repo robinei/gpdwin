@@ -119,7 +119,7 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     | Date | Module | Result |
     |---|---|---|
     | 2026-10-09 | 0002 only (CHV cdclk >= 320000, srcversion 128FFB8FD09197039ED50CD) | Booted fine (fastset keeps GOP cdclk 266667; one panel reset -> 320000, as intended). DevilutionX: underrun latch + a momentary flash 34 s after the reset (16:21:32): **cdclk 320 MHz does not stop the underruns/flashes.** Many more momentary flashes in ~15 min of play; at ~16:35 a split (cdclk verified 320000) that held for several seconds and then recovered on its own; stock splits also sometimes recovered by themselves. **No improvement seen: cdclk is not the cause** (only open: whether never-recovering splits get rarer, not measurable well). Another (small-shift) split at 16:38; register snapshots of both: `kernel/dsi-investigation/data/split-0002-regs.txt` (identical to the stock bad state). |
-    | 2026-10-09 | 0003 only (CHV `EOT_DISABLE` bit 9 = BXT DPI FIFO flush, srcversion 251C1EC9D5CBEFF7D7D8A09) | installed as one-shot |
+    | 2026-10-09 | 0003 only (CHV `EOT_DISABLE` bit 9 = BXT DPI FIFO flush, srcversion 251C1EC9D5CBEFF7D7D8A09) | Booted fine; after the panel reset `0x18b85c` reads **0** although the driver wrote bit 9 (and 0x55ff shows the modeset ran): port C does not keep the bit on CHV. Test void (module = stock). |
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
     saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
     screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture

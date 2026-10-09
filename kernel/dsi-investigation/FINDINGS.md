@@ -73,6 +73,12 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
 - Whether bit 9 exists on CHV is unknown (no CHV documentation found); the GOP leaves it 0 on port C,
   but bit 8 is set on port A (0x100), so the defeature bits may exist. Writing an undocumented bit is
   riskier than experiment 2; do it only if 2 changes nothing.
+- **Test 2026-10-09 (patch 0003):** bit 9 written to port C `EOT_DISABLE` reads back 0: not implemented
+  there on CHV, the test is void. Untested variant: port A's `EOT_DISABLE` (which holds bit 8 = 0x100 from the
+  GOP, and port A also holds the shared LP_OUTPUT_HOLD bit for port C) might be where CHV keeps these bits.
+- Mechanism supported by observation: one split was a few-pixel shift with rotated colors, i.e. the stream
+  offset by a byte count that is not a multiple of 3 (RGB888). The pixel stream loses byte alignment and keeps
+  it frame after frame; nothing re-aligns at frame start.
 
 ### 4. Other hypotheses, no patch
 - HSYNC_PADDING programmed (14) in sync-events mode where the code comment says it is ignored; if the
