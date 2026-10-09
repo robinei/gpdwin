@@ -58,6 +58,16 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     (Wine virtual desktop), GPU hangs/resets (`i915_wedged` 0, error state empty), `max_render_time`
     (inconclusive), FBC/PSR/DMC (not present on this chip/DSI). Not tested: memory pressure/bandwidth
     as the cause, kernel DSI tracing, a different kernel.
+  - Register poking notes (2026-10-09): `intel_reg` needs a read-write mapping of
+    `/sys/bus/pci/devices/0000:00:02.0/resource0` (keep it `0600`; a `0440` rule breaks it even for root).
+    Display registers read `0xffffffff` (and the kernel logs "Invalid mmio detected during user access")
+    while the output is powered off. DSI port C control, by the driver headers (`vlv_dsi_regs.h`,
+    `_MIPI_PORT(port, a, c)`), is `0x1e1700` (VLV display base `0x180000` + `0x61700`) but it reads 0
+    in every state although the panel works, and `0x1e1708`/`0x1e170c` change between reads, so the
+    register map used here is not understood: do NOT write DSI registers (e.g. a `DPI_ENABLE` toggle to
+    test "host vs panel") until the real control register is identified. Driver sequence for reference:
+    enable = DPI `TURN_ON` command, 100 ms, panel DISPLAY_ON, then `DPI_ENABLE` in the port control;
+    disable = `SHUTDOWN` command, port control `DPI_ENABLE` cleared.
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
     saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
     screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture
