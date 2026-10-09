@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 22:08:03 +0200
+Subject: [PATCH] drm/i915/dsi: Start the DPI underrun poller on fastset too
+
+EXPERIMENT, on top of the underrun logging/resync patches.
+
+The boot takeover of the GOP's DSI state is a fastset: pre_enable does
+not run, so the underrun poller (and the resync after a lone underrun)
+only started at the first full modeset, e.g. a panel power cycle. Start
+it from the encoder's update_pipe hook, which runs on fastsets, when it
+is not running yet. The hook still updates the backlight as before.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 5110037..f7ab0b5 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1415,6 +1415,29 @@ static void vlv_dsi_encoder_destroy(struct drm_encoder *encoder)
+ 	intel_encoder_destroy(encoder);
+ }
+ 
++/*
++ * EXPERIMENT: the boot takeover is a fastset, so pre_enable never runs and
++ * the underrun poller would only start at the first full modeset. Start it
++ * from the fastset path (update_pipe) as well.
++ */
++static void vlv_dsi_update_pipe(struct intel_atomic_state *state,
++				struct intel_encoder *encoder,
++				const struct intel_crtc_state *crtc_state,
++				const struct drm_connector_state *conn_state)
++{
++	struct intel_display *display = to_intel_display(encoder);
++	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
++
++	intel_backlight_update(state, encoder, crtc_state, conn_state);
++
++	if ((display->platform.valleyview || display->platform.cherryview) &&
++	    is_vid_mode(intel_dsi) && crtc_state->hw.active &&
++	    !intel_dsi->ur.enabled) {
++		drm_info(display->drm, "DSI underrun poller started on fastset\n");
++		vlv_dsi_ur_enable(intel_dsi, crtc_state);
++	}
++}
++
+ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
+ 				 struct intel_encoder *encoder,
+ 				 const struct intel_crtc_state *pipe_config,
+@@ -2646,7 +2669,7 @@ void vlv_dsi_init(struct intel_display *display)
+ 	encoder->post_disable = intel_dsi_post_disable;
+ 	encoder->get_hw_state = intel_dsi_get_hw_state;
+ 	encoder->get_config = intel_dsi_get_config;
+-	encoder->update_pipe = intel_backlight_update;
++	encoder->update_pipe = vlv_dsi_update_pipe;
+ 	encoder->shutdown = intel_dsi_shutdown;
+ 
+ 	connector->get_hw_state = intel_connector_get_hw_state;
+-- 
+2.56.0
+
