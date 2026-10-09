@@ -1,0 +1,80 @@
+framebuffer[141]:
+	allocated by = sway
+	refcount=1
+	format=AR24 little-endian (0x34325241)
+	modifier=0x0
+	size=64x64
+	layers:
+		size[0]=64x64
+		pitch[0]=256
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=4
+			start=00000000
+			size=16384
+			imported=no
+framebuffer[140]:
+	allocated by = sway
+	refcount=1
+	format=AR24 little-endian (0x34325241)
+	modifier=0x0
+	size=64x64
+	layers:
+		size[0]=64x64
+		pitch[0]=256
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=4
+			start=00000000
+			size=16384
+			imported=no
+framebuffer[139]:
+	allocated by = sway
+	refcount=3
+	format=XR24 little-endian (0x34325258)
+	modifier=0x100000000000001
+	size=720x1280
+	layers:
+		size[0]=720x1280
+		pitch[0]=3072
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=5
+			start=00000000
+			size=4194304
+			imported=no
+framebuffer[136]:
+	allocated by = sway
+	refcount=3
+	format=XR24 little-endian (0x34325258)
+	modifier=0x100000000000001
+	size=720x1280
+	layers:
+		size[0]=720x1280
+		pitch[0]=3072
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=5
+			start=00000000
+			size=4194304
+			imported=no
+framebuffer[137]:
+	allocated by = [fbcon]
+	refcount=1
+	format=XR24 little-endian (0x34325258)
+	modifier=0x0
+	size=720x1280
+	layers:
+		size[0]=720x1280
+		pitch[0]=2880
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=2
+			start=00000000
+			size=3686400
+			imported=no

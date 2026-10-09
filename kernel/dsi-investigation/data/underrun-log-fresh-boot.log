@@ -1,0 +1,8 @@
+start 15:30:14 state=('0x1', '0x0', '0x0', '0x3fffff')
+15:31:43 CHANGE hs_timeout 3fffff->3fffff  underrun 0->1  b31(1708) 1->1  (1708=88650300 170c=00350111)  top: 200 ps | 62.0 devilutionx | 38.5 claude
+15:39:26 output OFF
+15:39:28 output ON (1, 0, 0)
+15:39:57 CHANGE hs_timeout 0055ff->0055ff  underrun 0->1  b31(1708) 1->1  (1708=88650300 170c=01350111)  top: 65.5 devilutionx | 17.0 claude | 6.0 sway
+15:43:19 output OFF
+15:43:21 output ON (1, 0, 0)
+15:46:54 CHANGE hs_timeout 0055ff->0055ff  underrun 0->1  b31(1708) 1->1  (1708=88650300 170c=01350111)  top: 68.1 devilutionx | 16.5 claude | 7.0 sway

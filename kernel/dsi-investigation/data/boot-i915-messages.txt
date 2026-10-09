@@ -1,0 +1,19 @@
+Oct 09 15:27:42 archlinux kernel: Command line: initrd=\initramfs-linux.img root=UUID=7a64638b-a129-47b5-a777-d0cd63d86cf1 rw fbcon=rotate:1 mitigations=off
+Oct 09 15:27:42 archlinux kernel: Kernel command line: initrd=\initramfs-linux.img root=UUID=7a64638b-a129-47b5-a777-d0cd63d86cf1 rw fbcon=rotate:1 mitigations=off
+Oct 09 15:27:42 archlinux kernel: fbcon: Taking over console
+Oct 09 15:27:42 archlinux kernel: pci 0000:00:02.0: vgaarb: setting as boot VGA device
+Oct 09 15:27:42 archlinux kernel: pci 0000:00:02.0: vgaarb: bridge control possible
+Oct 09 15:27:42 archlinux kernel: pci 0000:00:02.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+Oct 09 15:27:42 archlinux kernel: vgaarb: loaded
+Oct 09 15:27:42 archlinux kernel: ACPI: bus type drm_connector registered
+Oct 09 15:27:42 archlinux kernel: simple-framebuffer simple-framebuffer.0: [drm] Registered 1 planes with drm panic
+Oct 09 15:27:42 archlinux kernel: [drm] Initialized simpledrm 1.0.0 for simple-framebuffer.0 on minor 0
+Oct 09 15:27:42 archlinux kernel: simple-framebuffer simple-framebuffer.0: [drm] fb0: simpledrmdrmfb frame buffer device
+Oct 09 15:27:44 archlinux kernel: i915 0000:00:02.0: [drm] Found cherryview (device ID 22b0) integrated display version 8.00 stepping N/A
+Oct 09 15:27:44 archlinux kernel: i915 0000:00:02.0: vgaarb: deactivate vga console
+Oct 09 15:27:44 archlinux kernel: i915 0000:00:02.0: [drm] Registered 3 planes with drm panic
+Oct 09 15:27:44 archlinux kernel: [drm] Initialized i915 1.6.0 for 0000:00:02.0 on minor 1
+Oct 09 15:27:44 archlinux kernel: i915 0000:00:02.0: [drm] HDaudio controller not detected, using LPE audio instead
+Oct 09 15:27:44 archlinux kernel: fbcon: i915drmfb (fb0) is primary device
+Oct 09 15:27:45 archlinux kernel: i915 0000:00:02.0: [drm] fb0: i915drmfb frame buffer device
+Oct 09 15:27:47 gpdwin systemd[1]: Load Kernel Module drm skipped, unmet condition check ConditionKernelModuleLoaded=!drm

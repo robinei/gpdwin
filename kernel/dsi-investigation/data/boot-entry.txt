@@ -1,0 +1,2 @@
+MODULES=(pwm-lpss-platform i915)
+HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)

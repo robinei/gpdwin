@@ -1,0 +1,4 @@
+filename:       /lib/modules/7.2.9-arch1-1/kernel/drivers/gpu/drm/i915/i915.ko.zst
+srcversion:     FB8273B98689461E5249E60
+depends:        drm_display_helper,video,ttm,cec,intel-gtt,drm_buddy,i2c-algo-bit
+vermagic:       7.2.9-arch1-1 SMP preempt mod_unload 
