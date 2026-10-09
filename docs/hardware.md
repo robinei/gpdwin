@@ -143,7 +143,7 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   failed: -16`), `pw-play` hangs, nothing sounds. Idle-DSP hibernates happen to work (state RESET
   -> firmware reloaded on first use), which is why the static-noise case was seen first.
   Patch: `kernel/intel-sst/` (9 changed lines of `sst.c`: map the four callbacks to the existing
-  suspend/resume handlers) + `build.sh`.
+  suspend/resume handlers) (built by `kernel/prepare.sh`).
 - Workaround that works without a reboot: stop PipeWire/WirePlumber, `modprobe -r
   snd_soc_sst_cht_bsw_rt5645` (also unloads the codec), `modprobe snd_soc_sst_cht_bsw_rt5645`, start
   PipeWire (re-probes the codec; stop PipeWire first, unbinding with the card open hung the kernel once).
@@ -155,21 +155,23 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   `rt5645_jack_detect_work` (page fault in `mutex_lock`, the DSP was wedged and the work hit
   `PRE_PMD ... event failed: -16` errors). Only a reboot clears it. So test the patches by installing them
   in `/usr/lib/modules/$(uname -r)/updates/` (or DKMS) and rebooting.
-- Proper fix: `kernel/rt5645/` (patch against the 7.2.9 `sound/soc/codecs/rt5645.c` + `build.sh`):
+- Proper fix: `kernel/rt5645/` (patch against the 7.2.9 `sound/soc/codecs/rt5645.c`):
   a `.restore` PM handler that soft-resets the codec, redoes the one-time setup of probe (now
   `rt5645_hw_init()`, used by probe and restore) and then resyncs the cache. v1 only redid the jack
   setup: the jack worked after a real hibernate (trace: `0xbd` rewritten) but `0x8a` and the private
-  registers were still lost, hence v2. `kernel/rt5645/build.sh` builds `build/snd-soc-rt5645.ko`
-  against `linux-headers` (does not load anything). Status: builds; NOT yet loaded/tested (loading a
-  self-built module as root needs the user's go-ahead); worth sending upstream (alsa-devel, Realtek
+  registers were still lost, hence v2. `kernel/prepare.sh` builds the tree. Status: builds; v2 + the SST patch
+  not yet proven over a full hibernate cycle; worth sending upstream (alsa-devel, Realtek
   rt5645 maintainers) once it is proven.
-- Installing the patches: `kernel/install.sh` builds both modules and installs them into
-  `/usr/lib/modules/$(uname -r)/updates/` (preferred over the stock modules: depmod search order is
-  `updates extramodules built-in`), then reboot; `kernel/uninstall.sh` reverts. Per kernel version:
-  a kernel update starts with the stock modules (sound works, the hibernate bug is back) until
-  `kernel/install.sh` is run for it (`/maintain` has the step). DKMS would automate it but keeps
-  copies of old kernel sources that may stop building, and is one more root mechanism; not used.
-  The right permanent fix is getting the two patches upstream.
+- Installing the patches: `kernel/install.sh` (sudo): `kernel/prepare.sh` assembles
+  `kernel/dkms-tree/gpd-audio-1.0/` (pinned upstream 7.2.9 sources of `rt5645.c` and the Intel atom
+  SST driver, sha256-checked, our two patches applied, Kbuild Makefiles, `dkms.conf`), which is copied
+  to `/usr/src/gpd-audio-1.0` and installed with DKMS (`dkms` + `linux-headers`, official repo) into
+  `/usr/lib/modules/<kernel>/updates/` (depmod prefers it: search order `updates extramodules
+  built-in`). The dkms pacman hook rebuilds it on every kernel update, so no manual step; if a build
+  fails the stock modules stay (sound works, the hibernate bug is back). Then reboot (never
+  load/unload the sound modules live). `kernel/uninstall.sh` reverts. The sources stay the 7.2.9 ones
+  the patches were written for, compiled against whichever kernel is installed; a kernel API change
+  can break the build (fail-safe), then the pins/patches need updating. Best long-term: upstream.
 - Reproduce and trace: `sudo systemctl hibernate`, power on, compare `scripts/audio-snapshot`
   dirs. Tracing: `/sys/kernel/tracing/events/regmap/{regmap_reg_write,regcache_sync,regmap_cache_only}`
   with filter `name == "i2c-10EC5645:00"` and `events/power/device_pm_callback_{start,end}` with

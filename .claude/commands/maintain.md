@@ -17,13 +17,12 @@ informed in short lines; they are on a small screen with a keyboard.
 3. **Repo packages.** `checkupdates` to list pending updates; summarize (note kernel, mesa,
    systemd, sway, pipewire, firmware). Then `sudo -n pacman -Syu --noconfirm`. Read the output for
    warnings, failed hooks and `.pacnew` notices. If the kernel or `linux-firmware-*` changed,
-   tell the user a reboot is needed (don't reboot yourself). If the kernel changed: our patched
-   audio modules (`kernel/`, docs/hardware.md "Audio") are installed per kernel version, so the new
-   kernel starts with the stock ones (sound works, but hibernate breaks it again). After the
-   reboot into the new kernel, check `modinfo -n snd_soc_rt5645` (should be under `updates/`); if
-   not, run `kernel/install.sh` (the build scripts refuse a kernel version whose sources aren't
-   pinned: fetch the new files, check the patches still apply, update the pins) and reboot again.
-   Check whether the patches have been merged upstream first (then drop them).
+   tell the user a reboot is needed (don't reboot yourself). If the kernel changed: our patched audio modules (`kernel/`, DKMS package `gpd-audio`,
+   docs/hardware.md "Audio") are rebuilt for the new kernel by the dkms pacman hook. Read the pacman
+   output for DKMS build errors and run `dkms status` (should list `gpd-audio/1.0, <new kernel>,
+   x86_64: installed`). If the build failed the stock modules are used (sound works, the hibernate
+   bug is back): update the pins in `kernel/*/sources.sha256` and check that the patches still apply
+   (`kernel/prepare.sh`). Check whether the patches have been merged upstream first (then drop them).
 
 4. **AUR packages.** `scripts/aur check`. Our build files are vendored in `aur/pkgbuilds/PKG/`
    and our changes live in `aur/patches/PKG/` (`pkgbuild/*.patch` for build files, `*.patch` for

@@ -1,12 +1,8 @@
 #!/bin/sh
-# Remove the patched audio modules for the running kernel (the stock ones are used again at the
-# next boot). Needs sudo. See kernel/install.sh.
+# Remove the DKMS package with the patched audio modules (stock modules again at the next boot).
 set -e
-K=$(uname -r)
-D=/usr/lib/modules/$K/updates
-sudo rm -f "$D/snd-soc-rt5645.ko" "$D/snd-intel-sst-core.ko"
-sudo rmdir --ignore-fail-on-non-empty "$D"
-sudo depmod "$K"
+sudo dkms remove gpd-audio/1.0 --all
+sudo rm -rf /usr/src/gpd-audio-1.0
 for m in snd_soc_rt5645 snd_intel_sst_core; do
     echo "$m -> $(modinfo -n $m)"
 done
