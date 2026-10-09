@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 16:39:31 +0200
+Subject: [PATCH] drm/i915/dsi: Flush the DPI FIFO at frame end on CHV too
+
+EXPERIMENT, not for upstream until tested. The bit is documented for
+BXT/GLK only; whether CHV has it is unknown.
+
+Commit f90e8c36c886 ("drm/i915/dsi: fix bxt split screen and color
+issue") fixed a picture that appeared split or shifted with the color
+components cycled by setting BXT_DEFEATURE_DPI_FIFO_CTR in
+MIPI_EOT_DISABLE: per bspec, with the bit set, vblank start is
+signalled only when the complete frame has been transferred and the
+DPI FIFO is flushed at the end of each frame.
+
+A GPD Win 1 (Cherry Trail, 720x1280 DSI, video mode, non-burst with
+sync events) shows the same failure: under load the picture
+intermittently ends up shifted (by a line-sized amount, or a few pixels
+with the colors rotated, i.e. a byte offset that is not a multiple of
+3 in RGB888) and stays so until the next modeset or until it recovers
+by itself. Each time, MIPI_INTR_STAT has DPI_FIFO_UNDERRUN latched
+while the pipe itself reports no FIFO underrun, and all DSI registers
+are unchanged.
+
+Set the bit on CHV in video mode as well, so that an underrun corrupts
+at most one frame.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..dee674a 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1376,6 +1376,13 @@ static void intel_dsi_prepare(struct intel_encoder *encoder,
+ 		tmp |= BXT_DPHY_DEFEATURE_EN;
+ 		if (!is_cmd_mode(intel_dsi))
+ 			tmp |= BXT_DEFEATURE_DPI_FIFO_CTR;
++	} else if (display->platform.cherryview && !is_cmd_mode(intel_dsi)) {
++		/*
++		 * EXPERIMENT: flush the DPI FIFO at the end of each frame as on
++		 * BXT, so that a DPI FIFO underrun cannot leave the pixel stream
++		 * misaligned for the following frames.
++		 */
++		tmp |= BXT_DEFEATURE_DPI_FIFO_CTR;
+ 	}
+ 
+ 	for_each_dsi_port(port, intel_dsi->ports) {
+-- 
+2.56.0
+
