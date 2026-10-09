@@ -34,7 +34,7 @@ sudo sh -c 'sed "s|^title .*|title Arch Linux (i915 test)|; s|^initrd .*initramf
 sudo cat /boot/loader/entries/arch-i915test.conf
 sudo grep -q '^initrd /initramfs-linux-i915test.img' /boot/loader/entries/arch-i915test.conf ||
     { echo "entry has no test initrd line; check arch.conf format"; exit 1; }
-# loader.conf sets no "default" (docs/boot.md): without this the new entry could sort first and become the default.
+# Pin the default to the stock entry (loader.conf says "default arch.conf"; the EFI variable makes it explicit).
 sudo bootctl set-default arch.conf
 sudo bootctl set-oneshot arch-i915test.conf
 # Show the menu for 5 s on that boot only (loader.conf has timeout 0), test entry preselected.

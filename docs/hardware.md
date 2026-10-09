@@ -63,8 +63,9 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     Display registers read `0xffffffff` (and the kernel logs "Invalid mmio detected during user access")
     while the output is powered off. DSI port C control, by the driver headers (`vlv_dsi_regs.h`,
     `_MIPI_PORT(port, a, c)`), is `0x1e1700` (VLV display base `0x180000` + `0x61700`) but it reads 0
-    in every state although the panel works, and `0x1e1708`/`0x1e170c` change between reads, so the
-    register map used here is not understood: do NOT write DSI registers (e.g. a `DPI_ENABLE` toggle to
+    in every state although the panel works: known hardware quirk, DPI_ENABLE never reads back on VLV/CHV port C
+    (driver comment in `vlv_dsi.c` `get_hw_state`; audit 2026-10-09). `0x1e1708`/`0x1e170c` change between reads and
+    are not defined anywhere in i915. Do NOT write DSI registers (e.g. a `DPI_ENABLE` toggle to
     test "host vs panel") until the real control register is identified. Driver sequence for reference:
     enable = DPI `TURN_ON` command, 100 ms, panel DISPLAY_ON, then `DPI_ENABLE` in the port control;
     disable = `SHUTDOWN` command, port control `DPI_ENABLE` cleared.
@@ -95,8 +96,28 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     power off/on, resume, Mod4+F10, a mode change). Read-only check of the theory: does the glitch rate differ
     between the fresh-boot state and after the first modeset? (`~/.cache/gpd/glitchlog/watch.py` logs the register).
     The reliable test is the patched driver (below), loaded through a reboot with a way back.
-    Real fix: `u16` -> `u32` in `txbyteclkhs()`/`pixels_from_txbyteclkhs()`; build `i915` on the desktop (DKMS or
-    prebuilt .ko), send upstream.
+    Fix: `kernel/i915/0001-*.patch` (u32 + 64-bit multiply), to send upstream (draft, not sent).
+  - **Driver audit (2026-10-09, desktop, `kernel/dsi-investigation/FINDINGS.md`)**: every DSI register equals the driver's
+    arithmetic and the GOP programs the same values at fresh boot (only HS_TX_TIMEOUT differs). The pipe's own FIFO
+    never underruns (reporting is on in every state, no message): only the DSI controller's DPI FIFO does, so the
+    problem sits between pipe output and the DSI serializer, not memory bandwidth/watermarks (cleared). Port C control
+    reading 0 is a known hardware quirk (DPI_ENABLE never reads back on VLV/CHV port C), not a mapping error.
+    cdclk is **266667 kHz** (fresh boot and after modesets). Upstream fixed the same symptom on sibling chips twice:
+    `c8dae55a8ced` (Bay Trail DSI: picture shifted with wraparound and wrong colors at cdclk 266667, needs >= 320000;
+    applied to Valleyview only, not Cherry Trail) and `f90e8c36c886` (Broxton split screen with cycled colors: DPI FIFO
+    not flushed at frame end, `EOT_DISABLE` bit 9). Neither is proven for CHV.
+  - **i915 patch tests** (`kernel/i915/`): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
+    `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-i915test.img` + entry
+    `arch-i915test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a
+    black screen is fixed by a hard reset. Check after boot: `cat /sys/module/i915/srcversion`, cdclk in
+    `/sys/kernel/debug/dri/1/i915_cdclk_info`. Keep it: `sudo bootctl set-default arch-i915test.conf`; remove:
+    `uninstall-test.sh`. A kernel update makes the test entry useless (module is for 7.2.9-arch1-1 only); remove it.
+    Test: play the scenes that glitch (DevilutionX, Zelda 3, Sam & Max) with
+    `sudo python3 kernel/dsi-investigation/data/watch-readonly-logger.py LOG STOPFILE`; compare time to the first
+    underrun latch after a panel reset (stock: ~1.5-2 min) over several runs, and whether a persistent desync happens.
+    | Date | Module | Result |
+    |---|---|---|
+    | 2026-10-09 | 0002 only (CHV cdclk >= 320000, srcversion 128FFB8FD09197039ED50CD) | installed as one-shot, not booted yet |
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
     saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
     screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture

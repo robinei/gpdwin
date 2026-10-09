@@ -320,3 +320,12 @@ Details before 2026-10-06 are in `docs/archive/`.
 ## 2026-10-09 — DSI timeout theory refuted
 - Desync observed with the long (VBT) HS timeout and no modeset since boot: the `u16` truncation of
   `MIPI_HS_TX_TIMEOUT` is not the cause of the desync. See docs/hardware.md. No system change.
+
+## 2026-10-09 — i915 DSI audit, test module recipe, cdclk experiment
+- Audit of the i915 DSI/CHV code on the desktop (`kernel/dsi-investigation/FINDINGS.md`): one confirmed bug
+  (u16 `MIPI_HS_TX_TIMEOUT`, patch `kernel/i915/0001`, not the desync cause), lead: cdclk 266667 kHz with DSI on
+  CHV (upstream fixed the same symptom for Bay Trail only), experiment patch `kernel/i915/0002`.
+- `kernel/i915/`: desktop build of a patched `i915.ko` for 7.2.9-arch1-1 (pinned sources), one-shot test boot entry.
+- On the GPD: `/boot/initramfs-linux-i915test.img`, `/boot/loader/entries/arch-i915test.conf` (module 0002),
+  EFI vars LoaderEntryDefault=arch.conf, one-shot = test entry. Normal initramfs and modules unchanged.
+  Revert: `kernel/i915/uninstall-test.sh`.
