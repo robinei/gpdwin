@@ -42,7 +42,7 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
 
 ## Experiments (PLAUSIBLE, untested; each is one patch, test one at a time)
 
-### 2. cdclk 266667 kHz with DSI on CHV (patch 0002) — strongest lead
+### 2. cdclk 266667 kHz with DSI on CHV (patch 0002) — tested, no improvement
 - `vlv_dsi.c:1756-1778` `vlv_dsi_min_cdclk()` returns 320000 for Valleyview only, CHV gets 0.
   `vlv_calc_cdclk()` (`intel_cdclk.c:569`) then picks 266667 for this pixel rate (min_cdclk ~64 MHz).
 - Upstream `c8dae55a8ced` ("drm/i915/vlv: Add cdclk workaround for DSI", Hans de Goede 2017, acked by
@@ -59,7 +59,8 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
 - **Test 2026-10-09:** with 0002 at cdclk 320000 the DPI underrun latch and a momentary flash still came
   34 s into DevilutionX. So cdclk does not stop the underruns. Whether persistent desyncs stop is still
   being watched (results: docs/hardware.md "i915 patch tests")
-  In the first ~15 min: one split held for several seconds and then recovered without a reset (new).
+  At ~16:35 a split happened with cdclk verified at 320000 (held several seconds, then recovered by itself,
+  which stock splits also sometimes did). **Verdict: no improvement seen; cdclk is not the cause.**
 
 ### 3. DPI FIFO flush at end of frame (`BXT_DEFEATURE_DPI_FIFO_CTR`) — not patched yet
 - Upstream `f90e8c36c886` ("drm/i915/dsi: fix bxt split screen and color issue", 2016): "display

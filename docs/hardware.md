@@ -105,7 +105,7 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     cdclk is **266667 kHz** (fresh boot and after modesets). Upstream fixed the same symptom on sibling chips twice:
     `c8dae55a8ced` (Bay Trail DSI: picture shifted with wraparound and wrong colors at cdclk 266667, needs >= 320000;
     applied to Valleyview only, not Cherry Trail) and `f90e8c36c886` (Broxton split screen with cycled colors: DPI FIFO
-    not flushed at frame end, `EOT_DISABLE` bit 9). Neither is proven for CHV.
+    not flushed at frame end, `EOT_DISABLE` bit 9). Neither is proven for CHV; the cdclk one was tested (patch 0002) and showed no improvement.
   - **i915 patch tests** (`kernel/i915/`): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
     `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-i915test.img` + entry
     `arch-i915test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a
@@ -118,7 +118,7 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     underrun latch after a panel reset (stock: ~1.5-2 min) over several runs, and whether a persistent desync happens.
     | Date | Module | Result |
     |---|---|---|
-    | 2026-10-09 | 0002 only (CHV cdclk >= 320000, srcversion 128FFB8FD09197039ED50CD) | Booted fine (fastset keeps GOP cdclk 266667; one panel reset -> 320000, as intended). DevilutionX: underrun latch + a momentary flash 34 s after the reset (16:21:32): **cdclk 320 MHz does not stop the underruns/flashes.** Many more momentary flashes in ~15 min of play; at ~16:35 a split that held for several seconds and then **recovered on its own** (stock splits stayed until a panel reset). No split that stayed. Not yet significant: watching. |
+    | 2026-10-09 | 0002 only (CHV cdclk >= 320000, srcversion 128FFB8FD09197039ED50CD) | Booted fine (fastset keeps GOP cdclk 266667; one panel reset -> 320000, as intended). DevilutionX: underrun latch + a momentary flash 34 s after the reset (16:21:32): **cdclk 320 MHz does not stop the underruns/flashes.** Many more momentary flashes in ~15 min of play; at ~16:35 a split (cdclk verified 320000) that held for several seconds and then recovered on its own; stock splits also sometimes recovered by themselves. **No improvement seen: cdclk is not the cause** (only open: whether never-recovering splits get rarer, not measurable well). |
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
     saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
     screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture
