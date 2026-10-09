@@ -47,7 +47,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "A Bird Story",
-   "windows": true
+   "windows": true,
+   "size_mb": 200
   },
   {
    "source": "steam",
@@ -83,7 +84,8 @@
    "linux": true,
    "tier": "maybe",
    "pcgw": "A Short Hike",
-   "windows": true
+   "windows": true,
+   "size_mb": 400
   },
   {
    "source": "steam",
@@ -586,7 +588,8 @@
    "linux": true,
    "tier": "maybe",
    "pcgw": "Amnesia: The Dark Descent",
-   "windows": true
+   "windows": true,
+   "size_mb": 3072
   },
   {
    "source": "steam",
@@ -2146,7 +2149,8 @@
    "linux": false,
    "tier": "good",
    "pcgw": "Brothers: A Tale of Two Sons",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -2194,7 +2198,8 @@
    "linux": true,
    "tier": "heavy",
    "pcgw": "Br\u00fctal Legend",
-   "windows": true
+   "windows": true,
+   "size_mb": 8192
   },
   {
    "source": "steam",
@@ -2491,7 +2496,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Carrion",
-   "windows": true
+   "windows": true,
+   "size_mb": 500
   },
   {
    "source": "steam",
@@ -2528,7 +2534,8 @@
    "linux": true,
    "tier": "heavy",
    "pcgw": "Caves of Qud",
-   "windows": true
+   "windows": true,
+   "size_mb": 1332
   },
   {
    "source": "steam",
@@ -2600,7 +2607,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Child of Light",
-   "windows": true
+   "windows": true,
+   "size_mb": 3072
   },
   {
    "source": "steam",
@@ -2900,7 +2908,8 @@
    "linux": false,
    "tier": null,
    "pcgw": null,
-   "windows": true
+   "windows": true,
+   "size_mb": 25
   },
   {
    "source": "steam",
@@ -3416,7 +3425,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Darkest Dungeon",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -4027,7 +4037,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Descent 3",
-   "windows": true
+   "windows": true,
+   "size_mb": 1300
   },
   {
    "source": "steam",
@@ -4479,7 +4490,8 @@
    "linux": false,
    "tier": "good",
    "pcgw": "Doom 64",
-   "windows": true
+   "windows": true,
+   "size_mb": null
   },
   {
    "source": "steam",
@@ -4764,7 +4776,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Dusk",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -4956,7 +4969,8 @@
    "linux": false,
    "tier": "maybe",
    "pcgw": "Ender Lilies: Quietus of the Knights",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -5556,7 +5570,8 @@
    "linux": false,
    "tier": "maybe",
    "pcgw": "Final Fantasy IX",
-   "windows": true
+   "windows": true,
+   "size_mb": 7168
   },
   {
    "source": "steam",
@@ -5736,7 +5751,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Fran Bow",
-   "windows": true
+   "windows": true,
+   "size_mb": 5120
   },
   {
    "source": "steam",
@@ -6012,7 +6028,8 @@
    "linux": false,
    "tier": "good",
    "pcgw": "Gish",
-   "windows": true
+   "windows": true,
+   "size_mb": null
   },
   {
    "source": "steam",
@@ -6299,7 +6316,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Grim Fandango Remastered",
-   "windows": true
+   "windows": true,
+   "size_mb": 6000
   },
   {
    "source": "steam",
@@ -6311,7 +6329,8 @@
    "linux": false,
    "tier": "maybe",
    "pcgw": "Gris",
-   "windows": true
+   "windows": true,
+   "size_mb": 4096
   },
   {
    "source": "steam",
@@ -6805,7 +6824,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "HighFleet",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -6889,7 +6909,8 @@
    "linux": false,
    "tier": "maybe",
    "pcgw": "Hitman: Contracts",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -7080,7 +7101,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Hue",
-   "windows": true
+   "windows": true,
+   "size_mb": 400
   },
   {
    "source": "steam",
@@ -8123,7 +8145,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Little Big Adventure",
-   "windows": true
+   "windows": true,
+   "size_mb": 3072
   },
   {
    "source": "steam",
@@ -8135,7 +8158,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Little Big Adventure 2",
-   "windows": true
+   "windows": true,
+   "size_mb": 1010
   },
   {
    "source": "steam",
@@ -8255,7 +8279,8 @@
    "linux": false,
    "tier": "good",
    "pcgw": "Mafia",
-   "windows": true
+   "windows": true,
+   "size_mb": 3072
   },
   {
    "source": "steam",
@@ -8375,7 +8400,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Mass Effect",
-   "windows": true
+   "windows": true,
+   "size_mb": 12288
   },
   {
    "source": "steam",
@@ -9239,7 +9265,8 @@
    "linux": false,
    "tier": "maybe",
    "pcgw": "Omikron: The Nomad Soul",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -10005,7 +10032,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Postal (2013)",
-   "windows": true
+   "windows": true,
+   "size_mb": 400
   },
   {
    "source": "steam",
@@ -10029,7 +10057,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Postal Redux",
-   "windows": true
+   "windows": true,
+   "size_mb": 4096
   },
   {
    "source": "steam",
@@ -11184,7 +11213,8 @@
    "linux": false,
    "tier": null,
    "pcgw": null,
-   "windows": true
+   "windows": true,
+   "size_mb": 321
   },
   {
    "source": "steam",
@@ -12225,7 +12255,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "South Park: The Stick of Truth",
-   "windows": true
+   "windows": true,
+   "size_mb": 6144
   },
   {
    "source": "steam",
@@ -12417,7 +12448,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Spelunky",
-   "windows": true
+   "windows": true,
+   "size_mb": 292
   },
   {
    "source": "steam",
@@ -12632,7 +12664,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Star Wars: Knights of the Old Republic II - The Sith Lords",
-   "windows": true
+   "windows": true,
+   "size_mb": 10240
   },
   {
    "source": "steam",
@@ -12716,7 +12749,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Starcom: Nexus",
-   "windows": true
+   "windows": true,
+   "size_mb": 1671
   },
   {
    "source": "steam",
@@ -13296,7 +13330,8 @@
    "linux": false,
    "tier": "heavy",
    "pcgw": "System Shock (2023)",
-   "windows": true
+   "windows": true,
+   "size_mb": 10240
   },
   {
    "source": "steam",
@@ -13331,7 +13366,8 @@
    "controller": true,
    "linux": null,
    "tier": "maybe",
-   "pcgw": "System Shock"
+   "pcgw": "System Shock",
+   "size_mb": null
   },
   {
    "source": "steam",
@@ -13343,7 +13379,8 @@
    "linux": false,
    "tier": "heavy",
    "pcgw": "System Shock: Enhanced Edition",
-   "windows": true
+   "windows": true,
+   "size_mb": 1024
   },
   {
    "source": "steam",
@@ -13632,7 +13669,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "The Binding of Isaac: Rebirth",
-   "windows": true
+   "windows": true,
+   "size_mb": 607
   },
   {
    "source": "steam",
@@ -14292,7 +14330,8 @@
    "linux": false,
    "tier": "good",
    "pcgw": "Thief: The Dark Project",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -14304,7 +14343,8 @@
    "linux": false,
    "tier": "good",
    "pcgw": "Thief II: The Metal Age",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -14435,7 +14475,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Titan Quest Anniversary Edition",
-   "windows": true
+   "windows": true,
+   "size_mb": 5120
   },
   {
    "source": "steam",
@@ -14601,7 +14642,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Tom Clancy's Splinter Cell",
-   "windows": true
+   "windows": true,
+   "size_mb": 1536
   },
   {
    "source": "steam",
@@ -14661,7 +14703,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Tom Clancy's Splinter Cell: Pandora Tomorrow",
-   "windows": true
+   "windows": true,
+   "size_mb": 5120
   },
   {
    "source": "steam",
@@ -14900,7 +14943,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Transistor",
-   "windows": true
+   "windows": true,
+   "size_mb": 3072
   },
   {
    "source": "steam",
@@ -14936,7 +14980,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Trine",
-   "windows": true
+   "windows": true,
+   "size_mb": 4096
   },
   {
    "source": "steam",
@@ -15104,7 +15149,8 @@
    "linux": true,
    "tier": "good",
    "pcgw": "Undertale",
-   "windows": true
+   "windows": true,
+   "size_mb": 155
   },
   {
    "source": "steam",
@@ -15128,7 +15174,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "UnEpic",
-   "windows": true
+   "windows": true,
+   "size_mb": 244
   },
   {
    "source": "steam",
@@ -15152,7 +15199,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "UnMetal",
-   "windows": true
+   "windows": true,
+   "size_mb": 400
   },
   {
    "source": "steam",
@@ -15284,7 +15332,8 @@
    "linux": false,
    "tier": "maybe",
    "pcgw": "Valkyria Chronicles",
-   "windows": true
+   "windows": true,
+   "size_mb": 25600
   },
   {
    "source": "steam",
@@ -16097,7 +16146,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "XCOM 2",
-   "windows": true
+   "windows": true,
+   "size_mb": 46080
   },
   {
    "source": "steam",
@@ -16109,7 +16159,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "XCOM: Enemy Unknown",
-   "windows": true
+   "windows": true,
+   "size_mb": 20480
   },
   {
    "source": "steam",
