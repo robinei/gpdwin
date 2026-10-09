@@ -36,13 +36,13 @@ bar {
     status_command ~/.local/bin/statusbar
     status_padding 3
     colors {
-        background $crust
+        background #000000
         statusline $text
         separator  $surface1
         #                  border     bg         text
         focused_workspace  $surface1  $surface1  $text
         active_workspace   $surface0  $surface0  $text
-        inactive_workspace $crust     $crust     $overlay
+        inactive_workspace #000000   #000000   $overlay
         urgent_workspace   $red       $red       $crust
     }
 }
