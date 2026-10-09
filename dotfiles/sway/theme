@@ -40,7 +40,7 @@ bar {
         statusline $text
         separator  $surface1
         #                  border     bg         text
-        focused_workspace  $blue      $blue      $crust
+        focused_workspace  $surface1  $surface1  $text
         active_workspace   $surface0  $surface0  $text
         inactive_workspace $crust     $crust     $overlay
         urgent_workspace   $red       $red       $crust
