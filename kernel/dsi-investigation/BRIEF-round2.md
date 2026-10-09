@@ -85,3 +85,12 @@ the long GOP timeout, so it is not expected to help.
 4. Concrete next experiments: patches (module at boot only) or read-only measurements that would discriminate
    between hypotheses, ranked by expected information. Especially: which additional tracepoints/registers to
    record at a flash (GT activity, IRQ timing, PUNIT) to find what precedes a one-frame stall.
+
+## Round 2 results (2026-10-09)
+`reports/R2A-driver-mechanism.md`, `reports/R2B-external-sources.md`. Key: fdo bug 105834 (GPD Pocket) = same
+symptom, page-flipping clients only, gone on a replacement mainboard. Merged next steps (cheapest first):
+1. E2/E3: provoke or suppress PMIC-bus (charger) reads during play; E1 trace flashes vs Punit/PMIC windows.
+2. Flipping vs non-flipping client A/B for the same game.
+3. Patch: EOT_DISABLE recovery-disable bits 2-7 + 0001. 4. Patch: no DDR DVFS (then no PM5).
+5. Patch: frame start delay 4 lines. 6. Read-only GEN_FIFO_STAT vs PIPEDSL sampling as a state detector.
+Run each on the stock module (reboot normally first) with the residual flash detector.
