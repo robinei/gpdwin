@@ -103,15 +103,12 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
 - No firmware update path known for the Win 1 (GPD's tools are Windows-only and for later
   models). A uinput remapper could only smooth the jump at the threshold; decided to leave it.
 
-## Audio jack after hibernation (2026-10-08)
+## Audio after hibernation (2026-10-08, solved 2026-10-09)
 - After waking from hibernation the rt5645 codec reported headphones (and mic) plugged in with
-  nothing in the jack: UCM switched the speaker off, PipeWire showed only "Headphones", no sound.
-  Rebinding only the machine driver didn't help. Rebinding the codec (i2c `i2c-10EC5645:00`) and
-  then the machine driver (`cht-bsw-rt5645`) fixed it once, but the second time the codec unbind
-  hung in the kernel (D state in `rt5645_i2c_remove` -> `cancel_delayed_work_sync`, waiting for
-  its jack-detect work), leaving audio dead until reboot. Do NOT automate that in a sleep hook
-  (a hang there could block resume; the hook was added and removed again the same day).
-  Safe manual fix: plug something into the jack and pull it out, or reboot.
+  nothing in the jack, the speaker was silent and the headphones gave static. Cause and fix: below.
+  What did NOT work: a real s2idle suspend; rebinding the codec or reloading the sound modules on a
+  running system (hangs the kernel, `rmmod` stuck in D state until reboot); plugging a jack in and
+  out (only helped when the driver's jack interrupt happened to be on).
 
 ### Audio broken after hibernate: codec not restored (kernel driver bug, 2026-10-09)
 - Symptoms after any hibernate: speaker silent although the whole path is powered and unmuted,
@@ -159,8 +156,10 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   a `.restore` PM handler that soft-resets the codec, redoes the one-time setup of probe (now
   `rt5645_hw_init()`, used by probe and restore) and then resyncs the cache. v1 only redid the jack
   setup: the jack worked after a real hibernate (trace: `0xbd` rewritten) but `0x8a` and the private
-  registers were still lost, hence v2. `kernel/prepare.sh` builds the tree. Status: builds; v2 + the SST patch
-  not yet proven over a full hibernate cycle; worth sending upstream (alsa-devel, Realtek
+  registers were still lost, hence v2. `kernel/prepare.sh` builds the tree. Status: installed via DKMS and proven
+  (2026-10-09): after a real hibernate/resume with the DSP active (tone playing just before) the codec registers
+  are back (`0xbd` = `0x0280`, `0x8a` = `0x0120`), no SST errors, sound plays, the jack state is right, no
+  reload needed; worth sending upstream (alsa-devel; both patches carry commit messages) (alsa-devel, Realtek
   rt5645 maintainers) once it is proven.
 - Installing the patches: `kernel/install.sh` (sudo): `kernel/prepare.sh` assembles
   `kernel/dkms-tree/gpd-audio-1.0/` (pinned upstream 7.2.9 sources of `rt5645.c` and the Intel atom

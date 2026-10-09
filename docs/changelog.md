@@ -270,3 +270,15 @@ Details before 2026-10-06 are in `docs/archive/`.
   `snd_soc_sst_cht_bsw_rt5645`), tested OK.
 - Installed for debugging (official repo): `perf`, `intel-gpu-tools`, `i2c-tools`, `alsa-utils`, `acpica`,
   `linux-headers` (needed to build the module). Remove with `pacman -Rns` when not needed.
+
+## 2026-10-09 — audio after hibernate fixed for good (two kernel driver patches via DKMS)
+- Root cause: neither the RT5645 codec driver nor the Intel SST DSP driver restored their hardware after
+  hibernation (details and traces in docs/hardware.md "Audio broken after hibernate"). Patches in
+  `kernel/` (rt5645: `.restore` handler redoing the probe-time init; intel-sst: map freeze/thaw/poweroff/
+  restore to the existing suspend/resume), installed with DKMS (`kernel/install.sh`, package `gpd-audio`
+  in `/usr/src`, `dkms` + `linux-headers` from the official repo; the dkms pacman hook rebuilds on kernel
+  updates, `/maintain` checks it). Verified over a real hibernate with the DSP active.
+- Revert: `kernel/uninstall.sh`, reboot. Packages installed for debugging stay listed in
+  docs/packages.md (remove with `pacman -Rns`).
+- Lessons: never unload/bind the codec on a running system (CLAUDE.md); `pkill wineserver` leaves orphans.
+- Display glitch (shifted picture): separate issue, inputd resets the panel automatically (see above).

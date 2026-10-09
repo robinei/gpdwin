@@ -55,10 +55,12 @@ The user is Robin (they/them).
 - When a script you run spawns ssh, give it `</dev/null` or it eats the rest of a heredoc.
 - The device is `gpdwin.lan`, the desktop `desktop.lan`. Firewall is on (nftables): new
   listening services need a rule in `system/etc/nftables.conf`.
-- **"Sound is gone/broken" → run `scripts/audio-speaker` first** (no sudo needed). The rt5645
-  codec sometimes falsely reports a headphone plug (esp. after hibernate); the script forces the
-  speaker profile and default sink. `scripts/audio-speaker auto` undoes it. Details and what
-  doesn't work (suspend, codec unbind hangs the kernel): docs/hardware.md "Audio jack".
+- **"Sound is gone/broken" → first check `modinfo -n snd_soc_rt5645`**: it must be under `.../updates/dkms/`
+  (our patched audio modules, DKMS package `gpd-audio`, `kernel/`, docs/hardware.md "Audio after
+  hibernation"). The stock modules lose the sound after every hibernate (codec/DSP not restored);
+  if they are in use (kernel update whose DKMS build failed: `dkms status`), reboot into patched ones
+  after fixing the build. Otherwise run `scripts/audio-speaker` (no sudo; forces the speaker profile
+  and default sink, `auto` undoes it) for a falsely reported headphone plug.
 - Never unload/unbind the sound codec at runtime (`rmmod snd_soc_rt5645`, unbinding `i2c-10EC5645:00`):
   it hangs the unload for good (`rt5645_i2c_remove` waits for `rt5645_jack_detect_work`, `rmmod` stuck in
   D state, only a reboot clears it; seen twice, the second time after a kernel oops in that work).
