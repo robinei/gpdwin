@@ -44,8 +44,22 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
   screenshot of the same moment looked normal. Fix: `Mod4+F10` (`dotfiles/sway/screen-reset.sh`:
   output power off, 2 s, power on); `swaymsg 'output DSI-1 power off'` then `power on` does the same
   remotely. Root cause unknown (panel/DSI resync after a mode or buffer change). Not specific to
-  Wine/DXVK/Vulkan: native SDL games do it too. Ideas if it gets annoying: i915 `enable_fbc=0` /
-  `enable_psr=0` / `disable_power_well=0` (kernel args, reboot), or run screen-reset after a game exits.
+  Wine/DXVK/Vulkan: native SDL games do it too (DevilutionX: SDL2, X11 via Xwayland, OpenGL/GLX).
+  - What it is (2026-10-09 session): the kernel's view is identical in good and bad state (same
+    plane, fb 140 XR24 X-tiled, rotation 0, no kernel messages, `grim` fine). The only difference
+    found is the DSI controller's `MIPI_INTR_STAT` (`0x18b804`) with bit 20 `DPI_FIFO_UNDERRUN` set
+    (0x40300000 vs 0x40200000); a panel power cycle clears it (modeset). The bit is a sticky latch,
+    so it doesn't say "bad right now". Other differing registers (`0x1e1708`, `0x1e170c`, ...) are
+    noisy, not indicators. Correlated with heavy GPU load (Sam & Max first room ~20 fps; worse with
+    CPU turbo off). Underrun log at 10:41, 10:50, 10:57 matched glitch sessions; none in 17 clean min.
+  - Ruled out (tested): direct scanout (every fb on the plane is allocated by sway), GPU runtime
+    PM / RC6 (held awake with `i915_forcewake_user`), CPU deep C-states (`/dev/cpu_dma_latency` 0),
+    GPU frequency changes (pinned 400 MHz via `rps_min_freq_mhz`), the game's own mode switching
+    (Wine virtual desktop), GPU hangs/resets (`i915_wedged` 0, error state empty), `max_render_time`
+    (inconclusive), FBC/PSR/DMC (not present on this chip/DSI). Not tested: memory pressure/bandwidth
+    as the cause, kernel DSI tracing, a different kernel.
+  - Workaround, automatic: `inputd` power-cycles the output when the bit sets (docs/desktop.md).
+    Auto-resets are logged in `~/.cache/gpd/dsi-resets.log`: look there to see how often it happens.
 
 ## Prior art: ViccRondo/gpd-win1-atomic-gaming (checked 2026-10-07, commit 325f405)
 An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful findings:

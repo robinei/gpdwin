@@ -12,9 +12,15 @@
  * the pad is grabbed), opening it undoes that (the CPU/GPU are also throttled and the status bar paused, dotfiles/sway/lid.sh; brightness is left alone; level 0 doesn't turn this
  * panel off). logind ignores the lid, see docs/power.md.
  *
+ * DSI underrun watch (docs/hardware.md "Display"): some games leave the panel showing a shifted /
+ * colour-shifted picture that only an output power cycle fixes. Then the DSI controller's
+ * DPI_FIFO_UNDERRUN status bit is set. Once a second, while the lid is open, the bit is read
+ * (read-only mmap of the GPU registers, readable by wheel via system/etc/tmpfiles.d/display-underrun.conf)
+ * and the same power cycle as screen-reset.sh (Mod4+F10) is run. Logged to ~/.cache/gpd/dsi-resets.log.
+ *
  * Sleeps until there is something to do: the untouched pad sends no events, and inotify on
  * /dev/input reports when the pad (re)appears (it disconnects while the screen is off and across
- * suspend).
+ * suspend). The only timer is the 1 s underrun check (not while the lid is closed).
  *
  * Built and installed by `scripts/sync install` (manifest "build" entry); started by sway
  * (dotfiles/sway/autostart).
@@ -27,11 +33,14 @@
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -40,6 +49,15 @@
 #define POKE_EVERY 30 /* seconds; the first idle step (dim) comes after 2 min */
 
 extern char **environ;
+
+/* Cherry Trail display registers (VLV_DISPLAY_BASE 0x180000): DSI port C and pipe B. */
+#define GPU_BAR "/sys/bus/pci/devices/0000:00:02.0/resource0"
+#define DSI_PAGE 0x18b000    /* MIPI_DEVICE_READY(C) +0x800, MIPI_INTR_STAT(C) +0x804 */
+#define PIPE_PAGE 0x1f1000   /* PIPEBCONF +0x008 */
+#define DPI_FIFO_UNDERRUN (1u << 20)
+#define RESET_COOLDOWN 30    /* seconds between automatic resets */
+#define RESET_MAX 3          /* at most this many per RESET_WINDOW seconds (the bit should clear) */
+#define RESET_WINDOW 300
 
 static int open_named(const char *want)
 {
@@ -134,6 +152,82 @@ static void swaymsg_sh(const char *command)
         perror("inputd: sh");
 }
 
+
+static volatile uint32_t *dsi_regs, *pipe_regs;
+
+static void dsi_map(void)
+{
+    int fd = open(GPU_BAR, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        perror("inputd: " GPU_BAR " (underrun watch off)");
+        return;
+    }
+    void *a = mmap(NULL, 4096, PROT_READ, MAP_SHARED, fd, DSI_PAGE);
+    void *b = mmap(NULL, 4096, PROT_READ, MAP_SHARED, fd, PIPE_PAGE);
+    close(fd);
+    if (a == MAP_FAILED || b == MAP_FAILED) {
+        perror("inputd: mmap GPU registers (underrun watch off)");
+        return;
+    }
+    dsi_regs = a;
+    pipe_regs = b;
+}
+
+/* DPI FIFO underrun flagged while the DSI controller and pipe B are running (not while the output
+ * is off, when the registers read as 0xffffffff or 0). Returns the status register, or 0. */
+static uint32_t dsi_underrun(void)
+{
+    if (!dsi_regs)
+        return 0;
+    uint32_t ready = dsi_regs[0x800 / 4], stat = dsi_regs[0x804 / 4], pipe = pipe_regs[0x008 / 4];
+    if (ready == 0xffffffffu || stat == 0xffffffffu || !(ready & 1) || !(pipe & 0x80000000u))
+        return 0;
+    return stat & DPI_FIFO_UNDERRUN ? stat : 0;
+}
+
+/* Called every loop; checks at most once a second. */
+static void dsi_watch(void)
+{
+    static time_t last_check, last_reset, window_start;
+    static int seen, resets;
+    struct timespec t;
+    uint32_t stat;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    if (t.tv_sec == last_check)
+        return;
+    last_check = t.tv_sec;
+    if (!(stat = dsi_underrun())) {
+        seen = 0;
+        return;
+    }
+    if (++seen < 2 || (last_reset && t.tv_sec - last_reset < RESET_COOLDOWN))
+        return;
+    if (t.tv_sec - window_start > RESET_WINDOW) {
+        window_start = t.tv_sec;
+        resets = 0;
+    }
+    if (++resets > RESET_MAX)
+        return;
+    last_reset = t.tv_sec;
+    seen = 0;
+    const char *home = getenv("HOME");
+    char path[300];
+    snprintf(path, sizeof path, "%s/.cache", home ? home : "/tmp");
+    mkdir(path, 0755);
+    strncat(path, "/gpd", sizeof path - strlen(path) - 1);
+    mkdir(path, 0755);
+    strncat(path, "/dsi-resets.log", sizeof path - strlen(path) - 1);
+    FILE *f = fopen(path, "a");
+    if (f) {
+        time_t now = time(NULL);
+        char ts[32];
+        strftime(ts, sizeof ts, "%F %T", localtime(&now));
+        fprintf(f, "%s DSI underrun (MIPI_INTR_STAT=%08x): output power cycle\n", ts, stat);
+        fclose(f);
+    }
+    swaymsg_sh("swaymsg output DSI-1 power off; sleep 2; swaymsg output DSI-1 power on");
+}
+
 static int lid_closed;
 static int pad_fd = -1;
 
@@ -182,8 +276,13 @@ int main(void)
     if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0 && (sw[0] >> SW_LID & 1))
         on_lid(1); /* started with the lid already closed */
 
+    dsi_map();
+
     for (;;) {
-        if (poll(fds, 3, -1) < 0)
+        int ready = poll(fds, 3, lid_closed ? -1 : 1000);
+        if (!lid_closed)
+            dsi_watch();
+        if (ready <= 0)
             continue;
 
         if (fds[0].revents) {

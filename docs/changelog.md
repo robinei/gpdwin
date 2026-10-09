@@ -252,3 +252,12 @@ Details before 2026-10-06 are in `docs/archive/`.
   wined3d (WoW64 GL buffer copies). Added d3d8to9 + DXVK 1.10.3 DLLs to its folder and overrides in
   its launcher: ~39 fps. Details in docs/frontend.md. Revert: remove the three DLLs and override.
 - Installed `perf` (official repo, explicit) for profiling; remove with `pacman -Rns perf`.
+
+## 2026-10-09 — display glitch: automatic panel reset in inputd
+- `inputd` now watches the DSI DPI FIFO underrun bit (1 s check, lid open only) and power-cycles the
+  output like `Mod4+F10`; logs to `~/.cache/gpd/dsi-resets.log`. Needs read access to the GPU register
+  BAR: new `system/etc/tmpfiles.d/display-underrun.conf` (`z ... resource0 0440 root wheel`, manifest
+  copy). Also installed `intel-gpu-tools` (official repo, for `intel_reg` register reads).
+- Root cause still unknown (docs/hardware.md "Display"). Revert: remove the tmpfiles file
+  (`sudo rm /etc/tmpfiles.d/display-underrun.conf`, reboot or `chmod 600` the BAR), `git revert` the
+  inputd change, `scripts/sync install`, restart inputd.
