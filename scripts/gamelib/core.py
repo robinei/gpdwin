@@ -251,7 +251,8 @@ WINE32 = Path.home() / "Games/tools/wine32"          # old-style (non-WoW64) Win
 def write_launcher(rec, force=False):
     d = Path(rec["dir"])
     path = d / LAUNCHER_NAME
-    if path.exists() and not force:
+    # `"runner": "custom"` in .gpd-game.json: a hand-written launcher the generator never overwrites
+    if path.exists() and (not force or rec.get("runner") == "custom"):
         return path
     exe = Path(rec["exe"])
     workdir = str(exe.parent) if str(exe.parent) != "." else "."
@@ -310,6 +311,7 @@ def write_pegasus():
         if (d / COVER_NAME).exists():
             lines.append(f"assets.boxFront: {rel}/{COVER_NAME}")
         runner = "Wine" if rec["os"] == "windows" else "native Linux"
-        lines += [f"description: Installed from {rec['source'].title()} ({runner}).", ""]
+        desc = rec.get("description") or f"Installed from {rec['source'].title()} ({runner})."
+        lines += [f"description: {desc}", ""]
     (INSTALL_ROOT / "metadata.pegasus.txt").write_text("\n".join(lines))
     ensure_game_dir_listed()

@@ -305,3 +305,8 @@ Details before 2026-10-06 are in `docs/archive/`.
   Wine for games whose `.gpd-game.json` has `"runner": "wine32"` (opt-in; Spelunky and Cave Story+ were
   tried on it, no gain, back on the system Wine). The unused test prefix `wineprefix-oldstyle` was deleted.
   Revert: use the system `wine` and `~/.wine` in the launcher; remove `~/.wine32` and `~/Games/tools/wine32`.
+
+## 2026-10-09 — Commander Keen entry fixed
+- Its Pegasus description said "(Wine)" although Commander Genius runs it natively. `scripts/games` now honours
+  optional `description` and `runner: custom` (never overwritten) in `.gpd-game.json`; Keen's record has both.
+  The launcher is unchanged. Visible after the next Pegasus restart (`scripts/restart-pegasus`).

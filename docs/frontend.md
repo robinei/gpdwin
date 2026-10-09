@@ -100,6 +100,11 @@
   and warns when a Linux build is 32-bit (no multilib here: use the Windows build via Wine,
   e.g. Hyper Light Drifter), `gpd-launch.sh` (native, or
   `wine` with the shared `~/.wine` prefix and `WINEDEBUG=-all`), record in `.gpd-game.json`.
+  Optional fields of that record: `"runner": "wine32"` (old-style Wine, see "Wine layout" below),
+  `"runner": "custom"` (hand-written launcher the generator never overwrites, even on a forced
+  regeneration; used by Commander Keen) and `"description"` (replaces the generated Pegasus
+  description, otherwise "Installed from Steam (Wine / native Linux)"). Pegasus reads
+  `metadata.pegasus.txt` at start: restart it to see changes.
 - `~/Games/installed/metadata.pegasus.txt` is regenerated from the records with
   `collection: PC Games` / `shortname: pc`, so Pegasus merges these games into PC Games
   (verified). `~/Games/installed` is in `game_dirs.txt`. Launchers are not overwritten on
