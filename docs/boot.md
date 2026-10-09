@@ -18,8 +18,8 @@
   unused by the entry.
 - mkinitcpio: systemd-based hooks (Arch default), `MODULES=(pwm-lpss-platform i915)`, no fallback
   image.
-- Autologin: `getty@tty1` drop-in `autologin.conf` (`-o '-p -f -- \\u' --noissue --nohostname
-  --nonewline --autologin robin`: no banner, and the screen is cleared); `~/.hushlogin` hides
+- Autologin: `getty@tty1` drop-in `autologin.conf` (`-o '-p -f -- \\u' --skip-login --noissue --nohostname
+  --nonewline --autologin robin`: no banner or login line, and the screen is cleared); `~/.hushlogin` hides
   "Last login";
   fish `conf.d/sway.fish` runs `exec sway` on tty1. Sway gets its seat from seatd.
 
