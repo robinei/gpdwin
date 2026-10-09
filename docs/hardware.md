@@ -110,14 +110,15 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-i915test.img` + entry
     `arch-i915test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a
     black screen is fixed by a hard reset. Check after boot: `cat /sys/module/i915/srcversion`, cdclk in
-    `/sys/kernel/debug/dri/1/i915_cdclk_info`. Keep it: `sudo bootctl set-default arch-i915test.conf`; remove:
+    `/sys/kernel/debug/dri/1/i915_cdclk_info`. Boot is a fastset (GOP state kept): a patch only takes effect after the
+    first driver modeset, so do one panel reset (Mod4+F10) after boot before testing, with stock too. Keep it: `sudo bootctl set-default arch-i915test.conf`; remove:
     `uninstall-test.sh`. A kernel update makes the test entry useless (module is for 7.2.9-arch1-1 only); remove it.
     Test: play the scenes that glitch (DevilutionX, Zelda 3, Sam & Max) with
     `sudo python3 kernel/dsi-investigation/data/watch-readonly-logger.py LOG STOPFILE`; compare time to the first
     underrun latch after a panel reset (stock: ~1.5-2 min) over several runs, and whether a persistent desync happens.
     | Date | Module | Result |
     |---|---|---|
-    | 2026-10-09 | 0002 only (CHV cdclk >= 320000, srcversion 128FFB8FD09197039ED50CD) | installed as one-shot, not booted yet |
+    | 2026-10-09 | 0002 only (CHV cdclk >= 320000, srcversion 128FFB8FD09197039ED50CD) | Booted fine (fastset keeps GOP cdclk 266667; one panel reset -> 320000, as intended). DevilutionX: underrun latch + a momentary flash 34 s after the reset (16:21:32): **cdclk 320 MHz does not stop the underruns/flashes.** Persistent desync: watching. |
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
     saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
     screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture
