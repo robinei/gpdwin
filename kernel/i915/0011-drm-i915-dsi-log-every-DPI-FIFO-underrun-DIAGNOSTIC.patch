@@ -1,0 +1,119 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 19:10:05 +0200
+Subject: [PATCH] drm/i915/dsi: Log every DPI FIFO underrun on VLV/CHV
+
+EXPERIMENT, diagnostic only, not for upstream as is.
+
+MIPI_INTR_STAT DPI_FIFO_UNDERRUN is a sticky latch that i915 never reads;
+after the first underrun it says nothing more. Poll it every few ms
+while the DSI encoder is enabled, log each occurrence with the pipe's
+frame counter and scanline, and clear only that bit (write 1 to clear),
+so that each underrun on a GPD Win 1 can be correlated with one-frame
+pipe stalls and with the start and end of a misaligned picture.
+---
+ drivers/gpu/drm/i915/display/intel_dsi.h |  7 ++++
+ drivers/gpu/drm/i915/display/vlv_dsi.c   | 41 ++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)
+
+diff --git a/drivers/gpu/drm/i915/display/intel_dsi.h b/drivers/gpu/drm/i915/display/intel_dsi.h
+index 9fcdabb..2d702d6 100644
+--- a/drivers/gpu/drm/i915/display/intel_dsi.h
++++ b/drivers/gpu/drm/i915/display/intel_dsi.h
+@@ -24,6 +24,8 @@
+ #ifndef _INTEL_DSI_H
+ #define _INTEL_DSI_H
+ 
++#include <linux/workqueue.h>
++
+ #include <drm/drm_crtc.h>
+ #include <drm/drm_mipi_dsi.h>
+ 
+@@ -43,6 +45,11 @@ struct ref_tracker;
+ struct intel_dsi {
+ 	struct intel_encoder base;
+ 
++	/* EXPERIMENT: per-underrun logging of MIPI_INTR_STAT DPI_FIFO_UNDERRUN */
++	struct delayed_work underrun_work;
++	enum pipe underrun_pipe;
++	unsigned int underrun_count;
++
+ 	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
+ 	struct ref_tracker *io_wakeref[I915_MAX_PORTS];
+ 
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..761f183 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -719,6 +719,38 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
+  * DSI port enable has to be done before pipe and plane enable, so we do it in
+  * the pre_enable hook instead of the enable hook.
+  */
++/*
++ * EXPERIMENT (diagnostic): the DPI FIFO underrun bit is a sticky latch that
++ * nothing reads. Poll it, log each occurrence with the pipe's frame counter
++ * and scanline, and clear only that bit (write 1 to clear). Clearing other
++ * bits (e.g. HS TX timeout) can start recovery actions, so they are left alone.
++ */
++static void vlv_dsi_underrun_work(struct work_struct *work)
++{
++	struct intel_dsi *intel_dsi =
++		container_of(to_delayed_work(work), struct intel_dsi, underrun_work);
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
++	enum pipe pipe = intel_dsi->underrun_pipe;
++	enum port port;
++
++	for_each_dsi_port(port, intel_dsi->ports) {
++		u32 stat = intel_de_read(display, MIPI_INTR_STAT(display, port));
++		u32 frame, line;
++
++		if (!(stat & DPI_FIFO_UNDERRUN))
++			continue;
++
++		frame = intel_de_read(display, PIPE_FRMCOUNT_G4X(display, pipe));
++		line = intel_de_read(display, PIPEDSL(display, pipe)) & PIPEDSL_LINE_MASK;
++		intel_de_write(display, MIPI_INTR_STAT(display, port), DPI_FIFO_UNDERRUN);
++		drm_info(display->drm,
++			 "DSI %c DPI FIFO underrun #%u: frame %u scanline %u INTR_STAT 0x%08x\n",
++			 port_name(port), ++intel_dsi->underrun_count, frame, line, stat);
++	}
++
++	schedule_delayed_work(&intel_dsi->underrun_work, msecs_to_jiffies(5));
++}
++
+ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
+ 				 struct intel_encoder *encoder,
+ 				 const struct intel_crtc_state *pipe_config,
+@@ -813,6 +845,12 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
+ 
+ 	intel_backlight_enable(pipe_config, conn_state);
+ 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
++
++	if ((display->platform.valleyview || display->platform.cherryview) &&
++	    is_vid_mode(intel_dsi)) {
++		intel_dsi->underrun_pipe = pipe;
++		schedule_delayed_work(&intel_dsi->underrun_work, 0);
++	}
+ }
+ 
+ static void bxt_dsi_enable(struct intel_atomic_state *state,
+@@ -838,6 +876,8 @@ static void intel_dsi_disable(struct intel_atomic_state *state,
+ 
+ 	drm_dbg_kms(display->drm, "\n");
+ 
++	cancel_delayed_work_sync(&intel_dsi->underrun_work);
++
+ 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
+ 	intel_backlight_disable(old_conn_state);
+ 
+@@ -1930,6 +1970,7 @@ void vlv_dsi_init(struct intel_display *display)
+ 
+ 	encoder = &intel_dsi->base;
+ 	intel_dsi->attached_connector = connector;
++	INIT_DELAYED_WORK(&intel_dsi->underrun_work, vlv_dsi_underrun_work);
+ 
+ 	drm_encoder_init(display->drm, &encoder->base, &intel_dsi_funcs,
+ 			 DRM_MODE_ENCODER_DSI, "DSI %c", port_name(port));
+-- 
+2.56.0
+
