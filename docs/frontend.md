@@ -203,6 +203,15 @@
   (`wine explorer /desktop=game,1280x720 game.exe`) gives Wine's own mode list.
   (The Windows Psychonauts needed `DisplaySettings.ini` in its game folder at 1280x720.)
 
+- Sam & Max 101 (Telltale, Steamless-unpacked, 2026-10-09): on the real display it opened a white
+  window and spun on `NtUserChangeDisplaySettings returned -2` (it retries a mode Wine doesn't
+  offer every 0.4 s, CPU ~190%). In a Wine virtual desktop it runs: `wine explorer
+  /desktop=samandmax,1280x720 "$PWD/sammax101.exe"` (explorer does not search the current dir:
+  a relative exe name silently starts nothing; use the full path). Renders the intro at 800x600 in
+  the desktop's top-left corner; pick 1280x720 in the game's options if offered. Still ~190% CPU
+  and a bare white bar at the bottom; playability untested. Launcher is outside the repo
+  (`~/Games/installed/sam-max-101-culture-shock/gpd-launch.sh`).
+
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them
   python-matplotlib/numpy and glfw, ~134 MB; `scripts/aur check` says when the repo version moves
