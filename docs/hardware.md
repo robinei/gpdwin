@@ -68,6 +68,23 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     test "host vs panel") until the real control register is identified. Driver sequence for reference:
     enable = DPI `TURN_ON` command, 100 ms, panel DISPLAY_ON, then `DPI_ENABLE` in the port control;
     disable = `SHUTDOWN` command, port control `DPI_ENABLE` cleared.
+  - **Probable root cause found in the driver (2026-10-09), untested:** `vlv_dsi.c` programs
+    `MIPI_HS_TX_TIMEOUT` (0x18b810, "recovery" timer: one frame in byte clocks for non-burst video mode)
+    with `txbyteclkhs(vtotal * htotal, ...)`, whose pixel argument AND return value are `u16`.
+    774 x 1308 = 1,012,392 px wraps to 29,352, so the register is 22,015 (`0x55ff`, exactly what the
+    hardware shows) instead of ~759,295 (`0xb95ff`): a ~0.5 ms timeout instead of one 16 ms frame
+    (upstream master still has the `u16`). The VBT (`i915_vbt` in debugfs, decode with `intel_vbt_decode`)
+    says: MIPI port C, 4 lanes, RGB888, **non-burst with sync events** (no slack), clock stop off, EOT on,
+    HSTxTimeOut 0x3fffff (ignored for non-burst), panel init = Jadard-type (E1/E2/E3 unlock, sleep out,
+    lane setting 0x03, display on), reset on GPIO 72, backlight on GPIO 70. The comment in the driver says
+    that when the counter expires the controller ends the HS transmission (EOT, stop state), so with the
+    truncated value this happens many times per frame (consistent with `MIPI_INTR_STAT` bit 21
+    HS_TX_TIMEOUT always set); each forced restart leaves a gap that non-burst mode cannot absorb, the DPI
+    pixel FIFO underruns (bit 20) under load, and a stop/restart can leave the stream misaligned.
+    Test without a rebuild: `sudo intel_reg write 0x18b810 0x000b95ff` (a modeset, e.g. Mod4+F10, restores the
+    driver's value) and `sudo intel_reg write 0x18b804 0x00100000` (clear the underrun latch), then count glitches.
+    Real fix: `u16` -> `u32` in `txbyteclkhs()`/`pixels_from_txbyteclkhs()`; build `i915` on the desktop (DKMS or
+    prebuilt .ko), send upstream.
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
     saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
     screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture
