@@ -81,8 +81,14 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     truncated value this happens many times per frame (consistent with `MIPI_INTR_STAT` bit 21
     HS_TX_TIMEOUT always set); each forced restart leaves a gap that non-burst mode cannot absorb, the DPI
     pixel FIFO underruns (bit 20) under load, and a stop/restart can leave the stream misaligned.
-    Test without a rebuild: `sudo intel_reg write 0x18b810 0x000b95ff` (a modeset, e.g. Mod4+F10, restores the
-    driver's value) and `sudo intel_reg write 0x18b804 0x00100000` (clear the underrun latch), then count glitches.
+    **Live register writes are NOT safe (tried 2026-10-09, DON'T repeat):** writing `0x18b810` = `0xb95ff` and
+    then clearing the latch/bit 21 in `0x18b804` on the running system was followed within a minute by
+    `[CRTC:86:pipe B] flip_done timed out` (pipe stalled) and a hard lock (black screen) when suspend started; only a
+    hard reset recovered. Also: a **fresh boot has `0x18b810` = `0x3fffff`** (the VBT value, left by the firmware: no
+    DSI modeset has run yet); the truncated `0x55ff` appears only after the driver's first modeset (screen
+    power off/on, resume, Mod4+F10, a mode change). Read-only check of the theory: does the glitch rate differ
+    between the fresh-boot state and after the first modeset? (`~/.cache/gpd/glitchlog/watch.py` logs the register).
+    The reliable test is the patched driver (below), loaded through a reboot with a way back.
     Real fix: `u16` -> `u32` in `txbyteclkhs()`/`pixels_from_txbyteclkhs()`; build `i915` on the desktop (DKMS or
     prebuilt .ko), send upstream.
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check

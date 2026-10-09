@@ -310,3 +310,9 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Its Pegasus description said "(Wine)" although Commander Genius runs it natively. `scripts/games` now honours
   optional `description` and `runner: custom` (never overwritten) in `.gpd-game.json`; Keen's record has both.
   The launcher is unchanged. Visible after the next Pegasus restart (`scripts/restart-pegasus`).
+
+## 2026-10-09 — DSI timeout experiment hung the display (nothing changed on the system)
+- Wrote a corrected `MIPI_HS_TX_TIMEOUT` live (docs/hardware.md "Probable root cause"); pipe B stalled
+  (`flip_done timed out`) and the machine hard-locked at suspend; hard reset recovered. No file or config
+  changed. Lesson: no live writes to DSI registers; test display-driver changes only via a patched module
+  loaded at boot.
