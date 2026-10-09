@@ -120,9 +120,9 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     uninstall), so `pacman -Qkk linux` reports them missing; expected.
   - **Burst mode experiment (0014, in the DKMS build, off by default):** `i915.vlv_dsi_burst_pct=120` on the
     kernel command line runs the panel in burst mode (link 20% faster, idle between lines = slack against pipe
-    hiccups). One-shot test: `kernel/i915/oneshot-param.sh i915.vlv_dsi_burst_pct=120`. Not tested yet.
-  - **i915 patch tests** (`kernel/i915/`; history of the experiments. With DKMS `gpd-i915` installed,
-    `install-test.sh` must be adapted first: it would add a second i915 to `updates/`): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
+    hiccups). One-shot test with a desktop build: `kernel/i915/install-test.sh ~/i915-burst.ko.zst i915.vlv_dsi_burst_pct=120`. Not tested yet.
+  - **i915 patch tests** (`kernel/i915/`; history of the experiments. `install-test.sh` now builds its test initramfs from
+    an alternate module tree, so it works next to DKMS): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
     `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-i915test.img` + entry
     `arch-i915test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a
     black screen is fixed by a hard reset. Check after boot: `cat /sys/module/i915/srcversion`, cdclk in
