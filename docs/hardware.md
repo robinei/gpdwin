@@ -134,6 +134,16 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   is frozen at "inserted".
   Evidence: codec registers via `/sys/kernel/debug/regmap/i2c-10EC5645:00-nocache/registers`
   (`0bd: 0000`, `08a: 0000` after, `0280` / `0120` before) and `scripts/audio-snapshot`.
+- Second bug, in the sound DSP driver (Intel SST, `snd_intel_sst_core`): `intel_sst_pm` only has
+  `.suspend/.resume/.runtime_suspend`, so hibernate's `.freeze/.thaw/.poweroff/.restore` do nothing
+  for it (trace: `[freeze]`/`[restore]` return at once). The DSP firmware is neither saved nor
+  restored; when the DSP was not runtime-suspended at hibernate time the driver believes the
+  firmware runs after the power loss and every IPC times out (`sst: Busy wait failed`, `Wait timed-out
+  condition:0x0, msg_id:0x1 fw_state 0x3`, `fw returned err -16`, `ASoC: PRE_PMD: pcm0_in event
+  failed: -16`), `pw-play` hangs, nothing sounds. Idle-DSP hibernates happen to work (state RESET
+  -> firmware reloaded on first use), which is why the static-noise case was seen first.
+  Patch: `kernel/intel-sst/` (9 changed lines of `sst.c`: map the four callbacks to the existing
+  suspend/resume handlers) + `build.sh`.
 - Workaround that works without a reboot: stop PipeWire/WirePlumber, `modprobe -r
   snd_soc_sst_cht_bsw_rt5645` (also unloads the codec), `modprobe snd_soc_sst_cht_bsw_rt5645`, start
   PipeWire (re-probes the codec; stop PipeWire first, unbinding with the card open hung the kernel once).

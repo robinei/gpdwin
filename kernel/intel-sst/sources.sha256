@@ -1,0 +1,11 @@
+a82b84651f38eeec771e93c3a95846d0e056e1285a727e9d5c53dbde7f66fe30  ./sound/soc/intel/atom/sst-atom-controls.h
+0d7f9e010afd5d4d6dd3a45eaa44f57345dd25f67e4352b48c118d5b7e576cac  ./sound/soc/intel/atom/sst-mfld-dsp.h
+6e50d3b3e865bb22ec29d35e64900499bf6d34d28a7d4c548fa40a132dbaf3c3  ./sound/soc/intel/atom/sst-mfld-platform.h
+f2964d89f72b323ddf24410cfd12b7da4257ea44b3d6c9814932ccb943bef724  ./sound/soc/intel/atom/sst/sst.c
+760f201f6a5f833acb13cc5dbca3e1c686e0eb7c4e82d3fc195d6bc5ca8d589a  ./sound/soc/intel/atom/sst/sst_drv_interface.c
+d7da4ab41e4cedb6b0425f71629ae29f725ead6abceb4489269443ba54429cae  ./sound/soc/intel/atom/sst/sst.h
+64054179e68a121c3883dec8255975a45548a863962c03f8bce7e447e8723b43  ./sound/soc/intel/atom/sst/sst_ipc.c
+11a69d4326ebd8e73b2757515f9a5783b86bef0662254b80b4c491d229640156  ./sound/soc/intel/atom/sst/sst_loader.c
+21c506fa996808628dd9189c7dfccee4ff91c278c120a3135ab1d213fbc0696c  ./sound/soc/intel/atom/sst/sst_pvt.c
+f8e6815445ec0f11c3cf9bbdd8b8e7f85f2ee71b1ccaadf0a7f5d521e7cb9f9a  ./sound/soc/intel/atom/sst/sst_stream.c
+060978860ee69bcea1b017ef7057f6e3a9b8eacb375b3c01e57ed771e0cd426c  ./sound/soc/intel/common/soc-intel-quirks.h

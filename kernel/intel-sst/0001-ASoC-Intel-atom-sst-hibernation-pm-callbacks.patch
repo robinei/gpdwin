@@ -1,0 +1,32 @@
+From: Robin <robinei@gmail.com>
+Subject: [PATCH] ASoC: Intel: atom: sst: save and restore the DSP firmware over hibernation
+
+intel_sst_pm only has .suspend/.resume/.runtime_suspend. Hibernation uses .freeze, .thaw,
+.poweroff and .restore, so the driver does nothing for it: the firmware is not saved, and after
+the restore the driver still thinks the DSP runs its firmware while the DSP lost its power. Every
+IPC message then times out ("Wait timed-out condition:0x0, msg_id:0x1 fw_state 0x3", "fw returned
+err -16"), the stream never starts and applications block on the audio device. It only works when
+the DSP happened to be runtime-suspended (state SST_RESET) at hibernation time.
+
+Use the existing suspend/resume handlers for the hibernation callbacks too.
+
+Seen on a GPD Win (Cherry Trail, cht-bsw-rt5645, kernel 7.2.9).
+---
+--- pa/sound/soc/intel/atom/sst/sst.c	2026-10-09 12:34:08.557429480 +0200
++++ pb/sound/soc/intel/atom/sst/sst.c	2026-10-09 12:34:08.570142023 +0200
+@@ -574,6 +574,15 @@
+ const struct dev_pm_ops intel_sst_pm = {
+ 	.suspend = intel_sst_suspend,
+ 	.resume = intel_sst_resume,
++	/*
++	 * Hibernation uses freeze/thaw/poweroff/restore, not suspend/resume. Without these the
++	 * firmware is neither saved nor restored: after the restore the driver still thinks the DSP
++	 * runs its firmware while the DSP lost its power, and every IPC times out.
++	 */
++	.freeze = intel_sst_suspend,
++	.thaw = intel_sst_resume,
++	.poweroff = intel_sst_suspend,
++	.restore = intel_sst_resume,
+ 	.runtime_suspend = intel_sst_runtime_suspend,
+ };
+ EXPORT_SYMBOL_GPL(intel_sst_pm);
