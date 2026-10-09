@@ -1,0 +1,13 @@
+# Rebuild the completely stock fallback initramfs (gpd-stock-initramfs) after the kernel or a DKMS
+# module changed. Sorts after 90-mkinitcpio-install.hook and the dkms hooks.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/src/*/dkms.conf
+
+[Action]
+Description = Building the stock fallback initramfs (initramfs-linux-stock.img)...
+When = PostTransaction
+Exec = /usr/local/bin/gpd-stock-initramfs

@@ -4,4 +4,5 @@ set -e
 sudo dkms remove gpd-i915/1.0 --all
 sudo rm -rf /usr/src/gpd-i915-1.0 /var/cache/gpd-i915
 sudo mkinitcpio -P
+sudo /usr/local/bin/gpd-stock-initramfs
 echo "i915 -> $(modinfo -n i915)"

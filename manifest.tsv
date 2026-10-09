@@ -70,4 +70,5 @@ copy	system/opt/zelda3-git/zelda3.ini	/opt/zelda3-git/zelda3.ini	root:root:0644
 build	src/statusbar.c	~/.local/bin/statusbar
 build	src/inputd.c	~/.local/bin/inputd
 copy	dotfiles/commandergenius/cgenius.cfg	~/.CommanderGenius/cgenius.cfg	robin:robin:0644
-copy	system/etc/pacman.d/hooks/10-i915test-default-stock.hook	/etc/pacman.d/hooks/10-i915test-default-stock.hook	root:root:0644
+copy	system/usr/local/bin/gpd-stock-initramfs	/usr/local/bin/gpd-stock-initramfs	root:root:0755
+copy	system/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	root:root:0644

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Build /boot/initramfs-linux-stock.img: the normal initramfs, but with Arch's own kernel modules only
+# (no DKMS modules from updates/, i.e. the stock i915 instead of the patched one). Used by the boot
+# entry "Arch Linux (stock)" (arch-stock.conf) as a completely stock fallback. Run by the pacman hook
+# 95-gpd-stock-initramfs.hook after kernel/DKMS changes; safe to run by hand (as root).
+set -eu
+R=/var/lib/gpd-stock-modroot
+KV=$(pacman -Qlq linux | sed -n 's|^/usr/lib/modules/\([^/]*\)/vmlinuz$|\1|p')
+[ -n "$KV" ] || { echo "gpd-stock-initramfs: no kernel found"; exit 1; }
+rm -rf "$R"
+mkdir -p "$R/lib/modules"
+cp -al "/usr/lib/modules/$KV" "$R/lib/modules/"      # hard links: no extra space
+rm -rf "$R/lib/modules/$KV/updates"
+depmod -b "$R" "$KV"
+mkinitcpio -k "$KV" -r "$R" -g /boot/initramfs-linux-stock.img
