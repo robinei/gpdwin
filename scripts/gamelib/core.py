@@ -244,6 +244,26 @@ cd "$(dirname "$0")/{workdir}" || exit 1
 """
 
 
+WINE32 = Path.home() / "Games/tools/wine32"          # old-style (non-WoW64) Wine, see docs/frontend.md
+
+
+def pe_is_32bit(path):
+    """True for a 32-bit (i386) Windows executable, False for 64-bit, None if it is not a PE file."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(64)
+            if head[:2] != b"MZ":
+                return None
+            f.seek(int.from_bytes(head[60:64], "little"))
+            sig = f.read(6)
+    except OSError:
+        return None
+    if sig[:4] != b"PE\0\0":
+        return None
+    return int.from_bytes(sig[4:6], "little") == 0x14C
+
+
+
 def write_launcher(rec, force=False):
     d = Path(rec["dir"])
     path = d / LAUNCHER_NAME
@@ -251,7 +271,14 @@ def write_launcher(rec, force=False):
         return path
     exe = Path(rec["exe"])
     workdir = str(exe.parent) if str(exe.parent) != "." else "."
-    if rec["os"] == "windows":
+    if rec["os"] == "windows" and pe_is_32bit(d / exe) and (WINE32 / "bin/wine").exists():
+        # The system Wine is the new WoW64 build: 32-bit D3D games are ~8x slower on it (buffer copies,
+        # docs/frontend.md). A 32-bit game runs on the old-style Wine in a true 32-bit prefix.
+        runner = "old-style Wine (32-bit prefix ~/.wine32)"
+        env = ('export WINEPREFIX="$HOME/.wine32" WINEARCH=win32 WINEDEBUG=-all\n'
+               'export WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"\n')
+        cmd = f'"$HOME/Games/tools/wine32/bin/wine" "./{exe.name}"'
+    elif rec["os"] == "windows":
         runner, env = "wine (shared prefix ~/.wine)", "export WINEDEBUG=-all\n"
         cmd = f'wine "./{exe.name}"'
     else:

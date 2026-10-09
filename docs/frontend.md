@@ -258,6 +258,20 @@
   WoW64 system Wine; options are DXVK (D3D9; D3D8 via d3d8to9) or an old-style Wine per game.
   Arch has no old-style `wine` package any more (AUR `wine-stable` builds from source: hours here).
 
+- **Wine layout (2026-10-09):** two Wines side by side. System `wine` (Arch, new WoW64) with the shared
+  `~/.wine` prefix for 64-bit games (Heretic + Hexen) and anything that doesn't care. **Old-style Wine
+  (`~/Games/tools/wine32` -> `wine-oldstyle/wine-11.19-amd64`, Kron4ek build) with a true 32-bit
+  prefix `~/.wine32` (`WINEARCH=win32`, only the old-style build can make one) for every 32-bit
+  Windows game** (Sam & Max, Spelunky, Cave Story+): ~8x faster on D3D than the WoW64 system Wine. A win32
+  prefix is half the size of a win64 one (310 vs 616 MB) with the same speed (39.3 vs 38.6 fps) and Wine
+  memory (449 vs 453 MB) on Sam & Max, so no performance reason, just tidier. `scripts/games` picks the
+  runner by the exe's PE header (`pe_is_32bit()` in `scripts/gamelib/core.py`) and writes launchers with
+  `WINEPREFIX=$HOME/.wine32 WINEARCH=win32 WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"`
+  (Mono, Gecko and GStreamer are not available/needed there). Existing launchers are not rewritten
+  (edit them by hand). Updating: new Kron4ek release -> unpack next to it, repoint the `wine32` symlink,
+  keep the old directory until it works (a prefix updates itself on first use). The old test prefix
+  `~/Games/tools/wineprefix-oldstyle` (616 MB) is no longer used.
+
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them
   python-matplotlib/numpy and glfw, ~134 MB; `scripts/aur check` says when the repo version moves
