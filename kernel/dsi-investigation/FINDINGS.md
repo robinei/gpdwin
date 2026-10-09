@@ -7,8 +7,51 @@ v7.2.9. Detailed reports: `reports/B-clocks.md`, `reports/C-watermarks.md`,
 `reports/D-sequence-history.md` (the register audit A is summarised here). Arithmetic
 reimplementations: `scripts/` (copied from the analysis, paths inside point at a scratch dir).
 
-**Nothing here is known to cause the glitch.** One confirmed bug (does not cause it, refuted earlier),
-two experiments modeled on upstream fixes for the same symptom on sibling hardware, the rest cleared.
+## Status and conclusions (updated 2026-10-09 late; read this first)
+
+**What the glitch is (measured, patch 0011 logging every DPI FIFO underrun):** the pipe pauses longer than
+the DSI controller's DPI FIFO (~1/3 line) can cover, so the FIFO underruns (`MIPI_INTR_STAT` bit 20; the pipe's
+own FIFO never underruns, the panel sees a protocol-clean stream, 0009). Two outcomes:
+- **Flash** = a PAIR: an underrun mid-frame, then one at scanline 1279 (last active line) 5-12 ms later and a
+  one-frame pipe stall; the hardware restarts aligned at the next frame. Seen 7/7, then every time since.
+- **Split** = a LONE underrun (no 1279 partner, no stall): leftover bytes stay in the DPI FIFO and every later
+  frame is sent that many bytes late (shifted picture, rotated colors if not a multiple of 3), until the next
+  pair realigns it or a modeset. Seen 2/2 before the fix. Model: `reports/R3-resync-design.md`.
+
+**The fix in use:** patch 0012 detects a lone underrun and does what the hardware does after a pair (planes +
+pipe off for one frame so the DSI side drains the FIFO, pipe on at a frame start): a brief flicker instead of
+a lasting split, 4/4 on the first test evening, plus every lone underrun since. Deployed as DKMS package
+`gpd-i915` (0001+0011+0012+0013, rebuilt per kernel on the device), default boot entry; stock fallback entry.
+See docs/hardware.md "Display" ("Current state").
+
+**Still unknown: why the pipe pauses** (root cause; flashes remain). Not load-related (light DevilutionX,
+not heavy Psychonauts). The GPD Pocket with the same symptom (fdo bug 105834) was fine after a mainboard swap and
+under Windows: per-unit margin plus something Linux does. Ruled out by test: cdclk (0002), recovery actions
+(0006), DDR DVFS (0007), frame start delay (0008), line timing (0005), burst mode slack (0014, panel works in
+burst but the rate is unchanged: pauses exceed ~1 us/line), GPU RC6/freq, CPU C-states, plane/cursor events.
+Open candidates: memory self-refresh / PM5 (cxSR), PMIC-bus traffic from battery polling, page-flip pattern;
+best next step: trace GPU/CPU/IRQ/power events around the underrun timestamps 0011 provides.
+
+**Patches** (`kernel/i915/`):
+| # | what | status |
+|---|---|---|
+| 0001 | u16 overflow of MIPI_HS_TX_TIMEOUT | real bug, verified (reg 0xb95ff, spurious bit 21 gone); in use; upstream candidate |
+| 0002 | cdclk >= 320 MHz on CHV | no effect |
+| 0003/0004 | BXT DPI FIFO flush bit (port C / port A) | bit does not exist on CHV |
+| 0005 | blanking rounded down | no effect (the "pipe/link mismatch" was a misreading: the pipe has no clock of its own) |
+| 0006 | DSI error-recovery actions off | no effect |
+| 0007 | no DDR DVFS | no effect |
+| 0008 | frame start delay 4 | no effect (correct-unit formula gives 1 = stock) |
+| 0009 | video BTA on (diagnostic) | panel acks, reports no errors even during a split |
+| 0010 | MIPI C HS-TX delay | not tested (0009 showed the panel side is clean) |
+| 0011 | log every DPI underrun (diagnostic) | in use; upstreamable idea (report DSI underruns) |
+| 0012 | resync after a lone underrun | in use; works |
+| 0013 | start 0011/0012 on fastset | in use |
+| 0014 | optional burst mode (module param) | panel works, no fewer underruns; not in use |
+
+The sections below are the round-1 audit and the measurements in the order they were made; where they say
+otherwise, this summary wins (e.g. "the link back-pressures the pipe" below: the pipe is slaved to the DSI
+timing generator, R2A).
 
 ## Panel numbers used everywhere
 720x1280, h 720/738/756/774, v 1280/1294/1298/1308, VBT clock 61000 kHz. The driver adopts the GOP's
@@ -74,7 +117,7 @@ the host packs after a DPI FIFO underrun. Round-2 patch results (0006-0008, all 
 - Effect: only this register changes on this panel. Not the desync cause (desync seen with 0x3fffff).
   Fit to send upstream: `kernel/i915/0001-*.patch` (needs Robin's Signed-off-by; draft, not sent).
 
-## Experiments (PLAUSIBLE, untested; each is one patch, test one at a time)
+## Experiments (round 1 candidates; all tested since, see the summary at the top)
 
 ### 2. cdclk 266667 kHz with DSI on CHV (patch 0002) — tested, no improvement
 - `vlv_dsi.c:1756-1778` `vlv_dsi_min_cdclk()` returns 320000 for Valleyview only, CHV gets 0.
