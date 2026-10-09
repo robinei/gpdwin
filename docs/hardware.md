@@ -125,10 +125,13 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   `regmap:*` filtered to the codec, see below): the codec loses power; on `[restore]` the driver
   (`rt5645_sys_resume`) runs `regcache_sync()`, which writes ~30 registers but skips (a) registers
   whose cached value equals the reset default in its defaults table (it assumes a freshly reset
-  chip, but the power-on value of e.g. `0x8a` ASRC_4 is 0, the table says `0x0120`: ASRC stays off,
-  so the DAC clock does not match the 48 kHz I2S stream: static), and (b) volatile registers, which
-  are not cached at all: `IRQ_CTRL2` (`0xbd`, the jack-detect interrupt enable, set once in probe)
-  and `A_JD_CTRL1`. With `0xbd` = 0 no jack interrupt ever fires, so the jack state is frozen.
+  chip), and (b) volatile registers, which are not in the cache at all. Probe does a one-time setup
+  that falls in exactly those groups and is never redone: `init_list` (private registers
+  `PR_BASE+0x3d/0x1c/0x20/0x21/0x23`, the amp/analog settings, plus `ASRC_4` `0x8a` = `0x0120`,
+  which the cache already holds as its default so the sync skips it while the chip powers up with 0)
+  and the jack detection setup (`IRQ_CTRL2` `0xbd`, `A_JD_CTRL1`). Consequences: static through the
+  headphones, a silent speaker, and with `0xbd` = 0 no jack interrupt ever fires, so the jack state
+  is frozen at "inserted".
   Evidence: codec registers via `/sys/kernel/debug/regmap/i2c-10EC5645:00-nocache/registers`
   (`0bd: 0000`, `08a: 0000` after, `0280` / `0120` before) and `scripts/audio-snapshot`.
 - Workaround that works without a reboot: stop PipeWire/WirePlumber, `modprobe -r
@@ -137,8 +140,10 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   Writing only the lost registers (`0xbd`, `0x8a`, `0x83`, `0xf8`) with `i2ctransfer -f -y 1 w3@0x1a REG HI LO`
   fixed the jack but not the sound (private registers can't be read back).
 - Proper fix: `kernel/rt5645/` (patch against the 7.2.9 `sound/soc/codecs/rt5645.c` + `build.sh`):
-  a `.restore` PM handler that soft-resets the codec, resyncs the cache and redoes the jack setup
-  (`rt5645_jd_init()`, factored out of probe). `kernel/rt5645/build.sh` builds `build/snd-soc-rt5645.ko`
+  a `.restore` PM handler that soft-resets the codec, redoes the one-time setup of probe (now
+  `rt5645_hw_init()`, used by probe and restore) and then resyncs the cache. v1 only redid the jack
+  setup: the jack worked after a real hibernate (trace: `0xbd` rewritten) but `0x8a` and the private
+  registers were still lost, hence v2. `kernel/rt5645/build.sh` builds `build/snd-soc-rt5645.ko`
   against `linux-headers` (does not load anything). Status: builds; NOT yet loaded/tested (loading a
   self-built module as root needs the user's go-ahead); worth sending upstream (alsa-devel, Realtek
   rt5645 maintainers) once it is proven.
