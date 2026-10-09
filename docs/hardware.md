@@ -93,3 +93,19 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   its jack-detect work), leaving audio dead until reboot. Do NOT automate that in a sleep hook
   (a hang there could block resume; the hook was added and removed again the same day).
   Safe manual fix: plug something into the jack and pull it out, or reboot.
+
+### Quick fix: `scripts/audio-speaker` (2026-10-09)
+- Recurred on 2026-10-09 with no plug/unplug by anyone: stale "headphones plugged in" since the
+  hibernate attempt at 22:42 the evening before (the hibernate aborted and the system resumed).
+- Try first: `scripts/audio-speaker`. It selects the card profile `HiFi (Mic, Speaker)` (the
+  profile list is not filtered by jack state) and makes the speaker sink the default. Same as
+  `pactl set-card-profile alsa_card.platform-cht-bsw-rt5645 "HiFi (Mic, Speaker)"`. Sound came
+  back immediately. `scripts/audio-speaker auto` restores the normal profile (use after really
+  plugging in headphones). Lasts until reboot/next profile reset.
+- Diagnosis (what does NOT work): a real s2idle suspend (`rtcwake -m freeze -s 10`) does not clear
+  it; the driver re-runs jack detect on resume and still gets "jack in". The codec's own status
+  register says plugged: `INT_IRQ_ST` (0xbf) = 0x0880 with bit 0x1000 clear = jack in; `IRQ_CTRL2`
+  (0xbd) reads 0. Read with `sudo grep -E '^0(bd|bf):' /sys/kernel/debug/regmap/i2c-10EC5645:00-nocache/registers`.
+  Input switch state: `chtrt5645 Headset` (event18) SW bits 2 and 4 set (headphone+mic insert).
+  IRQ injection is unavailable (no /sys/kernel/debug/irq); there is no userspace way to re-trigger
+  the jack work except the unsafe codec unbind. Root cause unknown (chip vs stuck jack contact).

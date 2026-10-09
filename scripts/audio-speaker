@@ -1,0 +1,11 @@
+#!/bin/sh
+# Force the speaker output when the rt5645 codec wrongly reports a headphone plug
+# (docs/hardware.md "Audio jack"). Undo with: audio-speaker auto
+CARD=alsa_card.platform-cht-bsw-rt5645
+case "${1:-speaker}" in
+  auto) pactl set-card-profile $CARD "HiFi (Headphones, Headset)" ;;   # use after really plugging in
+  *)    pactl set-card-profile $CARD "HiFi (Mic, Speaker)" ;;
+esac
+sleep 0.5
+id=$(wpctl status | sed -n '/Sinks:/,/Sources:/p' | grep -o '[0-9]\+\.' | head -1 | tr -d .)
+[ -n "$id" ] && wpctl set-default "$id" && echo "default sink $id: $(pactl list short sinks | cut -f2)"
