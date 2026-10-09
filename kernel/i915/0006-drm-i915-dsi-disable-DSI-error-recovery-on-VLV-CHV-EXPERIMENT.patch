@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 18:11:54 +0200
+Subject: [PATCH] drm/i915/dsi: Disable DSI error recovery actions on VLV/CHV
+
+EXPERIMENT, not for upstream until tested.
+
+MIPI_EOT_DISABLE bits 2-7 disable the DSI controller's automatic
+recovery actions (VLV PRM vol 10, MIPI_EOT_DISABLE): for an HS TX
+timeout the controller otherwise ends HS mode with EOT and puts the
+lanes in stop state; similar actions exist for LP RX timeout, high/low
+contention, unrecognised data type and multi-bit ECC errors. i915 leaves
+all of them enabled; Intel's Android ADF driver set them from the VBT.
+
+On a GPD Win 1 (CHV, DSI video mode) the picture intermittently loses
+alignment (one-frame pipe stall, DPI FIFO underrun, sometimes a lasting
+byte-offset split). Disable the recovery actions to see whether one of
+them is involved. Test together with the HS_TX_TIMEOUT u16 fix.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..a95f6ca 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1372,6 +1372,19 @@ static void intel_dsi_prepare(struct intel_encoder *encoder,
+ 	if (intel_dsi->clock_stop)
+ 		tmp |= CLOCKSTOP;
+ 
++	/*
++	 * EXPERIMENT: disable the DSI controller's automatic error recovery
++	 * actions (EOT + stop state on HS TX timeout, contention, ECC and
++	 * type errors), as Intel's Android ADF driver does from the VBT.
++	 */
++	if (display->platform.valleyview || display->platform.cherryview)
++		tmp |= LP_RX_TIMEOUT_ERROR_RECOVERY_DISABLE |
++			HS_RX_TIMEOUT_ERROR_RECOVERY_DISABLE |
++			LOW_CONTENTION_RECOVERY_DISABLE |
++			HIGH_CONTENTION_RECOVERY_DISABLE |
++			TXDSI_TYPE_NOT_RECOGNISED_ERROR_RECOVERY_DISABLE |
++			TXECC_MULTIBIT_ERROR_RECOVERY_DISABLE;
++
+ 	if (display->platform.geminilake || display->platform.broxton) {
+ 		tmp |= BXT_DPHY_DEFEATURE_EN;
+ 		if (!is_cmd_mode(intel_dsi))
+-- 
+2.56.0
+

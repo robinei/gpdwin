@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 18:12:13 +0200
+Subject: [PATCH] drm/i915/dsi: Frame start delay of 4 lines for DSI video mode
+ on VLV/CHV
+
+EXPERIMENT, not for upstream.
+
+i915 always programs a frame start delay of 1 (TRANSCONF bits 28:27,
+"reserved" in the public VLV PRM, but written by i915, the GOP and
+Intel's Android driver). Intel's Android ADF DSI code computed the delay
+for DSI pipes from an HW-team rule, (htotal * 5 ns * delay) >= 8000 ns,
+max 4, which gives 4 for htotal 774. On a GPD Win 1 (CHV, DSI video
+mode) the pipe intermittently stalls for one frame and the DSI stream
+loses alignment; give the pipe more lead time at frame start to see
+whether the pipe/DSI frame-start handshake is involved.
+
+Note: the GOP leaves 1, so the boot takeover becomes a full modeset.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..f175b5c 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -280,6 +280,15 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
+ 	pipe_config->sink_format = INTEL_OUTPUT_FORMAT_RGB;
+ 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+ 
++	/*
++	 * EXPERIMENT: frame start delay of 4 lines for DSI video mode on
++	 * VLV/CHV, as Intel's Android driver computed for DSI pipes
++	 * ((htotal * 5 ns * delay) >= 8000 ns, max 4).
++	 */
++	if ((display->platform.valleyview || display->platform.cherryview) &&
++	    is_vid_mode(intel_dsi))
++		pipe_config->framestart_delay = 4;
++
+ 	ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+ 	if (ret)
+ 		return ret;
+-- 
+2.56.0
+

@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 18:11:55 +0200
+Subject: [PATCH] drm/i915/wm: Don't use DDR DVFS on CHV
+
+EXPERIMENT, not for upstream.
+
+With the DDR DVFS watermark level active, i915 clears FORCE_DDR_HIGH_FREQ
+and the Punit may change the DDR frequency whenever the display FIFO
+allows it. On a GPD Win 1 the DSI picture intermittently loses alignment
+in light, bursty games but not in constantly GPU-heavy ones, which would
+fit frequency switches. Limit CHV to the PM2/PM5 levels so the driver
+forces DDR to the high frequency. Costs some idle power.
+---
+ drivers/gpu/drm/i915/display/i9xx_wm.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/i915/display/i9xx_wm.c b/drivers/gpu/drm/i915/display/i9xx_wm.c
+index 86d1c9f..c0e11fe 100644
+--- a/drivers/gpu/drm/i915/display/i9xx_wm.c
++++ b/drivers/gpu/drm/i915/display/i9xx_wm.c
+@@ -1504,7 +1504,11 @@ static void vlv_setup_wm_latency(struct intel_display *display)
+ 		display->wm.pri_latency[VLV_WM_LEVEL_PM5] = 12;
+ 		display->wm.pri_latency[VLV_WM_LEVEL_DDR_DVFS] = 33;
+ 
+-		display->wm.num_levels = VLV_WM_LEVEL_DDR_DVFS + 1;
++		/*
++		 * EXPERIMENT: never allow DDR DVFS for the display; the Punit
++		 * then keeps DDR at the high frequency (FORCE_DDR_HIGH_FREQ).
++		 */
++		display->wm.num_levels = VLV_WM_LEVEL_PM5 + 1;
+ 	}
+ }
+ 
+-- 
+2.56.0
+
