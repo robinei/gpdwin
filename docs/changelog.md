@@ -247,6 +247,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   docs/hardware.md "Audio jack". Tried a 10 s s2idle suspend: no effect.
 - Revert: delete the script; `scripts/audio-speaker auto` or reboot restores the normal profile.
 
-## 2026-10-09 — Sam & Max 101 runs in a Wine virtual desktop
-- Launcher now `wine explorer /desktop=samandmax,1280x720 <full path>`; intro renders. See
-  docs/frontend.md. Revert: `exec wine ./sammax101.exe` (white window).
+## 2026-10-09 — Sam & Max 101 runs fullscreen (still slow)
+- Patched the game's `prefs.prop` (Fullscreen/Window Size 800x600 -> 1280x720); plain `wine`
+  launcher. Details in docs/frontend.md. Revert: copy `prefs.prop.orig` back.

@@ -203,14 +203,16 @@
   (`wine explorer /desktop=game,1280x720 game.exe`) gives Wine's own mode list.
   (The Windows Psychonauts needed `DisplaySettings.ini` in its game folder at 1280x720.)
 
-- Sam & Max 101 (Telltale, Steamless-unpacked, 2026-10-09): on the real display it opened a white
-  window and spun on `NtUserChangeDisplaySettings returned -2` (it retries a mode Wine doesn't
-  offer every 0.4 s, CPU ~190%). In a Wine virtual desktop it runs: `wine explorer
-  /desktop=samandmax,1280x720 "$PWD/sammax101.exe"` (explorer does not search the current dir:
-  a relative exe name silently starts nothing; use the full path). Renders the intro at 800x600 in
-  the desktop's top-left corner; pick 1280x720 in the game's options if offered. Still ~190% CPU
-  and a bare white bar at the bottom; playability untested. Launcher is outside the repo
-  (`~/Games/installed/sam-max-101-culture-shock/gpd-launch.sh`).
+- Sam & Max 101 (Telltale, Steamless-unpacked, 2026-10-09): its `prefs.prop` asked for 800x600, a
+  mode Wine doesn't offer here, so it opened a white window and spun on
+  `NtUserChangeDisplaySettings returned -2` (retry every 0.4 s, CPU ~190%). Fix: set the resolution
+  in `prefs.prop` (WSGF "Telltale Games Custom Resolution Tool" idea). The file is every byte
+  bit-inverted (`~b`); "Fullscreen Size" and "Window Size" are Vector2 floats (800,600). We
+  replaced both with 1280,720 (original kept as `prefs.prop.orig`): game is then truly fullscreen
+  with plain `wine`, no virtual desktop needed. (A virtual desktop also worked but needs the exe's
+  full path with `wine explorer`; a relative name silently starts nothing.)
+  Still a slideshow: ~190% CPU in the intro (wined3d, 3D game); see the performance notes below
+  if tuned. Launcher is outside the repo (`~/Games/installed/sam-max-101-culture-shock/`).
 
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them
