@@ -1,6 +1,6 @@
 #!/bin/sh
-# Freeze (SIGSTOP) / thaw (SIGCONT) everything Pegasus started: the running game and its whole
-# process tree (launcher, Wine processes), so a game doesn't drain the battery while the screen is
+# Freeze (SIGSTOP) / thaw (SIGCONT) Pegasus and everything it started: the running game and its
+# whole process tree (launcher, Wine processes), so nothing drains the battery while the screen is
 # off. Called by lid.sh (lid closed/opened) and the idle screen-off step (handheld). The frozen pids
 # are kept in $XDG_RUNTIME_DIR/frozen-games, so thaw only touches what was frozen, and a second
 # freeze (idle screen-off, then lid closed) does nothing. wineserver is not Pegasus' descendant
@@ -13,12 +13,11 @@ stop)
     [ -f "$f" ] && exit 0
     root=$(pgrep -x pegasus-fe | head -1)
     [ -n "$root" ] || exit 0
-    pids="" todo=$(pgrep -P "$root")
+    pids="$root" todo=$(pgrep -P "$root")
     while [ -n "$todo" ]; do
         pids="$pids $todo"
         todo=$(pgrep -P "$(echo $todo | tr ' ' ,)")
     done
-    [ -n "$pids" ] || exit 0
     echo $pids > "$f"
     kill -STOP $pids 2>/dev/null
     ;;

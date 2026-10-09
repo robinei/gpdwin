@@ -44,8 +44,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   is not touched (level 0 does not turn the panel off). If inputd dies while closed, input stays
   disabled: `swaymsg input '*' events enabled`. Measured: the throttling saves nothing visible
   (~305 mA idle either way, Claude Code and Wi-Fi dominate).
-- `freeze-games.sh stop|cont`: SIGSTOP/SIGCONT everything Pegasus started (the game's whole process
-  tree, Wine included; wineserver is not a descendant and just waits), pids in
+- `freeze-games.sh stop|cont`: SIGSTOP/SIGCONT Pegasus and everything it started (the game's whole
+  process tree, Wine included; wineserver is not a descendant and just waits), pids in
   `$XDG_RUNTIME_DIR/frozen-games` (a second stop does nothing; cont only thaws those). Called on lid
   close/open (`lid.sh`) and by the idle screen-off step (`idle-screen-off.sh`, battery only; swayidle's
   resume thaws). A frozen game continues where it was; its audio stops meanwhile. Games started
