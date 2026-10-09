@@ -23,6 +23,12 @@ informed in short lines; they are on a small screen with a keyboard.
    x86_64: installed`). If the build failed the stock modules are used (sound works, the hibernate
    bug is back): update the pins in `kernel/*/sources.sha256` and check that the patches still apply
    (`kernel/prepare.sh`). Check whether the patches have been merged upstream first (then drop them).
+   Patched i915 (docs/hardware.md "Display", "Current state"): it is a prebuilt module for one kernel
+   version, built on the desktop (`kernel/i915/build.sh`, version and pins hard-coded). Before a kernel
+   change the pacman hook makes the stock entry `arch.conf` the default again (check: `bootctl status`
+   shows it). Tell the user the display fix is off until the module is rebuilt for the new kernel on
+   the desktop (update V/KV in build.sh and the pins in sources.sha256), reinstalled with
+   `install-test.sh` and made the default again (`bootctl set-default arch-i915test.conf`).
 
 4. **AUR packages.** `scripts/aur check`. Our build files are vendored in `aur/pkgbuilds/PKG/`
    and our changes live in `aur/patches/PKG/` (`pkgbuild/*.patch` for build files, `*.patch` for

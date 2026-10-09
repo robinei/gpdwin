@@ -106,6 +106,12 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     `c8dae55a8ced` (Bay Trail DSI: picture shifted with wraparound and wrong colors at cdclk 266667, needs >= 320000;
     applied to Valleyview only, not Cherry Trail) and `f90e8c36c886` (Broxton split screen with cycled colors: DPI FIFO
     not flushed at frame end, `EOT_DISABLE` bit 9). Neither is proven for CHV; the cdclk one was tested (patch 0002) and showed no improvement.
+  - **Current state (2026-10-09): the default boot entry `arch-i915test.conf` runs the patched i915
+    (0001+0011+0012+0013, `~/i915-daily.ko.zst`): every DPI underrun is logged (`journalctl -k | grep DSI`) and a
+    lone underrun (= a split) triggers an automatic resync (one dark frame instead of a split). Splits
+    should no longer stay; flashes still happen. Stock: pick "Arch Linux" in the 3 s boot menu, or
+    `sudo bootctl set-default arch.conf`. Pacman hook `10-i915test-default-stock.hook` makes stock the
+    default again before any kernel change (the test entry only boots with 7.2.9-arch1-1).**
   - **i915 patch tests** (`kernel/i915/`): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
     `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-i915test.img` + entry
     `arch-i915test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a
@@ -133,7 +139,7 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     | 2026-10-09 | built: 0011+0012 (automatic resync after a lone underrun, design `reports/R3-resync-design.md`, srcversion 3A41309E27DEDD33C435772) | **Oops at the first Mod4+F10** (20:56:58): NULL deref in `drm_vblank_work_cancel_sync` from `intel_dsi_disable`: the boot fastset never ran pre_enable, so the vblank work was never initialized. Patch bug, fixed (disable returns early when the poller was never started). |
     | 2026-10-09 | 0011+0012 fixed (231829EC8CE686AB2C748DF), resync method 1 | 4 pairs correctly left alone; idle screen off/on fine. **21:17:22 lone underrun -> automatic resync (pipe off 1 frame, FIFO drained, pipe on at 1st attempt, 49 ms): Robin saw a brief flicker and a correct picture** (first split fixed without a panel reset; 1 event). One `drm_WARN_ON_ONCE` in drm_vblank timestamp code during the resync: drm_crtc_vblank_off() zeroes the timestamping constants and the resync did not restore them (coarse vblank timestamps until the next modeset). Fixed in 0012 (intel_crtc_update_active_timings() before vblank on; srcversion 1E4AAD12A719567DC36C767). |
     | 2026-10-09 21:05-21:33 | same session, totals | **4 lone underruns -> 4 automatic resyncs (21:17:22, 21:24:20, 21:25:01, 21:32:55), each 36-49 ms, pipe back at the first attempt, FIFO drained; Robin saw only brief flickers, never a held split (before: 2/2 lone underruns split).** 9 pairs (flashes) correctly left alone. Each resync is followed by one 'echo' underrun at the next frame (pipe restart), harmless but misclassified as LONE (rate limiter stopped a 2nd resync); to be filtered. Log: `data/trace-2026-10-09/resync-0012.log`. |
-    | 2026-10-09 | built daily candidate 0001+0011+0012(v4: echo filter)+0013 (poller also started on fastset, so no Mod4+F10 needed after boot), srcversion D963898C4BA68A0CF1CA369 | not installed yet |
+    | 2026-10-09 | built daily candidate 0001+0011+0012(v4: echo filter)+0013 (poller also started on fastset, so no Mod4+F10 needed after boot), srcversion D963898C4BA68A0CF1CA369 | 2026-10-09 22:19: poller started on the boot fastset (no Mod4+F10 needed), detector aligned. **Made the default boot entry** (`bootctl set-default arch-i915test.conf`, menu timeout 3 s). |
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
     saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
     screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture

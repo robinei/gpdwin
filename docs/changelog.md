@@ -333,3 +333,11 @@ Details before 2026-10-06 are in `docs/archive/`.
   CHV), 0005 (blanking rounding) as one-shot test boots: none prevents the split. Measured with
   `kernel/dsi-investigation/trace-logger.py`: the DSI controller sets the frame timing; each flash was a
   one-frame pipe stall. Stock entry stays default; test entry/initramfs remain (`kernel/i915/uninstall-test.sh`).
+
+## 2026-10-09 evening — patched i915 as the default (DSI split fix)
+- Default boot entry `arch-i915test.conf` = patched i915 for 7.2.9-arch1-1 (`kernel/i915/` 0001 HS_TX_TIMEOUT fix,
+  0011 DPI underrun logging, 0012 automatic resync after a lone underrun, 0013 start on fastset). Measured: lone
+  underruns (which always left a lasting split) were repaired 4/4 with a brief flicker. Boot menu timeout 3 s
+  (EFI variable). Revert: `sudo bootctl set-default arch.conf; sudo bootctl set-timeout 0`.
+- Pacman hook `/etc/pacman.d/hooks/10-i915test-default-stock.hook` (manifest) resets the default to stock before
+  any kernel change, because the test entry only boots with the kernel its initramfs was built for.
