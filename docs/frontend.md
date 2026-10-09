@@ -272,6 +272,12 @@
   keep the old directory until it works (a prefix updates itself on first use). The old test prefix
   `~/Games/tools/wineprefix-oldstyle` (616 MB) is no longer used.
 
+- **Not every 32-bit game benefits (measured 2026-10-09):** Spelunky (GameMaker, D3D9) and Cave Story+ run at the
+  60 fps vsync cap on both the system WoW64 Wine and the old-style Wine, and neither prints the
+  `wow64_map_buffer` warning. Only Sam & Max (Telltale engine, big dynamic buffers locked every frame) was
+  affected. So use the old-style Wine per game where `WINEDEBUG=err+all,+fps` shows low fps together with
+  `wow64_map_buffer`, not as a rule for all 32-bit games.
+
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them
   python-matplotlib/numpy and glfw, ~134 MB; `scripts/aur check` says when the repo version moves
