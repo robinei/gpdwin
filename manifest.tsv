@@ -38,6 +38,7 @@ copy	dotfiles/retroarch/autoconfig/Microsoft X-Box 360 pad.cfg	~/.config/retroar
 copy	dotfiles/devilutionx/diablo.ini	~/.local/share/diasurgical/devilution/diablo.ini	robin:robin:0644
 copy	pegasus/snes/metadata.pegasus.txt	~/Games/snes/metadata.pegasus.txt	robin:robin:0644
 copy	pegasus/psp/metadata.pegasus.txt	~/Games/psp/metadata.pegasus.txt	robin:robin:0644
+copy	pegasus/ps1/metadata.pegasus.txt	~/Games/ps1/metadata.pegasus.txt	robin:robin:0644
 
 # --- system files (copied, installed with sudo) ---
 copy	system/boot/loader/loader.conf	/boot/loader/loader.conf	root:root:0700

@@ -355,3 +355,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   (redundant: hold Space at power-on for the boot menu).
 - 2026-10-09: installed `ppsspp` 1.20.4 (standalone PSP emulator).
 - 2026-10-09: Pegasus PSP collection (`~/Games/psp`, PPSSPP standalone); fetch-boxart knows PSP.
+- 2026-10-10: PS1: PCSX ReARMed (buildbot core in `~/.config/retroarch/cores/`), Pegasus collection `~/Games/ps1`.
