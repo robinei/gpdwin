@@ -1,0 +1,35 @@
+Oct 09 21:07:47.512084 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #1: scanline 1296 empty 1 GEN_FIFO_STAT 0x1e060606
+Oct 09 21:08:06.512805 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #2: scanline 1295 empty 1 GEN_FIFO_STAT 0x1e060606
+Oct 09 21:08:08.536425 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #3: scanline 1298 empty 1 GEN_FIFO_STAT 0x1e060606
+Oct 09 21:08:08.537567 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO in vblank now EMPTY: aligned (3 consecutive; last scanline 1298 GEN_FIFO_STAT 0x1e060606; samples 3, non-empty 0, invalid 741)
+Oct 09 21:08:37.581412 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #1: frame 13057 scanline 1188 INTR_STAT 0x40300000
+Oct 09 21:08:37.604736 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #2: frame 13057 scanline 1279 INTR_STAT 0x40300000
+Oct 09 21:08:37.605575 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #1: 2184 lines lost over 55154 us (frame 13057 scanline 1279)
+Oct 09 21:08:37.644527 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #1 classified: PAIR (hardware realigned): 2 underruns in 62 ms, stall yes; totals lone 0 pair 1
+Oct 09 21:09:09.513431 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #4: scanline 1295 empty 1 GEN_FIFO_STAT 0x1e060606
+Oct 09 21:10:02.771603 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #3: frame 18185 scanline 1224 INTR_STAT 0x40300000
+Oct 09 21:10:02.777681 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #4: frame 18185 scanline 1279 INTR_STAT 0x40300000
+Oct 09 21:10:02.783797 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #2: 2188 lines lost over 55679 us (frame 18185 scanline 1279)
+Oct 09 21:10:02.837528 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #3 classified: PAIR (hardware realigned): 2 underruns in 65 ms, stall yes; totals lone 0 pair 2
+Oct 09 21:10:03.161036 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #5: scanline 1301 empty 1 GEN_FIFO_STAT 0x1e060606
+Oct 09 21:11:49.571571 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #5: frame 24614 scanline 1139 INTR_STAT 0x40300000
+Oct 09 21:11:49.577602 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #6: frame 24614 scanline 1279 INTR_STAT 0x40300000
+Oct 09 21:11:49.584466 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #3: 2201 lines lost over 57689 us (frame 24614 scanline 1279)
+Oct 09 21:11:49.632736 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #5 classified: PAIR (hardware realigned): 2 underruns in 60 ms, stall yes; totals lone 0 pair 3
+Oct 09 21:12:21.985559 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #6: scanline 1300 empty 1 GEN_FIFO_STAT 0x1e060606
+Oct 09 21:14:19.632702 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #7: frame 1295 scanline 1269 INTR_STAT 0x40300000
+Oct 09 21:14:19.638799 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #8: frame 1295 scanline 1279 INTR_STAT 0x40300000
+Oct 09 21:14:19.644487 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #4: 2257 lines lost over 56410 us (frame 1295 scanline 1279)
+Oct 09 21:14:19.696421 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #7 classified: PAIR (hardware realigned): 2 underruns in 63 ms, stall yes; totals lone 0 pair 4
+Oct 09 21:15:59.163132 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO in vblank now EMPTY: aligned (3 consecutive; last scanline 1302 GEN_FIFO_STAT 0x1e060606; samples 14, non-empty 0, invalid 2799)
+Oct 09 21:17:22.600639 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #9: frame 12310 scanline 1018 INTR_STAT 0x40300000
+Oct 09 21:17:22.662395 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #9 classified: LONE (misaligned): 1 underruns in 62 ms, stall no; totals lone 1 pair 4
+Oct 09 21:17:22.663967 gpdwin kernel: i915 0000:00:02.0: [drm] DSI resync requested: lone underrun #9
+Oct 09 21:17:22.688660 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #10: frame 12316 scanline 1279 INTR_STAT 0x40300000 (during resync)
+Oct 09 21:17:22.692578 gpdwin kernel: i915 0000:00:02.0: [drm] drm_WARN_ON_ONCE(drm_drv_uses_atomic_modeset(dev))
+Oct 09 21:17:22.692645 gpdwin kernel: WARNING: drivers/gpu/drm/drm_vblank.c:756 at drm_crtc_vblank_helper_get_vblank_timestamp_internal+0x309/0x400, CPU#0: kworker/0:2/858
+Oct 09 21:17:22.706861 gpdwin kernel: Workqueue: events vlv_dsi_resync_work [i915]
+Oct 09 21:17:22.707983 gpdwin kernel:  vlv_dsi_resync_work+0xa7a/0xbf0 [i915 2658815cf3b84593624df34c8ac49752bebf41ac]
+Oct 09 21:17:22.712597 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #11: frame 12316 scanline 1279 INTR_STAT 0x40300000 (during resync)
+Oct 09 21:17:22.720580 gpdwin kernel: i915 0000:00:02.0: [drm] DSI resync #1 (pipe skip, lone underrun #9): pre frame 12315 scanline 26 fifo_empty 0 | pipe off ok after 16012 us | drained: fifo_empty 1 underrun latched 0 | pipe on ok attempt 1 after 3893 us | planes 0x1 | total 49229 us
+Oct 09 21:17:23.721437 gpdwin kernel: i915 0000:00:02.0: [drm] DSI resync #1 result after 1 s: vblank samples 0, non-empty 0 (no samples); underruns since 0, stalls since 0
