@@ -61,6 +61,8 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
   being watched (results: docs/hardware.md "i915 patch tests")
   At ~16:35 a split happened with cdclk verified at 320000 (held several seconds, then recovered by itself,
   which stock splits also sometimes did). **Verdict: no improvement seen; cdclk is not the cause.**
+  Register snapshot during a split with 0002 (`data/split-0002-regs.txt`): same as the stock bad state, only the
+  DPI underrun latch differs from good; pipe B no FIFO underrun.
 
 ### 3. DPI FIFO flush at end of frame (`BXT_DEFEATURE_DPI_FIFO_CTR`) — not patched yet
 - Upstream `f90e8c36c886` ("drm/i915/dsi: fix bxt split screen and color issue", 2016): "display
