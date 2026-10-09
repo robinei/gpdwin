@@ -38,8 +38,8 @@ or to MIPI_INTR_STAT bits other than DPI_FIFO_UNDERRUN. All waits bounded.
 Parameters are writable at runtime (/sys/module/i915/parameters/).
 ---
  drivers/gpu/drm/i915/display/intel_dsi.h |  47 +-
- drivers/gpu/drm/i915/display/vlv_dsi.c   | 686 ++++++++++++++++++++++-
- 2 files changed, 710 insertions(+), 23 deletions(-)
+ drivers/gpu/drm/i915/display/vlv_dsi.c   | 692 ++++++++++++++++++++++-
+ 2 files changed, 716 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/gpu/drm/i915/display/intel_dsi.h b/drivers/gpu/drm/i915/display/intel_dsi.h
 index 2d702d6..3a829e2 100644
@@ -111,7 +111,7 @@ index 2d702d6..3a829e2 100644
  	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
  	struct ref_tracker *io_wakeref[I915_MAX_PORTS];
 diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
-index 761f183..1b841ef 100644
+index 761f183..60e9dd5 100644
 --- a/drivers/gpu/drm/i915/display/vlv_dsi.c
 +++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
 @@ -23,15 +23,24 @@
@@ -139,18 +139,19 @@ index 761f183..1b841ef 100644
  
  #include "intel_atomic.h"
  #include "intel_backlight.h"
-@@ -44,8 +53,10 @@
+@@ -44,8 +53,11 @@
  #include "intel_dsi.h"
  #include "intel_dsi_vbt.h"
  #include "intel_fifo_underrun.h"
 +#include "intel_modeset_lock.h"
  #include "intel_panel.h"
++#include "intel_vblank.h"
  #include "intel_pfit.h"
 +#include "intel_plane.h"
  #include "skl_scaler.h"
  #include "vlv_dsi.h"
  #include "vlv_dsi_pll.h"
-@@ -720,35 +731,673 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
+@@ -720,35 +732,678 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
   * the pre_enable hook instead of the enable hook.
   */
  /*
@@ -607,9 +608,13 @@ index 761f183..1b841ef 100644
 +		poll_timeout_us(tmp = intel_de_read(display, TRANSCONF(display, cpu_transcoder)),
 +				!(tmp & TRANSCONF_STATE_ENABLE), 100, 100 * 1000, false);
 +		usleep_range(2000, 2500);
- 	}
- 
--	schedule_delayed_work(&intel_dsi->underrun_work, msecs_to_jiffies(5));
++	}
++
++	/*
++	 * drm_crtc_vblank_off() cleared the timestamping constants; restore
++	 * them as the modeset path does before turning vblank back on.
++	 */
++	intel_crtc_update_active_timings(crtc_state, false);
 +	intel_crtc_vblank_on(crtc_state);
 +
 +	for_each_intel_plane_on_crtc(display->drm, crtc, plane) {
@@ -718,8 +723,9 @@ index 761f183..1b841ef 100644
 +	    !ur->enabled) {
 +		drm_info(display->drm, "DSI resync skipped: crtc not active with this encoder\n");
 +		return 0;
-+	}
-+
+ 	}
+ 
+-	schedule_delayed_work(&intel_dsi->underrun_work, msecs_to_jiffies(5));
 +	/* the last commit on this crtc must be fully done with the hardware */
 +	commit = crtc_state->uapi.commit;
 +	if (commit &&
@@ -836,7 +842,7 @@ index 761f183..1b841ef 100644
  }
  
  static void intel_dsi_pre_enable(struct intel_atomic_state *state,
-@@ -847,10 +1496,8 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
+@@ -847,10 +1502,8 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
  	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
  
  	if ((display->platform.valleyview || display->platform.cherryview) &&
@@ -849,7 +855,7 @@ index 761f183..1b841ef 100644
  }
  
  static void bxt_dsi_enable(struct intel_atomic_state *state,
-@@ -876,7 +1523,7 @@ static void intel_dsi_disable(struct intel_atomic_state *state,
+@@ -876,7 +1529,7 @@ static void intel_dsi_disable(struct intel_atomic_state *state,
  
  	drm_dbg_kms(display->drm, "\n");
  
@@ -858,7 +864,7 @@ index 761f183..1b841ef 100644
  
  	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
  	intel_backlight_disable(old_conn_state);
-@@ -1571,7 +2218,7 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
+@@ -1571,7 +2224,7 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
  }
  
  static const struct drm_encoder_funcs intel_dsi_funcs = {
@@ -867,7 +873,7 @@ index 761f183..1b841ef 100644
  };
  
  static enum drm_mode_status vlv_dsi_mode_valid(struct drm_connector *connector,
-@@ -1970,7 +2617,8 @@ void vlv_dsi_init(struct intel_display *display)
+@@ -1970,7 +2623,8 @@ void vlv_dsi_init(struct intel_display *display)
  
  	encoder = &intel_dsi->base;
  	intel_dsi->attached_connector = connector;
