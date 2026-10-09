@@ -5,3 +5,12 @@ Oct 09 19:17:46.909466 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO un
 Oct 09 19:18:12.203073 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #5: frame 15840 scanline 89 INTR_STAT 0x40300000
 Oct 09 19:20:42.311424 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #6: frame 24877 scanline 968 INTR_STAT 0x40300000
 Oct 09 19:20:42.317327 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #7: frame 24877 scanline 1279 INTR_STAT 0x40300000
+Oct 09 19:22:38.741690 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #8: frame 31886 scanline 958 INTR_STAT 0x40300000
+Oct 09 19:22:38.746517 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #9: frame 31886 scanline 1279 INTR_STAT 0x40300000
+Oct 09 19:23:19.087389 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #10: frame 34314 scanline 1157 INTR_STAT 0x40300000
+Oct 09 19:23:19.094040 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #11: frame 34314 scanline 1279 INTR_STAT 0x40300000
+Oct 09 19:23:44.068193 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #12: frame 35817 scanline 1234 INTR_STAT 0x40300000
+Oct 09 19:23:44.074156 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #13: frame 35817 scanline 1279 INTR_STAT 0x40300000
+Oct 09 19:25:20.981277 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #14: frame 41651 scanline 1152 INTR_STAT 0x40300000
+Oct 09 19:25:25.082439 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #15: frame 41898 scanline 1014 INTR_STAT 0x40300000
+Oct 09 19:25:25.088236 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #16: frame 41898 scanline 1279 INTR_STAT 0x40300000

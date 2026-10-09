@@ -114,3 +114,8 @@ Run each on the stock module (reboot normally first) with the residual flash det
   19:18:12 = ONE underrun at scanline 89, no 1279 underrun, no stall. It held 2.5 min with no underruns at all and
   was fixed at 19:20:42 by the next pair (968 + 1279) + stall. Hypothesis: the end-of-frame underrun + frame stall is
   the hardware's resync; a split is an underrun that does not lead to it. More samples needed.
+- 0011 session totals (19:14-19:26, Robin's reports as ground truth): 7 PAIRS (mid-frame underrun at scanline
+  846-1234, then one at 1279 within 5-12 ms, then a one-frame pipe stall) -> aligned afterwards every time (flashes,
+  and both split recoveries: 19:20:42, 19:25:25). 2 LONE underruns (scanline 89 at 19:18:12, 1152 at 19:25:20; no 1279
+  underrun, no stall) -> split both times, held until the next pair (2.5 min, 4 s). No underruns at all during a held
+  split. Logs: `data/trace-2026-10-09/underruns-0011.log`, `period-0011.log`.
