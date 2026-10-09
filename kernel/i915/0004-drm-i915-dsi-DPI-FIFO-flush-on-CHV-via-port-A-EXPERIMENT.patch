@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 16:50:20 +0200
+Subject: [PATCH] drm/i915/dsi: Flush the DPI FIFO at frame end on CHV via port
+ A
+
+EXPERIMENT, not for upstream. Follow-up to the port C variant: on a
+GPD Win 1 (CHV, panel on port C) BXT_DEFEATURE_DPI_FIFO_CTR written to
+MIPI_EOT_DISABLE(PORT_C) reads back 0. Port A's MIPI_EOT_DISABLE reads
+0x100 (BXT_DPHY_DEFEATURE_EN) as left by the GOP, and on VLV/CHV some
+port C controls live in port A's registers only (LP_OUTPUT_HOLD), so
+set the bit there (read-modify-write) and see whether it is kept and
+whether it stops the persistent split/color-rotated picture after a
+DPI FIFO underrun (see f90e8c36c886 for the BXT original).
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..d59653d 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1435,6 +1435,16 @@ static void intel_dsi_prepare(struct intel_encoder *encoder,
+ 		/* recovery disables */
+ 		intel_de_write(display, MIPI_EOT_DISABLE(display, port), tmp);
+ 
++		/*
++		 * EXPERIMENT: CHV port C ignores BXT_DEFEATURE_DPI_FIFO_CTR in
++		 * its own register (reads back 0); try port A's register, which
++		 * already holds common bits for port C (LP_OUTPUT_HOLD).
++		 */
++		if (display->platform.cherryview && port == PORT_C &&
++		    !is_cmd_mode(intel_dsi))
++			intel_de_rmw(display, MIPI_EOT_DISABLE(display, PORT_A),
++				     0, BXT_DEFEATURE_DPI_FIFO_CTR);
++
+ 		/* in terms of low power clock */
+ 		intel_de_write(display, MIPI_INIT_COUNT(display, port),
+ 			       intel_dsi->init_count);
+-- 
+2.56.0
+
