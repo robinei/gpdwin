@@ -175,6 +175,14 @@
   0-14 are SDL controller buttons, 16+ axis-as-button (30 LT, 31 RT). Edit with the game closed
   (it rewrites the files on exit). Not in the repo (game data).
 
+- Undertale (native Linux GameMaker build, `runner` + `assets/game.unx`): the game does not remember
+  F4. Fix: set the "Fullscreen" bit of the GEN8 info flags in the data file (`0x9b6` -> `0x9b7`, one byte),
+  which makes it start fullscreen (F4 still toggles): `python3 games/patches/gm-start-fullscreen.py
+  ~/Games/installed/undertale/assets/game.unx` (idempotent, keeps `game.unx.orig`, `--undo` reverts;
+  checked: window 640x480 -> fullscreen 1280x720 with the 4:3 picture letterboxed). It is the same
+  idea as the Windows `data.win`/exe mods. Re-run after reinstalling or updating the game. Works for
+  other GameMaker games with the same header layout (the script refuses unexpected layouts).
+
 ## Windows games (Wine)
 - System `wine` 11 from the repos (WoW64, no multilib). Plan: one shared prefix (`~/.wine`, the
   default) for everything, to save space; per-game settings go in the game's launcher script

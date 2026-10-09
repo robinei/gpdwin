@@ -282,3 +282,8 @@ Details before 2026-10-06 are in `docs/archive/`.
   docs/packages.md (remove with `pacman -Rns`).
 - Lessons: never unload/bind the codec on a running system (CLAUDE.md); `pkill wineserver` leaves orphans.
 - Display glitch (shifted picture): separate issue, inputd resets the panel automatically (see above).
+
+## 2026-10-09 — Undertale starts fullscreen
+- `games/patches/gm-start-fullscreen.py` sets the start-in-fullscreen flag in `assets/game.unx` (1 byte,
+  backup `game.unx.orig`); verified: the window comes up 1280x720 fullscreen at launch. Revert:
+  `python3 games/patches/gm-start-fullscreen.py --undo ~/Games/installed/undertale/assets/game.unx`.
