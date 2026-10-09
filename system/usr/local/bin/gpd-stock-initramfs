@@ -1,6 +1,7 @@
 #!/bin/sh
 # Build /boot/initramfs-linux-stock.img: the normal initramfs, but with Arch's own kernel modules only
-# (no DKMS modules from updates/, i.e. the stock i915 instead of the patched one). Used by the boot
+# (no DKMS modules from updates/, and the stock modules DKMS moved aside put back: stock i915 and
+# audio). Used by the boot
 # entry "Arch Linux (stock)" (arch-stock.conf) as a completely stock fallback. Run by the pacman hook
 # 95-gpd-stock-initramfs.hook after kernel/DKMS changes; safe to run by hand (as root).
 set -eu
@@ -13,6 +14,16 @@ mkdir -p "$R/usr/lib/modules"
 ln -s usr/lib "$R/lib"
 cp -al "/usr/lib/modules/$KV" "$R/usr/lib/modules/"  # hard links: no extra space
 rm -rf "$R/usr/lib/modules/$KV/updates"
+# DKMS moved the replaced stock modules to /var/lib/dkms/<pkg>/original_module/<kernel>/<arch>/,
+# with their original path in <file>.origin: put them back into the stock tree
+for o in /var/lib/dkms/*/original_module/"$KV"/*/*.origin; do
+    [ -e "$o" ] || continue
+    dest=$(cat "$o")
+    case $dest in "/usr/lib/modules/$KV/"*) ;; *) echo "gpd-stock-initramfs: odd origin $dest"; exit 1 ;; esac
+    mkdir -p "$R$(dirname "$dest")"
+    ln -f "${o%.origin}" "$R$dest"
+    echo "gpd-stock-initramfs: stock $(basename "$dest") restored"
+done
 depmod -b "$R" "$KV"
 [ -n "$(modinfo -b "$R" -k "$KV" -F filename i915)" ] || { echo "gpd-stock-initramfs: i915 not found in $R"; exit 1; }
 echo "gpd-stock-initramfs: i915 -> $(modinfo -b "$R" -k "$KV" -F filename i915)"
