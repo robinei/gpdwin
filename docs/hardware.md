@@ -113,21 +113,29 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   (a hang there could block resume; the hook was added and removed again the same day).
   Safe manual fix: plug something into the jack and pull it out, or reboot.
 
-### Audio still broken after the quick fix (2026-10-09, before a reboot)
-- With the speaker profile forced the whole speaker path was powered and unmuted (DAPM: Ext Spk, SPK
-  amp, SPOL, DAC L1, AIF1 Playback On; codec regs match its register cache) but silent; with the
-  headphone profile and headphones plugged in the output was **static noise** instead of the tone.
-  So the analog stage works; the data/clock reaching the codec is wrong (DSP/I2S timing). Kernel:
-  `intel_sst_acpi 808622A8:00: sst: Busy wait failed, can't send this msg` at 19:04 on 10-08 and
-  again 11:22 on 10-09 (the SST DSP's mailbox doesn't answer). `pmc_plt_clk_3` was on at 19.2 MHz;
-  stream S16_LE 48000, period 1008 / buffer 4032. ACPI power resource of the codec: on.
-  The hibernate abort at 22:42 on 10-08 had an i2c failure in `intel_cht_wc_pmic_update_power`
-  (called from `acpi_resume_power_resources`): a PMIC rail may not have been restored.
-- Bad-state capture saved in `~/.cache/gpd/audio-bad/` (this machine only). After a reboot run
-  `scripts/audio-snapshot good` (needs sudo; plays a tone) and diff the two directories, mainly
-  `codec-hw.txt` (codec registers: PLL 0x73/0x74, clock 0x80/0x81, ASRC, I2S 0x70/0x71) and
-  `clk_summary.txt`. Reboot is the only recovery that worked besides rebinding the codec (which hung
-  the kernel once).
+### Audio broken after an aborted hibernate: codec reset without re-init (2026-10-09)
+- Symptoms 2026-10-09: speaker silent although the whole path was powered and unmuted (DAPM Ext Spk,
+  SPK amp, SPOL, DAC L1 On); headphones gave static instead of the tone; plugging/unplugging a
+  plug changed nothing (the `chtrt5645 Headset` input switch stayed "headphone+mic inserted"); a
+  real s2idle suspend did not help; `scripts/audio-speaker` only fixes the routing. Only a reboot
+  fixed it (after it: jack switch follows the plug, speaker/headphone sinks switch by themselves).
+- Cause (from `scripts/audio-snapshot`, bad vs good, codec registers via debugfs regmap): the codec had
+  been reset to power-on defaults and not re-initialised. In the bad state `0xbd` (RT5645_IRQ_CTRL2,
+  jack-detect IRQ enable/polarity) was 0 in hardware *and* in the regmap cache (good: `0x0280`), so no
+  jack interrupt was ever delivered and the switch stayed stuck at "inserted"; `0x8a` (clock/ASRC)
+  read 0 in hardware while the cache said `0x0120`, so the DAC clock did not match the 48 kHz I2S
+  stream (static); `0xf8` (JD_CTRL3) had extra bits (`70f0` vs `00f0`). Good vs bad also differs in
+  routing registers (0x01/0x02/0x61-0x66) simply because headphones vs speaker were in use.
+  Registers `0xe0`, `0xe7`, `0x100` differ between cache and hardware in the good state too (volatile).
+- Likely trigger: the hibernate attempt on 10-08 22:42 failed (an i2c read from the PMIC
+  `intel_cht_wc_pmic_update_power`, from `acpi_resume_power_resources`) and the SST DSP logged
+  `sst: Busy wait failed, can't send this msg` (19:04 on 10-08 and 11:22 on 10-09). The first
+  hibernate-then-resume on 10-08 also left the jack stuck. So hibernate (the 30 min suspend-then-
+  hibernate) can leave the codec in this state: if sound is gone and the jack ignores plugs, don't
+  spend time on routing, reboot.
+- Not tried: re-init without reboot (rebinding the codec hung the kernel once; rebinding only
+  `cht-bsw-rt5645` didn't help once); writing the lost registers back (`0xbd`, `0x8a`, ...) with
+  i2c tools. `scripts/audio-snapshot LABEL` captures the state (needs sudo, plays a tone) for diffing.
 
 ### Quick fix: `scripts/audio-speaker` (2026-10-09)
 - Recurred on 2026-10-09 with no plug/unplug by anyone: stale "headphones plugged in" since the
