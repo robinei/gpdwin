@@ -118,6 +118,9 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     stock i915, the audio modules still come patched from disk). Remove the patch: `kernel/i915/uninstall-dkms.sh`.
     Note: DKMS moves the replaced stock modules to `/var/lib/dkms/<pkg>/original_module/` (restored on
     uninstall), so `pacman -Qkk linux` reports them missing; expected.
+  - **Burst mode experiment (0014, in the DKMS build, off by default):** `i915.vlv_dsi_burst_pct=120` on the
+    kernel command line runs the panel in burst mode (link 20% faster, idle between lines = slack against pipe
+    hiccups). One-shot test: `kernel/i915/oneshot-param.sh i915.vlv_dsi_burst_pct=120`. Not tested yet.
   - **i915 patch tests** (`kernel/i915/`; history of the experiments. With DKMS `gpd-i915` installed,
     `install-test.sh` must be adapted first: it would add a second i915 to `updates/`): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
     `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-i915test.img` + entry

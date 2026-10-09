@@ -1,0 +1,122 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 22:49:20 +0200
+Subject: [PATCH] drm/i915/dsi: Optional burst mode for non-burst VLV/CHV
+ panels
+
+EXPERIMENT, not for upstream.
+
+In non-burst video mode the DSI link runs at exactly the pixel rate and
+the DPI FIFO between pipe and DSI controller holds about a third of a
+line, so any pipe hiccup of a few microseconds starves the link (on a
+GPD Win 1 this leaves the stream byte-misaligned). Burst mode runs the
+link faster than the pixel rate and idles between lines, which gives
+slack. The i915 burst code path exists for panels whose VBT asks for it.
+
+Add the module parameter vlv_dsi_burst_pct (default 0 = off): with
+101-200 a non-burst VLV/CHV video mode panel is run in burst mode with
+the link at that percentage of the non-burst rate. Also report the
+pipe's pixel clock without the burst factor (crtc_clock = link-derived
+pclk / ratio) on VLV/CHV, so that the refresh rate and vblank timestamps
+stay right; the code had a FIXME for exactly that.
+---
+ drivers/gpu/drm/i915/display/intel_dsi_vbt.c | 27 +++++++++++++++++++-
+ drivers/gpu/drm/i915/display/vlv_dsi.c       |  9 +++++++
+ drivers/gpu/drm/i915/display/vlv_dsi_pll.c   |  9 +++++++
+ 3 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/i915/display/intel_dsi_vbt.c b/drivers/gpu/drm/i915/display/intel_dsi_vbt.c
+index fe12041..0218bd2 100644
+--- a/drivers/gpu/drm/i915/display/intel_dsi_vbt.c
++++ b/drivers/gpu/drm/i915/display/intel_dsi_vbt.c
+@@ -760,6 +760,15 @@ static enum mipi_dsi_pixel_format vbt_to_dsi_pixel_format(unsigned int format)
+ 	}
+ }
+ 
++/*
++ * EXPERIMENT: run a VLV/CHV non-burst video mode panel in burst mode with the
++ * link at this percentage of the non-burst rate (0 = off, as the VBT says).
++ */
++static int vlv_dsi_burst_pct;
++module_param_named(vlv_dsi_burst_pct, vlv_dsi_burst_pct, int, 0444);
++MODULE_PARM_DESC(vlv_dsi_burst_pct,
++		 "EXPERIMENT: VLV/CHV DSI: force burst mode with the link at this percentage of the non-burst rate (101-200, 0=off)");
++
+ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
+ {
+ 	struct intel_display *display = to_intel_display(&intel_dsi->base);
+@@ -784,6 +793,19 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
+ 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
+ 	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
+ 	intel_dsi->video_mode = mipi_config->video_transfer_mode;
++	if (vlv_dsi_burst_pct > 100 && vlv_dsi_burst_pct <= 200 &&
++	    (display->platform.valleyview || display->platform.cherryview) &&
++	    intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE &&
++	    intel_dsi->video_mode != BURST_MODE && !mipi_config->dual_link) {
++		drm_info(display->drm,
++			 "DSI: EXPERIMENT: burst mode with the link at %d%% instead of %s\n",
++			 vlv_dsi_burst_pct,
++			 intel_dsi->video_mode == NON_BURST_SYNC_PULSE ?
++			 "non-burst with sync pulse" : "non-burst with sync events");
++		intel_dsi->video_mode = BURST_MODE;
++	} else {
++		vlv_dsi_burst_pct = 0;
++	}
+ 	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
+ 	intel_dsi->lp_rx_timeout = mipi_config->lp_rx_timeout;
+ 	intel_dsi->hs_tx_timeout = mipi_config->hs_tx_timeout;
+@@ -814,7 +836,10 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
+ 	 * Target ddr frequency from VBT / non burst ddr freq
+ 	 * multiply by 100 to preserve remainder
+ 	 */
+-	if (intel_dsi->video_mode == BURST_MODE) {
++	if (intel_dsi->video_mode == BURST_MODE && vlv_dsi_burst_pct) {
++		burst_mode_ratio = vlv_dsi_burst_pct;
++		intel_dsi->pclk = DIV_ROUND_UP(intel_dsi->pclk * burst_mode_ratio, 100);
++	} else if (intel_dsi->video_mode == BURST_MODE) {
+ 		u32 bitrate;
+ 
+ 		if (mipi_config->target_burst_mode_freq == 0) {
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index f7ab0b5..35639f7 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1918,6 +1918,15 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
+ 
+ 	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+ 	pipe_config->hw.adjusted_mode.crtc_clock = pclk;
++	/*
++	 * EXPERIMENT: in burst mode the link runs burst_mode_ratio % faster than
++	 * the pixel rate; the pipe's pixel clock (refresh rate, vblank timestamps)
++	 * is the link-derived clock divided by that ratio. VLV/CHV only.
++	 */
++	if ((display->platform.valleyview || display->platform.cherryview) &&
++	    intel_dsi->video_mode == BURST_MODE && intel_dsi->burst_mode_ratio > 100)
++		pipe_config->hw.adjusted_mode.crtc_clock =
++			DIV_ROUND_CLOSEST(pclk * 100, intel_dsi->burst_mode_ratio);
+ 	if (intel_dsi->dual_link)
+ 		pipe_config->hw.adjusted_mode.crtc_clock *= 2;
+ }
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi_pll.c b/drivers/gpu/drm/i915/display/vlv_dsi_pll.c
+index 68b73cc..b5c61a9 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi_pll.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi_pll.c
+@@ -204,6 +204,15 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
+ 
+ 	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+ 	config->hw.adjusted_mode.crtc_clock = pclk;
++	/*
++	 * EXPERIMENT: in burst mode the link runs burst_mode_ratio % faster than
++	 * the pixel rate; the pipe's pixel clock (refresh rate, vblank timestamps)
++	 * is the link-derived clock divided by that ratio. VLV/CHV only.
++	 */
++	if ((display->platform.valleyview || display->platform.cherryview) &&
++	    intel_dsi->video_mode == BURST_MODE && intel_dsi->burst_mode_ratio > 100)
++		config->hw.adjusted_mode.crtc_clock =
++			DIV_ROUND_CLOSEST(pclk * 100, intel_dsi->burst_mode_ratio);
+ 	if (intel_dsi->dual_link)
+ 		config->hw.adjusted_mode.crtc_clock *= 2;
+ 
+-- 
+2.56.0
+

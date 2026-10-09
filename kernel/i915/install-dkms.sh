@@ -7,7 +7,7 @@
 # Also sets up the completely stock fallback entry (arch-stock.conf). Remove: kernel/i915/uninstall-dkms.sh.
 set -e
 cd "$(dirname "$0")"
-PATCHES="0001 0011 0012 0013"
+PATCHES="0001 0011 0012 0013 0014"
 SRC=/usr/src/gpd-i915-1.0
 sudo pacman -S --needed --noconfirm dkms linux-headers curl zstd
 sudo dkms remove gpd-i915/1.0 --all 2>/dev/null || true
