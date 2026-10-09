@@ -1,0 +1,15 @@
+# The i915 test boot entry (kernel/i915/install-test.sh) pairs /vmlinuz-linux with an initramfs
+# built for one kernel version. After a kernel update that pair does not boot, so make the stock
+# entry the default again before the kernel changes. Rebuild/reinstall the test module for the new
+# kernel and set the default again afterwards if wanted (docs/hardware.md "i915 patch tests").
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = linux
+
+[Action]
+Description = Making the stock boot entry (arch.conf) the default again (i915 test entry fits only the old kernel)
+When = PreTransaction
+Exec = /usr/bin/bootctl set-default arch.conf
