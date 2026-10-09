@@ -127,6 +127,7 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     | 2026-10-09 | 0007 (no DDR DVFS: only WM levels 3/12 us, DSPFW1 0xe93fd200) | DPI underrun 40 s into DevilutionX, two one-frame stalls (period monitor). **DDR DVFS is not the trigger.** |
     | 2026-10-09 | 0001+0006 (EOT_DISABLE 0xfc recovery actions off, HS_TX_TIMEOUT 0xb95ff; bit 21 no longer latched) | Underrun 27 s into DevilutionX and an immediate color-shifted split that held. **Recovery actions are not the cause.** This underrun had no one-frame stall (game barely flipping, loading): a split can start from an underrun without a stall. |
     | 2026-10-09 | 0008 (frame start delay 4, TRANSCONF B 0xd8000000; boot = full modeset) | First underrun after ~4.5 min, then one-frame stalls at 18:36:53, 18:40:03, 18:40:55 (+ one 3 ms partial hiccup 18:37:21): 3 flashes in 9 min, about the stock rate: **flash rate unchanged**; then a **held split** around 18:43 (~11 min after 18:32). **No effect.** |
+    | 2026-10-09 | built: 0009 (video-mode BTA enabled: panel error reports visible in MIPI_INTR_STAT, BBDAC278435172071BAA5CC), 0009+0010 (+ MIPI C HS TX delay 13/11 in port A ctrl, from Intel's CHV A0 workaround, 24CA58FBA649FCADAB033F8) | 0009 first |
   - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
     saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
     screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture

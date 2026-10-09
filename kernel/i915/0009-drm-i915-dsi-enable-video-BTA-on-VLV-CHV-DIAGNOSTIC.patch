@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 18:48:54 +0200
+Subject: [PATCH] drm/i915/dsi: Enable the video mode BTA on VLV/CHV
+ (diagnostic)
+
+EXPERIMENT, diagnostic only, not for upstream.
+
+With DISABLE_VIDEO_BTA set (from the VBT on a GPD Win 1) the host never
+turns the bus around in video mode, so the panel can never report
+receive errors (SoT/EoT sync, ECC, checksum: MIPI_INTR_STAT bits 0-13,
+24-26 per the VLV PRM). Clear the bit so the panel gets a BTA at the last
+VFP line and its acknowledge becomes visible, to learn whether the panel
+sees errors when the picture loses alignment.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 877eab7..8f5911c 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1478,6 +1478,15 @@ static void intel_dsi_prepare(struct intel_encoder *encoder,
+ 		if (is_vid_mode(intel_dsi)) {
+ 			u32 fmt = intel_dsi->video_frmt_cfg_bits | IP_TG_CONFIG;
+ 
++			/*
++			 * EXPERIMENT (diagnostic): allow the bus turnaround at
++			 * the last VFP line, so that the panel's acknowledge
++			 * with error report shows up in MIPI_INTR_STAT bits
++			 * 0-13 and 24-26 (receiver SoT/EoT sync errors etc).
++			 */
++			if (display->platform.valleyview || display->platform.cherryview)
++				fmt &= ~DISABLE_VIDEO_BTA;
++
+ 			/*
+ 			 * Some panels might have resolution which is not a
+ 			 * multiple of 64 like 1366 x 768. Enable RANDOM
+-- 
+2.56.0
+

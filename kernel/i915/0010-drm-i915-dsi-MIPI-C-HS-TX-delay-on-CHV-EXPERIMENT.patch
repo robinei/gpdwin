@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Fri, 9 Oct 2026 18:48:54 +0200
+Subject: [PATCH] drm/i915/dsi: Set the MIPI C HS TX delay on CHV
+
+EXPERIMENT, not for upstream.
+
+MIPIA_PORT_CTRL holds HS TX clock delay fields for MIPI C (bits 15,
+14:11 and 7:5, VLV PRM vol 10) that i915 and the GOP leave at the
+default (one buffer delay); the PRM says they must be set "to a value
+determined by clock timing team". Intel's Android kernel had a CHV
+A0-A3 workaround for "bad clock timing on the MIPI data lanes" that
+set the corresponding fields of the port's own register (0xe82d0000:
+MIPI4DPHY delay 13, FLISDSI delay 11). A GPD Pocket with the same
+intermittent DSI misalignment as our GPD Win 1 was fine after a
+mainboard swap, which points at per-unit timing margin. Try the same
+delays for MIPI C.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 8f5911c..c534146 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -630,6 +630,19 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder,
+ 		}
+ 	}
+ 
++	/*
++	 * EXPERIMENT: HS TX delay for MIPI C. Its delay fields live in port
++	 * A's port control register (VLV PRM vol 10, MIPIA_PORT_CTRL bits 15,
++	 * 14:11, 7:5; default 0 = 1 buffer delay, "value determined by clock
++	 * timing team"). Use the values Intel's CHV A0-A3 workaround used for
++	 * the port's own fields (0xe82d0000: MIPI4DPHY 13, FLISDSI 11).
++	 */
++	if (display->platform.cherryview &&
++	    intel_dsi->ports == BIT(PORT_C))
++		intel_de_rmw(display, port_ctrl_reg(display, PORT_A),
++			     BIT(15) | GENMASK(14, 11) | GENMASK(7, 5),
++			     (13 << 11) | BIT(15) | (3 << 5));
++
+ 	for_each_dsi_port(port, intel_dsi->ports) {
+ 		intel_reg_t port_ctrl = port_ctrl_reg(display, port);
+ 		u32 temp;
+-- 
+2.56.0
+
