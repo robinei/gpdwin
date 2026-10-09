@@ -35,16 +35,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   runs. Pad use also counts as activity: sway ignores gamepads for idle, so any pad event (at
   most every 30 s) makes inputd send `seat seat0 cursor move 0 0`, which resets swayidle (tested).
   The untouched pad sends nothing and inotify on /dev/input reopens it when it reappears (screen
-  off, resume), so it doesn't poll the pad. Its only timer is the 1 s DSI underrun check below
-  (not while the lid is closed).
-  DSI underrun watch: once a second it reads `MIPI_INTR_STAT` (DSI port C, `0x18b804`, bit 20
-  DPI_FIFO_UNDERRUN) through a read-only mmap of the GPU registers (`/sys/bus/pci/devices/
-  0000:00:02.0/resource0`, readable by wheel via `system/etc/tmpfiles.d/display-underrun.conf`,
-  manifest copy). Only counted while DEVICE_READY (`0x18b800` bit 0) and pipe B (`0x1f1008` bit 31)
-  are on, so a powered-off output is ignored. After two consecutive checks it power-cycles the
-  output (`swaymsg output DSI-1 power off; sleep 2; ... on`, same as `Mod4+F10`) and appends a
-  line to `~/.cache/gpd/dsi-resets.log`. Cooldown 30 s, at most 3 resets per 5 min. If the BAR
-  isn't readable it logs once to stderr and the watch stays off. See hardware.md "Display".
+  off, resume), so it never polls.
   Also watches the lid switch (`Lid Switch` input device, logind ignores the lid): closing it
   runs `swaymsg output * power off; input * events disabled`, grabs the pad (EVIOCGRAB, so games
   don't see it either) and runs `lid.sh close` (CPU turbo off, GPU limit to RPn, statusbar

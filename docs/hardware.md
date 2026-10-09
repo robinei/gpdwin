@@ -58,8 +58,12 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     (Wine virtual desktop), GPU hangs/resets (`i915_wedged` 0, error state empty), `max_render_time`
     (inconclusive), FBC/PSR/DMC (not present on this chip/DSI). Not tested: memory pressure/bandwidth
     as the cause, kernel DSI tracing, a different kernel.
-  - Workaround, automatic: `inputd` power-cycles the output when the bit sets (docs/desktop.md).
-    Auto-resets are logged in `~/.cache/gpd/dsi-resets.log`: look there to see how often it happens.
+  - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
+    saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
+    screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture
+    broken now". Do not rebuild this on that bit. Manual reset stays (`Mod4+F10`).
+    An automatic detector would need a real "picture is wrong" signal (none found: kernel state, plane
+    registers and screenshots all look normal in the bad state).
 
 ## Prior art: ViccRondo/gpd-win1-atomic-gaming (checked 2026-10-07, commit 325f405)
 An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful findings:

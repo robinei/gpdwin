@@ -287,3 +287,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - `games/patches/gm-start-fullscreen.py` sets the start-in-fullscreen flag in `assets/game.unx` (1 byte,
   backup `game.unx.orig`); verified: the window comes up 1280x720 fullscreen at launch. Revert:
   `python3 games/patches/gm-start-fullscreen.py --undo ~/Games/installed/undertale/assets/game.unx`.
+
+## 2026-10-09 — automatic display reset removed again
+- The `inputd` DSI-underrun watch reset the panel without a visible glitch (Commander Keen; 9 resets in a day):
+  the underrun status bit is a sticky latch, not a "picture broken" signal. Removed the watch and the
+  `system/etc/tmpfiles.d/display-underrun.conf` rule (read access to the GPU registers). Manual `Mod4+F10` stays.
