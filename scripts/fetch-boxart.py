@@ -71,11 +71,22 @@ def write_titles(d, titles):
     meta.write_text(head + "\n" + "\n".join(block) + "\n")
 
 
+def cue_tracks(files):
+    """Names of the data files (.bin tracks) that .cue sheets refer to: part of a disc, not games."""
+    names = set()
+    for f in files:
+        if f.suffix.lower() == ".cue":
+            names |= set(re.findall(r'^\s*FILE\s+"([^"]+)"', f.read_text(errors="replace"), re.M))
+    return names
+
+
 def main():
     for folder, system in SYSTEMS.items():
         d = GAMES / folder
         roms = [p for p in sorted(d.glob("*")) if p.is_file() and p.suffix.lower() not in SKIP_EXT
                 and p.name != "metadata.pegasus.txt"] if d.is_dir() else []
+        tracks = cue_tracks(roms)
+        roms = [p for p in roms if p.name not in tracks]
         if not roms:
             continue
         print(f"== {folder}")
