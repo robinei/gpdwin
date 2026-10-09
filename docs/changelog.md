@@ -350,3 +350,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   utility "Reboot (stock display driver)" (`pegasus/utils/tools/stock-boot.sh`, sudoers `22-boot-stock`).
 - 2026-10-09: clean boot: kernel `quiet loglevel=3 rd.udev.log_level=3 vt.global_cursor_default=0`,
   silent tty1 autologin (no issue banner, `~/.hushlogin`), plain black sway background.
+- 2026-10-09: `RebootWatchdogSec=0` (no watchdog lines on shutdown).
