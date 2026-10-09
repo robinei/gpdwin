@@ -101,6 +101,6 @@ Run each on the stock module (reboot normally first) with the residual flash det
   Refuted. That underrun came WITHOUT a one-frame pipe stall (period windows normal, trace residual 0) while the game
   was barely flipping (241 flips in 20 s, a 6 s gap): stalls are not required for a split.
 - 2026-10-09 18:32-18:41: 0008 (frame start delay 4) tested: 3 flashes in 9 min (stock ~2 in 5), first after 4.5 min.
-  Flash rate unchanged; held split after ~15 min. No effect. (Note: Intel's formula (htotal*5ns*delay >= 8000 ns) gives 3, not 4; with the real 12.7 us line even
+  Flash rate unchanged; held split after ~11 min. No effect. (Note: Intel's formula (htotal*5ns*delay >= 8000 ns) gives 3, not 4; with the real 12.7 us line even
   delay 1 exceeds 8 us.) All round-2 patches (0006, 0007, 0008) refuted. Remaining: read-only/no-kernel tests E1-E3
   (PMIC-bus polling), flipping vs non-flipping client A/B, GEN_FIFO_STAT vs PIPEDSL sampling.
