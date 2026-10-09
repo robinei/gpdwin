@@ -113,6 +113,22 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   (a hang there could block resume; the hook was added and removed again the same day).
   Safe manual fix: plug something into the jack and pull it out, or reboot.
 
+### Audio still broken after the quick fix (2026-10-09, before a reboot)
+- With the speaker profile forced the whole speaker path was powered and unmuted (DAPM: Ext Spk, SPK
+  amp, SPOL, DAC L1, AIF1 Playback On; codec regs match its register cache) but silent; with the
+  headphone profile and headphones plugged in the output was **static noise** instead of the tone.
+  So the analog stage works; the data/clock reaching the codec is wrong (DSP/I2S timing). Kernel:
+  `intel_sst_acpi 808622A8:00: sst: Busy wait failed, can't send this msg` at 19:04 on 10-08 and
+  again 11:22 on 10-09 (the SST DSP's mailbox doesn't answer). `pmc_plt_clk_3` was on at 19.2 MHz;
+  stream S16_LE 48000, period 1008 / buffer 4032. ACPI power resource of the codec: on.
+  The hibernate abort at 22:42 on 10-08 had an i2c failure in `intel_cht_wc_pmic_update_power`
+  (called from `acpi_resume_power_resources`): a PMIC rail may not have been restored.
+- Bad-state capture saved in `~/.cache/gpd/audio-bad/` (this machine only). After a reboot run
+  `scripts/audio-snapshot good` (needs sudo; plays a tone) and diff the two directories, mainly
+  `codec-hw.txt` (codec registers: PLL 0x73/0x74, clock 0x80/0x81, ASRC, I2S 0x70/0x71) and
+  `clk_summary.txt`. Reboot is the only recovery that worked besides rebinding the codec (which hung
+  the kernel once).
+
 ### Quick fix: `scripts/audio-speaker` (2026-10-09)
 - Recurred on 2026-10-09 with no plug/unplug by anyone: stale "headphones plugged in" since the
   hibernate attempt at 22:42 the evening before (the hibernate aborted and the system resumed).

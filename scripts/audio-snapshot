@@ -1,0 +1,31 @@
+#!/bin/sh
+# Capture the audio chain's state while a tone plays through the CURRENT default sink, for diffing a
+# bad state against a good one (docs/hardware.md "Audio"). Needs sudo (debugfs). Output:
+# ~/.cache/gpd/audio-LABEL/. Usage: scripts/audio-snapshot LABEL   (e.g. bad, good)
+L=${1:?label}
+O=$HOME/.cache/gpd/audio-$L
+mkdir -p "$O"
+T=$(mktemp --suffix=.wav)
+python3 -I - "$T" <<'PY'
+import math, struct, sys, wave
+w = wave.open(sys.argv[1], 'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(48000)
+w.writeframes(b''.join(struct.pack('<hh', *(int(8000 * math.sin(i * 440 * 6.283 / 48000)),) * 2) for i in range(48000)))
+w.close()
+PY
+(for i in 1 2 3 4 5 6 7 8; do pw-play "$T"; done) &
+sleep 2
+sudo -n sh -c "
+R=/sys/kernel/debug/regmap/i2c-10EC5645:00
+cat \$R-nocache/registers > $O/codec-hw.txt
+cat \$R/registers > $O/codec-cache.txt
+cat /sys/kernel/debug/clk/clk_summary > $O/clk_summary.txt 2>&1
+for d in /sys/kernel/debug/asoc/chtrt5645/*/dapm /sys/kernel/debug/asoc/chtrt5645/dapm; do
+  for f in \$d/*; do printf '%s: %s\n' \"\$f\" \"\$(head -1 \"\$f\" 2>/dev/null)\"; done
+done > $O/dapm.txt 2>/dev/null"
+cat /proc/asound/card1/pcm0p/sub0/hw_params /proc/asound/card1/pcm0p/sub0/status > "$O/stream.txt" 2>&1
+pactl list sinks > "$O/sinks.txt" 2>&1
+journalctl -k -b --no-pager | grep -i -E "sst|rt5645|cht-bsw|snd" > "$O/kernel-audio.txt"
+wait
+rm -f "$T"
+echo "saved to $O"
+echo "diff: diff \$HOME/.cache/gpd/audio-bad/codec-hw.txt $O/codec-hw.txt"
