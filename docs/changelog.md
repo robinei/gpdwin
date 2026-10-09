@@ -348,3 +348,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   and can hold the kernel. Revert: `kernel/i915/uninstall-dkms.sh`, delete `arch-stock.conf`, `bootctl set-timeout 0`.
 - 2026-10-09: boot menu timeout back to 0 (EFI override removed; hold Space at power-on for the menu). New Pegasus
   utility "Reboot (stock display driver)" (`pegasus/utils/tools/stock-boot.sh`, sudoers `22-boot-stock`).
+- 2026-10-09: clean boot: kernel `quiet loglevel=3 rd.udev.log_level=3 vt.global_cursor_default=0`,
+  silent tty1 autologin (no issue banner, `~/.hushlogin`), plain black sway background.

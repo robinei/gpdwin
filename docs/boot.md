@@ -11,11 +11,16 @@
   `arch-stock.conf` = `initramfs-linux-stock.img` with Arch's own modules (stock i915) as fallback for the
   patched i915 (docs/hardware.md "Display"); built by `/usr/local/bin/gpd-stock-initramfs` (pacman hook
   `95-gpd-stock-initramfs.hook`). Entry `arch.conf`: `linux` kernel, options
-  `root=UUID=... rw fbcon=rotate:1`. Microcode is embedded in the initramfs (`microcode` hook),
-  so `/boot/intel-ucode.img` is unused by the entry.
+  `root=UUID=... rw fbcon=rotate:1 mitigations=off quiet loglevel=3 rd.udev.log_level=3
+  vt.global_cursor_default=0` (silent boot: no kernel/udev text, no console cursor; systemd
+  status lines only on failures). `arch-stock.conf` stays verbose for troubleshooting.
+  Microcode is embedded in the initramfs (`microcode` hook), so `/boot/intel-ucode.img` is
+  unused by the entry.
 - mkinitcpio: systemd-based hooks (Arch default), `MODULES=(pwm-lpss-platform i915)`, no fallback
   image.
-- Autologin: `getty@tty1` drop-in `autologin.conf` (`-o '-p -f -- \\u' --autologin robin`);
+- Autologin: `getty@tty1` drop-in `autologin.conf` (`-o '-p -f -- \\u' --noissue --nohostname
+  --nonewline --autologin robin`: no banner, and the screen is cleared); `~/.hushlogin` hides
+  "Last login";
   fish `conf.d/sway.fish` runs `exec sway` on tty1. Sway gets its seat from seatd.
 
 ## Timings (`systemd-analyze`)
