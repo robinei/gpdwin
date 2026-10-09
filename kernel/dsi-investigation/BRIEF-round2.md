@@ -96,3 +96,7 @@ symptom, page-flipping clients only, gone on a replacement mainboard. Merged nex
 Run each on the stock module (reboot normally first) with the residual flash detector.
 
 - 2026-10-09 18:23: 0007 (no DDR DVFS) tested: underrun + two one-frame stalls within 40 s. Refuted.
+- 2026-10-09 18:28: 0001+0006 tested (bits stick: EOT_DISABLE 0xfc; HS_TX_TIMEOUT 0xb95ff and MIPI_INTR_STAT bit 21
+  no longer set after the modeset, confirming it came from the truncated timeout). Underrun 27 s in, split held.
+  Refuted. That underrun came WITHOUT a one-frame pipe stall (period windows normal, trace residual 0) while the game
+  was barely flipping (241 flips in 20 s, a 6 s gap): stalls are not required for a split.
