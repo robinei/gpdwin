@@ -94,3 +94,5 @@ symptom, page-flipping clients only, gone on a replacement mainboard. Merged nex
 3. Patch: EOT_DISABLE recovery-disable bits 2-7 + 0001. 4. Patch: no DDR DVFS (then no PM5).
 5. Patch: frame start delay 4 lines. 6. Read-only GEN_FIFO_STAT vs PIPEDSL sampling as a state detector.
 Run each on the stock module (reboot normally first) with the residual flash detector.
+
+- 2026-10-09 18:23: 0007 (no DDR DVFS) tested: underrun + two one-frame stalls within 40 s. Refuted.
