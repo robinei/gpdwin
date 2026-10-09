@@ -236,6 +236,23 @@
   Likely applies to other D3D8/D3D9 games that are CPU-bound under wined3d on WoW64 (try d3d9-only
   games with just DXVK 1.10.3).
 
+- **WoW64 Wine vs old-style Wine (2026-10-09, measured on Sam & Max, Telltale D3D8, 32-bit):** the system
+  `wine` (Arch, new WoW64 build, no 32-bit unix side) ran Wine's OpenGL D3D path at ~5 fps with two
+  threads pinned: `perf` showed `wined3d_cs` in a big libc memcpy, the game thread yielding, and the log
+  said `wow64_map_buffer: Doing a copy of a mapped buffer (expect performance issues)` and
+  `Disabling has_GL_ARB_buffer_storage extension on wow64` (a 32-bit process cannot get a pointer into
+  GPU-mapped memory, so every buffer lock is a copy, and persistent mapping is off). **The same Wine
+  version built old-style (separate 32-bit and 64-bit parts, uses lib32-mesa, which is installed) ran the
+  same path at ~42 fps average (51 at start), no copy warning, no pinned wined3d thread.** Binary used:
+  Kron4ek/Wine-Builds `wine-11.19-amd64.tar.xz` (vanilla, `amd64` = both architectures + 32-bit libs;
+  `amd64-wow64` is the new style) in `~/Games/tools/wine-oldstyle/`, sha256 `40068b38...bbef3e` (from the
+  release notes, `sha256sums.txt` and the API digest), test prefix `~/Games/tools/wineprefix-oldstyle`
+  (created with `WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"`; its 32-bit side lacks only optional
+  libs: sane, pcsc, pcap, OpenCL, GStreamer, ffmpeg). Sam & Max test launcher:
+  `gpd-launch-oldwine.sh` in its folder. Implication: 32-bit D3D games under wined3d suffer on the
+  WoW64 system Wine; options are DXVK (D3D9; D3D8 via d3d8to9) or an old-style Wine per game.
+  Arch has no old-style `wine` package any more (AUR `wine-stable` builds from source: hours here).
+
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them
   python-matplotlib/numpy and glfw, ~134 MB; `scripts/aur check` says when the repo version moves

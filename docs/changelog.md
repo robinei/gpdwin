@@ -292,3 +292,9 @@ Details before 2026-10-06 are in `docs/archive/`.
 - The `inputd` DSI-underrun watch reset the panel without a visible glitch (Commander Keen; 9 resets in a day):
   the underrun status bit is a sticky latch, not a "picture broken" signal. Removed the watch and the
   `system/etc/tmpfiles.d/display-underrun.conf` rule (read access to the GPU registers). Manual `Mod4+F10` stays.
+
+## 2026-10-09 — old-style Wine measured: Sam & Max 5 -> 42 fps on Wine's own D3D
+- Same Wine version, old-style build (Kron4ek 11.19 `amd64`, in `~/Games/tools/wine-oldstyle`, own prefix
+  `~/Games/tools/wineprefix-oldstyle`, outside the repo) vs the system WoW64 build: confirms the WoW64
+  buffer-copy cause (docs/frontend.md). Nothing system-wide changed. Packages: `lib32-libunwind`,
+  `lib32-libxcomposite` installed (official repo).
