@@ -74,4 +74,3 @@ build	src/inputd.c	~/.local/bin/inputd
 copy	dotfiles/commandergenius/cgenius.cfg	~/.CommanderGenius/cgenius.cfg	robin:robin:0644
 copy	system/usr/local/bin/gpd-stock-initramfs	/usr/local/bin/gpd-stock-initramfs	root:root:0755
 copy	system/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	root:root:0644
-copy	system/etc/sudoers.d/22-boot-stock	/etc/sudoers.d/22-boot-stock	root:root:0440
