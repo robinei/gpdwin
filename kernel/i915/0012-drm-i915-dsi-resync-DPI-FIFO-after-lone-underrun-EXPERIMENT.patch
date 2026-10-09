@@ -38,8 +38,8 @@ or to MIPI_INTR_STAT bits other than DPI_FIFO_UNDERRUN. All waits bounded.
 Parameters are writable at runtime (/sys/module/i915/parameters/).
 ---
  drivers/gpu/drm/i915/display/intel_dsi.h |  47 +-
- drivers/gpu/drm/i915/display/vlv_dsi.c   | 692 ++++++++++++++++++++++-
- 2 files changed, 716 insertions(+), 23 deletions(-)
+ drivers/gpu/drm/i915/display/vlv_dsi.c   | 701 ++++++++++++++++++++++-
+ 2 files changed, 725 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/gpu/drm/i915/display/intel_dsi.h b/drivers/gpu/drm/i915/display/intel_dsi.h
 index 2d702d6..3a829e2 100644
@@ -111,7 +111,7 @@ index 2d702d6..3a829e2 100644
  	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
  	struct ref_tracker *io_wakeref[I915_MAX_PORTS];
 diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
-index 761f183..60e9dd5 100644
+index 761f183..5110037 100644
 --- a/drivers/gpu/drm/i915/display/vlv_dsi.c
 +++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
 @@ -23,15 +23,24 @@
@@ -151,7 +151,7 @@ index 761f183..60e9dd5 100644
  #include "skl_scaler.h"
  #include "vlv_dsi.h"
  #include "vlv_dsi_pll.h"
-@@ -720,35 +732,678 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
+@@ -720,35 +732,687 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
   * the pre_enable hook instead of the enable hook.
   */
  /*
@@ -221,6 +221,7 @@ index 761f183..60e9dd5 100644
 +#define UR_FIFO_LINE_MIN	3			/* lines after vblank start: FIFO drained when aligned */
 +#define UR_FIFO_LINE_MAX	24
 +#define UR_RESYNC_MIN_GAP_NS	(2 * NSEC_PER_SEC)
++#define UR_ECHO_NS		(150 * NSEC_PER_MSEC)	/* underrun from the pipe restart itself */
 +
 +static const char *const ur_trigger_name[] = { "none", "lone underrun", "fifo detector", "post-check" };
 +
@@ -422,8 +423,16 @@ index 761f183..60e9dd5 100644
 +		bool stall = ur->stall_count &&
 +			ktime_after(ur->last_stall_t, ktime_sub(ur->pend_t, 10 * NSEC_PER_MSEC));
 +		const char *kind;
++		bool echo = ur->resync_count &&
++			ktime_sub(ur->pend_t, ur->last_resync_t) < UR_ECHO_NS;
 +
-+		if (ur->pend_count >= 2) {
++		if (echo) {
++			/*
++			 * The first frame after the pipe restart underruns once
++			 * (seen after every resync, picture aligned afterwards).
++			 */
++			kind = "echo of the resync (ignored)";
++		} else if (ur->pend_count >= 2) {
 +			kind = "PAIR (hardware realigned)";
 +			ur->pair_count++;
 +		} else if (stall) {
@@ -438,7 +447,7 @@ index 761f183..60e9dd5 100644
 +			 ur->pend_no, kind, ur->pend_count,
 +			 div_s64(ktime_sub(now, ur->pend_t), NSEC_PER_MSEC),
 +			 str_yes_no(stall), ur->lone_count, ur->pair_count);
-+		if (ur->pend_count < 2 && !stall && (vlv_dsi_resync & 1))
++		if (!echo && ur->pend_count < 2 && !stall && (vlv_dsi_resync & 1))
 +			vlv_dsi_request_resync(intel_dsi, 1, ur->pend_no);
 +		ur->pend = false;
 +	}
@@ -487,8 +496,9 @@ index 761f183..60e9dd5 100644
 +		   ktime_sub(now, ur->fifo_last_sched) > 200 * NSEC_PER_MSEC) {
 +		/* cancelled by a vblank off we did not see */
 +		ur->fifo_pending = false;
-+	}
-+
+ 	}
+ 
+-	schedule_delayed_work(&intel_dsi->underrun_work, msecs_to_jiffies(5));
 +	/* result of a resync, 1 s later */
 +	if (ur->post_pending && !ur->resync_running &&
 +	    ktime_sub(now, ur->last_resync_t) >= NSEC_PER_SEC) {
@@ -723,9 +733,8 @@ index 761f183..60e9dd5 100644
 +	    !ur->enabled) {
 +		drm_info(display->drm, "DSI resync skipped: crtc not active with this encoder\n");
 +		return 0;
- 	}
- 
--	schedule_delayed_work(&intel_dsi->underrun_work, msecs_to_jiffies(5));
++	}
++
 +	/* the last commit on this crtc must be fully done with the hardware */
 +	commit = crtc_state->uapi.commit;
 +	if (commit &&
@@ -842,7 +851,7 @@ index 761f183..60e9dd5 100644
  }
  
  static void intel_dsi_pre_enable(struct intel_atomic_state *state,
-@@ -847,10 +1502,8 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
+@@ -847,10 +1511,8 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
  	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
  
  	if ((display->platform.valleyview || display->platform.cherryview) &&
@@ -855,7 +864,7 @@ index 761f183..60e9dd5 100644
  }
  
  static void bxt_dsi_enable(struct intel_atomic_state *state,
-@@ -876,7 +1529,7 @@ static void intel_dsi_disable(struct intel_atomic_state *state,
+@@ -876,7 +1538,7 @@ static void intel_dsi_disable(struct intel_atomic_state *state,
  
  	drm_dbg_kms(display->drm, "\n");
  
@@ -864,7 +873,7 @@ index 761f183..60e9dd5 100644
  
  	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
  	intel_backlight_disable(old_conn_state);
-@@ -1571,7 +2224,7 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
+@@ -1571,7 +2233,7 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
  }
  
  static const struct drm_encoder_funcs intel_dsi_funcs = {
@@ -873,7 +882,7 @@ index 761f183..60e9dd5 100644
  };
  
  static enum drm_mode_status vlv_dsi_mode_valid(struct drm_connector *connector,
-@@ -1970,7 +2623,8 @@ void vlv_dsi_init(struct intel_display *display)
+@@ -1970,7 +2632,8 @@ void vlv_dsi_init(struct intel_display *display)
  
  	encoder = &intel_dsi->base;
  	intel_dsi->attached_connector = connector;
