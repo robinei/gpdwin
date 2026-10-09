@@ -8,8 +8,12 @@ R=/var/lib/gpd-stock-modroot
 KV=$(pacman -Qlq linux | sed -n 's|^/usr/lib/modules/\([^/]*\)/vmlinuz$|\1|p')
 [ -n "$KV" ] || { echo "gpd-stock-initramfs: no kernel found"; exit 1; }
 rm -rf "$R"
-mkdir -p "$R/lib/modules"
-cp -al "/usr/lib/modules/$KV" "$R/lib/modules/"      # hard links: no extra space
-rm -rf "$R/lib/modules/$KV/updates"
+# kmod looks in <root>/usr/lib/modules, mkinitcpio in <root>/lib/modules: provide both
+mkdir -p "$R/usr/lib/modules"
+ln -s usr/lib "$R/lib"
+cp -al "/usr/lib/modules/$KV" "$R/usr/lib/modules/"  # hard links: no extra space
+rm -rf "$R/usr/lib/modules/$KV/updates"
 depmod -b "$R" "$KV"
+[ -n "$(modinfo -b "$R" -k "$KV" -F filename i915)" ] || { echo "gpd-stock-initramfs: i915 not found in $R"; exit 1; }
+echo "gpd-stock-initramfs: i915 -> $(modinfo -b "$R" -k "$KV" -F filename i915)"
 mkinitcpio -k "$KV" -r "$R" -g /boot/initramfs-linux-stock.img
