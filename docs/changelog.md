@@ -354,3 +354,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-09: Pegasus utility "Reboot (stock display driver)" and sudoers `22-boot-stock` removed
   (redundant: hold Space at power-on for the boot menu).
 - 2026-10-09: installed `ppsspp` 1.20.4 (standalone PSP emulator).
+- 2026-10-09: Pegasus PSP collection (`~/Games/psp`, PPSSPP standalone); fetch-boxart knows PSP.

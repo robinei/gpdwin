@@ -28,6 +28,9 @@
     gives the IBM logo (wanted).
   - `snes` (ROMs, not in the repo; its metadata is a `copy` entry): launch
     `retroarch -f -L /usr/lib/libretro/snes9x_libretro.so "{file.path}"`.
+  - `psp` (ISOs, not in the repo; metadata is a `copy` entry): standalone PPSSPP,
+    `PPSSPPSDL --fullscreen "{file.path}"` (iso/cso/chd/pbp). Name ISOs as in No-Intro
+    (`Disgaea - Afternoon of Darkness (USA).iso`) so `fetch-boxart.py` finds the box art.
   - `utils` (repo `pegasus/utils`): tools in `tools/*.sh`, 512x512 tiles in `media/`
     (#11111b / #1e1e2e / #45475a / #89b4fa, DejaVu Sans Bold labels). Terminal tools run
     `foot --app-id=pegasus-tool`, fullscreen via a sway rule.

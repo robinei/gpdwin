@@ -22,6 +22,7 @@ SYSTEMS = {
     "sega32x": "Sega - 32X",
     "pcengine": "NEC - PC Engine - TurboGrafx 16",
     "psx": "Sony - PlayStation",
+    "psp": "Sony - PlayStation Portable",
 }
 BASE = "https://thumbnails.libretro.com"
 REGION_PREF = ["(USA)", "(USA, Europe)", "(World)", "(Europe)", "(Japan, USA)", "(Japan)"]
