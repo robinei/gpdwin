@@ -55,6 +55,10 @@ The user is Robin (they/them).
 - When a script you run spawns ssh, give it `</dev/null` or it eats the rest of a heredoc.
 - The device is `gpdwin.lan`, the desktop `desktop.lan`. Firewall is on (nftables): new
   listening services need a rule in `system/etc/nftables.conf`.
+- **"Sound is gone/broken" → run `scripts/audio-speaker` first** (no sudo needed). The rt5645
+  codec sometimes falsely reports a headphone plug (esp. after hibernate); the script forces the
+  speaker profile and default sink. `scripts/audio-speaker auto` undoes it. Details and what
+  doesn't work (suspend, codec unbind hangs the kernel): docs/hardware.md "Audio jack".
 - Claude Code uses ~400 MB of RAM; don't run heavy work while a game is running.
 - Verify every edit took effect (grep the file afterwards) before documenting it. Some files
   have CRLF line endings (`/opt/zelda3-git/zelda3.ini`), so `sed` patterns ending in `$` miss.
