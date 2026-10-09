@@ -29,7 +29,7 @@ def setup(name, events, kb, rare):
     w(f'{d}/buffer_size_kb', str(kb))
     for e in events:
         if rare and e == 'i915/intel_plane_update_arm':
-            w(f'{d}/events/{e}/filter', 'name !~ "primary*"')   # primary flips happen every frame
+            w(f'{d}/events/{e}/filter', 'name != "primary B"')   # primary flips happen every frame
         w(f'{d}/events/{e}/enable', '1')
     w(f'{d}/tracing_on', '1')
     return d
