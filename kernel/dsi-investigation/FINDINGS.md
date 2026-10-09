@@ -58,7 +58,8 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
 - Fits the data: GOP also runs 266667 (fresh-boot desync explained as well as later ones).
 - **Test 2026-10-09:** with 0002 at cdclk 320000 the DPI underrun latch and a momentary flash still came
   34 s into DevilutionX. So cdclk does not stop the underruns. Whether persistent desyncs stop is still
-  being watched (results: docs/hardware.md "i915 patch tests").
+  being watched (results: docs/hardware.md "i915 patch tests")
+  In the first ~15 min: one split held for several seconds and then recovered without a reset (new).
 
 ### 3. DPI FIFO flush at end of frame (`BXT_DEFEATURE_DPI_FIFO_CTR`) — not patched yet
 - Upstream `f90e8c36c886` ("drm/i915/dsi: fix bxt split screen and color issue", 2016): "display
