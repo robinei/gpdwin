@@ -329,3 +329,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - On the GPD: `/boot/initramfs-linux-i915test.img`, `/boot/loader/entries/arch-i915test.conf` (module 0002),
   EFI vars LoaderEntryDefault=arch.conf, one-shot = test entry. Normal initramfs and modules unchanged.
   Revert: `kernel/i915/uninstall-test.sh`.
+- 2026-10-09 afternoon: tested i915 patches 0002 (cdclk 320 MHz), 0003/0004 (DPI FIFO flush bit: not present on
+  CHV), 0005 (blanking rounding) as one-shot test boots: none prevents the split. Measured with
+  `kernel/dsi-investigation/trace-logger.py`: the DSI controller sets the frame timing; each flash was a
+  one-frame pipe stall. Stock entry stays default; test entry/initramfs remain (`kernel/i915/uninstall-test.sh`).

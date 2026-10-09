@@ -44,6 +44,11 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
   back-pressured; occasionally the flow control fails (one-frame stall, DPI underrun, byte slip =
   split/color-rotated picture). 0005 rounds the line positions down: 540+13+14+13 = 580 <= 580.5.
   Expected immediately visible in the trace: frame period 16.566 ms instead of 16.609.
+- **Test 0005 (2026-10-09 17:10):** registers 14/13/13 as intended; frame period dropped to 16.561-16.565 ms
+  during play and 16.5536 ms in a quiet moment (all states: about link-paced at 580 plus a small variable extra),
+  so the DSI controller is the timing master in every state. **Splits still happen** (a 2 s one, then a
+  color-shifted one that held ~1 min and recovered by itself; period during it 16.5527 ms). Verdict: the
+  rounding is not the cause. The small good/bad period difference is not a usable detector (good state varies).
 
 ## CONFIRMED bug
 
