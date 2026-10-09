@@ -17,7 +17,13 @@ informed in short lines; they are on a small screen with a keyboard.
 3. **Repo packages.** `checkupdates` to list pending updates; summarize (note kernel, mesa,
    systemd, sway, pipewire, firmware). Then `sudo -n pacman -Syu --noconfirm`. Read the output for
    warnings, failed hooks and `.pacnew` notices. If the kernel or `linux-firmware-*` changed,
-   tell the user a reboot is needed (don't reboot yourself).
+   tell the user a reboot is needed (don't reboot yourself). If the kernel changed: our patched
+   audio modules (`kernel/`, docs/hardware.md "Audio") are installed per kernel version, so the new
+   kernel starts with the stock ones (sound works, but hibernate breaks it again). After the
+   reboot into the new kernel, check `modinfo -n snd_soc_rt5645` (should be under `updates/`); if
+   not, run `kernel/install.sh` (the build scripts refuse a kernel version whose sources aren't
+   pinned: fetch the new files, check the patches still apply, update the pins) and reboot again.
+   Check whether the patches have been merged upstream first (then drop them).
 
 4. **AUR packages.** `scripts/aur check`. Our build files are vendored in `aur/pkgbuilds/PKG/`
    and our changes live in `aur/patches/PKG/` (`pkgbuild/*.patch` for build files, `*.patch` for

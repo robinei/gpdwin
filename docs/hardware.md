@@ -163,6 +163,13 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   against `linux-headers` (does not load anything). Status: builds; NOT yet loaded/tested (loading a
   self-built module as root needs the user's go-ahead); worth sending upstream (alsa-devel, Realtek
   rt5645 maintainers) once it is proven.
+- Installing the patches: `kernel/install.sh` builds both modules and installs them into
+  `/usr/lib/modules/$(uname -r)/updates/` (preferred over the stock modules: depmod search order is
+  `updates extramodules built-in`), then reboot; `kernel/uninstall.sh` reverts. Per kernel version:
+  a kernel update starts with the stock modules (sound works, the hibernate bug is back) until
+  `kernel/install.sh` is run for it (`/maintain` has the step). DKMS would automate it but keeps
+  copies of old kernel sources that may stop building, and is one more root mechanism; not used.
+  The right permanent fix is getting the two patches upstream.
 - Reproduce and trace: `sudo systemctl hibernate`, power on, compare `scripts/audio-snapshot`
   dirs. Tracing: `/sys/kernel/tracing/events/regmap/{regmap_reg_write,regcache_sync,regmap_cache_only}`
   with filter `name == "i2c-10EC5645:00"` and `events/power/device_pm_callback_{start,end}` with
