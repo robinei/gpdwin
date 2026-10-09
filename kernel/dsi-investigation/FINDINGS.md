@@ -64,7 +64,7 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
   Register snapshot during a split with 0002 (`data/split-0002-regs.txt`): same as the stock bad state, only the
   DPI underrun latch differs from good; pipe B no FIFO underrun.
 
-### 3. DPI FIFO flush at end of frame (`BXT_DEFEATURE_DPI_FIFO_CTR`) — not patched yet
+### 3. DPI FIFO flush at end of frame (`BXT_DEFEATURE_DPI_FIFO_CTR`) — bit does not exist on CHV
 - Upstream `f90e8c36c886` ("drm/i915/dsi: fix bxt split screen and color issue", 2016): "display
   appears split, or shifted about 2/3 of the screen, and the color components are cycled", fixed by
   `EOT_DISABLE` bit 9; per bspec with it set, vblank start is signalled only when the frame is fully
@@ -73,9 +73,9 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
 - Whether bit 9 exists on CHV is unknown (no CHV documentation found); the GOP leaves it 0 on port C,
   but bit 8 is set on port A (0x100), so the defeature bits may exist. Writing an undocumented bit is
   riskier than experiment 2; do it only if 2 changes nothing.
-- **Test 2026-10-09 (patch 0003):** bit 9 written to port C `EOT_DISABLE` reads back 0: not implemented
-  there on CHV, the test is void. Untested variant: port A's `EOT_DISABLE` (which holds bit 8 = 0x100 from the
-  GOP, and port A also holds the shared LP_OUTPUT_HOLD bit for port C) might be where CHV keeps these bits.
+- **Tests 2026-10-09 (patches 0003, 0004):** bit 9 written to port C `EOT_DISABLE` reads back 0; set by
+  read-modify-write in port A's `EOT_DISABLE` (holds bit 8 = 0x100 from the GOP) it is dropped too (still
+  0x100). CHV does not implement the bit in either register: this route is closed.
 - Mechanism supported by observation: one split was a few-pixel shift with rotated colors, i.e. the stream
   offset by a byte count that is not a multiple of 3 (RGB888). The pixel stream loses byte alignment and keeps
   it frame after frame; nothing re-aligns at frame start.
