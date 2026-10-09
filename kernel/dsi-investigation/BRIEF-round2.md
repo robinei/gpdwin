@@ -108,3 +108,9 @@ Run each on the stock module (reboot normally first) with the residual flash det
   flashes and a held split no panel error bit (0-13, 25, 26) and no TA timeout (23) ever latched; only bit 20.
   => host-side fault: the DSI controller sends valid packets with byte-offset pixel data after a DPI FIFO
   underrun. D-PHY/receiver margin (0010) ruled out as the mechanism; 0010 not tested.
+- 2026-10-09 19:14-: 0011 (each DPI underrun logged with frame/scanline and cleared; `data/trace-2026-10-09/
+  underruns-0011.log`). First results: flashes = TWO underruns in one frame (mid-frame, then scanline 1279 = last
+  active line) followed by a one-frame pipe stall, picture aligned afterwards (19:16:21, 19:17:46). The split at
+  19:18:12 = ONE underrun at scanline 89, no 1279 underrun, no stall. It held 2.5 min with no underruns at all and
+  was fixed at 19:20:42 by the next pair (968 + 1279) + stall. Hypothesis: the end-of-frame underrun + frame stall is
+  the hardware's resync; a split is an underrun that does not lead to it. More samples needed.
