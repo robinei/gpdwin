@@ -49,16 +49,15 @@
 
 ## RetroArch
 - `retroarch` 1.22 + `retroarch-assets-ozone/xmb`, `libretro-core-info`. Cores (`/usr/lib/libretro`):
-  nestopia, snes9x, gambatte, mgba, genesis-plus-gx, picodrive, beetle-pce-fast, beetle-psx
-  (needs `scph5500/5501/5502.bin`, or `PSXONPSP660.BIN` with core option
-  `beetle_psx_override_bios = "psxonpsp"`, in `~/.config/retroarch/system/`).
-  PS1 uses PCSX ReARMed instead: not in the repos, so the libretro buildbot build
+  nestopia, snes9x, gambatte, mgba, genesis-plus-gx, picodrive, beetle-pce-fast.
+  PS1: PCSX ReARMed, not in the repos, so the libretro buildbot build
   (`buildbot.libretro.com/nightly/linux/x86_64/latest/pcsx_rearmed_libretro.so.zip`) is in
   `~/.config/retroarch/cores/` (not in the repo; update by hand). BIOS: `PSXONPSP660.BIN` in
   `system/` (found by both cores). Measured on Suikoden II, 3600 frames at 60 fps with the lcd3x
   shader: ReARMed full speed at 52% of one core; Beetle PSX (dynarec) 83% and SwanStation
   (OpenGL 94%, threaded software 88%) both fell below full speed. Unthrottled fps can't be
-  compared here (sway paces frames at ~60 even with vsync off), so CPU time is the measure.
+  compared here (sway paces frames at ~60 even with vsync off), so CPU time is the measure. Beetle PSX
+  (`libretro-beetle-psx`) was uninstalled after this; SwanStation was only tested.
 - Config `~/.config/retroarch/retroarch.cfg` (repo copy in `dotfiles/retroarch/`):
   `config_save_on_exit = false` (save from the menu explicitly, then `scripts/sync capture
   retroarch.cfg`).
