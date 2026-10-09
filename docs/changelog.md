@@ -341,3 +341,8 @@ Details before 2026-10-06 are in `docs/archive/`.
   (EFI variable). Revert: `sudo bootctl set-default arch.conf; sudo bootctl set-timeout 0`.
 - Pacman hook `/etc/pacman.d/hooks/10-i915test-default-stock.hook` (manifest) resets the default to stock before
   any kernel change, because the test entry only boots with the kernel its initramfs was built for.
+- 2026-10-09 late: patched i915 moved to DKMS (`gpd-i915`, `kernel/i915/install-dkms.sh`, rebuilt per kernel on the
+  device, 634 s); the one-shot test entry and the `10-i915test-default-stock.hook` are gone. Default entry `arch.conf`
+  is patched; new fallback entry `arch-stock.conf` with a stock-module initramfs (`gpd-stock-initramfs`, hook
+  `95-gpd-stock-initramfs.hook`, both in manifest). `scripts/update` and `/maintain` warn before kernel updates
+  and can hold the kernel. Revert: `kernel/i915/uninstall-dkms.sh`, delete `arch-stock.conf`, `bootctl set-timeout 0`.

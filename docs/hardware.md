@@ -106,12 +106,18 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     `c8dae55a8ced` (Bay Trail DSI: picture shifted with wraparound and wrong colors at cdclk 266667, needs >= 320000;
     applied to Valleyview only, not Cherry Trail) and `f90e8c36c886` (Broxton split screen with cycled colors: DPI FIFO
     not flushed at frame end, `EOT_DISABLE` bit 9). Neither is proven for CHV; the cdclk one was tested (patch 0002) and showed no improvement.
-  - **Current state (2026-10-09): the default boot entry `arch-i915test.conf` runs the patched i915
-    (0001+0011+0012+0013, `~/i915-daily.ko.zst`): every DPI underrun is logged (`journalctl -k | grep DSI`) and a
-    lone underrun (= a split) triggers an automatic resync (one dark frame instead of a split). Splits
-    should no longer stay; flashes still happen. Stock: pick "Arch Linux" in the 3 s boot menu, or
-    `sudo bootctl set-default arch.conf`. Pacman hook `10-i915test-default-stock.hook` makes stock the
-    default again before any kernel change (the test entry only boots with 7.2.9-arch1-1).**
+  - **Current state (2026-10-09): patched i915 as DKMS package `gpd-i915`** (`kernel/i915/install-dkms.sh`,
+    patches 0001+0011+0012+0013): every DPI underrun is logged (`journalctl -k | grep DSI`) and a lone
+    underrun (= a split) triggers an automatic resync (one dark frame instead of a lasting split); flashes
+    still happen. The dkms pacman hook rebuilds it for every new kernel on the device: it downloads that
+    kernel's source from kernel.org (+ Arch's i915 changes), applies the patches and compiles (**634 s on the
+    Atom**). If that fails (patch no longer applies, download), DKMS installs nothing and the stock i915 is used.
+    `scripts/update` and `/maintain` warn before a kernel update and offer to hold the kernel.
+    Boot menu (3 s): **Arch Linux** = patched; **Arch Linux (stock)** = initramfs with Arch's own modules
+    (`/usr/local/bin/gpd-stock-initramfs`, rebuilt by `95-gpd-stock-initramfs.hook` after kernel/DKMS changes;
+    stock i915, the audio modules still come patched from disk). Remove the patch: `kernel/i915/uninstall-dkms.sh`.
+    Note: DKMS moves the replaced stock modules to `/var/lib/dkms/<pkg>/original_module/` (restored on
+    uninstall), so `pacman -Qkk linux` reports them missing; expected.
   - **i915 patch tests** (`kernel/i915/`): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
     `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-i915test.img` + entry
     `arch-i915test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a

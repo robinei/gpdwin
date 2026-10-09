@@ -4,11 +4,11 @@
 - GPT on the eMMC: p1 512 MiB ESP mounted at `/boot` (FAT32, kernels live here), p2 4 GiB swap,
   p3 ext4 `/`. fstab and the boot entry use UUIDs.
 - systemd-boot (`systemd-boot-update.service` enabled). `loader.conf`: `timeout 0`,
-  `console-mode keep`, `editor no`. Since 2026-10-09 EFI variables override it: default entry
-  `arch-i915test.conf` (patched i915, docs/hardware.md "Display") and menu timeout 3 s
-  (`bootctl set-default` / `set-timeout`; `bootctl` shows them). Revert: `sudo bootctl set-default arch.conf`,
-  `sudo bootctl set-timeout 0`. The pacman hook `10-i915test-default-stock.hook` resets the default to
-  `arch.conf` before every kernel change. Entry `arch.conf`: `linux` kernel, options
+  `console-mode keep`, `editor no`. Since 2026-10-09 the EFI variable `LoaderConfigTimeout` = 3 s
+  overrides it (`sudo bootctl set-timeout 3`; revert `set-timeout 0`), default `arch.conf`. Second entry
+  `arch-stock.conf` = `initramfs-linux-stock.img` with Arch's own modules (stock i915) as fallback for the
+  patched i915 (docs/hardware.md "Display"); built by `/usr/local/bin/gpd-stock-initramfs` (pacman hook
+  `95-gpd-stock-initramfs.hook`). Entry `arch.conf`: `linux` kernel, options
   `root=UUID=... rw fbcon=rotate:1`. Microcode is embedded in the initramfs (`microcode` hook),
   so `/boot/intel-ucode.img` is unused by the entry.
 - mkinitcpio: systemd-based hooks (Arch default), `MODULES=(pwm-lpss-platform i915)`, no fallback
