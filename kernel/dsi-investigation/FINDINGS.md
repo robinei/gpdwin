@@ -48,7 +48,11 @@ Pipe B FIFO underrun reporting is on at boot (`cpu=yes`).
   during play and 16.5536 ms in a quiet moment (all states: about link-paced at 580 plus a small variable extra),
   so the DSI controller is the timing master in every state. **Splits still happen** (a 2 s one, then a
   color-shifted one that held ~1 min and recovered by itself; period during it 16.5527 ms). Verdict: the
-  rounding is not the cause. The small good/bad period difference is not a usable detector (good state varies).
+  rounding is not the cause.
+- Frame period as a split detector (`period-monitor.py`, `data/trace-2026-10-09/period-0005.log`): REJECTED.
+  The period drifts slowly (~+0.4 us/frame per minute, with occasional steps) and showed no change when a split
+  began (Robin reported one at 17:21; smooth creep since 17:20:07). Flashes do show: each is one stalled frame
+  (2 s windows at 16.6899 ms = one extra frame, 17:20:03 and 17:20:05), as with stock.
 
 ## CONFIRMED bug
 
