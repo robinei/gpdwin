@@ -211,7 +211,12 @@
   (`wine explorer /desktop=game,1280x720 game.exe`) gives Wine's own mode list.
   (The Windows Psychonauts needed `DisplaySettings.ini` in its game folder at 1280x720.)
 
-- Sam & Max 101 (Telltale, Steamless-unpacked, 2026-10-09): needed three fixes.
+- Sam & Max 101 (Telltale, Steamless-unpacked, 2026-10-09). **Final setup: the game's `gpd-launch.sh` runs
+  it on the old-style Wine (see the WoW64 measurement below): ~42 fps, smooth, no rendering bugs
+  (no invisible characters), no DXVK/d3d8to9 needed.** The DXVK route described next is kept as the
+  fallback (`old-launchers/gpd-launch-dxvk.sh`) and for reference; it was needed only because the
+  system WoW64 Wine was slow, and it is the one that had the invisible-character bug. Getting the game
+  to run at all needed three fixes (1 and the unpacking still apply to the final setup):
   1. Resolution: its `prefs.prop` asked for 800x600, a mode Wine doesn't offer here, so it opened
      a white window and spun on `NtUserChangeDisplaySettings returned -2` (retry every 0.4 s).
      `prefs.prop` is bit-inverted (`~b` per byte); "Fullscreen Size" and "Window Size" are Vector2
