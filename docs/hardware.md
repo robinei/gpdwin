@@ -68,6 +68,12 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     test "host vs panel") until the real control register is identified. Driver sequence for reference:
     enable = DPI `TURN_ON` command, 100 ms, panel DISPLAY_ON, then `DPI_ENABLE` in the port control;
     disable = `SHUTDOWN` command, port control `DPI_ENABLE` cleared.
+  - **REFUTED 2026-10-09 15:39 for the desync:** a persistent desync happened in the fresh-boot state, with
+    `0x18b810` = `0x3fffff` (read-only logger: unchanged since boot, no modeset), so the truncated
+    timeout below is NOT what makes the picture desync. Underruns/flashes also occur with the long value (15:31:43).
+    The `u16` truncation is still a real driver bug (worth reporting upstream) but apparently harmless here.
+    Still unknown what makes some underruns persistent. Everything below up to "Live register writes" is the
+    original (wrong) theory, kept for the facts (VBT decode, register arithmetic).
   - **Probable root cause found in the driver (2026-10-09), untested:** `vlv_dsi.c` programs
     `MIPI_HS_TX_TIMEOUT` (0x18b810, "recovery" timer: one frame in byte clocks for non-burst video mode)
     with `txbyteclkhs(vtotal * htotal, ...)`, whose pixel argument AND return value are `u16`.

@@ -316,3 +316,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   (`flip_done timed out`) and the machine hard-locked at suspend; hard reset recovered. No file or config
   changed. Lesson: no live writes to DSI registers; test display-driver changes only via a patched module
   loaded at boot.
+
+## 2026-10-09 — DSI timeout theory refuted
+- Desync observed with the long (VBT) HS timeout and no modeset since boot: the `u16` truncation of
+  `MIPI_HS_TX_TIMEOUT` is not the cause of the desync. See docs/hardware.md. No system change.
