@@ -301,6 +301,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 
 ## 2026-10-09 — 32-bit Windows games on the old-style Wine in `~/.wine32`
 - `~/.wine32` (win32 prefix, created by the old-style Wine) + symlink `~/Games/tools/wine32`; Sam & Max's
-  launcher uses them. `scripts/games` (`scripts/gamelib/core.py`) now writes launchers for 32-bit PE
-  executables with the old-style Wine when `~/Games/tools/wine32/bin/wine` exists, else the system Wine.
+  launcher uses them. `scripts/games` (`scripts/gamelib/core.py`) writes launchers with the old-style
+  Wine for games whose `.gpd-game.json` has `"runner": "wine32"` (opt-in; Spelunky and Cave Story+ were
+  tried on it, no gain, back on the system Wine). The unused test prefix `wineprefix-oldstyle` was deleted.
   Revert: use the system `wine` and `~/.wine` in the launcher; remove `~/.wine32` and `~/Games/tools/wine32`.

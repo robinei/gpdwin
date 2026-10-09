@@ -259,18 +259,18 @@
   Arch has no old-style `wine` package any more (AUR `wine-stable` builds from source: hours here).
 
 - **Wine layout (2026-10-09):** two Wines side by side. System `wine` (Arch, new WoW64) with the shared
-  `~/.wine` prefix for 64-bit games (Heretic + Hexen) and anything that doesn't care. **Old-style Wine
+  `~/.wine` prefix for almost everything (the default of `scripts/games`). **Old-style Wine
   (`~/Games/tools/wine32` -> `wine-oldstyle/wine-11.19-amd64`, Kron4ek build) with a true 32-bit
-  prefix `~/.wine32` (`WINEARCH=win32`, only the old-style build can make one) for every 32-bit
-  Windows game** (Sam & Max, Spelunky, Cave Story+): ~8x faster on D3D than the WoW64 system Wine. A win32
-  prefix is half the size of a win64 one (310 vs 616 MB) with the same speed (39.3 vs 38.6 fps) and Wine
-  memory (449 vs 453 MB) on Sam & Max, so no performance reason, just tidier. `scripts/games` picks the
-  runner by the exe's PE header (`pe_is_32bit()` in `scripts/gamelib/core.py`) and writes launchers with
-  `WINEPREFIX=$HOME/.wine32 WINEARCH=win32 WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"`
-  (Mono, Gecko and GStreamer are not available/needed there). Existing launchers are not rewritten
-  (edit them by hand). Updating: new Kron4ek release -> unpack next to it, repoint the `wine32` symlink,
-  keep the old directory until it works (a prefix updates itself on first use). The old test prefix
-  `~/Games/tools/wineprefix-oldstyle` (616 MB) is no longer used.
+  prefix `~/.wine32` (`WINEARCH=win32`, only the old-style build can make one) for games that are slow on
+  the WoW64 system Wine** (so far only Sam & Max). A win32 prefix is half the size of a win64 one (310 vs
+  616 MB) with the same speed (39.3 vs 38.6 fps) and Wine memory (449 vs 453 MB). **Opt-in per game:**
+  `"runner": "wine32"` in its `.gpd-game.json`; `scripts/games` then writes the launcher with
+  `WINEPREFIX=$HOME/.wine32 WINEARCH=win32 WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"` and
+  `$HOME/Games/tools/wine32/bin/wine` (Mono, Gecko and GStreamer are not available/needed there; the
+  32-bit side lacks only optional libs: sane, pcsc, pcap, OpenCL, GStreamer, ffmpeg). Existing launchers are
+  not rewritten (edit them by hand; a game's `old-launchers/` folder keeps the alternatives). Updating the
+  old-style Wine: new Kron4ek release -> unpack next to it, repoint the `wine32` symlink, keep the old
+  directory until it works (a prefix updates itself on first use).
 
 - **Not every 32-bit game benefits (measured 2026-10-09):** Spelunky (GameMaker, D3D9) and Cave Story+ run at the
   60 fps vsync cap on both the system WoW64 Wine and the old-style Wine, and neither prints the

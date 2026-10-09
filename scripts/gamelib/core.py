@@ -247,22 +247,6 @@ cd "$(dirname "$0")/{workdir}" || exit 1
 WINE32 = Path.home() / "Games/tools/wine32"          # old-style (non-WoW64) Wine, see docs/frontend.md
 
 
-def pe_is_32bit(path):
-    """True for a 32-bit (i386) Windows executable, False for 64-bit, None if it is not a PE file."""
-    try:
-        with open(path, "rb") as f:
-            head = f.read(64)
-            if head[:2] != b"MZ":
-                return None
-            f.seek(int.from_bytes(head[60:64], "little"))
-            sig = f.read(6)
-    except OSError:
-        return None
-    if sig[:4] != b"PE\0\0":
-        return None
-    return int.from_bytes(sig[4:6], "little") == 0x14C
-
-
 
 def write_launcher(rec, force=False):
     d = Path(rec["dir"])
@@ -271,9 +255,10 @@ def write_launcher(rec, force=False):
         return path
     exe = Path(rec["exe"])
     workdir = str(exe.parent) if str(exe.parent) != "." else "."
-    if rec["os"] == "windows" and pe_is_32bit(d / exe) and (WINE32 / "bin/wine").exists():
-        # The system Wine is the new WoW64 build: 32-bit D3D games are ~8x slower on it (buffer copies,
-        # docs/frontend.md). A 32-bit game runs on the old-style Wine in a true 32-bit prefix.
+    if rec["os"] == "windows" and rec.get("runner") == "wine32" and (WINE32 / "bin/wine").exists():
+        # Opt-in per game (`"runner": "wine32"` in its .gpd-game.json): the system Wine is the new WoW64
+        # build, on which some 32-bit D3D games are ~8x slower (buffer copies, docs/frontend.md, e.g.
+        # Sam & Max). Such a game runs on the old-style Wine in a true 32-bit prefix.
         runner = "old-style Wine (32-bit prefix ~/.wine32)"
         env = ('export WINEPREFIX="$HOME/.wine32" WINEARCH=win32 WINEDEBUG=-all\n'
                'export WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"\n')
