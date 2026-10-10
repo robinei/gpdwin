@@ -2279,6 +2279,11 @@ static int render(App *a)
     Game *g = c->games[*sel];
     int PX = LW + 28, PW = W - PX - 28, y = TOP + 12;
     int IW = PW * 44 / 100, IH = (H - TOP) * 58 / 100;
+    bool tool = false; /* Utilities tools: their icon stays icon-sized */
+    for (int i = 0; i < g->ncolls; i++)
+        tool |= !strcmp(g->colls[i]->shortname, "utils");
+    if (tool)
+        IW = IH = 128;
     int img_h = 0;
     if (g->boxfront) {
         ImgEntry *e = cache_get(a, a->bigs, SDL_arraysize(a->bigs), g->boxfront, IW);
@@ -2295,7 +2300,7 @@ static int render(App *a)
         if (e && e->tex) {
             float k = SDL_min((float)IW / e->w, (float)IH / e->h);
             if (k > 1.0f)
-                k = SDL_min(k, 2.0f);
+                k = tool ? 1.0f : SDL_min(k, 2.0f);
             SDL_FRect d = { PX, y, e->w * k, e->h * k };
             SDL_RenderTexture(a->ren, e->tex, NULL, &d);
             img_h = d.h;
