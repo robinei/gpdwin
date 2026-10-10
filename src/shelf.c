@@ -2270,41 +2270,62 @@ static int select_game(App *a, const char *coll, const char *file)
     return -1;
 }
 
-/* Rescan, keeping every tab's selected game and its row on screen (found again by collection
- * name and file path). */
-static void reload(App *a)
+/* Every tab's place as text: the current collection's name, then a line per tab,
+ * "<selected game's row on screen>\t<collection>\t<selected game's file>". Kept across a rescan, and
+ * saved as the state file. */
+static char *tab_state(App *a)
 {
-    int n = a->ntabs, cur = a->tab;
-    struct {
-        char *coll, *file;
-        int row;
-    } *keep = xcalloc(n + 1, sizeof *keep);
-    for (int i = 0; i < n; i++) {
+    char *b = xstrdup(cur_coll(a) ? cur_coll(a)->name : "");
+    for (int i = 0; i < a->ntabs; i++) {
         Collection *c = a->tabs[i];
-        keep[i].coll = xstrdup(c->name);
-        if (c->ngames) {
-            keep[i].file = xstrdup(c->games[a->sel[i]]->files.v[0]);
-            keep[i].row = a->sel[i] - a->top[i];
+        if (!c->ngames)
+            continue;
+        char *t = fmt("%s\n%d\t%s\t%s", b, a->sel[i] - a->top[i], c->name, c->games[a->sel[i]]->files.v[0]);
+        free(b);
+        b = t;
+    }
+    char *t = fmt("%s\n", b);
+    free(b);
+    return t;
+}
+
+/* Put every tab back where tab_state() saw it, found again by collection name and file path
+ * (collections and games that are gone are skipped). Also reads the old state file (collection,
+ * file). */
+static void apply_tab_state(App *a, char *text)
+{
+    char *cur = NULL, *cur_file = NULL, *save;
+    for (char *line = strtok_r(text, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
+        char *coll = strchr(line, '\t'), *file = coll ? strchr(coll + 1, '\t') : NULL;
+        if (!cur) {
+            cur = line;
+        } else if (!coll) {
+            cur_file = line; /* old format */
+        } else if (file) {
+            *coll++ = 0, *file++ = 0;
+            int t = select_game(a, coll, file);
+            if (t >= 0)
+                a->top[t] = SDL_max(0, a->sel[t] - atoi(line)); /* draw_list clamps it */
         }
     }
-    lib_free(&a->lib);
-    load_library(&a->lib);
-    build_tabs(a);
-    for (int i = 0; i < n; i++) {
-        int t = keep[i].file ? select_game(a, keep[i].coll, keep[i].file) : -1;
-        if (t >= 0)
-            a->top[t] = SDL_max(0, a->sel[t] - keep[i].row); /* draw_list clamps it */
-    }
     a->tab = 0; /* if the current collection is gone */
-    select_game(a, n ? keep[cur].coll : NULL, n ? keep[cur].file : NULL);
-    for (int i = 0; i < n; i++)
-        free(keep[i].coll), free(keep[i].file);
-    free(keep);
+    select_game(a, cur, cur_file);
     a->dirty = true;
 }
 
-/* Where you are (tab name, game file), so shelf resumes there: ~/.local/state/shelf/last, written
- * once moving has stopped for SAVE_DELAY_MS, at launch and at quit. */
+/* Rescan, keeping every tab's place. */
+static void reload(App *a)
+{
+    char *st = tab_state(a);
+    lib_free(&a->lib);
+    load_library(&a->lib);
+    build_tabs(a);
+    apply_tab_state(a, st);
+    free(st);
+}
+
+/* Where you are, every tab's place (tab_state), so shelf resumes there: ~/.local/state/shelf/last,
+ * written once moving has stopped for SAVE_DELAY_MS, at launch and at quit. */
 #define SAVE_DELAY_MS 1500
 static char *state_path(void)
 {
@@ -2315,14 +2336,11 @@ static char *state_path(void)
 static void save_state(App *a)
 {
     a->save_due = 0;
-    Collection *c = cur_coll(a);
-    Game *g = cur_game(a);
-    if (!c || !g || headless)
+    if (!a->ntabs || headless)
         return;
-    char *path = state_path(), *dir = dir_of(path), *parent = dir_of(dir);
+    char *path = state_path(), *dir = dir_of(path), *parent = dir_of(dir), *data = tab_state(a);
     mkdir(parent, 0755);
     mkdir(dir, 0755);
-    char *data = fmt("%s\n%s\n", c->name, g->files.v[0]);
     write_file(path, data);
     free(data), free(parent), free(dir), free(path);
 }
@@ -2335,14 +2353,9 @@ static void moved(App *a)
 /* Startup position: where we were (save_state). */
 static void restore_position(App *a)
 {
-    char *sp = state_path(), *text = read_file(sp, NULL), *nl = text ? strchr(text, '\n') : NULL;
-    if (nl) {
-        *nl = 0;
-        char *file = nl + 1, *end = strchr(file, '\n');
-        if (end)
-            *end = 0;
-        select_game(a, text, file);
-    }
+    char *sp = state_path(), *text = read_file(sp, NULL);
+    if (text)
+        apply_tab_state(a, text);
     free(text);
     free(sp);
 }

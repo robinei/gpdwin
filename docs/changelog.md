@@ -440,3 +440,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   and scroll position. Switching tabs already kept them.
 - Background is now crust `#11111b` (was base `#1e1e2e`), the Utilities icons' outer margin, which showed as a
   frame; tab bar black (continues the sway bar), selected row base, selected tab surface0.
+- The state file `~/.local/state/shelf/last` now holds every tab's selected game and scroll row (was: current tab
+  and game only), so a restart resumes all tabs; the old two-line file is still read.

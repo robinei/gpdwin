@@ -56,13 +56,15 @@ source at the installed commit).
   one font object per face and size.
 - The list fills the height exactly, from the tab bar to the bottom edge: as many rows as fit at
   ~52 px, all stretched to the same height for the current window size.
-- Resumes where you were: tab and game in `~/.local/state/shelf/last`, written 1.5 s after
-  moving stops, at launch and at quit.
+- Resumes where you were, in every tab: `~/.local/state/shelf/last` holds the current tab's name, then
+  one line per tab, `<row on screen>\t<collection>\t<selected game's file>` (games are found again by
+  file path; gone ones are skipped). Written 1.5 s after moving stops, at launch and at quit. The
+  rescan after a game exits uses the same text, so both behave alike.
 - Launching draws a dimmed "Starting <title>…" overlay first, which stays
   until the game's window covers shelf; `SHELF_KEYS=o` shows it in a screenshot.
 - After a game or tool exits it rescans everything, so games added by the installer or box art
   from Fetch Box Art show up without a restart. Every tab keeps its selected game and scroll
-  position across that (in memory; only the current tab is saved to disk).
+  position across that.
 - Colours (Catppuccin Mocha): background crust `#11111b`, the outer margin of the Utilities icons,
   so only their cards show; tab bar black like the sway bar above it; selected tab surface0,
   selected row base.
