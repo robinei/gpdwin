@@ -1845,7 +1845,13 @@ typedef struct {
     SDL_Renderer *ren;
     int W, H;            /* window size */
     TTF_TextEngine *eng;
-    TTF_Font *f_tab, *f_row, *f_title, *f_meta, *f_desc;
+    TTF_Font *f_tab, *f_icon, *f_row, *f_title, *f_meta, *f_desc;
+    struct {
+        char *key;
+        SDL_Texture *tex; /* white with alpha, tinted per use; NULL: no logo */
+        int w, h;
+    } logos[32];
+    int nlogos;
     Library lib;
     Collection recent, favs;
     Collection **tabs;
@@ -2005,6 +2011,66 @@ static void cache_clear(ImgEntry *tab, int n)
             SDL_DestroyTexture(tab[i].tex);
         memset(&tab[i], 0, sizeof tab[i]);
     }
+}
+
+/* Collection logo: ~/.local/share/shelf/logos/<shortname>.svg (shelf/logos/ in the repo), made
+ * white (its alpha is the shape) so it can be tinted, fitted into LOGO_W x LOGO_H. Cached. */
+#define LOGO_W 140
+#define LOGO_H 34
+static int logo_get(App *a, const char *key)
+{
+    for (int i = 0; i < a->nlogos; i++)
+        if (!strcmp(a->logos[i].key, key))
+            return i;
+    if (a->nlogos == (int)SDL_arraysize(a->logos))
+        return -1;
+    int i = a->nlogos++;
+    a->logos[i].key = xstrdup(key);
+    a->logos[i].tex = NULL;
+    const char *dh = getenv("XDG_DATA_HOME");
+    char *path = dh && *dh ? fmt("%s/shelf/logos/%s.svg", dh, key)
+                           : fmt("%s/.local/share/shelf/logos/%s.svg", getenv("HOME") ? getenv("HOME") : "", key);
+    SDL_Surface *s = NULL;
+    for (int pass = 0; pass < 2 && exists(path); pass++) {
+        SDL_IOStream *io = SDL_IOFromFile(path, "rb");
+        if (!io)
+            break;
+        if (s)
+            SDL_DestroySurface(s);
+        s = pass == 0 ? IMG_LoadSizedSVG_IO(io, 0, LOGO_H) : IMG_LoadSizedSVG_IO(io, LOGO_W, 0);
+        SDL_CloseIO(io);
+        if (!s || s->w <= LOGO_W)
+            break; /* else too wide at full height: fit the width instead */
+    }
+    free(path);
+    if (s) {
+        SDL_Surface *t = SDL_ConvertSurface(s, SDL_PIXELFORMAT_ARGB8888);
+        SDL_DestroySurface(s);
+        s = t;
+    }
+    if (s && SDL_LockSurface(s)) {
+        for (int y = 0; y < s->h; y++) {
+            Uint32 *row = (Uint32 *)((char *)s->pixels + y * s->pitch);
+            for (int x = 0; x < s->w; x++)
+                row[x] |= 0x00FFFFFF;
+        }
+        SDL_UnlockSurface(s);
+        a->logos[i].tex = SDL_CreateTextureFromSurface(a->ren, s);
+        a->logos[i].w = s->w, a->logos[i].h = s->h;
+    }
+    if (s)
+        SDL_DestroySurface(s);
+    return i;
+}
+
+static void logos_clear(App *a)
+{
+    for (int i = 0; i < a->nlogos; i++) {
+        free(a->logos[i].key);
+        if (a->logos[i].tex)
+            SDL_DestroyTexture(a->logos[i].tex);
+    }
+    a->nlogos = 0;
 }
 
 static void fill(App *a, SDL_Color c, float x, float y, float w, float h)
@@ -2206,30 +2272,48 @@ static int render(App *a)
     int need_more = 0; /* ms until something else should be drawn (0: nothing pending) */
     fill(a, P.base, 0, 0, W, H);
 
-    /* tabs */
-    const int TAB_H = 56;
+    /* tabs: a logo per collection (shelf/logos/<shortname>.svg), a symbol for Recent, Favourites
+     * and Utilities, the name otherwise. The selected one is highlighted over the full height. */
+    const int TAB_H = 64, PAD = 20;
     fill(a, P.mantle, 0, 0, W, TAB_H);
-    int x = 12, sel_x0 = 0, sel_x1 = 0;
-    int *tw = xmalloc((a->ntabs + 1) * sizeof *tw);
+    int *tw = xmalloc((a->ntabs + 1) * sizeof *tw), *lg = xmalloc((a->ntabs + 1) * sizeof *lg);
+    const char **glyph = xmalloc((a->ntabs + 1) * sizeof *glyph);
+    int x = 0, sel_x1 = 0;
     for (int i = 0; i < a->ntabs; i++) {
-        tw[i] = text_width(a->f_tab, a->tabs[i]->name) + 32;
+        Collection *t = a->tabs[i];
+        lg[i] = -1;
+        glyph[i] = t == &a->recent ? "\u25F7" : t == &a->favs ? "\u2605"
+                 : !strcmp(t->shortname, "utils") ? "\u2699" : NULL;
+        if (!glyph[i] && (lg[i] = logo_get(a, t->shortname)) >= 0 && !a->logos[lg[i]].tex)
+            lg[i] = -1;
+        int cw = glyph[i] ? text_width(a->f_icon, glyph[i]) : lg[i] >= 0 ? a->logos[lg[i]].w
+               : text_width(a->f_tab, t->name);
+        tw[i] = cw + 2 * PAD;
         if (i == a->tab)
-            sel_x0 = x, sel_x1 = x + tw[i];
-        x += tw[i] + 6;
+            sel_x1 = x + tw[i];
+        x += tw[i];
     }
-    int shift = 0;
-    if (sel_x1 > W - 12)
-        shift = sel_x1 - (W - 12);
-    x = 12 - shift;
+    x = sel_x1 > W ? W - sel_x1 : 0;
     for (int i = 0; i < a->ntabs; i++) {
         bool on = i == a->tab;
+        SDL_Color col = on ? P.text : P.overlay;
         if (on)
-            fill(a, P.surface1, x, 8, tw[i], TAB_H - 16);
-        text(a, a->f_tab, a->tabs[i]->name, on ? P.text : P.overlay, x + 16, 14, 0, NULL);
-        x += tw[i] + 6;
+            fill(a, P.surface1, x, 0, tw[i], TAB_H);
+        if (glyph[i]) {
+            text(a, a->f_icon, glyph[i], col, x + PAD, (TAB_H - TTF_GetFontHeight(a->f_icon)) / 2.0f, 0, NULL);
+        } else if (lg[i] >= 0) {
+            SDL_Texture *t = a->logos[lg[i]].tex;
+            SDL_SetTextureColorMod(t, col.r, col.g, col.b);
+            SDL_FRect d = { x + PAD, (TAB_H - a->logos[lg[i]].h) / 2.0f, a->logos[lg[i]].w, a->logos[lg[i]].h };
+            SDL_RenderTexture(a->ren, t, NULL, &d);
+        } else {
+            text(a, a->f_tab, a->tabs[i]->name, col, x + PAD, (TAB_H - TTF_GetFontHeight(a->f_tab)) / 2.0f, 0, NULL);
+        }
+        x += tw[i];
     }
     free(tw);
-    (void)sel_x0;
+    free(lg);
+    free(glyph);
 
     Collection *c = cur_coll(a);
     if (!c || !c->ngames) {
@@ -2630,6 +2714,7 @@ static bool make_canvas(App *a, int w, int h)
     }
     cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
     cache_clear(a->bigs, SDL_arraysize(a->bigs));
+    logos_clear(a);
     if (a->ren)
         SDL_DestroyRenderer(a->ren);
     if (a->canvas)
@@ -2758,11 +2843,12 @@ int main(int argc, char **argv)
     }
     mark("window and renderer");
     a->f_tab = TTF_OpenFont(FONT_BOLD, 22);
+    a->f_icon = TTF_OpenFont(FONT_REGULAR, 32);
     a->f_row = TTF_OpenFont(FONT_REGULAR, 22);
     a->f_title = TTF_OpenFont(FONT_BOLD, 28);
     a->f_meta = TTF_OpenFont(FONT_REGULAR, 18);
     a->f_desc = TTF_OpenFont(FONT_REGULAR, 18);
-    if (!a->f_tab || !a->f_row || !a->f_title || !a->f_meta || !a->f_desc) {
+    if (!a->f_tab || !a->f_icon || !a->f_row || !a->f_title || !a->f_meta || !a->f_desc) {
         fprintf(stderr, "shelf: fonts: %s\n", SDL_GetError());
         return 1;
     }
@@ -2870,6 +2956,7 @@ int main(int argc, char **argv)
     loader_clear();
     cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
     cache_clear(a->bigs, SDL_arraysize(a->bigs));
+    logos_clear(a);
     TTF_DestroyRendererTextEngine(a->eng);
     SDL_DestroyRenderer(a->ren);
     SDL_DestroySurface(a->canvas);

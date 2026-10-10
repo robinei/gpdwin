@@ -368,6 +368,10 @@ rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the in
 - Switch: `echo shelf > ~/.config/gpd/frontend` (anything else or no file: Pegasus), then
   `scripts/restart-pegasus`. `run` starts whichever is chosen with the same environment (MangoHud
   preload, PATH) and crash restart; MangoHud blacklists both.
+- Tabs show each collection's logo (`shelf/logos/<shortname>.svg`, linked to
+  `~/.local/share/shelf/logos/`; from Pegasus' grid theme, CC BY-NC-SA, see the README there),
+  drawn in one colour; ◷ Recent, ★ Favourites, ⚙ Utilities (DejaVu glyphs), the name if there is
+  no logo. The selected tab is highlighted over the full bar height.
 - UI: collections as tabs ("Recent", last 20 played games without the Utilities tools, and
   "Favourites" first), a list with small box art on the left, large box art and details (developer,
   year, players, genre, play time, last played, description) on the right. No animations, no
