@@ -2,11 +2,11 @@
 
 1. Initrd trim: `COMPRESSION="lz4"` and/or drop `sd-vconsole` from `HOOKS` (~0.2s each,
    `mkinitcpio -P`). The initrd also carries ~51 useless i915 firmware files.
-2. BIOS (Delete key or Pegasus "BIOS Setup"): boot logo, Fast Boot, setup prompt timeout,
+2. BIOS (Delete key or Utilities "BIOS Setup"): boot logo, Fast Boot, setup prompt timeout,
    network/PXE stack, boot order. Firmware is ~7s of the boot. Change one at a time.
 3. Psychonauts native install (multilib, 32-bit libs, Xwayland). See frontend.md.
-4. Gamepad activity doesn't reset sway idle (dims after 2 min while browsing Pegasus with the
-   pad). Options: `inhibit_idle focus` for Pegasus, or have inputd inhibit while the pad
+4. Gamepad activity doesn't reset sway idle (dims after 2 min while browsing the frontend with the
+   pad). Options: `inhibit_idle focus` for the frontend, or have inputd inhibit while the pad
    is used.
 5. Remove `clang` (build-only, zelda3-git); disable unused `systemd-userdbd.socket`.
 6. Bluetooth firmware patch if Bluetooth is ever wanted.

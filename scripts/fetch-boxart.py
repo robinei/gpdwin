@@ -2,7 +2,7 @@
 """Fetch box art from thumbnails.libretro.com for ROMs in ~/Games/<system>/.
 
 Matches on the bare title (tags in () and [] ignored), prefers USA releases,
-and saves to <system>/media/<rom basename>/boxFront.png, where Pegasus finds it.
+and saves to <system>/media/<rom basename>/boxFront.png, where shelf finds it.
 Also writes clean titles into a generated block at the end of metadata.pegasus.txt.
 """
 import html, re, sys, urllib.parse, urllib.request

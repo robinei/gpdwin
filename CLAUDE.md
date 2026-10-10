@@ -2,7 +2,7 @@
 
 This repo (`~/gpd`) is the single source of truth for how this device is set up. It is a
 dedicated Arch Linux gaming handheld: GPD Win 1 (Atom x7-Z8700 Cherry Trail, 3.7 GB RAM, 58 GB
-eMMC, 5.5" 1280x720 panel that is natively portrait), running sway + Pegasus + RetroArch.
+eMMC, 5.5" 1280x720 panel that is natively portrait), running sway + shelf (our own frontend, `src/shelf.c`) + RetroArch.
 The user is Robin (they/them).
 
 ## Rules
@@ -21,7 +21,7 @@ The user is Robin (they/them).
 - Never store passwords or keys in the repo.
 - Keep docs factual and current; remove things that are no longer true rather than appending
   contradictions. Findings that cost time to discover belong in the docs.
-- Don't reboot, suspend, or restart sway/Pegasus without asking; the user may be playing.
+- Don't reboot, suspend, or restart sway/shelf without asking; the user may be playing.
 - Prefer official repo packages. AUR packages only through `scripts/aur` (review, then build).
   Keep the AUR set small. No AUR helper (yay was removed): search with `scripts/aur search`.
   New AUR package: follow `/aur-add`.
@@ -51,7 +51,7 @@ The user is Robin (they/them).
 - The eMMC is `mmcblk0` or `mmcblk2` depending on boot; everything uses UUIDs.
 - The gamepad only exists as `Microsoft X-Box 360 pad` when the hardware switch is in gamepad
   mode (otherwise "Mouce for Android" mouse/keyboard).
-- Restart Pegasus with `scripts/restart-pegasus` (it can ignore SIGTERM and end up running twice).
+- Restart shelf with `scripts/restart-shelf` (after `scripts/sync install` rebuilt it).
 - When a script you run spawns ssh, give it `</dev/null` or it eats the rest of a heredoc.
 - The device is `gpdwin.lan`, the desktop `desktop.lan`. Firewall is on (nftables): new
   listening services need a rule in `system/etc/nftables.conf`.
@@ -68,7 +68,7 @@ The user is Robin (they/them).
   Test kernel module changes by installing them (DKMS / `updates/`) and rebooting, not by live swapping.
 - Never `pkill wineserver` (SIGTERM): it exits without stopping its helpers, leaving `services.exe`,
   `winedevice.exe`, `explorer.exe /desktop` etc. orphaned (dozens after a test session, ~1 GB). Use
-  `wineserver -k`. Pegasus launchers (`exec wine`) and force-kill clean up fine by themselves.
+  `wineserver -k`. Game launchers (`exec wine`) and force-kill clean up fine by themselves.
 - Claude Code uses ~400 MB of RAM; don't run heavy work while a game is running.
 - Verify every edit took effect (grep the file afterwards) before documenting it. Some files
   have CRLF line endings (`/opt/zelda3-git/zelda3.ini`), so `sed` patterns ending in `$` miss.
@@ -76,7 +76,7 @@ The user is Robin (they/them).
 ## Map
 - `docs/hardware.md` quirks and fixes · `docs/power.md` sleep/idle/battery/turbo ·
   `docs/boot.md` boot chain and timings · `docs/desktop.md` sway/bar/OSD/terminal ·
-  `docs/frontend.md` Pegasus, RetroArch, games · `docs/packages.md` package set and AUR policy ·
+  `docs/frontend.md` shelf, RetroArch, games · `docs/packages.md` package set and AUR policy ·
   `docs/steam-library.md` owned DRM-free Steam games, tiered for this device ·
   `docs/saves.md` save locations GPD/desktop ·
   `docs/ideas.md` not done yet · `docs/changelog.md` history ·

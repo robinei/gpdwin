@@ -5,8 +5,12 @@ log string `alpha16-82-gc3462e68-dirty`), Qt 5.15.19. The built-in grid theme is
 `d7533c8`. All `file:line` references are relative to `src/backend/` unless they say otherwise. Everything here
 comes from the code, not the docs.
 
-The local AUR patches (`~/Code/gpdwin/aur/patches/pegasus-frontend-stable-git/0001..0004`) only change
-animations, gamepad polling and a "Starting..." overlay. None of them touch data handling.
+The local AUR patches (`aur/patches/pegasus-frontend-stable-git/0001..0004`, removed from the repo 2026-10-10
+along with all Pegasus integration) only changed animations, gamepad polling and a "Starting..." overlay. None
+of them touched data handling.
+
+shelf implements this spec except the theme memory (1.6): since Pegasus stopped being the frontend
+(2026-10-10), shelf keeps its place in its own state file and neither reads nor writes `theme_settings/`.
 
 Throughout, "**unused here**" marks a feature that the real setup (section 8) does not use, so the C version can
 skip it. Anything not marked is used and must be implemented.

@@ -1,2 +1,2 @@
 #!/bin/sh
-exec foot --app-id=pegasus-tool
+exec foot --app-id=shelf-tool

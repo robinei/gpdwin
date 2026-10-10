@@ -3,13 +3,13 @@
 Everything that makes this handheld what it is: configs, system files, scripts, and notes.
 
 **Maintenance**
-- Pegasus → Utilities → **Maintenance**: a Claude Code session runs the routine
+- shelf → Utilities → **Maintenance**: a Claude Code session runs the routine
   (`.claude/commands/maintain.md`): Arch news, updates, AUR review, pacnew, drift, changelog.
-- Pegasus → Utilities → **Update System**: the same without Claude (`scripts/update`):
+- shelf → Utilities → **Update System**: the same without Claude (`scripts/update`):
   you read the AUR diffs yourself.
 
 **How files are managed** (`manifest.tsv`, `scripts/sync`)
-- Your configs (sway, foot, wob, fish functions, Pegasus collections...) are symlinks into
+- Your configs (sway, foot, wob, fish functions, game collections...) are symlinks into
   `dotfiles/` and `pegasus/`. Edit them where they are; `git diff` shows the change.
 - System files (`/etc`, `/boot/loader`, ...) and files programs rewrite (RetroArch) are copies:
   `scripts/sync check` shows drift, `scripts/sync capture` copies live → repo,

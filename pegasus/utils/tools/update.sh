@@ -1,2 +1,2 @@
 #!/bin/sh
-exec foot --app-id=pegasus-tool ~/gpd/scripts/update
+exec foot --app-id=shelf-tool ~/gpd/scripts/update

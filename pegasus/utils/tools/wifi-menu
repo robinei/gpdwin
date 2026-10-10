@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pegasus Utils "WiFi" (runs in foot, keyboard): status, what a fresh scan sees, known networks;
+# Utilities "WiFi" (runs in foot, keyboard): status, what a fresh scan sees, known networks;
 # connect, rescan, reset Wi-Fi (sudo wifi-reset: restart iwd + reload the driver), iwctl shell.
 nocolor() { sed 's/\x1b\[[0-9;]*m//g'; }
 show() {

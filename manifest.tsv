@@ -22,12 +22,10 @@ link	dotfiles/openal/alsoft.conf	~/.config/alsoft.conf
 link	dotfiles/pipewire/pipewire.conf.d/10-min-quantum.conf	~/.config/pipewire/pipewire.conf.d/10-min-quantum.conf
 link	dotfiles/wireplumber/wireplumber.conf.d/51-speaker-latency.conf	~/.config/wireplumber/wireplumber.conf.d/51-speaker-latency.conf
 link	dotfiles/pacman/makepkg.conf	~/.config/pacman/makepkg.conf
-link	dotfiles/pegasus-frontend/run	~/.config/pegasus-frontend/run
-link	dotfiles/pegasus-frontend/bin	~/.config/pegasus-frontend/bin
+link	dotfiles/shelf/run	~/.config/shelf/run
 link	dotfiles/pegasus-frontend/game_dirs.txt	~/.config/pegasus-frontend/game_dirs.txt
-copy	dotfiles/pegasus-frontend/settings.txt	~/.config/pegasus-frontend/settings.txt	robin:robin:0644
 
-# --- Pegasus collections without ROMs (symlinked) ---
+# --- collections without ROMs (symlinked; Pegasus metadata format) ---
 link	pegasus/pc	~/Games/pc
 link	pegasus/utils	~/Games/utils
 link	scripts/fetch-boxart.py	~/Games/fetch-boxart.py

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Reset Wi-Fi without a reboot (Pegasus Utils "WiFi", sudoers 23-wifi-reset): stop iwd, reload the
+# Reset Wi-Fi without a reboot (Utilities "WiFi", sudoers 23-wifi-reset): stop iwd, reload the
 # brcmfmac driver (re-initialises the chip's firmware), start iwd. Before that it logs what a scan
 # sees (journalctl -t wifi-reset), to tell "networks not visible" from "scanning broken".
 log() { logger -t wifi-reset "$*"; echo "$*"; }

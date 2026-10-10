@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start a Claude Code maintenance session in ~/gpd (Pegasus: Utilities > Maintenance).
+# Start a Claude Code maintenance session in ~/gpd (shelf: Utilities > Maintenance).
 # Asks for the sudo password once and keeps the (global) sudo timestamp fresh while Claude runs,
 # so Claude's non-interactive `sudo -n` commands work. Only one maintenance run at a time.
 set -u

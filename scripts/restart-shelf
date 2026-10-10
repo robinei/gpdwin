@@ -1,0 +1,6 @@
+#!/bin/sh
+# Restart shelf (after `scripts/sync install` rebuilt it): it saves its place and exits on SIGTERM.
+pkill -x shelf
+for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -x shelf >/dev/null || break; sleep 0.3; done
+SWAYSOCK=${SWAYSOCK:-$(ls /run/user/$(id -u)/sway-ipc.*.sock 2>/dev/null | head -1)} \
+    swaymsg exec ~/.config/shelf/run >/dev/null

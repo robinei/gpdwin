@@ -9,10 +9,10 @@ State at handover:
 - Repo committed; `scripts/sync check` reported no drift.
 - `aur/reviewed.tsv` has a baseline for the four AUR packages (see the notes column for how
   thoroughly each was looked at).
-- Not yet exercised end to end: `scripts/maintain` from Pegasus (Claude + sudo keepalive),
+- Not yet exercised end to end: `scripts/maintain` from shelf (Claude + sudo keepalive),
   `scripts/update`, `scripts/aur build`. The first real maintenance run should watch for
   problems in these and fix them.
 
 Suggested first tasks:
-1. Run `/maintain` once (Robin starts it from Pegasus → Utilities → Maintenance).
+1. Run `/maintain` once (Robin starts it from shelf → Utilities → Maintenance).
 2. Fix the memory notes mentioned above, then delete this file and commit.

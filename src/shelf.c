@@ -1,16 +1,15 @@
 /*
- * shelf: a lightweight game launcher that reads and writes Pegasus Frontend's files, so the two can be
- * swapped at any time (docs/frontend.md "shelf").
+ * shelf: the device's game launcher (docs/frontend.md). Its game data is in Pegasus Frontend's
+ * formats and places, so Pegasus can still read and write the same files (it stays installed for
+ * checking that, nothing else).
  *
- * Data, shared with Pegasus (exact rules: docs/pegasus-format.md):
+ * Data (exact rules: docs/pegasus-format.md):
  *   ~/.config/pegasus-frontend/game_dirs.txt          game dirs (read)
  *   <game dir>/metadata.pegasus.txt (and variants)     collections, games, launch commands (read)
  *   <game dir>/media/<file stem or title>/boxFront.*   box art (read)
  *   ~/.config/pegasus-frontend/stats.db                play time: read, and one row per finished game
  *                                                      written with Pegasus' exact SQL
  *   ~/.config/pegasus-frontend/favorites.txt           favourites (read; rewritten in Pegasus' format)
- *   ~/.config/pegasus-frontend/theme_settings/pegasus-theme-grid.json
- *                                                      last launched collection + game (both frontends)
  * Paths are cleaned lexically and never symlink-resolved, like Pegasus, so stats and favourites match.
  * shelf's own: ~/.local/state/shelf/last (where you were), ~/.local/share/shelf/logos/ (tab logos).
  *
@@ -35,14 +34,14 @@
  * Threads (pad, image loader, game waiter) and signal handlers send messages to the main loop over a
  * pipe, which it poll()s together with the Wayland socket.
  *
- * Sections: helpers, data model, metadata parser, scanning (+ stats, favourites), theme memory,
- * launching, gamepad, UI (image loader, drawing, actions), Wayland window, main.
+ * Sections: helpers, data model, metadata parser, scanning (+ stats, favourites), launching,
+ * gamepad, UI (image loader, drawing, actions), Wayland window, main.
  *
  * Options: --list prints what was found (no window) and exits. Testing without a display:
  * SHELF_SCREENSHOT=x.png [SHELF_KEYS=...] (see main). SHELF_TIMING=1: startup timings on stderr.
  *
  * Built by `scripts/sync install` (manifest "build" entry with pkg-config packages); started by
- * dotfiles/pegasus-frontend/run when ~/.config/gpd/frontend says "shelf".
+ * dotfiles/shelf/run (sway autostart, inputd's Menu key).
  */
 #define _GNU_SOURCE
 #include <ctype.h>
@@ -73,8 +72,6 @@
 #include <unicode/ucol.h>
 #include <wayland-client.h>
 
-#define JSMN_STATIC
-#include "vendor/jsmn.h"
 #include "vendor/xdg-shell-client-protocol.h"
 #include "vendor/xdg-shell-protocol.c"
 
@@ -1339,124 +1336,6 @@ static void load_library(Library *L)
     free(cfg);
 }
 
-/* ------------------------------------------------------------------ theme memory (Pegasus grid theme) */
-
-static char *json_unescape(const char *s, int n)
-{
-    char *o = xmalloc(n * 3 + 1), *w = o;
-    for (int i = 0; i < n; i++) {
-        if (s[i] != '\\' || i + 1 >= n) {
-            *w++ = s[i];
-            continue;
-        }
-        char c = s[++i];
-        switch (c) {
-        case 'n': *w++ = '\n'; break;
-        case 't': *w++ = '\t'; break;
-        case 'r': *w++ = '\r'; break;
-        case 'b': *w++ = '\b'; break;
-        case 'f': *w++ = '\f'; break;
-        case 'u': {
-            unsigned cp = 0;
-            if (i + 4 < n && sscanf(s + i + 1, "%4x", &cp) == 1) {
-                i += 4;
-                if (cp < 0x80) {
-                    *w++ = cp;
-                } else if (cp < 0x800) {
-                    *w++ = 0xC0 | cp >> 6, *w++ = 0x80 | (cp & 0x3F);
-                } else {
-                    *w++ = 0xE0 | cp >> 12, *w++ = 0x80 | (cp >> 6 & 0x3F), *w++ = 0x80 | (cp & 0x3F);
-                }
-            }
-            break;
-        }
-        default: *w++ = c;
-        }
-    }
-    *w = 0;
-    return o;
-}
-
-static void read_memory(char **coll, char **game)
-{
-    char *cfg = config_dir();
-    char *path = fmt("%s/theme_settings/pegasus-theme-grid.json", cfg);
-    size_t len;
-    char *js = read_file(path, &len);
-    if (js) {
-        jsmn_parser p;
-        jsmntok_t tok[64];
-        jsmn_init(&p);
-        int n = jsmn_parse(&p, js, len, tok, 64);
-        if (n > 0 && tok[0].type == JSMN_OBJECT) {
-            for (int i = 1; i + 1 < n; i += 2) {
-                jsmntok_t *k = &tok[i], *v = &tok[i + 1];
-                if (k->type != JSMN_STRING || v->type != JSMN_STRING) {
-                    if (v->type == JSMN_OBJECT || v->type == JSMN_ARRAY)
-                        break; /* nested values: not ours, stop */
-                    continue;
-                }
-                char *key = json_unescape(js + k->start, k->end - k->start);
-                char *val = json_unescape(js + v->start, v->end - v->start);
-                if (!strcmp(key, "collection"))
-                    set_str(coll, val);
-                else if (!strcmp(key, "game"))
-                    set_str(game, val);
-                free(key);
-                free(val);
-            }
-        }
-        free(js);
-    }
-    free(path);
-    free(cfg);
-}
-
-static void json_escape(char **b, size_t *n, size_t *cap, const char *s)
-{
-    for (; *s; s++) {
-        if (*n + 8 > *cap)
-            *b = xrealloc(*b, *cap = *cap * 2 + 16);
-        unsigned char c = *s;
-        if (c == '"' || c == '\\') {
-            (*b)[(*n)++] = '\\', (*b)[(*n)++] = c;
-        } else if (c < 0x20) {
-            *n += sprintf(*b + *n, "\\u%04x", c);
-        } else {
-            (*b)[(*n)++] = c;
-        }
-    }
-    (*b)[*n] = 0;
-}
-
-/* Same as Pegasus' QJsonDocument::Compact: {"collection":"...","game":"..."} (sorted keys, no newline). */
-static void write_memory(const char *coll, const char *game)
-{
-    char *cfg = config_dir();
-    char *dir = fmt("%s/theme_settings", cfg);
-    mkdir(dir, 0755);
-    size_t cap = 128, n = 0;
-    char *b = xmalloc(cap);
-    const char *parts[] = { "{\"collection\":\"", coll, "\",\"game\":\"", game, "\"}" };
-    for (int i = 0; i < 5; i++) {
-        if (i % 2) {
-            json_escape(&b, &n, &cap, parts[i]);
-        } else {
-            size_t l = strlen(parts[i]);
-            if (n + l + 1 > cap)
-                b = xrealloc(b, cap = (n + l + 1) * 2);
-            memcpy(b + n, parts[i], l + 1);
-            n += l;
-        }
-    }
-    char *path = fmt("%s/pegasus-theme-grid.json", dir);
-    write_file(path, b);
-    free(path);
-    free(b);
-    free(dir);
-    free(cfg);
-}
-
 /* ------------------------------------------------------------------ --list */
 
 static void list_library(Library *L)
@@ -2370,7 +2249,7 @@ static void build_tabs(App *a)
 }
 
 /* Select a collection by name and a game in it by title or file path (either may be NULL). */
-static void select_game(App *a, const char *coll, const char *title, const char *file)
+static void select_game(App *a, const char *coll, const char *file)
 {
     for (int i = 0; i < a->ntabs; i++) {
         Collection *c = a->tabs[i];
@@ -2379,7 +2258,7 @@ static void select_game(App *a, const char *coll, const char *title, const char 
         a->tab = i;
         for (int k = 0; k < c->ngames; k++) {
             Game *g = c->games[k];
-            if ((title && g->title && !strcmp(g->title, title)) || (file && !strcmp(g->files.v[0], file))) {
+            if (!strcmp(g->files.v[0], file)) {
                 a->sel[i] = k;
                 break;
             }
@@ -2398,15 +2277,14 @@ static void reload(App *a)
     lib_free(&a->lib);
     load_library(&a->lib);
     build_tabs(a);
-    select_game(a, coll, NULL, file);
+    select_game(a, coll, file);
     free(coll);
     free(file);
     a->dirty = true;
 }
 
 /* Where you are (tab name, game file), so shelf resumes there: ~/.local/state/shelf/last, written
- * once moving has stopped for SAVE_DELAY_MS, at launch and at quit. At start the newer of this and
- * Pegasus' theme memory (the last game launched by either frontend) wins. */
+ * once moving has stopped for SAVE_DELAY_MS, at launch and at quit. */
 #define SAVE_DELAY_MS 1500
 static char *state_path(void)
 {
@@ -2434,30 +2312,19 @@ static void moved(App *a)
     a->save_due = SDL_GetTicks() + SAVE_DELAY_MS;
 }
 
-/* Startup position: our own state or Pegasus' theme memory, whichever was written last. */
+/* Startup position: where we were (save_state). */
 static void restore_position(App *a)
 {
-    char *sp = state_path(), *cfg = config_dir(), *mp = fmt("%s/theme_settings/pegasus-theme-grid.json", cfg);
-    struct stat ss, ms;
-    bool have_s = stat(sp, &ss) == 0, have_m = stat(mp, &ms) == 0;
-    if (have_s && (!have_m || ss.st_mtime >= ms.st_mtime)) {
-        char *text = read_file(sp, NULL), *nl = text ? strchr(text, '\n') : NULL;
-        if (nl) {
-            *nl = 0;
-            char *file = nl + 1, *end = strchr(file, '\n');
-            if (end)
-                *end = 0;
-            select_game(a, text, NULL, file);
-        }
-        free(text);
-    } else if (have_m) {
-        char *mc = NULL, *mg = NULL;
-        read_memory(&mc, &mg);
-        select_game(a, mc, mg, NULL);
-        free(mc);
-        free(mg);
+    char *sp = state_path(), *text = read_file(sp, NULL), *nl = text ? strchr(text, '\n') : NULL;
+    if (nl) {
+        *nl = 0;
+        char *file = nl + 1, *end = strchr(file, '\n');
+        if (end)
+            *end = 0;
+        select_game(a, text, file);
     }
-    free(sp), free(cfg), free(mp);
+    free(text);
+    free(sp);
 }
 
 static void move(App *a, int d)
@@ -2697,7 +2564,7 @@ static void draw_details(App *a, Game *g, int LW, int W, int H)
     }
 }
 
-/* "Starting <title>..." over a dimmed screen while a launch is on its way (like the Pegasus patch). */
+/* "Starting <title>..." over a dimmed screen while a launch is on its way. */
 static void draw_overlay(App *a, int W, int H)
 {
     SDL_SetRenderDrawBlendMode(a->ren, SDL_BLENDMODE_BLEND);
@@ -2754,8 +2621,6 @@ static void start_game(App *a)
     Game *g = cur_game(a);
     if (!g || a->running)
         return;
-    Collection *c = cur_coll(a);
-    write_memory(c->virtual_ ? g->colls[0]->name : c->name, g->title);
     save_state(a);
     /* "Starting ..." goes on screen before the game starts, and stays until its window covers
      * shelf (seconds for Wine games on the Atom), so the wait doesn't look like a hang */
@@ -2781,9 +2646,9 @@ static void toggle_favorite(App *a)
     free(cfg);
     char *coll = xstrdup(cur_coll(a)->name), *file = xstrdup(g->files.v[0]);
     build_tabs(a);
-    select_game(a, coll, NULL, file);
+    select_game(a, coll, file);
     if (!cur_coll(a) || strcmp(cur_coll(a)->name, coll) != 0)
-        select_game(a, g->colls[0]->name, NULL, file);
+        select_game(a, g->colls[0]->name, file);
     free(coll);
     free(file);
     a->dirty = true;

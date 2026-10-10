@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Game saves: compare this GPD's saves with the desktop's and copy either way, per game.
 
-Full-screen curses UI (Pegasus: Utilities > Game Saves). Reads games/saves.json; the desktop's
+Full-screen curses UI (shelf: Utilities > Game Saves). Reads games/saves.json; the desktop's
 side comes over ssh from desktop/save-status-remote (restricted key: it can only run that script,
 which only touches the paths in saves.json and backs up what it overwrites). Steam Cloud is read
 directly with scripts/steam-cloud (read-only: needs `steam-cloud login` once); the cloud can only be

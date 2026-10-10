@@ -1,9 +1,0 @@
-#!/bin/sh
-# Pegasus asks logind for power actions via dbus-send, which needs polkit.
-# Map those to the passwordless sudo rules instead; pass anything else through.
-case "$*" in
-    *org.freedesktop.login1.Manager.Suspend*)  exec sudo -n systemctl suspend-then-hibernate ;;
-    *org.freedesktop.login1.Manager.Reboot*)   exec sudo -n systemctl reboot ;;
-    *org.freedesktop.login1.Manager.PowerOff*) exec sudo -n systemctl poweroff ;;
-esac
-exec /usr/bin/dbus-send "$@"

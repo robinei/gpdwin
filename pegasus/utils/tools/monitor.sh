@@ -1,2 +1,2 @@
 #!/bin/sh
-exec foot --app-id=pegasus-tool btop
+exec foot --app-id=shelf-tool btop

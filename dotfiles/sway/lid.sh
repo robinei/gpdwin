@@ -1,6 +1,6 @@
 #!/bin/sh
 # Lid closed/opened (called by inputd, which also disables/enables input and grabs the pad): screen
-# off/on via screen.sh (also freezes Pegasus and the game), plus CPU turbo off and the GPU limited to
+# off/on via screen.sh (also freezes shelf and the game), plus CPU turbo off and the GPU limited to
 # RPn while closed. Needs the sysfs files writable by wheel (see /etc/tmpfiles.d/turbo.conf). Saved
 # values live in $XDG_RUNTIME_DIR/lid-saved.
 nt=/sys/devices/system/cpu/intel_pstate/no_turbo

@@ -1,58 +1,103 @@
-# Pegasus, RetroArch and games
+# shelf, RetroArch and games
 
-## Pegasus
-- Package `pegasus-frontend-stable-git` (AUR, built via `scripts/aur`). Needs `qt5-wayland`
-  (no Xwayland here) and `sdl2-compat` (gamepad). Window app_id
-  `org.pegasus-frontend.pegasus-fe`, always on workspace 1.
-- Started with `~/.config/pegasus-frontend/run`, which prepends `bin/` to PATH and sets
-  `QT_BEARER_POLL_TIMEOUT=-1` (Qt's network bearer thread polled Wi-Fi via the old wireless
-  extensions API). `bin/dbus-send`
-  is a shim: Pegasus asks logind for Suspend/Reboot/PowerOff via dbus-send, which needs polkit.
-  The shim maps those to the passwordless sudo rules (Suspend → suspend-then-hibernate) and passes
-  everything else to `/usr/bin/dbus-send`.
-- Crashes: Pegasus sometimes aborts (SIGABRT) when the pad's USB device disconnects or is reset
-  (screen off, resume), 3 times in 141 disconnects (Oct 9-10), likely a race in the gamepad
-  (SDL) handling; freezing it with the screen off makes it more likely (removal and re-add are
-  handled together on thaw). Not reproduced on demand. `run` restarts it after a crash signal
-  (not after a normal quit or TERM/KILL; gives up after 3 crashes within 10 s of starting) and
-  keeps its stderr in `~/.cache/pegasus-fe.stderr` (last 200 lines + new run): the abort message
-  is there for a proper fix.
-- Idle redraw: stock Pegasus redrew at 60 fps while showing the menu (~33% CPU, ~2900 irq/s on
-  the Atom): every grid tile's loading spinner ran an infinite `RotationAnimator` even when hidden
-  (and the splash screen's progress animation kept running after loading). Both are patched in
-  our build (aur/patches); now 0 fps, ~2% CPU, ~470 irq/s when idle. Measure with
-  `WAYLAND_DEBUG=client` and count `wl_surface...commit()` per second (QSG_RENDER_TIMING crashes it).
-  QML gotcha: inside an Animator, `parent` resolves to the enclosing Item's parent, not the Item.
-- Gamepad polling: Pegasus polled SDL every 16 ms for its whole lifetime (63 wakeups/s even with
-  the screen off or a game running). Patch 0003 polls at 16 ms while there is input and drops to
-  100 ms after 5 s without events (first input after a pause can take up to 100 ms).
-- Pegasus does not quit when it launches a game; it unloads its theme and waits. It flashes
-  briefly while the theme reloads after a game exits.
-- Collections: one directory per collection under `~/Games`, each listed in
-  `game_dirs.txt`, each with `metadata.pegasus.txt`:
-  - `pc` (repo `pegasus/pc`): native games. Pegasus ignores a game without a `file:`, so each
-    game has a small launcher script (`diablo.sh`, `hellfire.sh`, `zelda3.sh`). Shortname `pc`
-    gives the IBM logo (wanted).
-  - `snes` (ROMs, not in the repo; its metadata is a `copy` entry): launch
-    `retroarch -f -L /usr/lib/libretro/snes9x_libretro.so "{file.path}"`.
-  - `ps1` (bin/cue etc., not in the repo; metadata is a `copy` entry): `shortname: psx`
-    (theme logo), launch PCSX ReARMed from `~/.config/retroarch/cores/` (extensions cue, chd,
-    pbp, m3u: not bin, which would list each game twice).
-  - `psp` (ISOs, not in the repo; metadata is a `copy` entry): standalone PPSSPP,
-    `PPSSPPSDL --fullscreen "{file.path}"` (iso/cso/chd/pbp). Name ISOs as in No-Intro
-    (`Disgaea - Afternoon of Darkness (USA).iso`) so `fetch-boxart.py` finds the box art.
-  - `utils` (repo `pegasus/utils`): tools in `tools/*.sh`, 512x512 tiles in `media/`
-    (#11111b / #1e1e2e / #45475a / #89b4fa, DejaVu Sans Bold labels). Terminal tools run
-    `foot --app-id=pegasus-tool`, fullscreen via a sway rule.
-- Don't set `assets.logo` on games: the grid theme then shows the logo instead of the title.
-  Box art goes in `assets.boxFront` or `media/<file basename>/boxFront.png` (auto-detected).
-- Grid theme shows a console logo for known shortnames (`snes`, `nes`, `gba`, `psx`, `pc`...).
+## shelf (the frontend)
+`src/shelf.c` (C, SDL3 + SDL3_image + SDL3_ttf, sqlite, ICU; built by `scripts/sync install`, manifest
+`build` entry with pkg-config packages; written 2026-10-10, replacing Pegasus). Its game data is in
+Pegasus Frontend's formats and places, so Pegasus (still installed, see below) can read the same files:
+game_dirs.txt, the metadata files, `media/`, `stats.db` (same rows, Pegasus' exact SQL) and
+`favorites.txt` (Pegasus' format). The exact rules are in `docs/pegasus-format.md` (from Pegasus'
+source at the installed commit).
+- Started by `~/.config/shelf/run` (`dotfiles/shelf/run`) from sway's autostart and inputd's Menu key;
+  window app_id `shelf`, always on workspace 1. `run` restarts it after a crash signal (not after a
+  normal quit, close or TERM; gives up after 3 crashes within 10 s of starting) and keeps its stderr in
+  `~/.cache/shelf.stderr` (last 200 lines + new run). Restart it with `scripts/restart-shelf` (after
+  `scripts/sync install` rebuilt it).
+- Menu key (inputd): starts shelf, switches to it, or closes it when it has the focus (sway's
+  `[app_id="^shelf$" con_id=__focused__] kill`; shelf saves its place and exits). Left to the game
+  while one runs.
+- Tabs show each collection's logo (`shelf/logos/<shortname>.svg`, linked to
+  `~/.local/share/shelf/logos/`; from Pegasus' grid theme, CC BY-NC-SA, see the README there),
+  loaded by the image thread like box art and drawn in one colour; ◷ Recent, ★ Favourites, ⚙ for
+  tools (DejaVu glyphs); the name if there is no logo. A collection with `x-shelf-kind: tools`
+  (Utilities) gets the gear and icon-sized art, and stays out of Recent. The selected tab is
+  highlighted over the full bar height.
+- UI: collections as tabs ("Recent", last 20 played games without the Utilities tools, and
+  "Favourites" first), a list with small box art on the left, large box art and details (developer,
+  year, players, genre, play time, last played, description) on the right. No animations, no
+  settings, no power menu (the power button and Utilities cover those).
+- Input: pad read directly from evdev in a thread (not SDL's gamepad layer, which polls ~1000/s
+  with a joystick open; Pegasus, which used it, sometimes crashed when the pad disconnected):
+  d-pad/stick up/down (held: repeats), d-pad left/right switch tabs, LB/RB or triggers page,
+  A launch, Y favourite. Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F. All input is
+  ignored unless shelf's window has focus (xdg-shell "activated" state), since the pad is read
+  below the compositor.
+- Draws only when something changed (zero CPU when idle). Its own small Wayland client (xdg-shell
+  window, `wl_shm` buffers, keyboard as raw evdev codes while focused; protocol glue generated by
+  `wayland-scanner` into `src/vendor/`) with SDL's software renderer drawing into a plain surface.
+  SDL's video subsystem isn't used: its Wayland backend loads EGL/Mesa even to show a software
+  frame (~145 MB of mapped libLLVM/libgallium). Result: ~38 MB RSS, 11 MB of it its own.
+- MangoHud for games only: `run` passes the preload as `SHELF_GAME_LD_PRELOAD`, which shelf sets as
+  `LD_PRELOAD` for the games it starts (in shelf itself it would load Mesa for nothing).
+- Images (box art, logos) come from a background thread. Each frame the UI rebuilds its wish list
+  (what it drew without having it) and only then lets the thread take from it, so art scrolled past
+  is dropped unloaded, and a game's thumbnail and large art are one job with one decode. Order:
+  logos, then the selected game's art, then the visible thumbnails. A tab whose logo is still
+  loading is blank (no name flashing first).
+- Scaled results are kept in `~/.cache/shelf/img/` as BMP (SDL loads those with little more than a
+  copy), named by a hash of the source path, size, mtime and the output size; a changed image gets a
+  new entry, old ones are never cleaned up (a few hundred KB here; delete the dir any time).
+- When the selected game's large art isn't loaded yet, the previous game's stays up for up to
+  150 ms (counted from the first miss, so fast scrolling doesn't keep it up), then the grey box.
+- Keep images 8-bit: 16-bit PNGs took ~100 ms each to convert (the Utilities icons were converted
+  for this).
+- Startup on the device (`SHELF_TIMING=1`, headless): first frame ~40 ms after the process starts,
+  all visible art ~45 ms (from the cache; first run ~97 ms: the 512x891 box PNG decodes in ~33 ms).
+  Most of the first frame (~13 of 15 ms) is SDL_ttf preparing each font on first use, so there is
+  one font object per face and size.
+- The list fills the height exactly, from the tab bar to the bottom edge: as many rows as fit at
+  ~52 px, all stretched to the same height for the current window size.
+- Resumes where you were: tab and game in `~/.local/state/shelf/last`, written 1.5 s after
+  moving stops, at launch and at quit.
+- Launching draws a dimmed "Starting <title>…" overlay first, which stays
+  until the game's window covers shelf; `SHELF_KEYS=o` shows it in a screenshot.
+- After a game or tool exits it rescans everything, so games added by the installer or box art
+  from Fetch Box Art show up without a restart.
+- Testing without a screen: `shelf --list` prints collections, games, art and stats.
+  `SHELF_SCREENSHOT=x.png SHELF_KEYS=ddr shelf` renders 1280x720 without any window, presses keys
+  (d/u/l/r), waits for the box art, saves a PNG and quits. `XDG_CONFIG_HOME` points it at another config dir.
+- Found by name: `screen.sh` (freezing), `inputd` (Menu key), the sway workspace-1 rules and
+  `restart-shelf` match `shelf`.
+
+## Collections
+One directory per collection under `~/Games`, each listed in `~/.config/pegasus-frontend/game_dirs.txt`
+(`dotfiles/pegasus-frontend/game_dirs.txt`), each with `metadata.pegasus.txt`:
+- `pc` (repo `pegasus/pc`): native games. A game needs a `file:`, so each game has a small launcher
+  script (`diablo.sh`, `hellfire.sh`, `zelda3.sh`). Shortname `pc` gives the IBM logo (wanted).
+- `snes` (ROMs, not in the repo; its metadata is a `copy` entry): launch
+  `retroarch -f -L /usr/lib/libretro/snes9x_libretro.so "{file.path}"`.
+- `ps1` (bin/cue etc., not in the repo; metadata is a `copy` entry): `shortname: psx` (logo), launch
+  PCSX ReARMed from `~/.config/retroarch/cores/` (extensions cue, chd, pbp, m3u: not bin, which
+  would list each game twice).
+- `psp` (ISOs, not in the repo; metadata is a `copy` entry): standalone PPSSPP,
+  `PPSSPPSDL --fullscreen "{file.path}"` (iso/cso/chd/pbp). Name ISOs as in No-Intro
+  (`Disgaea - Afternoon of Darkness (USA).iso`) so `fetch-boxart.py` finds the box art.
+- `utils` (repo `pegasus/utils`, `x-shelf-kind: tools`): tools in `tools/*.sh`, 512x512 icons in
+  `media/` (#11111b / #1e1e2e / #45475a / #89b4fa, DejaVu Sans Bold labels; keep them 8-bit).
+  Terminal tools run `foot --app-id=shelf-tool`, fullscreen like everything on workspace 1.
+- Box art goes in `assets.boxFront` or `media/<file basename>/boxFront.png` (auto-detected).
 - `scripts/fetch-boxart.py` (linked as `~/Games/fetch-boxart.py`): for ROM folders it knows,
   matches the bare title against thumbnails.libretro.com (prefers USA), saves
   `media/<rom>/boxFront.png`, and rewrites a generated block of `game:`/`file:` lines with clean
-  titles at the end of each `metadata.pegasus.txt`. Restart Pegasus afterwards.
-- Restart Pegasus with `scripts/restart-pegasus` (it sometimes ignores SIGTERM; the script
-  force-kills before starting a new one, so there are never two instances).
+  titles at the end of each `metadata.pegasus.txt`. shelf rescans when the tool exits.
+
+## Pegasus (installed, not integrated)
+Pegasus Frontend (`pegasus-frontend-stable-git`, built 2026-10-07 with our idle/spinner patches) was
+the frontend until 2026-10-10. It stays installed only to check that the shared files still work
+with it: start `pegasus-fe` by hand (e.g. from a terminal on another workspace). Nothing starts it,
+the Menu key and sway rules don't know it, and its settings, `dbus-send` power shim, vendored
+PKGBUILD and patches were removed from the repo (git history before 2026-10-10 has them, and the
+old notes on its crashes, idle redraw and pad polling). `pacman -Rns pegasus-frontend-stable-git`
+when it's no longer wanted.
 
 ## RetroArch
 - `retroarch` 1.22 + `retroarch-assets-ozone/xmb`, `libretro-core-info`. Cores (`/usr/lib/libretro`):
@@ -105,7 +150,7 @@
   installed. Needs multilib + 32-bit libs + probably `xorg-xwayland`. Wine is the fallback
   (needs the Windows installer).
 
-## Game installer (`scripts/games`, Pegasus: Utilities > Games)
+## Game installer (`scripts/games`, shelf: Utilities > Games)
 - Curses UI over all owned games (`games/steam-library.json`: DRM status and controller support
   from PCGamingWiki, tier = expected performance here, native Linux build, hours). Filters: DRM
   (default any), tier, controller, installed-only, text search; `s` sorts by hours played.
@@ -122,14 +167,13 @@
   `wine` with the shared `~/.wine` prefix and `WINEDEBUG=-all`), record in `.gpd-game.json`.
   Optional fields of that record: `"runner": "wine32"` (old-style Wine, see "Wine layout" below),
   `"runner": "custom"` (hand-written launcher the generator never overwrites, even on a forced
-  regeneration; used by Commander Keen) and `"description"` (replaces the generated Pegasus
-  description, otherwise "Installed from Steam (Wine / native Linux)"). Pegasus reads
-  `metadata.pegasus.txt` at start: restart it to see changes.
+  regeneration; used by Commander Keen) and `"description"` (replaces the generated
+  description, otherwise "Installed from Steam (Wine / native Linux)"). shelf rescans the metadata
+  when the tool exits.
 - `~/Games/installed/metadata.pegasus.txt` is regenerated from the records with
-  `collection: PC Games` / `shortname: pc`, so Pegasus merges these games into PC Games
+  `collection: PC Games` / `shortname: pc`, so these games merge into PC Games
   (verified). `~/Games/installed` is in `game_dirs.txt`. Launchers are not overwritten on
   regeneration (edit them for per-game env vars); "Rewrite launcher" in the UI does.
-- On quit after changes it offers to restart Pegasus (Pegasus only rescans on start).
 - On start it updates the library (owned games and hours, one Web API request, ~0.5 s); only
   games new to the library get store platforms and PCGamingWiki lookups. Needs the key file
   below and `steamid` in `~/.config/gpd/games.json`; offline it uses the library as it is.
@@ -189,7 +233,7 @@
 - Strife: Veteran Edition (64-bit native) needs `sdl2_net` (repo) and `libtheoradec.so.1`; Arch ships
   .so.2 with the same `libtheoradec_1.0` symbols, so the game dir has a symlink
   `libtheoradec.so.1 -> /usr/lib/libtheoradec.so.2` (the launcher puts the game dir on
-  LD_LIBRARY_PATH). Exit code 127 from Pegasus = missing shared library: run `gpd-launch.sh` in a
+  LD_LIBRARY_PATH). Exit code 127 = missing shared library: run `gpd-launch.sh` in a
   shell and look at the error.
   Gamepad: its first-run config has bogus bindings (e.g. `joyb_fire 29`) and the in-game binding
   screen is unreliable (ignores buttons held/pressed in the first 1.5 s; axes are SDL controller
@@ -314,10 +358,10 @@
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them
   python-matplotlib/numpy and glfw, ~134 MB; `scripts/aur check` says when the repo version moves
-  on). Loaded into everything Pegasus starts: `dotfiles/pegasus-frontend/run` exports `MANGOHUD=1`
-  (Vulkan layer) and preloads `libMangoHud_shim.so` (OpenGL, incl. Wine/wined3d; 32-bit Windows
+  on). Loaded into every game shelf starts: `dotfiles/shelf/run` exports `MANGOHUD=1`
+  (Vulkan layer) and shelf preloads `libMangoHud_shim.so` into games (OpenGL, incl. Wine/wined3d; 32-bit Windows
   games too, since WoW64 Wine calls OpenGL from 64-bit code). Hidden at start (`no_display`),
-  Right Shift+F12 shows it; Pegasus itself is blacklisted. Config `dotfiles/MangoHud/MangoHud.conf`:
+  Right Shift+F12 shows it. Config `dotfiles/MangoHud/MangoHud.conf`:
   FPS, CPU and GPU clock.
 - Psychonauts (Wine, 2026-10-07, replaced by the native build): CPU-bound, ~11 FPS in heavy
   scenes (main thread maxed at 2.4 GHz, wined3d_cs ~85%); mesa_glthread barely helped.
@@ -341,7 +385,7 @@
   `alsa_output.platform-cht-bsw-rt5645.HiFi__Speaker__sink`. Check xruns with `pw-top` (ERR).
 
 ## Commander Keen (Commander Genius)
-- The Pegasus entry "Commander Keen Complete Pack" runs Commander Genius (AUR `commander-genius-git`,
+- The entry "Commander Keen Complete Pack" runs Commander Genius (AUR `commander-genius-git`,
   `CGeniusExe`) on the Steam game files in `~/Games/installed/commander-keen-complete-pack/base1..5`
   instead of the DOSBox/Wine versions (that is the Steam pack's `dosbox.exe`).
 - CG only looks in `~/.CommanderGenius/games`: `gpd-launch.sh` (hand-edited, kept on metadata regen)
@@ -357,66 +401,3 @@
   if you change the game resolution there. Results: levels are perfect; menus and title pictures (320x200 art
   stretched to 426x240) show scaling artifacts. A fix would be a patch in the engine, not done.
 - Tested: menu lists Keen 1-5, fullscreen, Keen 4 plays.
-
-## shelf (lightweight frontend, 2026-10-10)
-`src/shelf.c` (C, SDL3 + SDL3_image + SDL3_ttf, sqlite, ICU; built by `scripts/sync install`, manifest
-`build` entry with pkg-config packages). It reads and writes Pegasus' own files, so either can be
-used at any time without losing anything: game_dirs.txt, the metadata files, `media/`, `stats.db`
-(same rows, Pegasus' exact SQL), `favorites.txt` (Pegasus' format), and the grid theme's memory
-(`theme_settings/pegasus-theme-grid.json`: both open on the last launched game). The exact Pegasus
-rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the installed commit).
-- Switch: `echo shelf > ~/.config/gpd/frontend` (anything else or no file: Pegasus), then
-  `scripts/restart-pegasus`. `run` starts whichever is chosen with the same environment (MangoHud
-  preload, PATH) and crash restart; MangoHud blacklists both.
-- Tabs show each collection's logo (`shelf/logos/<shortname>.svg`, linked to
-  `~/.local/share/shelf/logos/`; from Pegasus' grid theme, CC BY-NC-SA, see the README there),
-  loaded by the image thread like box art and drawn in one colour; ◷ Recent, ★ Favourites, ⚙ for
-  tools (DejaVu glyphs); the name if there is no logo. A collection with `x-shelf-kind: tools`
-  (Utilities) gets the gear and icon-sized art, and stays out of Recent; Pegasus keeps and ignores
-  `x-` keys. The selected tab is highlighted over the full bar height.
-- UI: collections as tabs ("Recent", last 20 played games without the Utilities tools, and
-  "Favourites" first), a list with small box art on the left, large box art and details (developer,
-  year, players, genre, play time, last played, description) on the right. No animations, no
-  settings, no power menu (the power button and Utilities cover those).
-- Input: pad read directly from evdev in a thread (not SDL's gamepad layer, which polls ~1000/s
-  with a joystick open, and whose hotplug path is where Pegasus crashes): d-pad/stick up/down
-  (held: repeats), d-pad left/right switch tabs, LB/RB or triggers page, A launch, Y favourite.
-  Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F. All input is ignored unless shelf's
-  window has focus (xdg-shell "activated" state), since the pad is read below the compositor.
-- Draws only when something changed (zero CPU when idle). Its own small Wayland client (xdg-shell
-  window, `wl_shm` buffers, keyboard as raw evdev codes while focused; protocol glue generated by
-  `wayland-scanner` into `src/vendor/`) with SDL's software renderer drawing into a plain surface.
-  SDL's video subsystem isn't used: its Wayland backend loads EGL/Mesa even to show a software
-  frame (~145 MB of mapped libLLVM/libgallium). Result: ~38 MB RSS, 11 MB of it its own.
-- `run` hands the MangoHud preload to games only (`SHELF_GAME_LD_PRELOAD`), not to shelf.
-- Images (box art, logos) come from a background thread. Each frame the UI rebuilds its wish list
-  (what it drew without having it) and only then lets the thread take from it, so art scrolled past
-  is dropped unloaded, and a game's thumbnail and large art are one job with one decode. Order:
-  logos, then the selected game's art, then the visible thumbnails. A tab whose logo is still
-  loading is blank (no name flashing first).
-- Scaled results are kept in `~/.cache/shelf/img/` as BMP (SDL loads those with little more than a
-  copy), named by a hash of the source path, size, mtime and the output size; a changed image gets a
-  new entry, old ones are never cleaned up (a few hundred KB here; delete the dir any time).
-- When the selected game's large art isn't loaded yet, the previous game's stays up for up to
-  150 ms (counted from the first miss, so fast scrolling doesn't keep it up), then the grey box.
-- Keep images 8-bit: 16-bit PNGs took ~100 ms each to convert (the Utilities icons were converted
-  for this).
-- Startup on the device (`SHELF_TIMING=1`, headless): first frame ~40 ms after the process starts,
-  all visible art ~45 ms (from the cache; first run ~97 ms: the 512x891 box PNG decodes in ~33 ms).
-  Most of the first frame (~13 of 15 ms) is SDL_ttf preparing each font on first use, so there is
-  one font object per face and size.
-- The list fills the height exactly, from the tab bar to the bottom edge: as many rows as fit at
-  ~52 px, all stretched to the same height for the current window size.
-- Resumes where you were: tab and game in `~/.local/state/shelf/last`, written 1.5 s after
-  moving stops, at launch and at quit. At start the newer of that and Pegasus' theme memory (last
-  game launched by either) wins.
-- Launching draws a dimmed "Starting <title>…" overlay first (like the Pegasus patch), which stays
-  until the game's window covers shelf; `SHELF_KEYS=o` shows it in a screenshot.
-- After a game or tool exits it rescans everything, so games added by the installer or box art
-  from Fetch Box Art show up without a restart.
-- Testing without a screen: `shelf --list` prints collections, games, art and stats.
-  `SHELF_SCREENSHOT=x.png SHELF_KEYS=ddr shelf` renders 1280x720 without any window, presses keys
-  (d/u/l/r), waits for the box art, saves a PNG and quits. `XDG_CONFIG_HOME` points it at another config dir.
-- Found by name like Pegasus: `screen.sh` (freezing), `inputd` (Menu key), the sway workspace-1 rules
-  and `restart-pegasus` match `pegasus-fe` or `shelf`.
-

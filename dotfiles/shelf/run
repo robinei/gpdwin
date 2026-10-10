@@ -1,0 +1,25 @@
+#!/bin/sh
+# Start shelf (src/shelf.c): from sway's autostart and inputd's Menu key.
+# MangoHud for every game shelf starts: MANGOHUD=1 (Vulkan, via the layer) and the shim preload
+# (OpenGL), hidden until Right Shift+F12. shelf hands the preload to games only
+# (SHELF_GAME_LD_PRELOAD): in shelf itself it would load OpenGL/Mesa/LLVM (~120 MB) for nothing.
+export MANGOHUD=1
+# $LIB (literal, expanded by the dynamic linker) picks lib or lib32, so 32-bit games get lib32-mangohud.
+[ -e /usr/lib/mangohud/libMangoHud_shim.so ] && export SHELF_GAME_LD_PRELOAD="/usr/\$LIB/mangohud/libMangoHud_shim.so"
+# stderr to ~/.cache/shelf.stderr, last 200 lines kept.
+err="$HOME/.cache/shelf.stderr"
+[ -f "$err" ] && tail -n 200 "$err" > "$err.tmp" && mv "$err.tmp" "$err"
+# Restarted when it crashes (SIGILL/TRAP/ABRT/BUS/FPE/SEGV), not when it quits or is closed
+# (Menu key, TERM, restart-shelf). Gives up after 3 crashes within 10 s of starting.
+quick=0
+while :; do
+    echo "--- start $(date '+%F %T')" >> "$err"
+    started=$(date +%s)
+    "$HOME/.local/bin/shelf" "$@" 2>> "$err"
+    rc=$?
+    case $rc in 132|133|134|135|136|139) ;; *) exit $rc ;; esac
+    echo "--- crashed (exit $rc) $(date '+%F %T'), restarting" >> "$err"
+    [ $(($(date +%s) - started)) -lt 10 ] && quick=$((quick + 1))
+    [ $quick -ge 3 ] && exit $rc
+    sleep 1
+done

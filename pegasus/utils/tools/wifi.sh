@@ -1,2 +1,2 @@
 #!/bin/sh
-exec foot --app-id=pegasus-tool ~/gpd/pegasus/utils/tools/wifi-menu
+exec foot --app-id=shelf-tool ~/gpd/pegasus/utils/tools/wifi-menu

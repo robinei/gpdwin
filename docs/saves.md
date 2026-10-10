@@ -10,7 +10,7 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 | Super Meat Boy (40800) | `~/.local/share/SuperMeatBoy/UserData/` (Linux) | `steamapps/common/Super Meat Boy/UserData/` (Windows/Proton; cloud root 1) | Progress: `savegame.dat` (same format). Settings: `reg0.dat` (Linux) vs `Reg0.dat` (Windows): different contents, not copied. |
 | Bastion (107100) | `~/.local/share/Bastion/` (Linux, FNA) | `userdata/<id>/107100/remote/` (Windows/Proton; cloud root 0) | Files are `<profile>.{sav,keyctrls,mousectrls}`; Linux uses the profile name from `activeProfile` (`Profile1.sav`), Steam Cloud stores lowercase (`profile1.sav`). Same .NET code, same format. |
 
-## Game Saves (Pegasus: Utilities > Game Saves; `scripts/save-status`)
+## Game Saves (shelf: Utilities > Game Saves; `scripts/save-status`)
 - Full-screen curses UI, manual per game, no automatic sync (Syncthing was rejected). One row
   per game in `games/saves.json`: status against the desktop and against Steam Cloud (in sync /
   GPD newer / other side newer / only on one side / differ), newest save time on GPD, desktop and

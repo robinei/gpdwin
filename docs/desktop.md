@@ -19,14 +19,14 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   state when `osd.sh`/`turbo.sh` send SIGUSR1. The screen-off idle step SIGSTOPs it, resume
   SIGCONTs it. Only changed lines are written. Measured: sway+swaybar+statusbar together
   1.7 ms CPU/s (0.17% of a core); the GPU stays in RC6.
-- `autostart`: Pegasus on workspace 1 (`assign` + `exec ~/.config/pegasus-frontend/run`),
-  `~/.local/bin/inputd`, `for_window` rules making everything Pegasus starts
-  fullscreen (dialogs float; Pegasus itself is a normal window with the bar visible,
-  `general.fullscreen: false` in its `settings.txt`, a manifest copy entry), `fullscreen-stack.sh` (whichever tiled window on
-  workspace 1 gets focus becomes fullscreen, so closing a game brings Pegasus or the window below
-  back fullscreen; sway allows one fullscreen window per workspace). New floating X11 windows
+- `autostart`: shelf on workspace 1 (`assign` + `exec ~/.config/shelf/run`),
+  `~/.local/bin/inputd`, `for_window` rules making everything shelf starts
+  fullscreen (dialogs float; shelf itself is a normal window with the bar visible),
+  `fullscreen-stack.sh` (whichever tiled window on workspace 1 gets focus becomes fullscreen, so
+  closing a game brings the window below back fullscreen; sway allows one fullscreen window per
+  workspace). New floating X11 windows
   that aren't dialogs (fixed-size old games, e.g. native Psychonauts; sway floats them) are made
-  fullscreen by the same script, otherwise the fullscreen Pegasus hides them.
+  fullscreen by the same script, otherwise shelf hides them.
 - `handheld`: `seat * hide_cursor 3000`, swayidle (power.md), wob pipeline
   (`$XDG_RUNTIME_DIR/wob.sock`).
 - `osd.sh vol-up|vol-down|mute|bri-up|bri-down`: changes the value (wpctl / brightnessctl with
@@ -55,11 +55,11 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   `exec` lines don't rerun on reload, and the running loop keeps its old patterns.
 - `screen.sh off|on`: the one place for screen off/on, used by the lid (`lid.sh`) and the idle
   screen-off step (`idle-screen-off.sh`, battery only; swayidle's resume runs `screen.sh on`).
-  `off`: SIGSTOP Pegasus and everything it started (the game's whole process tree, Wine included;
+  `off`: SIGSTOP shelf and everything it started (the game's whole process tree, Wine included;
   wineserver is not a descendant and just waits), SIGSTOP statusbar, `output * power off`; `on`
   reverses it. Frozen pids in `$XDG_RUNTIME_DIR/frozen`; every step is safe to repeat (idle and
   then lid in one off period). A frozen game continues where it was; its audio stops meanwhile.
-  Games started outside Pegasus are not covered. If something is left frozen or dark:
+  Games started outside shelf are not covered. If something is left frozen or dark:
   `~/.config/sway/screen.sh on`.
 - C programs (`src/`): manifest `build` entries; `scripts/sync install` compiles them when the
   source is newer (`sync check` reports `BUILD outdated`). Restart after a rebuild:

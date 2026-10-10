@@ -421,3 +421,16 @@ Details before 2026-10-06 are in `docs/archive/`.
   (docs/steam-library.md); the Windows version under Wine is the fallback if wanted. Kept in `~/Games/tools/shim/`:
   the original launcher, the config before and after the binding edits, and the early save `unepic-game_0.sav`.
   To get the game back: `depotdownloader -app 233980 ...` (see docs/steam-library.md).
+
+## 2026-10-10 — shelf is the only frontend; Pegasus integration removed
+- Menu key (inputd): also closes shelf when it has the focus (sway `[app_id="^shelf$" con_id=__focused__] kill`,
+  answered over inputd's own IPC connection; shelf saves its place and exits, `run` doesn't restart it).
+- Removed: the frontend switch (`~/.config/gpd/frontend`), Pegasus' run script environment (Qt bearer polling,
+  `bin/dbus-send` power shim), its managed `settings.txt`, the vendored `pegasus-frontend-stable-git` PKGBUILD and
+  patches, shelf's reading/writing of the grid theme's memory (and the vendored jsmn), Pegasus' process/app_id in
+  inputd, the sway rules, `fullscreen-stack.sh`, `screen.sh` and MangoHud's blacklist, and the games tool's
+  "restart Pegasus" prompt (shelf rescans after a tool exits). The run script is now `dotfiles/shelf/run` →
+  `~/.config/shelf/run` (stderr in `~/.cache/shelf.stderr`); `scripts/restart-pegasus` is `scripts/restart-shelf`;
+  Utilities terminals use app_id `shelf-tool`.
+- Kept: Pegasus' data formats and places (`~/.config/pegasus-frontend/` game_dirs/stats/favourites, the metadata
+  files), and the installed package, for checking compatibility by hand. Revert: git history before this entry.

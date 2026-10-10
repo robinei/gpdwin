@@ -1,9 +1,9 @@
 /*
- * inputd: the keyboard's Menu key brings up the frontend (Pegasus or shelf), and gamepad use counts
+ * inputd: the keyboard's Menu key brings up or closes shelf (the frontend), and gamepad use counts
  * as activity.
  *
- * The Menu key (bottom right of the keyboard, KEY_COMPOSE) starts the frontend if it isn't running,
- * or switches to its workspace. While a game started from the frontend runs
+ * The Menu key (bottom right of the keyboard, KEY_COMPOSE) starts shelf if it isn't running, closes
+ * it if it has the focus, or else switches to its workspace. While a game started from shelf runs
  * (a child process of it), the key is left to the game. The pad's Guide button is not used: it
  * sends nothing in the pad's mouse mode (docs/hardware.md).
  *
@@ -135,23 +135,25 @@ static int just_resumed(void)
     return resumed >= 0 && read_double("/proc/uptime") - resumed < RESUME_GUARD;
 }
 
-/* Ask sway (IPC GET_OUTPUTS) whether an output is powered off. Unknown counts as on. */
-static int screen_dark(void)
+/* One sway IPC request (type: 0 RUN_COMMAND, 3 GET_OUTPUTS); the reply's JSON goes into out
+ * (NUL-terminated, cut at size). Returns 0 if sway couldn't be asked. */
+static int sway_ipc(uint32_t type, const char *payload, char *out, size_t size)
 {
     const char *sock = getenv("SWAYSOCK");
     struct sockaddr_un addr = { .sun_family = AF_UNIX };
-    int fd, dark = 0;
-    if (!sock || strlen(sock) >= sizeof addr.sun_path)
+    uint32_t len = strlen(payload);
+    int fd, ok = 0;
+    if (!sock || strlen(sock) >= sizeof addr.sun_path || len > 1024)
         return 0;
     strcpy(addr.sun_path, sock);
     fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (fd < 0)
         return 0;
-    char hdr[14] = "i3-ipc";
-    uint32_t len = 0, type = 3; /* GET_OUTPUTS */
-    memcpy(hdr + 6, &len, 4);
-    memcpy(hdr + 10, &type, 4);
-    if (connect(fd, (struct sockaddr *)&addr, sizeof addr) == 0 && write(fd, hdr, 14) == 14) {
+    char req[14 + 1024] = "i3-ipc";
+    memcpy(req + 6, &len, 4);
+    memcpy(req + 10, &type, 4);
+    memcpy(req + 14, payload, len);
+    if (connect(fd, (struct sockaddr *)&addr, sizeof addr) == 0 && write(fd, req, 14 + len) == 14 + (ssize_t)len) {
         char reply[16384];
         size_t got = 0;
         ssize_t n;
@@ -164,10 +166,20 @@ static int screen_dark(void)
             }
         }
         reply[got] = 0;
-        dark = got > 14 && (strstr(reply + 14, "\"power\": false") || strstr(reply + 14, "\"power\":false"));
+        if (got > 14) {
+            snprintf(out, size, "%s", reply + 14);
+            ok = 1;
+        }
     }
     close(fd);
-    return dark;
+    return ok;
+}
+
+/* Ask sway whether an output is powered off. Unknown counts as on. */
+static int screen_dark(void)
+{
+    char r[16384];
+    return sway_ipc(3, "", r, sizeof r) && (strstr(r, "\"power\": false") || strstr(r, "\"power\":false"));
 }
 
 static int open_pad(void)
@@ -175,9 +187,8 @@ static int open_pad(void)
     return open_named(PAD_NAME);
 }
 
-/* pid of the frontend, pegasus-fe or shelf (0 if not running), and whether it has a child process
- * (a game). */
-static pid_t pegasus(int *game_running)
+/* pid of shelf (0 if not running), and whether it has a child process (a game). */
+static pid_t frontend(int *game_running)
 {
     DIR *d = opendir("/proc");
     struct dirent *e;
@@ -201,7 +212,7 @@ static pid_t pegasus(int *game_running)
         if (!comm_end || sscanf(comm_end + 2, "%*c %d", &ppid) != 1)
             continue;
         const char *comm = strchr(stat, '(') + 1;
-        if (strncmp(comm, "pegasus-fe)", 11) == 0 || strncmp(comm, "shelf)", 6) == 0)
+        if (strncmp(comm, "shelf)", 6) == 0)
             pid = p;
         ppids[n++] = ppid;
     }
@@ -269,12 +280,20 @@ static void on_lid(int closed)
     swaymsg_sh(closed ? "~/.config/sway/lid.sh close" : "~/.config/sway/lid.sh open");
 }
 
+/* Menu key: start shelf, or switch to it, or close it if it has the focus (sway asks it to close;
+ * it saves its place and exits, and run doesn't restart it). Nothing while a game runs. */
 static void on_menu(void)
 {
     int game;
-    if (!pegasus(&game))
-        swaymsg("workspace number 1; exec ~/.config/pegasus-frontend/run");
-    else if (!game)
+    char r[256];
+    if (!frontend(&game))
+        swaymsg("workspace number 1; exec ~/.config/shelf/run");
+    else if (game)
+        return;
+    else if (sway_ipc(0, "[app_id=\"^shelf$\" con_id=__focused__] kill", r, sizeof r) &&
+             (strstr(r, "\"success\": true") || strstr(r, "\"success\":true")))
+        return; /* it had the focus: closing */
+    else
         swaymsg("workspace number 1");
 }
 

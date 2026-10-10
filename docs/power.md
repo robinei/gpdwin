@@ -10,7 +10,6 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   only turns the screen on). Presses within 3 s of a resume are ignored, so the press that woke it
   doesn't put it back to sleep (`/usr/lib/systemd/system-sleep/resume-time` writes `/run/resume-time`).
 - `/etc/systemd/logind.conf.d/handheld.conf`: power key ignored (`HandlePowerKey=ignore`, inputd handles it); lid switch is ignored (`HandleLidSwitch=ignore`); `inputd` disables input and runs `lid.sh` (screen off via `screen.sh`, games frozen, CPU/GPU throttled) while it is closed (desktop.md).
-- Pegasus' Suspend also does suspend-then-hibernate (dbus-send shim, see frontend.md).
 - Hibernation: 4 GB swap partition (UUID in fstab). Resume works without `resume=`: the systemd
   initramfs finds the image via the `HibernateLocation` EFI variable. The RTC alarm does not wake
   the device from hibernation; the power button does. Resume takes ~15-30 s.
@@ -81,12 +80,13 @@ is the right "screen off" despite causing ~64 i915 irq/s while off (backlight-0 
 Method: average `max170xx_battery/current_now` every 2 s for 60 s after 20 s settling, swayidle
 paused, run via `swaymsg exec` (brightnessctl needs the session).
 
-## Idle wakeups (after the Pegasus patches)
+## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
   answers its 4 ms interrupt poll with identical idle reports, 250 irq/s, whenever the screen is
   on and something has it open (Pegasus/SDL, inputd). It stops when the display is off
   (the GPD apparently powers the pad down). No driver knob for the interval; accepted.
 - Pegasus: ~20 wakeups/s, 0.8% CPU (was 72/s, 2.4%) with adaptive gamepad polling (patch 0003).
+  shelf, which replaced it, sleeps in poll() while untouched (0 wakeups/s of its own).
 - Measure per-process wakeups via `voluntary_ctxt_switches` deltas in /proc/PID/task/*/status;
   per-USB-device traffic with `usbmon` (`sudo modprobe usbmon`, read
   `/sys/kernel/debug/usb/usbmon/1u`).

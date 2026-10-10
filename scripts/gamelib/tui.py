@@ -1,5 +1,5 @@
-"""Curses UI: browse owned games with filters, install/uninstall, add to Pegasus."""
-import curses, locale, os, shutil, subprocess, sys
+"""Curses UI: browse owned games with filters, install/uninstall, add to shelf."""
+import curses, locale, os, shutil, sys
 from pathlib import Path
 
 from . import core
@@ -42,7 +42,6 @@ class App:
         self.sort = 0           # 0 name, 1 hours played
         self.pos = self.top = 0
         self.msg = ""
-        self.changed = False
 
     # ----- data -----
     def is_installed(self, g):
@@ -157,12 +156,12 @@ class App:
             self.outside(scr, lambda: self.install(g, choice.split(":")[1]))
         elif choice == "uninstall":
             if self.prompt(scr, f"Delete {rec['dir']}? type yes: ") == "yes":
-                core.uninstall(rec); self.changed = True
+                core.uninstall(rec)
                 self.msg = f"Uninstalled {g['name']}."
         elif choice == "exe":
             self.outside(scr, lambda: self.pick_exe(rec, force_ask=True))
         elif choice == "launcher":
-            core.write_launcher(rec, force=True); core.write_pegasus(); self.changed = True
+            core.write_launcher(rec, force=True); core.write_metadata()
             self.msg = "Launcher rewritten."
         self.inst = core.installed()
 
@@ -186,8 +185,7 @@ class App:
                   "(Wine runs 32-bit Windows games without multilib).")
         core.save_record(rec)
         core.write_launcher(rec, force=True)
-        core.write_pegasus()
-        self.changed = True
+        core.write_metadata()
         print(f"Using {best}. Launcher: {Path(rec['dir']) / core.LAUNCHER_NAME}")
         return True
 
@@ -242,7 +240,7 @@ class App:
         if self.pick_exe(rec):
             for f in core.write_steam_appid(rec):
                 print(f"Wrote {f.name} (lets the game run without the Steam client).")
-            print(f"Added to Pegasus PC Games ({'Wine' if osname == 'windows' else 'native'}).")
+            print(f"Added to PC Games ({'Wine' if osname == 'windows' else 'native'}).")
         return True
 
     def offer_windows(self, g):
@@ -288,20 +286,6 @@ class App:
                 self.actions(scr, rows[self.pos])
 
 
-def restart_pegasus_after_exit():
-    """Pegasus only rescans metadata on start. Restart it once this tool (its child) has exited."""
-    if not subprocess.run(["pgrep", "-x", "pegasus-fe"], capture_output=True).stdout:
-        return
-    me = os.getpid()
-    # Pegasus sometimes ignores SIGTERM; escalate to SIGKILL so we never end up with two.
-    script = (f"while kill -0 {me} 2>/dev/null; do sleep 0.3; done; sleep 0.5; pkill -x pegasus-fe; "
-              f"for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -x pegasus-fe >/dev/null || break; sleep 0.3; done; "
-              f"pkill -KILL -x pegasus-fe; sleep 0.5; "
-              f"pgrep -x pegasus-fe >/dev/null || swaymsg exec ~/.config/pegasus-frontend/run")
-    subprocess.Popen(["setsid", "-f", "sh", "-c", script], stdin=subprocess.DEVNULL,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-
 def main():
     locale.setlocale(locale.LC_ALL, "")
     msgs = []
@@ -314,10 +298,5 @@ def main():
                 msgs.append(f"{src.title} library not updated ({e}).")
     app = App()
     app.msg = "  ".join(m for m in msgs if m)
-    curses.wrapper(app.run)
-    if app.changed:
-        ans = input("Games changed. Restart Pegasus now so they show up? [Y/n] ").strip().lower()
-        if ans in ("", "y", "yes"):
-            restart_pegasus_after_exit()
-            print("Pegasus restarts when this window closes.")
+    curses.wrapper(app.run)   # shelf rescans when this tool exits, so changes show up then
     return 0

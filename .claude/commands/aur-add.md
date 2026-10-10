@@ -30,6 +30,6 @@ fits. Keep the AUR set small (docs/packages.md "AUR policy").
    /maintain). It vendors the build files into `aur/pkgbuilds/PKG`, records the review in
    `aur/reviewed.tsv` and adds a changelog line. Set a meaningful note in `reviewed.tsv`
    (how thoroughly it was reviewed).
-6. **Integrate and test.** Run it once if possible. Add it where it belongs (Pegasus entry,
+6. **Integrate and test.** Run it once if possible. Add it where it belongs (game collection entry,
    sway binding, manifest entry for any config), update docs/packages.md (AUR set) and the
    topic doc, then `scripts/sync check`, commit and push.

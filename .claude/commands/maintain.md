@@ -2,7 +2,7 @@
 description: Routine maintenance of the GPD Win 1 - news, updates with AUR review, pacnew, drift, changelog
 ---
 
-Run a maintenance pass on this device. The user started this from Pegasus (`scripts/maintain`),
+Run a maintenance pass on this device. The user started this from shelf (`scripts/maintain`),
 so sudo works non-interactively (`sudo -n ...`) for the duration of the session. Keep the user
 informed in short lines; they are on a small screen with a keyboard.
 
@@ -45,7 +45,7 @@ informed in short lines; they are on a small screen with a keyboard.
    - Give the user a short verdict (what changed, anything suspicious) and ask before building.
    - `scripts/aur check` also lists every git source pinned with `#commit=` and how many upstream
      commits are newer (pins come from our patches, e.g. zelda3-git, or from the AUR PKGBUILD
-     itself, e.g. pegasus-frontend-stable-git). Mention notable gaps to the user.
+     itself). Mention notable gaps to the user.
    - Pinned `-git` packages (a pin patch in `aur/patches/PKG/pkgbuild/`, e.g. zelda3-git) don't
      move with the AUR. To update one, look at the upstream commits since the pin, summarize
      them, and on approval bump the commit in the pin patch. Unpinned `-git` packages build
@@ -53,7 +53,7 @@ informed in short lines; they are on a small screen with a keyboard.
    - Build with `scripts/aur build PKG --yes`. It applies our patches to pristine sources, keeps
      sudo alive, installs, records the reviewed commit, re-vendors `aur/pkgbuilds/PKG`, adds a
      changelog line, cleans the build dir, and commits + pushes that record by itself
-     (so `git pull` first if you have unrelated uncommitted work). Long builds (Pegasus ~20 min): run it detached
+     (so `git pull` first if you have unrelated uncommitted work). Long builds: run it detached
      (`setsid -f bash -c "scripts/aur build PKG --yes > /tmp/PKG-build.log 2>&1 < /dev/null"`)
      and poll the log.
    - **A patch fails to apply** (upstream changed the same lines): don't drop it. Fetch the new
@@ -61,10 +61,11 @@ informed in short lines; they are on a small screen with a keyboard.
      change by hand, regenerate the patch with `diff -u` (paths `a/...` and `b/...`, `-p1`
      relative to the target dir), check it with `patch -p1 --dry-run`, and say what changed.
      If upstream fixed the problem itself, delete the patch and note it in the changelog.
-   - After the build, check what each patch was for still holds (e.g. Pegasus idle: 0 frames/s,
-     see docs/frontend.md), and that `git diff aur/pkgbuilds` matches what you reviewed.
+   - After the build, check what each patch was for still holds (see the patch's comment
+     and docs), and that `git diff aur/pkgbuilds` matches what you reviewed.
    - AUR packages are only built with `scripts/aur` (yay is not installed).
-   - After updating `pegasus-frontend-stable-git`, tell the user to restart Pegasus.
+   - `pegasus-frontend-stable-git` is installed but no longer maintained (docs/frontend.md): don't
+     build updates for it.
 
 5. **pacnew/pacsave.** `pacdiff -o`. For each, diff against the live file, merge sensibly (keep
    our changes, take upstream's new defaults), install the result with sudo, delete the .pacnew,
@@ -79,4 +80,4 @@ informed in short lines; they are on a small screen with a keyboard.
 
 7. **Record.** Append a dated entry to `docs/changelog.md` (what was updated, anything notable),
    update other docs if facts changed, `git add -A && git commit`. Summarize for the user, and
-   mention anything that needs their action (reboot, Pegasus restart, manual BIOS step).
+   mention anything that needs their action (reboot, shelf restart, manual BIOS step).

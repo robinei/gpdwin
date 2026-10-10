@@ -11,10 +11,11 @@ truth; this explains the choices.
 - Audio: `pipewire pipewire-pulse pipewire-alsa wireplumber alsa-ucm-conf` + `realtime-privileges`
   (robin in group `realtime`, so PipeWire gets RT scheduling without RTKit/polkit) (all explicit;
   pulse and ALSA apps both need their PipeWire bridge).
-- Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus. `sdl3_image`, `sdl3_ttf` for shelf
-  (`src/shelf.c`; with `sdl3`, `sqlite` and `icu`, already installed).
+- Frontend: shelf (`src/shelf.c`): `sdl3_image`, `sdl3_ttf` (with `sdl3`, `sqlite` and `icu`, already
+  installed). `retroarch`, assets, core-info, cores (frontend.md). `qt5-*` only for Pegasus, kept
+  installed without integration (frontend.md).
 - PSP: standalone `ppsspp` (SDL build, `PPSSPPSDL`; pulls `ppsspp-assets`, `openxr`, `libzip`,
-  `miniupnpc`), installed 2026-10-09. Not in Pegasus yet.
+  `miniupnpc`), installed 2026-10-09.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
 - Multilib (enabled 2026-10-07, `system/etc/pacman.conf`) for 32-bit-only native Linux ports
   (e.g. Psychonauts): lib32 glibc/gcc-libs (now in core), mesa, libglvnd, vulkan loader + intel,
@@ -50,7 +51,7 @@ truth; this explains the choices.
 - Wi-Fi not switching networks (2026-10-10, open): after leaving home, iwd sat in `autoconnect_full`
   for 17 min without finding the known iPhone hotspot; a reboot connected at once. Either the hotspot
   wasn't visible to background scans (iPhones often only beacon while the hotspot screen is open) or
-  the brcmfmac firmware stopped returning scan results. Pegasus Utils "WiFi"
+  the brcmfmac firmware stopped returning scan results. Utilities "WiFi"
   (`pegasus/utils/tools/wifi-menu`) shows what a fresh scan sees and has "reset Wi-Fi":
   `/usr/local/bin/wifi-reset` (sudoers `23-wifi-reset`) logs what `iw` scan sees, then stops iwd,
   reloads brcmfmac and starts iwd. Its log (`journalctl -t wifi-reset`) tells the two causes apart.
@@ -69,13 +70,11 @@ truth; this explains the choices.
 - `-git` packages are pinned to a commit with a build-file patch where the PKGBUILD doesn't
   (zelda3-git: snesrev/zelda3 45a149d, also `backup=` for zelda3.ini so rebuilds keep our config).
 - `scripts/aur build` checks sudo first and keeps the timestamp alive during long builds.
-- Current patches: pegasus-frontend-stable-git (adds qt5-wayland/sdl2-compat deps, tolerant
-  .install, no top-level echo; splash progress animation and grid-theme spinner only run while
-  visible), zelda3-git (pin + backup), commander-genius-git (pin to v3.6.3 commit bee4fcb, `--parallel 2`
+- Current patches: zelda3-git (pin + backup), commander-genius-git (pin to v3.6.3 commit bee4fcb, `--parallel 2`
   so the C++ build fits in 3.7 GB RAM; ~35 min build).
 - AUR packages are built only via `scripts/aur` after reviewing the diff since the last
   reviewed AUR commit (`aur/reviewed.tsv`). `scripts/update` and `/maintain` do this.
-- Current AUR set: `pegasus-frontend-stable-git`, `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin`, `lib32-openal`, `ludusavi-bin`, `commander-genius-git`
+- Current AUR set: `devilutionx-bin`, `zelda3-git`, `steamdepotdownloader-bin`, `lib32-openal`, `ludusavi-bin`, `commander-genius-git`
   (multilib, patched: no JACK/PortAudio), `lib32-sdl2-compat`, `lib32-sdl12-compat`, plus our rebuild `mangohud-light` of the repo package
   (aur/pkgbuilds/mangohud-light, `.arch-package`). yay-bin removed 2026-10-07.
   `-git` packages build upstream HEAD, which the PKGBUILD review doesn't cover.
