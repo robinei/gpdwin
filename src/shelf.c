@@ -1103,7 +1103,7 @@ static void mark(const char *what)
         on = getenv("SHELF_TIMING") != NULL;
     if (on) {
         struct timespec t;
-        clock_gettime(CLOCK_MONOTONIC, &t);
+        clock_gettime(CLOCK_BOOTTIME, &t);
         static double t0;
         double now = t.tv_sec * 1e3 + t.tv_nsec / 1e6;
         if (!t0) {
@@ -1847,7 +1847,9 @@ typedef struct {
 
 static SDL_Texture *load_image(App *a, const char *path, int max_w, int max_h, int *w, int *h)
 {
+    Uint64 t0 = SDL_GetTicksNS();
     SDL_Surface *s = IMG_Load(path);
+    Uint64 t1 = SDL_GetTicksNS();
     if (!s) {
         warn("%s: %s", path, SDL_GetError());
         return NULL;
@@ -1862,6 +1864,9 @@ static SDL_Texture *load_image(App *a, const char *path, int max_w, int max_h, i
         }
     }
     SDL_Texture *tex = SDL_CreateTextureFromSurface(a->ren, s);
+    if (getenv("SHELF_TIMING"))
+        fprintf(stderr, "shelf: image %dx%d: decode %.1f ms, scale+upload %.1f ms (%s)\n", s->w, s->h,
+                (t1 - t0) / 1e6, (SDL_GetTicksNS() - t1) / 1e6, name_of(path));
     *w = s->w;
     *h = s->h;
     SDL_DestroySurface(s);
