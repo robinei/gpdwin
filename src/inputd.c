@@ -14,7 +14,7 @@
  * ignores the lid, see docs/power.md.
  *
  * Power button (logind ignores it, HandlePowerKey=ignore), acted on at release:
- *   screen dark (screen.sh off: idle or lid): only wakes the screen (zero pointer move; swayidle's
+ *   screen dark (sway reports the output powered off: idle or lid): only wakes the screen (zero pointer move; swayidle's
  *                resume runs screen.sh on). Never sleeps, so a press meant to "turn it on" can't
  *                put an awake device with its screen off to sleep.
  *   screen on:   suspend-then-hibernate.
@@ -43,7 +43,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/inotify.h>
+#include <stdint.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -126,12 +129,39 @@ static int just_resumed(void)
     return resumed >= 0 && read_double("/proc/uptime") - resumed < RESUME_GUARD;
 }
 
-/* screen.sh off leaves this file while the screen is off */
+/* Ask sway (IPC GET_OUTPUTS) whether an output is powered off. Unknown counts as on. */
 static int screen_dark(void)
 {
-    char path[512];
-    snprintf(path, sizeof path, "%s/screen-off", getenv("XDG_RUNTIME_DIR") ?: "/tmp");
-    return access(path, F_OK) == 0;
+    const char *sock = getenv("SWAYSOCK");
+    struct sockaddr_un addr = { .sun_family = AF_UNIX };
+    int fd, dark = 0;
+    if (!sock || strlen(sock) >= sizeof addr.sun_path)
+        return 0;
+    strcpy(addr.sun_path, sock);
+    fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fd < 0)
+        return 0;
+    char hdr[14] = "i3-ipc";
+    uint32_t len = 0, type = 3; /* GET_OUTPUTS */
+    memcpy(hdr + 6, &len, 4);
+    memcpy(hdr + 10, &type, 4);
+    if (connect(fd, (struct sockaddr *)&addr, sizeof addr) == 0 && write(fd, hdr, 14) == 14) {
+        char reply[16384];
+        size_t got = 0;
+        ssize_t n;
+        while (got < sizeof reply - 1 && (n = read(fd, reply + got, sizeof reply - 1 - got)) > 0) {
+            got += n;
+            if (got >= 14) {
+                memcpy(&len, reply + 6, 4);
+                if (got >= 14 + (size_t)len)
+                    break;
+            }
+        }
+        reply[got] = 0;
+        dark = got > 14 && (strstr(reply + 14, "\"power\": false") || strstr(reply + 14, "\"power\":false"));
+    }
+    close(fd);
+    return dark;
 }
 
 static int open_pad(void)

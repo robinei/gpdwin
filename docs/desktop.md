@@ -44,7 +44,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   0 0 resets swayidle). Brightness is not touched (level 0 does not turn the panel off). If inputd
   dies while closed, input stays disabled: `swaymsg input '*' events enabled`.
   Power button (every input device with KEY_POWER; logind ignores the key), on release:
-  screen dark (`$XDG_RUNTIME_DIR/screen-off`, left by `screen.sh off`) → zero cursor move (swayidle's
+  screen dark (asked from sway over IPC: an output with `"power": false`) → zero cursor move (swayidle's
   resume turns the screen on); screen on → `sudo -n systemctl suspend-then-hibernate`. Ignored while
   the lid is closed, within 3 s of a resume (`/run/resume-time`, uptime written by the sleep hook
   `resume-time`), and for 2 s after a handled press (the button may be two input devices).
