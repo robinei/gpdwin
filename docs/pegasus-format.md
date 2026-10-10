@@ -205,7 +205,8 @@ Parser state per file: `cur_coll`, `cur_game`, `all_colls` (the collections seen
 - Any other key with neither `cur_coll` nor `cur_game` set: warning, ignored.
 - Next, a key starting with `x-` is stored as an extra (`:431-455`): `extra[key without "x-"] = [value lines]`,
   on the current game if there is one, otherwise on the collection. `x-` with nothing after it gives a warning.
-  **Unused here.**
+  Used here only for `x-shelf-kind: tools` on the Utilities collection (shelf's tools tab; Pegasus keeps and
+  ignores it).
 - Next, a key matching `^assets?\.(.+)$` (`:158`, so `asset.` also works) is an asset (3.2).
 - Otherwise, if `cur_game` is set, the key is a game key (2.4.2). Otherwise it is a collection key (2.4.1).
   Unknown keys give a warning and are ignored.
@@ -248,7 +249,7 @@ Each `collection:` line gets **its own** filter, even when the same collection n
 | `release` | `^(\d{4})(-(\d{1,2}))?(-(\d{1,2}))?$`; y = max(1, y), m clamped to 1..12, d clamped to 1..31; an invalid date such as Feb 30 is rejected | first line | yes (pc, `YYYY-MM-DD`) |
 | `rating` | `^\d+%$` gives n/100; else `^\d(\.\d+)?$` gives a float (one digit before the dot); clamped to 0..1 | first line | unused here |
 | `sorttitle`, `sortname`, `sort_title`, `sort_name`, `sort-title`, `sort-name`, `sortby`, `sort_by`, `sort-by` | game `sort_by` | first line | unused here |
-| `x-*` | extras | per line | unused here |
+| `x-*` | extras | per line | `x-shelf-kind` only (shelf) |
 | `assets.*` / `asset.*` | 3.2 | per line | yes (`assets.boxFront`) |
 
 Defaults (`model/gaming/Game.h:38-69`): players 1, rating 0.0, release date invalid (unset), not a favourite.
