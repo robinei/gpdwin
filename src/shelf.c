@@ -1597,6 +1597,10 @@ static bool launch(Running *r, Game *g)
         sigemptyset(&none);
         sigprocmask(SIG_SETMASK, &none, NULL);
         if (chdir(wd) != 0) { /* like QProcess: start anyway */ }
+        /* run keeps the MangoHud preload for games only (it would load Mesa into shelf) */
+        const char *pre = getenv("SHELF_GAME_LD_PRELOAD");
+        if (pre && *pre)
+            setenv("LD_PRELOAD", pre, 1);
         execvp(argv[0], argv);
         int e = errno;
         if (pfd[1] >= 0 && write(pfd[1], &e, sizeof e) < 0) { /* nothing to do */ }
@@ -2413,6 +2417,8 @@ int main(int argc, char **argv)
     }
 
     SDL_SetHint(SDL_HINT_APP_ID, "shelf");
+    /* SDL3 prefers X11 when the compositor lacks the fifo protocol (sway): ask for Wayland */
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
     /* Software rendering into Wayland shared memory: a 2D list needs no GPU, and it keeps Mesa
      * (libgallium + libLLVM, ~120 MB resident) out of the process. SDL_RENDER_DRIVER overrides. */
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");

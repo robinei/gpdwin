@@ -13,7 +13,13 @@ err="$HOME/.cache/pegasus-fe.stderr"
 # Which frontend: ~/.config/gpd/frontend says "shelf" (src/shelf.c, reads and writes the same files)
 # or anything else/missing for Pegasus. Both share this environment and the crash restart.
 fe=pegasus-fe
-[ "$(cat "$HOME/.config/gpd/frontend" 2>/dev/null)" = shelf ] && fe="$HOME/.local/bin/shelf"
+if [ "$(cat "$HOME/.config/gpd/frontend" 2>/dev/null)" = shelf ]; then
+    fe="$HOME/.local/bin/shelf"
+    # shelf passes the preload on to games only: in shelf itself the MangoHud shim would load
+    # OpenGL/Mesa/LLVM (~120 MB) for nothing (Pegasus can't do this; it inherits it)
+    export SHELF_GAME_LD_PRELOAD="${LD_PRELOAD:-}"
+    unset LD_PRELOAD
+fi
 # Restarted when it crashes (SIGILL/TRAP/ABRT/BUS/FPE/SEGV; it sometimes aborts when the pad
 # disconnects, docs/frontend.md), not when it quits or is killed (TERM/KILL, restart-pegasus).
 # Gives up after 3 crashes within 10 s of starting.
