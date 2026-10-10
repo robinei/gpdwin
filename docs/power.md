@@ -10,6 +10,11 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   initramfs finds the image via the `HibernateLocation` EFI variable. The RTC alarm does not wake
   the device from hibernation; the power button does. Resume takes ~15-30 s.
 - Suspend needed the xHCI wakeup fix (hardware.md).
+- The lid does not wake the device; the power button does. The lid's wake source is an ACPI GPIO
+  event (`INT33FF:00` pin 35, IRQ "ACPI:Event"); it woke the device on close *and* open, and a
+  lid-close wake left it awake with the lid shut (logind ignores the lid). Disabled with kernel
+  `gpiolib_acpi.ignore_wake=INT33FF:00@35`; lid events while awake still work. Check:
+  `/sys/kernel/irq/<irq>/wakeup` = disabled. Which IRQ woke the device: `/sys/power/pm_wakeup_irq`.
 
 ## Idle (swayidle, `dotfiles/sway/handheld`)
 - 2 min: dim to a third of current brightness, min 1% (`dim.sh`; restored on activity).

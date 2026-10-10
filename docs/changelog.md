@@ -361,3 +361,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-10: `freeze-games.sh`: Pegasus and the games it started are frozen (SIGSTOP) while the lid is closed or the screen is off on idle.
 - 2026-10-10: screen off/on centralized in `dotfiles/sway/screen.sh` (lid and idle screen-off; replaces `freeze-games.sh`); inputd only handles input on lid close.
 - 2026-10-10: sleep hook `charger-log` logs PMIC charger registers and bq24190 state before/after sleep (investigating charging stuck at 500 mA after hibernate, power.md). Revert: delete the hook and its manifest line.
+- 2026-10-10: lid no longer wakes from sleep (kernel `gpiolib_acpi.ignore_wake=INT33FF:00@35`): closing the lid on a sleeping device woke it and left it awake. Revert: remove the option from `arch.conf`, `scripts/sync install`, reboot.
