@@ -49,6 +49,9 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   swayidle) and `screen.sh on`; screen on → `sudo -n systemctl suspend-then-hibernate`. Ignored while
   the lid is closed, within 3 s of a resume (`/run/resume-time`, uptime written by the sleep hook
   `resume-time`), and for 2 s after a handled press (several input devices report KEY_POWER).
+- After changing `autostart` rules or `fullscreen-stack.sh`: `swaymsg reload` (rules) and restart
+  the script (`pkill -f fullscreen-stack.sh; swaymsg exec ~/.config/sway/fullscreen-stack.sh`):
+  `exec` lines don't rerun on reload, and the running loop keeps its old patterns.
 - `screen.sh off|on`: the one place for screen off/on, used by the lid (`lid.sh`) and the idle
   screen-off step (`idle-screen-off.sh`, battery only; swayidle's resume runs `screen.sh on`).
   `off`: SIGSTOP Pegasus and everything it started (the game's whole process tree, Wine included;

@@ -2486,6 +2486,7 @@ int main(int argc, char **argv)
         bool got = timeout < 0 ? SDL_WaitEvent(&ev) : SDL_WaitEventTimeout(&ev, timeout);
         while (got) {
             if (ev.type == SDL_EVENT_QUIT) {
+                warn("quit requested (window closed or SIGTERM/SIGINT)");
                 quit = true;
             } else if (ev.type == EV_IMG) {
                 cache_put(a, ev.user.data1);
