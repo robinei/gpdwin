@@ -376,3 +376,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-10: shelf: logos load through the image thread; LB/RB page (d-pad left/right switch tabs).
 - 2026-10-10: shelf: "Starting <title>…" overlay while a game launches.
 - 2026-10-10: shelf remembers the current tab and game across restarts (`~/.local/state/shelf/last`).
+- 2026-10-10: shelf cleanup: the game's environment is built before fork (no setenv between fork and exec), no busy loop when both Wayland buffers are held, one image cache API, `render` split into draw functions, tools marked by `x-shelf-kind: tools` in the Utilities metadata instead of the shortname.
