@@ -1,5 +1,6 @@
-# Pegasus frontend always lives on workspace 1 and starts with sway
-assign [app_id="org.pegasus-frontend.pegasus-fe"] workspace number 1
+# The frontend (Pegasus or shelf, see ~/.config/pegasus-frontend/run) always lives on workspace 1
+# and starts with sway
+assign [app_id="^(org\.pegasus-frontend\.pegasus-fe|shelf)$"] workspace number 1
 exec ~/.config/pegasus-frontend/run
 exec ~/.local/bin/inputd
 
@@ -8,5 +9,5 @@ exec ~/.local/bin/inputd
 # fullscreen-stack.sh restores fullscreen to the window below when the top one closes, except for
 # Pegasus. Floating windows (dialogs) are left alone. X11 windows have no app_id, hence two rules.
 for_window [workspace="^1$" tiling shell="xwayland"] fullscreen enable
-for_window [workspace="^1$" tiling app_id="^(?!org\.pegasus-frontend\.pegasus-fe$)"] fullscreen enable
+for_window [workspace="^1$" tiling app_id="^(?!(org\.pegasus-frontend\.pegasus-fe|shelf)$)"] fullscreen enable
 exec ~/.config/sway/fullscreen-stack.sh

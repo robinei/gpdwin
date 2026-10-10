@@ -1,8 +1,9 @@
 #!/bin/sh
-# Restart Pegasus reliably: it sometimes ignores SIGTERM, which used to leave two instances.
-pkill -x pegasus-fe
-for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -x pegasus-fe >/dev/null || break; sleep 0.3; done
-pkill -KILL -x pegasus-fe 2>/dev/null
+# Restart the frontend (Pegasus or shelf) reliably: Pegasus sometimes ignores SIGTERM, which used to
+# leave two instances.
+pkill -x 'pegasus-fe|shelf'
+for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -x 'pegasus-fe|shelf' >/dev/null || break; sleep 0.3; done
+pkill -KILL -x 'pegasus-fe|shelf' 2>/dev/null
 sleep 0.5
 SWAYSOCK=${SWAYSOCK:-$(ls /run/user/$(id -u)/sway-ipc.*.sock 2>/dev/null | head -1)} \
     swaymsg exec ~/.config/pegasus-frontend/run >/dev/null

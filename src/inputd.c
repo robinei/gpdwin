@@ -1,5 +1,6 @@
 /*
- * inputd: the gamepad's Guide (Xbox) button brings up Pegasus, and gamepad use counts as activity.
+ * inputd: the gamepad's Guide (Xbox) button brings up the frontend (Pegasus or shelf), and gamepad
+ * use counts as activity.
  *
  * Guide starts Pegasus if it isn't running, or switches to its workspace. While a game started
  * from Pegasus runs (a child process of pegasus-fe), the button is left to the game.
@@ -170,7 +171,8 @@ static int open_pad(void)
     return open_named(PAD_NAME);
 }
 
-/* pid of pegasus-fe (0 if not running), and whether it has a child process (a game). */
+/* pid of the frontend, pegasus-fe or shelf (0 if not running), and whether it has a child process
+ * (a game). */
 static pid_t pegasus(int *game_running)
 {
     DIR *d = opendir("/proc");
@@ -194,7 +196,8 @@ static pid_t pegasus(int *game_running)
         comm_end = strrchr(stat, ')');
         if (!comm_end || sscanf(comm_end + 2, "%*c %d", &ppid) != 1)
             continue;
-        if (strncmp(strchr(stat, '(') + 1, "pegasus-fe)", 11) == 0)
+        const char *comm = strchr(stat, '(') + 1;
+        if (strncmp(comm, "pegasus-fe)", 11) == 0 || strncmp(comm, "shelf)", 6) == 0)
             pid = p;
         ppids[n++] = ppid;
     }

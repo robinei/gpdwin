@@ -13,7 +13,7 @@
 swaymsg -r -m -t subscribe '["window"]' | while read -r event; do
     case "$event" in
     *'"change": "focus"'*'"fullscreen_mode": 0'*)
-        case "$event" in *'"app_id": "org.pegasus-frontend.pegasus-fe"'*) ;; *)
+        case "$event" in *'"app_id": "org.pegasus-frontend.pegasus-fe"'* | *'"app_id": "shelf"'*) ;; *)
             swaymsg '[workspace="^1$" con_id=__focused__ tiling] fullscreen enable' >/dev/null 2>&1 ;;
         esac ;;
     *'"change": "floating"'*'"type": "floating_con"'*'"transient_for": null'*)

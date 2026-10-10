@@ -913,6 +913,13 @@ static char *config_dir(void)
     return fmt("%s/.config/pegasus-frontend", getenv("HOME") ? getenv("HOME") : "");
 }
 
+/* qsort that accepts an empty (NULL) array */
+static void sort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *))
+{
+    if (n > 1)
+        qsort(base, n, size, cmp);
+}
+
 static int cmp_str(const void *a, const void *b)
 {
     return strcmp(*(char *const *)a, *(char *const *)b);
@@ -963,7 +970,7 @@ static void scan_recursive(Library *L, Filter *f, const char *dir, int depth)
         if (e->d_name[0] != '.')
             sl_add(&names, e->d_name);
     closedir(d);
-    qsort(names.v, names.n, sizeof *names.v, cmp_str);
+    sort(names.v, names.n, sizeof *names.v, cmp_str);
     for (int i = 0; i < names.n; i++) {
         char *p = fmt("%s/%s", dir, names.v[i]);
         struct stat st;
@@ -993,7 +1000,7 @@ static void run_filter(Library *L, Filter *f)
             if (e->d_name[0] != '.')
                 sl_add(&names, e->d_name);
         closedir(d);
-        qsort(names.v, names.n, sizeof *names.v, cmp_str);
+        sort(names.v, names.n, sizeof *names.v, cmp_str);
         for (int k = 0; k < names.n; k++) {
             char *p = fmt("%s/%s", dir, names.v[k]);
             struct stat st;
@@ -1230,7 +1237,7 @@ static void load_library(Library *L)
         if (d)
             closedir(d);
     }
-    qsort(metafiles.v, metafiles.n, sizeof *metafiles.v, cmp_str);
+    sort(metafiles.v, metafiles.n, sizeof *metafiles.v, cmp_str);
     for (int i = 0; i < metafiles.n; i++)
         parse_metafile(L, metafiles.v[i]);
     for (int i = 0; i < L->nfilters; i++)
@@ -1271,9 +1278,9 @@ static void load_library(Library *L)
     load_stats(L, cfg);
     load_favorites(L, cfg);
 
-    qsort(L->colls, L->ncolls, sizeof *L->colls, cmp_coll);
+    sort(L->colls, L->ncolls, sizeof *L->colls, cmp_coll);
     for (int i = 0; i < L->ncolls; i++)
-        qsort(L->colls[i]->games, L->colls[i]->ngames, sizeof *L->colls[i]->games, cmp_game);
+        sort(L->colls[i]->games, L->colls[i]->ngames, sizeof *L->colls[i]->games, cmp_game);
 
     sl_free(&dirs);
     sl_free(&metafiles);
@@ -1929,7 +1936,9 @@ static void build_tabs(App *a)
             Game *g = L->colls[i]->games[k];
             if (g->colls[0] != L->colls[i])
                 continue;
-            Collection *v[2] = { g->last_played ? &a->recent : NULL, g->favorite ? &a->favs : NULL };
+            /* Recent is for games: the Utilities tools (shortname utils) stay out of it */
+            bool tool = !strcmp(g->colls[0]->shortname, "utils") && g->ncolls == 1;
+            Collection *v[2] = { g->last_played && !tool ? &a->recent : NULL, g->favorite ? &a->favs : NULL };
             for (int j = 0; j < 2; j++)
                 if (v[j]) {
                     if (v[j]->ngames == v[j]->cap) {
@@ -1939,10 +1948,12 @@ static void build_tabs(App *a)
                     v[j]->games[v[j]->ngames++] = g;
                 }
         }
-    qsort(a->recent.games, a->recent.ngames, sizeof(Game *), cmp_recent);
+    if (a->recent.ngames)
+        qsort(a->recent.games, a->recent.ngames, sizeof(Game *), cmp_recent);
     if (a->recent.ngames > RECENT_MAX)
         a->recent.ngames = RECENT_MAX;
-    qsort(a->favs.games, a->favs.ngames, sizeof(Game *), cmp_game);
+    if (a->favs.ngames)
+        qsort(a->favs.games, a->favs.ngames, sizeof(Game *), cmp_game);
     free(a->tabs);
     free(a->sel);
     free(a->top);
@@ -2380,6 +2391,27 @@ int main(int argc, char **argv)
         if ((a->dirty || pending) && !a->running) {
             a->dirty = false;
             pending = render(a);
+            /* testing: SHELF_SCREENSHOT=file.png [SHELF_KEYS=dddr...] renders without a display
+             * (SDL_VIDEO_DRIVER=offscreen), presses the keys (d/u down/up, l/r tab), saves, quits */
+            const char *shot = getenv("SHELF_SCREENSHOT");
+            if (shot && !pending) {
+                static int k;
+                const char *keys = getenv("SHELF_KEYS");
+                if (keys && keys[k]) {
+                    char c = keys[k++];
+                    action(a, c == 'd' ? A_DOWN : c == 'u' ? A_UP : c == 'l' ? A_LEFT : A_RIGHT, false);
+                    a->last_move = 0;
+                    continue;
+                }
+                a->dirty = true;
+                render(a);
+                SDL_Surface *surf = SDL_RenderReadPixels(a->ren, NULL);
+                if (surf) {
+                    IMG_SavePNG(surf, shot);
+                    SDL_DestroySurface(surf);
+                }
+                quit = true;
+            }
         }
     }
 
