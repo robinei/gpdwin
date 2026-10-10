@@ -10,5 +10,19 @@ export MANGOHUD=1
 # stderr (Qt fatal errors, which don't reach lastrun.log) to ~/.cache/pegasus-fe.stderr, last 200 lines kept.
 err="$HOME/.cache/pegasus-fe.stderr"
 [ -f "$err" ] && tail -n 200 "$err" > "$err.tmp" && mv "$err.tmp" "$err"
-echo "--- start $(date '+%F %T')" >> "$err"
-QT_BEARER_POLL_TIMEOUT=-1 PATH="$HOME/.config/pegasus-frontend/bin:$PATH" exec pegasus-fe "$@" 2>> "$err"
+# Restarted when it crashes (SIGILL/TRAP/ABRT/BUS/FPE/SEGV; it sometimes aborts when the pad
+# disconnects, docs/frontend.md), not when it quits or is killed (TERM/KILL, restart-pegasus).
+# Gives up after 3 crashes within 10 s of starting.
+export QT_BEARER_POLL_TIMEOUT=-1 PATH="$HOME/.config/pegasus-frontend/bin:$PATH"
+quick=0
+while :; do
+    echo "--- start $(date '+%F %T')" >> "$err"
+    started=$(date +%s)
+    pegasus-fe "$@" 2>> "$err"
+    rc=$?
+    case $rc in 132|133|134|135|136|139) ;; *) exit $rc ;; esac
+    echo "--- crashed (exit $rc) $(date '+%F %T'), restarting" >> "$err"
+    [ $(($(date +%s) - started)) -lt 10 ] && quick=$((quick + 1))
+    [ $quick -ge 3 ] && exit $rc
+    sleep 1
+done

@@ -10,6 +10,13 @@
   is a shim: Pegasus asks logind for Suspend/Reboot/PowerOff via dbus-send, which needs polkit.
   The shim maps those to the passwordless sudo rules (Suspend → suspend-then-hibernate) and passes
   everything else to `/usr/bin/dbus-send`.
+- Crashes: Pegasus sometimes aborts (SIGABRT) when the pad's USB device disconnects or is reset
+  (screen off, resume), 3 times in 141 disconnects (Oct 9-10), likely a race in the gamepad
+  (SDL) handling; freezing it with the screen off makes it more likely (removal and re-add are
+  handled together on thaw). Not reproduced on demand. `run` restarts it after a crash signal
+  (not after a normal quit or TERM/KILL; gives up after 3 crashes within 10 s of starting) and
+  keeps its stderr in `~/.cache/pegasus-fe.stderr` (last 200 lines + new run): the abort message
+  is there for a proper fix.
 - Idle redraw: stock Pegasus redrew at 60 fps while showing the menu (~33% CPU, ~2900 irq/s on
   the Atom): every grid tile's loading spinner ran an infinite `RotationAnimator` even when hidden
   (and the splash screen's progress animation kept running after loading). Both are patched in
