@@ -13,7 +13,8 @@
  * opening it undoes that. Brightness is left alone (level 0 doesn't turn this panel off). logind
  * ignores the lid, see docs/power.md.
  *
- * Power button (logind ignores it, HandlePowerKey=ignore), acted on at release:
+ * Power button (logind ignores it, HandlePowerKey=ignore), acted on at release, by the screen
+ * state at the press (sway counts the press as activity, so the screen is back on by the release):
  *   screen dark (sway reports the output powered off: idle or lid): only wakes the screen (zero pointer move; swayidle's
  *                resume runs screen.sh on). Never sleeps, so a press meant to "turn it on" can't
  *                put an awake device with its screen off to sleep.
@@ -284,6 +285,7 @@ int main(void)
         { .fd = open_named(LID_NAME), .events = POLLIN },
     };
     time_t last_power = 0;
+    int press_dark = -1; /* screen state when the power button went down; -1: not down */
     int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 3 + npower;
     for (int i = 0; i < npower; i++)
         fds[3 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
@@ -336,7 +338,15 @@ int main(void)
             while ((n = read(fds[i].fd, &ev, sizeof ev)) == sizeof ev) {
                 if (ev.type != EV_KEY || ev.code != KEY_POWER)
                     continue;
-                if (ev.value != 0 || lid_closed || just_resumed())
+                /* Screen state at the press: sway counts the press as activity and swayidle's
+                 * resume turns the screen on before the release. */
+                if (ev.value == 1 && press_dark < 0)
+                    press_dark = screen_dark();
+                if (ev.value != 0)
+                    continue;
+                int dark = press_dark >= 0 ? press_dark : screen_dark();
+                press_dark = -1;
+                if (lid_closed || just_resumed())
                     continue;
                 /* several devices may report the same press: act once */
                 struct timespec t;
@@ -344,7 +354,7 @@ int main(void)
                 if (last_power && t.tv_sec - last_power < 2)
                     continue;
                 last_power = t.tv_sec;
-                if (screen_dark())
+                if (dark)
                     swaymsg("seat seat0 cursor move 0 0");
                 else
                     suspend();
