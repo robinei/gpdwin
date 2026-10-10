@@ -7,4 +7,8 @@
 export MANGOHUD=1
 # $LIB (literal, expanded by the dynamic linker) picks lib or lib32, so 32-bit games get lib32-mangohud.
 [ -e /usr/lib/mangohud/libMangoHud_shim.so ] && export LD_PRELOAD="${LD_PRELOAD:+$LD_PRELOAD:}/usr/\$LIB/mangohud/libMangoHud_shim.so"
-QT_BEARER_POLL_TIMEOUT=-1 PATH="$HOME/.config/pegasus-frontend/bin:$PATH" exec pegasus-fe "$@"
+# stderr (Qt fatal errors, which don't reach lastrun.log) to ~/.cache/pegasus-fe.stderr, last 200 lines kept.
+err="$HOME/.cache/pegasus-fe.stderr"
+[ -f "$err" ] && tail -n 200 "$err" > "$err.tmp" && mv "$err.tmp" "$err"
+echo "--- start $(date '+%F %T')" >> "$err"
+QT_BEARER_POLL_TIMEOUT=-1 PATH="$HOME/.config/pegasus-frontend/bin:$PATH" exec pegasus-fe "$@" 2>> "$err"
