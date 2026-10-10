@@ -14,12 +14,21 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 - Goal: prefixes, install folders and `~/.local/share/<game>` can be deleted and recreated without losing
   saves. The saves stay where each game keeps them (no symlinks, see below); `~/Saves/<game>/` is a backup
   mirror (`<game>` = the folder name under `~/Games/installed`) and `scripts/saves-backup --restore` puts it
-  back. Back up or sync `~/Saves`, nothing else.
-- What is backed up: the `"data"` list per game in `games/saves.json`: a game's whole data folder (so settings
-  that sit next to the saves come along, nothing else is copied), a single file, or a pattern for saves among
-  the game's own files in its install folder (`.../cave-story/Save*.dat`; a pattern matches the files that
-  exist at that moment, new ones are picked up by the next run). The `"files"` entries (what the Game Saves
-  tool syncs with the desktop and Steam Cloud) are separate and unchanged.
+  back (games then start with default settings). Back up or sync `~/Saves`, nothing else.
+- What is backed up: **saves only**, not settings (saves are portable between devices, settings are not): the
+  `"data"` list per game in `games/saves.json`: save folders, single files, or patterns
+  (`.../Heretic/saves/*.sav`; a pattern matches the files that exist at that moment, new ones are picked up by the
+  next run). The lists come from ludusavi's manifest (`~/.config/ludusavi/manifest.yaml`: paths tagged `save`;
+  config-only paths are dropped; a folder tagged both stays whole) via `scripts/saves-manifest` (review first,
+  then `--apply`). It **flags** a proposal that would drop a save-looking file or cover nothing that exists,
+  because the manifest describes the Windows/Steam builds and disagreed with our builds three times (Caves of
+  Qud: real saves in `Synced/Saves`, not `Saves`; Strife: `~/.local/share/strife-ve/savegames`, not
+  `<install>/strfsav*.ssg`; Isaac: folder `binding of isaac afterbirth+`, not `... rebirth`). Those games
+  (and Sam & Max, which is not in the manifest, and Commander Keen) carry `"data_manual": true` and are
+  hand-written. The `"files"` entries (what the Game Saves tool syncs with the desktop and Steam Cloud) are
+  separate and unchanged. A game's backup folder is named after the last part of each path, so changing a list
+  can change the layout inside `~/Saves/<game>/`; the old copies stay until removed by hand (done once on
+  2026-10-11, archived in `~/save-backups/store-old-layout-*.tar.gz`).
 - When: (1) after every game exit: launchers end in `exec "$HOME/gpd/scripts/game-wrap" COMMAND ...`, which runs
   the game as a child and backs up when it ends however it ends (quit, crash, TERM/INT/HUP are passed on to the
   game); a game whose launcher does not `cd` into its install folder sets `GPD_GAME=<folder name>`. Only a
@@ -49,6 +58,11 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   ~/.ssh/gpd-saves.pub>` (the key can then only write into that folder). Until then the script says what is
   missing and exits quietly. Syncthing was considered for this (24 MB installed, a resident daemon, a sync
   and not a backup: deletions and bad saves propagate) and not chosen.
+- A **second handheld** (idea): the lists are saves-only and the store layout does not depend on the device, so
+  two devices could share `~/Saves`. Still missing for that: a device name in the off-device path
+  (`~/gpd-saves/<device>/`) or a real two-way sync with a merge rule (newest file wins, the other goes to the
+  history), and a `--restore --newer` step in `game-wrap` before a game starts so a newer save from the other
+  device is picked up. With two devices Syncthing becomes the more natural transport than `rsync`.
 - **Not covered yet** (no `"data"` entry; find the folder with `scripts/saves-discover` or by looking at what
   the game writes, then add it to `games/saves.json`): Starcom: Nexus (no save found: not played yet), the
   Steam emulator's saves (`~/.local/share/GSE Saves/<appid>`, games with the emulator `libsteam_api.so`; Isaac,

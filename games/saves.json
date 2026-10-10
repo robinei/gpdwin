@@ -31,7 +31,7 @@
     }
    ],
    "data": [
-    "~/.config/StardewValley"
+    "~/.config/StardewValley/Saves"
    ]
   },
   {
@@ -125,7 +125,7 @@
     }
    ],
    "data": [
-    "~/.config/unity3d/noio/Kingdom"
+    "~/.config/unity3d/noio/Kingdom/storage_v26_AUTO.dat"
    ]
   },
   {
@@ -161,7 +161,8 @@
     }
    ],
    "data": [
-    "~/.config/HyperLightDrifter"
+    "~/.config/HyperLightDrifter/highscores.dat",
+    "~/.config/HyperLightDrifter/hyperlight_recordofthedrifter_*.sav"
    ]
   },
   {
@@ -175,7 +176,7 @@
     }
    ],
    "data": [
-    "~/.config/Risk_of_Rain"
+    "~/.config/Risk_of_Rain/save.ini"
    ]
   },
   {
@@ -191,7 +192,7 @@
     }
    ],
    "data": [
-    "~/.wine/drive_c/users/robin/Saved Games/Nightdive Studios"
+    "~/.wine/drive_c/users/robin/Saved Games/Nightdive Studios/Heretic/saves/*.sav"
    ]
   },
   {
@@ -241,7 +242,7 @@
     }
    ],
    "data": [
-    "~/.local/share/Psychonauts"
+    "~/.local/share/Psychonauts/Profiles"
    ]
   },
   {
@@ -255,7 +256,7 @@
     }
    ],
    "data": [
-    "~/.config/unity3d/adamgryu/A Short Hike"
+    "~/.config/unity3d/adamgryu/A Short Hike/GameSaveNew.mountain"
    ]
   },
   {
@@ -270,8 +271,9 @@
     }
    ],
    "data": [
-    "~/.config/unity3d/Freehold Games/CavesOfQud"
-   ]
+    "~/.config/unity3d/Freehold Games/CavesOfQud/Synced/Saves"
+   ],
+   "data_manual": true
   },
   {
    "name": "Undertale",
@@ -285,7 +287,9 @@
     }
    ],
    "data": [
-    "~/.config/UNDERTALE"
+    "~/.config/UNDERTALE",
+    "~/.config/UNDERTALE_linux",
+    "~/.config/UNDERTALE_linux_steamver"
    ]
   },
   {
@@ -301,7 +305,8 @@
    ],
    "data": [
     "~/.local/share/binding of isaac afterbirth+"
-   ]
+   ],
+   "data_manual": true
   },
   {
    "name": "Strife: Veteran Edition",
@@ -315,8 +320,9 @@
     }
    ],
    "data": [
-    "~/.local/share/strife-ve"
-   ]
+    "~/.local/share/strife-ve/savegames"
+   ],
+   "data_manual": true
   },
   {
    "name": "Commander Keen Complete Pack",
@@ -331,7 +337,8 @@
    ],
    "data": [
     "~/.CommanderGenius"
-   ]
+   ],
+   "data_manual": true
   },
   {
    "name": "Spelunky",
@@ -348,8 +355,7 @@
     }
    ],
    "data": [
-    "~/Games/installed/spelunky/Data/spelunky_save.sav",
-    "~/Games/installed/spelunky/Data/config.txt"
+    "~/Games/installed/spelunky/Data/spelunky_save.sav"
    ]
   },
   {
@@ -364,7 +370,8 @@
    ],
    "data": [
     "~/Games/installed/sam-max-101-culture-shock/*.save"
-   ]
+   ],
+   "data_manual": true
   },
   {
    "name": "Cave Story+",
@@ -381,8 +388,9 @@
     }
    ],
    "data": [
-    "~/Games/installed/cave-story/Save*.dat",
-    "~/Games/installed/cave-story/Profile-*.dat"
+    "~/Games/installed/cave-story/Profile-*-*.dat",
+    "~/Games/installed/cave-story/Profile.dat",
+    "~/Games/installed/cave-story/Save.dat"
    ]
   }
  ]

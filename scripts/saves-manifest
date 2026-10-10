@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Propose each game's "data" list (games/saves.json) from ludusavi's manifest: only paths tagged `save`
+(config-only paths are left out), resolved for how the game runs here.
+
+  saves-manifest                  review: per game the proposed list next to the current one, and which files
+                                  that are backed up now would no longer be (changes nothing)
+  saves-manifest --apply [GAME..] write the proposed lists into games/saves.json: all games that are not flagged,
+                                  or the games named (a named game is written even when flagged)
+
+A proposal is FLAGGED (and skipped by a plain --apply) when it would stop backing up a file whose name looks
+like a save (sav, save, profile, slot, primary, ssg, persistentgamedata) or covers none of the files that exist
+now while the current list does: the manifest is written for the Windows/Steam builds and can disagree with
+where our builds write (Caves of Qud, Strife and Isaac did). A game whose list was written by hand carries
+"data_manual": true in games/saves.json and is left alone.
+
+Why: saves are portable between devices, settings are not (docs/saves.md "Save backup"). The manifest
+(~/.config/ludusavi/manifest.yaml, maintained for thousands of games) says which path holds saves and which
+only config. This runs on demand; backups themselves never read the manifest.
+
+How a game's paths are chosen (ludusavi docs: placeholders and `when` conditions):
+- Native Linux game: entries for os linux (or without an os), roots <xdgData> <xdgConfig> <home> <base>.
+- Wine game (launcher uses ~/.wine or ~/.wine32): entries for os windows (or without os), <winAppData>,
+  <winLocalAppData>, <winLocalAppDataLow>, <winDocuments>, <home> ... inside that prefix, <base> = install folder.
+- Entries that need a store (`store: steam` userdata etc.) are skipped. A game that is not in the manifest (found
+  by its Steam app id) keeps its hand-written list.
+- When a folder is tagged both `save` and `config` it is kept whole (settings that sit with the saves come
+  along); a config-only path (or one only inside such a path) is dropped.
+"""
+import json, os, re, sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+HOME = Path.home()
+INSTALLED = HOME / "Games/installed"
+MANIFEST = HOME / ".config/ludusavi/manifest.yaml"
+sys.path.insert(0, str(REPO / "scripts"))
+
+
+def load_blocks():
+    """{steam app id: (name, text)} from the manifest, without a YAML parser (17 MB)."""
+    byid, cur, buf = {}, None, []
+
+    def flush():
+        if cur is not None:
+            t = "\n".join(buf)
+            m = re.search(r"^  steam:\n    id: (\d+)", t, re.M)
+            if m:
+                byid[m.group(1)] = (cur, t)
+    for line in MANIFEST.read_text().split("\n"):
+        if line and not line.startswith((" ", "#")) and line.endswith(":"):
+            flush()
+            cur, buf = line[:-1].strip('"'), []
+        else:
+            buf.append(line)
+    flush()
+    return byid
+
+
+def parse_files(t):
+    """[{path, tags, os, store}] of the block's `files:` section."""
+    out, cur, inside = [], None, False
+    for line in t.split("\n"):
+        if re.match(r"^  files:\s*$", line):
+            inside = True
+            continue
+        if inside and re.match(r"^  \S", line):
+            inside = False
+        if not inside:
+            continue
+        m = re.match(r'^    (?! )"?(.+?)"?:\s*$', line)
+        if m:
+            cur = {"path": m.group(1), "tags": [], "os": [], "store": []}
+            out.append(cur)
+            continue
+        if cur is None:
+            continue
+        s = line.strip()
+        if s in ("- save", "- config", "- other"):
+            cur["tags"].append(s[2:])
+        m = re.match(r"^(?:- )?os: (\w+)", s)
+        if m:
+            cur["os"].append(m.group(1))
+        m = re.match(r"^(?:- )?store: (\w+)", s)
+        if m:
+            cur["store"].append(m.group(1))
+    return out
+
+
+def run_info(slug):
+    """('native', None) or ('wine', prefix path), from the game's launcher."""
+    f = INSTALLED / slug / "gpd-launch.sh"
+    txt = f.read_text() if f.exists() else ""
+    if "wine" not in txt:
+        return "native", None
+    return "wine", (HOME / ".wine32" if ".wine32" in txt else HOME / ".wine")
+
+
+def resolver(kind, prefix, slug):
+    base = str(INSTALLED / slug)
+    if kind == "native":
+        m = {"<home>": str(HOME), "<xdgData>": str(HOME / ".local/share"), "<xdgConfig>": str(HOME / ".config"),
+             "<base>": base, "<game>": slug, "<osUserName>": HOME.name}
+    else:
+        home = f"{prefix}/drive_c/users/{HOME.name}"
+        m = {"<home>": home, "<winHome>": home, "<winAppData>": f"{home}/AppData/Roaming",
+             "<winLocalAppData>": f"{home}/AppData/Local", "<winLocalAppDataLow>": f"{home}/AppData/LocalLow",
+             "<winDocuments>": f"{home}/Documents", "<winPublic>": f"{prefix}/drive_c/users/Public",
+             "<winProgramData>": f"{prefix}/drive_c/ProgramData", "<base>": base, "<game>": slug,
+             "<osUserName>": HOME.name}
+
+    def res(p):
+        for k, v in m.items():
+            p = p.replace(k, v)
+        return None if "<" in p else p      # an unknown placeholder (e.g. <root>, <storeUserId>)
+    return res
+
+
+def propose(g, slug, blocks):
+    if str(g["appid"]) not in blocks:
+        return None, "not in the manifest"
+    kind, prefix = run_info(slug)
+    want_os = "linux" if kind == "native" else "windows"
+    res = resolver(kind, prefix, slug)
+    paths = []
+    for f in blocks[str(g["appid"])][1:] and parse_files(blocks[str(g["appid"])][1]):
+        if f["os"] and want_os not in f["os"]:
+            continue
+        if f["store"]:
+            continue
+        if "save" not in f["tags"]:
+            continue
+        p = res(f["path"])
+        if p:
+            paths.append(p)
+    # drop a path that lies inside another proposed path (the parent folder already covers it)
+    paths = sorted(set(paths))
+    keep = [p for p in paths if not any(q != p and not any(c in q for c in "*?[") and p.startswith(q + "/") for q in paths)]
+    return [p.replace(str(HOME), "~", 1) if p.startswith(str(HOME)) else p for p in keep], None
+
+
+def covered(specs):
+    """Set of real files the given "data" specs cover (what saves-backup would copy)."""
+    import importlib.machinery, importlib.util
+    l = importlib.machinery.SourceFileLoader("sb", str(REPO / "scripts/saves-backup"))
+    s = importlib.util.spec_from_loader("sb", l)
+    sb = importlib.util.module_from_spec(s)
+    l.exec_module(sb)
+    out = set()
+    for spec in specs:
+        e = sb.Entry("x", spec, Path(os.path.expanduser(spec)).name)
+        for loc, _st in e.pairs():
+            if loc.exists():
+                out |= {str(a) for _r, a in sb.files_below(loc)}
+    return out
+
+
+SAVEISH = re.compile(r"sav|profile|slot|primary|ssg|persistentgamedata", re.I)
+
+
+def main():
+    args = sys.argv[1:]
+    if "-h" in args or "--help" in args:
+        print(__doc__)
+        return 0
+    apply = "--apply" in args
+    wanted = [a for a in args if not a.startswith("--")]
+    cfgp = REPO / "games/saves.json"
+    cfg = json.loads(cfgp.read_text())
+    blocks = load_blocks()
+    ids = {}
+    for j in INSTALLED.glob("*/.gpd-game.json"):
+        ids[str(json.loads(j.read_text())["id"])] = j.parent.name
+    changed = 0
+    for g in cfg["games"]:
+        slug = ids.get(str(g["appid"]))
+        if not slug or "data" not in g:
+            continue
+        named = bool(wanted) and bool({slug, g["name"], str(g["appid"])} & set(wanted))
+        if wanted and not named:
+            continue
+        new, why = propose(g, slug, blocks)
+        print(f"== {g['name']} ({slug})")
+        if g.get("data_manual"):
+            print(f"   hand-curated, left alone: {g['data']}")
+            continue
+        if new is None:
+            print(f"   keeps its list ({why}): {g['data']}")
+            continue
+        if not new:
+            print("   manifest gives no usable save path here; keeps its list")
+            continue
+        old_files, new_files = covered(g["data"]), covered(new)
+        print("   current :", g["data"])
+        print("   proposed:", new)
+        lost = sorted(old_files - new_files)
+        gained = sorted(new_files - old_files)
+        for f in lost:
+            print("   no longer backed up:", f.replace(str(HOME), "~"))
+        for f in gained[:5]:
+            print("   newly covered      :", f.replace(str(HOME), "~"))
+        if not lost and not gained and new != g["data"]:
+            print("   (same files, different spelling)")
+        bases = [os.path.expanduser(x) for x in g["data"] if not any(c in x for c in "*?[")]
+
+        def below(f):               # the part of the path under the folder that is backed up now
+            for b in bases:
+                if f.startswith(b + "/"):
+                    return f[len(b) + 1:]
+            return Path(f).name
+        flagged = [f for f in lost if SAVEISH.search(below(f))]
+        reason = ""
+        if flagged:
+            reason = f"would drop {len(flagged)} save-looking file(s), e.g. {flagged[0].replace(str(HOME), '~')}"
+        elif old_files and not new_files:
+            reason = "covers none of the files that exist now"
+        if reason:
+            print("   FLAGGED:", reason)
+        if apply and new != g["data"]:
+            if reason and not named:
+                print("   -> skipped (flagged; name the game to write it anyway)")
+            else:
+                g["data"] = new
+                changed += 1
+    if apply:
+        cfgp.write_text(json.dumps(cfg, indent=1, ensure_ascii=False) + "\n")
+        print(f"\nwrote {changed} game list(s) to games/saves.json")
+    else:
+        print("\n(nothing changed; --apply [GAME...] writes the proposals)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

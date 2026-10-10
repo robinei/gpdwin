@@ -469,3 +469,9 @@ Details before 2026-10-06 are in `docs/archive/`.
   archive of the store is in `~/save-backups/central-store-before-unlink-*.tar.gz`; delete it when you trust the
   backup). Revert the wrappers: remove `"$HOME/gpd/scripts/game-wrap" ` from the launchers' last line;
   stop the timer: `systemctl --user disable --now saves-backup.timer`.
+- Saves only: `scripts/saves-manifest` proposes each game's `"data"` list from ludusavi's manifest (`save`-tagged paths, config
+  dropped), flags proposals that would lose save-looking files and skips `"data_manual": true` games. Applied to 10 games;
+  Caves of Qud, Strife, Isaac, Sam & Max and Commander Keen are hand-written (the manifest disagreed with our builds for
+  the first three). The backup went from 131 to 89 files (settings and logs gone); the old copies were archived in
+  `~/save-backups/store-old-layout-*.tar.gz` and removed. Two safety archives in `~/save-backups/` can be deleted when
+  you trust the backup.
