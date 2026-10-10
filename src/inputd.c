@@ -330,14 +330,15 @@ int main(void)
 
         for (int i = 3; i < nfds; i++) {
             struct input_event ev;
+            ssize_t n;
             if (!fds[i].revents)
                 continue;
-            while (read(fds[i].fd, &ev, sizeof ev) == sizeof ev) {
+            while ((n = read(fds[i].fd, &ev, sizeof ev)) == sizeof ev) {
                 if (ev.type != EV_KEY || ev.code != KEY_POWER)
                     continue;
                 if (ev.value != 0 || lid_closed || just_resumed())
                     continue;
-                /* two devices (ACPI button, gpio-keys) may report the same press: act once */
+                /* several devices may report the same press: act once */
                 struct timespec t;
                 clock_gettime(CLOCK_MONOTONIC, &t);
                 if (last_power && t.tv_sec - last_power < 2)
@@ -347,6 +348,10 @@ int main(void)
                     swaymsg("seat seat0 cursor move 0 0");
                 else
                     suspend();
+            }
+            if (n < 0 && errno != EAGAIN) { /* device gone (USB keyboard re-enumerated) */
+                close(fds[i].fd);
+                fds[i].fd = -1; /* poll ignores it */
             }
         }
     }
