@@ -41,7 +41,7 @@ description: Download box art and clean titles for ROMs in ~/Games.
 game: WiFi
 file: tools/wifi.sh
 assets.boxFront: media/wifi.png
-description: Scan and connect to WiFi networks with iwctl.
+description: WiFi status and networks in range; connect, or reset WiFi (restart iwd and the driver) when it stops finding networks.
 
 game: RetroArch
 file: tools/retroarch.sh

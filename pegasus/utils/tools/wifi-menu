@@ -1,0 +1,25 @@
+#!/bin/bash
+# Pegasus Utils "WiFi" (runs in foot, keyboard): status, what a fresh scan sees, known networks;
+# connect, rescan, reset Wi-Fi (sudo wifi-reset: restart iwd + reload the driver), iwctl shell.
+nocolor() { sed 's/\x1b\[[0-9;]*m//g'; }
+show() {
+    clear
+    iwctl station wlan0 show | nocolor | grep -E 'State|Connected network|IPv4 address'
+    echo; echo "Scanning..."
+    iwctl station wlan0 scan >/dev/null 2>&1; sleep 4
+    iwctl station wlan0 get-networks | nocolor | sed '1,4d'
+    echo "Known:"
+    iwctl known-networks list | nocolor | sed '1,4d' | awk 'NF'
+}
+show
+while :; do
+    echo
+    read -r -n1 -p "[s] scan again  [c] connect  [r] reset Wi-Fi  [i] iwctl  [q] quit: " k; echo
+    case $k in
+    s) show ;;
+    c) read -r -p "Network name: " n; [ -n "$n" ] && iwctl station wlan0 connect "$n"; sleep 2; show ;;
+    r) sudo -n /usr/local/bin/wifi-reset; sleep 2; show ;;
+    i) iwctl ;;
+    q) exit ;;
+    esac
+done

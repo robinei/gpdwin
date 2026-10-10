@@ -46,6 +46,13 @@ truth; this explains the choices.
   The desktop is `desktop.lan` (192.168.1.216).
 - iwd does DHCP itself (`/etc/iwd/main.conf`: `EnableNetworkConfiguration=true`,
   `NameResolvingService=systemd`), DNS via systemd-resolved, time via systemd-timesyncd.
+- Wi-Fi not switching networks (2026-10-10, open): after leaving home, iwd sat in `autoconnect_full`
+  for 17 min without finding the known iPhone hotspot; a reboot connected at once. Either the hotspot
+  wasn't visible to background scans (iPhones often only beacon while the hotspot screen is open) or
+  the brcmfmac firmware stopped returning scan results. Pegasus Utils "WiFi"
+  (`pegasus/utils/tools/wifi-menu`) shows what a fresh scan sees and has "reset Wi-Fi":
+  `/usr/local/bin/wifi-reset` (sudoers `23-wifi-reset`) logs what `iw` scan sees, then stops iwd,
+  reloads brcmfmac and starts iwd. Its log (`journalctl -t wifi-reset`) tells the two causes apart.
 - Timers: `fstrim.timer` (eMMC supports discard), `paccache.timer` (`-k2`), `low-battery.timer`.
 
 ## AUR policy

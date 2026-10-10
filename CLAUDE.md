@@ -35,7 +35,7 @@ The user is Robin (they/them).
 - `makepkg -s` fails under these conditions; `scripts/aur build` installs deps with
   `sudo -n pacman --asdeps` and runs makepkg without `-s`.
 - Passwordless rules: `/etc/sudoers.d/20-power` (systemctl reboot/poweroff/suspend/hibernate/
-  suspend-then-hibernate), `21-firmware-setup`. Sudoers files apply in name order, last match
+  suspend-then-hibernate), `21-firmware-setup`, `23-wifi-reset`. Sudoers files apply in name order, last match
   wins: NOPASSWD files must sort after `10-wheel`.
 
 ## Gotchas

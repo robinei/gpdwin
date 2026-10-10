@@ -1,0 +1,17 @@
+#!/bin/sh
+# Reset Wi-Fi without a reboot (Pegasus Utils "WiFi", sudoers 23-wifi-reset): stop iwd, reload the
+# brcmfmac driver (re-initialises the chip's firmware), start iwd. Before that it logs what a scan
+# sees (journalctl -t wifi-reset), to tell "networks not visible" from "scanning broken".
+log() { logger -t wifi-reset "$*"; echo "$*"; }
+seen=$(iw dev wlan0 scan 2>&1 || iw dev wlan0 scan dump 2>&1)
+log "before reset: $(echo "$seen" | grep -c '^BSS ') BSSes; SSIDs: $(echo "$seen" | sed -n 's/^\s*SSID: //p' | sort -u | tr '\n' ',' | head -c 400)"
+log "iwd: $(iwctl station wlan0 show 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E 'State|Connected network' | tr -s ' ' | tr '\n' ';')"
+systemctl stop iwd
+modprobe -r brcmfmac_wcc brcmfmac && modprobe brcmfmac || log "driver reload failed"
+systemctl start iwd
+for i in $(seq 20); do
+    sleep 1
+    st=$(iwctl station wlan0 show 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -E 'Connected network' | tr -s ' ')
+    [ -n "$st" ] && break
+done
+log "after reset: ${st:-not connected after 20 s}"

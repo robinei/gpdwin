@@ -48,6 +48,7 @@ copy	system/etc/sudoers.d/10-global-timestamp	/etc/sudoers.d/10-global-timestamp
 copy	system/etc/sudoers.d/10-wheel	/etc/sudoers.d/10-wheel	root:root:0440
 copy	system/etc/sudoers.d/20-power	/etc/sudoers.d/20-power	root:root:0440
 copy	system/etc/sudoers.d/21-firmware-setup	/etc/sudoers.d/21-firmware-setup	root:root:0440
+copy	system/etc/sudoers.d/23-wifi-reset	/etc/sudoers.d/23-wifi-reset	root:root:0440
 copy	system/etc/systemd/sleep.conf.d/handheld.conf	/etc/systemd/sleep.conf.d/handheld.conf	root:root:0644
 copy	system/etc/systemd/logind.conf.d/handheld.conf	/etc/systemd/logind.conf.d/handheld.conf	root:root:0644
 copy	system/etc/systemd/coredump.conf.d/90-gpd.conf	/etc/systemd/coredump.conf.d/90-gpd.conf	root:root:0644
@@ -69,6 +70,7 @@ copy	system/etc/ssh/sshd_config.d/10-keys-only.conf	/etc/ssh/sshd_config.d/10-ke
 copy	system/etc/pacman.conf	/etc/pacman.conf	root:root:0644
 copy	system/etc/conf.d/pacman-contrib	/etc/conf.d/pacman-contrib	root:root:0644
 copy	system/usr/local/bin/low-battery-hibernate	/usr/local/bin/low-battery-hibernate	root:root:0755
+copy	system/usr/local/bin/wifi-reset	/usr/local/bin/wifi-reset	root:root:0755
 copy	system/usr/lib/systemd/system-sleep/backlight	/usr/lib/systemd/system-sleep/backlight	root:root:0755
 copy	system/usr/lib/systemd/system-sleep/pmic-charger	/usr/lib/systemd/system-sleep/pmic-charger	root:root:0755
 copy	system/usr/lib/systemd/system-sleep/resume-time	/usr/lib/systemd/system-sleep/resume-time	root:root:0755
