@@ -32,18 +32,23 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   emulator (Isaac has the file only in `steam_settings/`, not yet checked).
   Unepic and the gamepad (2026-10-10): the game reads the raw SDL joystick API once per frame into one table
   of "pressed" flags (slots 0-3 D-pad hat as left, right, bit 2, bit 0; then two per axis; then the buttons
-  from slot 16, A=16 B=17 X=18 Y=19 LB=20 RB=21 Back=22 Start=23) and each action (`padMap_N` in its cloud
-  `config.cfg`) names one slot. Problems on an Xbox 360 pad and the fix, `games/shims/padshim.c`
-  (LD_PRELOAD, built to `~/Games/tools/shim/padshim.so`, set in Unepic's `gpd-launch.sh`):
-  triggers rest at -32768 (the game saw them as always pressed and ignored the pad; shim rescales them to
-  0..32767), D-pad up and down are swapped (`PADSHIM_SWAP_HAT_UD=1`), the default bindings assume
-  Windows' axis order LX LY RX RY LT RT (`PADSHIM_XINPUT_LAYOUT=1`; the right stick is unused in menus).
-  Result: D-pad and left stick navigate, B goes back. Still open: A, X and Y do nothing in menus (A has no
-  action in the default `padMap`), and the game's own pad-rebinding prompt never accepts A, X or Y (the table
-  shows the presses, but nothing ever writes `padMap`; B closes the dialog). Method that worked: a
-  small LD_PRELOAD logger for the SDL joystick calls and `sudo gdb -p` with breakpoints (no PIE: addresses
-  are fixed; `ptrace_scope` is 1, so attaching needs sudo). Launch the game from shelf when testing:
-  shelf ignores the pad only for games it started itself, otherwise it reacts to pad presses (it launched
+  from slot 16: A=16 B=17 X=18 Y=19 LB=20 RB=21 Back=22 Start=23 Guide=24 L3=25 R3=26 on an Xbox 360 pad),
+  and each action (`padMap_N` in its cloud `config.cfg`, value = slot + 1) names one slot. It never asks Steam
+  about the controller (no ISteamController/Input) and ignores the axis/button/hat counts when opening the
+  pad, so there is no pad-type detection: the layouts are hard-coded and inconsistent (the controller dialog
+  uses PlayStation icons, the quick-slot bar Xbox ones). Problems on an Xbox 360 pad and the fix,
+  `games/shims/padshim.c` (LD_PRELOAD, built to `~/Games/tools/shim/padshim.so`, set in Unepic's
+  `gpd-launch.sh`): triggers rest at -32768 (the game saw them as always pressed and ignored the pad; shim
+  rescales them to 0..32767), D-pad up and down are swapped (`PADSHIM_SWAP_HAT_UD=1`), the default bindings
+  assume Windows' axis order LX LY RX RY LT RT (`PADSHIM_XINPUT_LAYOUT=1`; the right stick is unused in
+  menus). Result: D-pad and left stick navigate, B goes back. Still open: A, X and Y do nothing in menus, and
+  the game's pad-rebinding prompt never accepts A, B, X, Y, LB or RB (it does take Back, shown as the PS
+  cross icon, Start as circle, LT as "dpad down", RT as "dpad right"; nothing is written to `padMap` until
+  the dialog is confirmed). Method that worked: a small LD_PRELOAD logger for the SDL joystick calls and
+  `sudo gdb -p` with breakpoints/watchpoints (no PIE: addresses are fixed; `ptrace_scope` is 1, so attaching
+  needs sudo). An attempt to swap A/B/X/Y with Back/Start/Guide/L3 (so the face buttons land where the
+  dialog captures) was dropped before testing: it would move A/B/X/Y away from the slots the defaults use.
+  Launch the game from shelf when testing: shelf ignores the pad only for games it started itself, otherwise it reacts to pad presses (it launched
   other games while Unepic was in front). Found with gdb: break on the fault, read the stack/registers, disassemble the caller.
   Games wrapped in Valve's Steam DRM (a `.bind` ELF section, SteamStub; test with `readelf -SW BINARY |
   grep .bind`), e.g. The Binding of Isaac: Rebirth (250900): first unpack the 64-bit binary with
