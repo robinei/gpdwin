@@ -2,6 +2,8 @@ collection: Utilities
 shortname: utils
 summary: System tools and settings
 launch: "{file.path}"
+# shelf: tools (gear tab, icon-sized art, not in Recent); Pegasus ignores x- keys
+x-shelf-kind: tools
 
 game: Games
 file: tools/games.sh

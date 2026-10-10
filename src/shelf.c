@@ -2,7 +2,7 @@
  * shelf: a lightweight game launcher that reads and writes Pegasus Frontend's files, so the two can be
  * swapped at any time (docs/frontend.md "shelf").
  *
- * Data, all shared with Pegasus (exact rules: docs/pegasus-format.md):
+ * Data, shared with Pegasus (exact rules: docs/pegasus-format.md):
  *   ~/.config/pegasus-frontend/game_dirs.txt          game dirs (read)
  *   <game dir>/metadata.pegasus.txt (and variants)     collections, games, launch commands (read)
  *   <game dir>/media/<file stem or title>/boxFront.*   box art (read)
@@ -10,22 +10,34 @@
  *                                                      written with Pegasus' exact SQL
  *   ~/.config/pegasus-frontend/favorites.txt           favourites (read; rewritten in Pegasus' format)
  *   ~/.config/pegasus-frontend/theme_settings/pegasus-theme-grid.json
- *                                                      last collection + game (read at start, written
- *                                                      at launch, so either frontend opens on it)
+ *                                                      last launched collection + game (both frontends)
  * Paths are cleaned lexically and never symlink-resolved, like Pegasus, so stats and favourites match.
+ * shelf's own: ~/.local/state/shelf/last (where you were), ~/.local/share/shelf/logos/ (tab logos).
  *
  * UI: collections as tabs on top ("Recent" and "Favourites" first), games as a list on the left,
  * box art and details on the right. No animations; it draws only when something changed, so it
- * sleeps while untouched. After a game (or utility) exits it rescans the metadata, so new games show
- * up without a restart.
+ * sleeps while untouched. After a game (or tool) exits it rescans the metadata, so new games show up
+ * without a restart.
  *
- * Input: keyboard through SDL. The gamepad is read directly from evdev in a thread (inotify for
- * hotplug), not through SDL's gamepad layer: with a joystick open SDL polls about every millisecond,
- * and the pad disconnects whenever the screen goes off. Pad: d-pad/stick up/down move (held: repeat),
- * left/right switch collection, LB/RB or triggers page (held: repeat), A launch, Y favourite.
- * Keys: arrows, Page Up/Down, Home/End, Tab/Shift+Tab, Enter launch, F favourite.
+ * Window: its own small Wayland client (xdg-shell, wl_shm) with SDL's software renderer drawing into
+ * a plain surface; SDL's video subsystem isn't used, because its Wayland backend loads EGL/Mesa even
+ * to show a software frame. Box art and logos are decoded by a background thread.
  *
- * Options: --list prints what was found (no window) and exits.
+ * Input: keyboard from Wayland (raw evdev codes, only while focused). The gamepad is read directly
+ * from evdev in a thread (inotify for hotplug), not through SDL's gamepad layer: with a joystick open
+ * SDL polls about every millisecond, and the pad disconnects whenever the screen goes off.
+ *   pad:  d-pad/stick up/down move, LB/RB or triggers page (held: repeat), d-pad left/right switch
+ *         collection, A launch, Y favourite
+ *   keys: arrows, Page Up/Down, Home/End, Tab/Shift+Tab, Enter launch, F favourite
+ *
+ * Threads (pad, image loader, game waiter) and signal handlers send messages to the main loop over a
+ * pipe, which it poll()s together with the Wayland socket.
+ *
+ * Sections: helpers, data model, metadata parser, scanning (+ stats, favourites), theme memory,
+ * launching, gamepad, UI (image loader, drawing, actions), Wayland window, main.
+ *
+ * Options: --list prints what was found (no window) and exits. Testing without a display:
+ * SHELF_SCREENSHOT=x.png [SHELF_KEYS=...] (see main). SHELF_TIMING=1: startup timings on stderr.
  *
  * Built by `scripts/sync install` (manifest "build" entry with pkg-config packages); started by
  * dotfiles/pegasus-frontend/run when ~/.config/gpd/frontend says "shelf".
@@ -46,19 +58,18 @@
 #include <string.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <sys/mman.h>
-#include <wayland-client.h>
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <sqlite3.h>
 #include <unicode/ucol.h>
+#include <wayland-client.h>
 
 #define JSMN_STATIC
 #include "vendor/jsmn.h"
@@ -87,6 +98,16 @@ static void *xmalloc(size_t n)
 static void *xrealloc(void *p, size_t n)
 {
     p = realloc(p, n);
+    if (!p) {
+        fprintf(stderr, "shelf: out of memory\n");
+        exit(1);
+    }
+    return p;
+}
+
+static void *xcalloc(size_t n, size_t size)
+{
+    void *p = calloc(n, size);
     if (!p) {
         fprintf(stderr, "shelf: out of memory\n");
         exit(1);
@@ -350,7 +371,8 @@ struct Collection {
     char *name, *shortname, *launch, *workdir, *basedir, *summary, *boxfront;
     Game **games;
     int ngames, cap;
-    bool virtual_;
+    bool virtual_; /* Recent, Favourites */
+    bool tools;    /* x-shelf-kind: tools (Utilities): kept out of Recent, icon-sized art, gear tab */
 };
 
 typedef struct {
@@ -358,18 +380,12 @@ typedef struct {
     StrList dirs, exts;
 } Filter;
 
+/* String -> Game hash map (open addressing). The first value put for a key stays. */
 typedef struct {
-    Game **games;
-    int ngames, gcap;
-    Collection **colls; /* real collections, sorted */
-    int ncolls, ccap;
-    Filter *filters;
-    int nfilters, fcap;
-    /* file path -> game */
-    char **map_keys;
-    Game **map_vals;
-    size_t map_cap, map_n;
-} Library;
+    char **keys;
+    Game **vals;
+    size_t cap, n;
+} Map;
 
 static unsigned long hash_str(const char *s)
 {
@@ -379,79 +395,76 @@ static unsigned long hash_str(const char *s)
     return h;
 }
 
-static void map_put(char ***keys, Game ***vals, size_t *cap, size_t *n, const char *k, Game *g, bool keep_first);
+static void map_put(Map *m, const char *k, Game *g);
 
-static void map_grow(char ***keys, Game ***vals, size_t *cap, size_t *n)
+static void map_grow(Map *m)
 {
-    size_t oc = *cap;
-    char **ok = *keys;
-    Game **ov = *vals;
-    *cap = oc ? oc * 2 : 256;
-    *keys = calloc(*cap, sizeof **keys);
-    *vals = calloc(*cap, sizeof **vals);
-    if (!*keys || !*vals) {
-        fprintf(stderr, "shelf: out of memory\n");
-        exit(1);
-    }
-    *n = 0;
-    for (size_t i = 0; i < oc; i++)
-        if (ok[i]) {
-            map_put(keys, vals, cap, n, ok[i], ov[i], true);
-            free(ok[i]);
+    Map old = *m;
+    m->cap = old.cap ? old.cap * 2 : 256;
+    m->keys = xcalloc(m->cap, sizeof *m->keys);
+    m->vals = xcalloc(m->cap, sizeof *m->vals);
+    m->n = 0;
+    for (size_t i = 0; i < old.cap; i++)
+        if (old.keys[i]) {
+            map_put(m, old.keys[i], old.vals[i]);
+            free(old.keys[i]);
         }
-    free(ok);
-    free(ov);
+    free(old.keys);
+    free(old.vals);
 }
 
-static void map_put(char ***keys, Game ***vals, size_t *cap, size_t *n, const char *k, Game *g, bool keep_first)
+static void map_put(Map *m, const char *k, Game *g)
 {
-    if ((*n + 1) * 2 > *cap)
-        map_grow(keys, vals, cap, n);
-    size_t i = hash_str(k) & (*cap - 1);
-    while ((*keys)[i]) {
-        if (strcmp((*keys)[i], k) == 0) {
-            if (!keep_first)
-                (*vals)[i] = g;
+    if ((m->n + 1) * 2 > m->cap)
+        map_grow(m);
+    size_t i = hash_str(k) & (m->cap - 1);
+    while (m->keys[i]) {
+        if (strcmp(m->keys[i], k) == 0)
             return;
-        }
-        i = (i + 1) & (*cap - 1);
+        i = (i + 1) & (m->cap - 1);
     }
-    (*keys)[i] = xstrdup(k);
-    (*vals)[i] = g;
-    (*n)++;
+    m->keys[i] = xstrdup(k);
+    m->vals[i] = g;
+    m->n++;
 }
 
-static Game *map_get(char **keys, Game **vals, size_t cap, const char *k)
+static Game *map_get(const Map *m, const char *k)
 {
-    if (!cap)
+    if (!m->cap)
         return NULL;
-    size_t i = hash_str(k) & (cap - 1);
-    while (keys[i]) {
-        if (strcmp(keys[i], k) == 0)
-            return vals[i];
-        i = (i + 1) & (cap - 1);
-    }
+    for (size_t i = hash_str(k) & (m->cap - 1); m->keys[i]; i = (i + 1) & (m->cap - 1))
+        if (strcmp(m->keys[i], k) == 0)
+            return m->vals[i];
     return NULL;
 }
 
-static void map_free(char **keys, Game **vals, size_t cap)
+static void map_free(Map *m)
 {
-    for (size_t i = 0; i < cap; i++)
-        free(keys[i]);
-    free(keys);
-    free(vals);
+    for (size_t i = 0; i < m->cap; i++)
+        free(m->keys[i]);
+    free(m->keys);
+    free(m->vals);
+    memset(m, 0, sizeof *m);
 }
+
+typedef struct {
+    Game **games;
+    int ngames, gcap;
+    Collection **colls; /* real collections, sorted */
+    int ncolls, ccap;
+    Filter *filters;
+    int nfilters, fcap;
+    Map files; /* clean absolute file path -> its game */
+} Library;
 
 static Game *lib_file_game(Library *L, const char *path)
 {
-    return map_get(L->map_keys, L->map_vals, L->map_cap, path);
+    return map_get(&L->files, path);
 }
 
 static Game *new_game(Library *L, const char *title)
 {
-    Game *g = calloc(1, sizeof *g);
-    if (!g)
-        exit(1);
+    Game *g = xcalloc(1, sizeof *g);
     g->players = 1;
     if (title) {
         g->title = xstrdup(title);
@@ -510,7 +523,7 @@ static void lib_free(Library *L)
         sl_free(&L->filters[i].exts);
     }
     free(L->filters);
-    map_free(L->map_keys, L->map_vals, L->map_cap);
+    map_free(&L->files);
     memset(L, 0, sizeof *L);
 }
 
@@ -519,9 +532,7 @@ static Collection *get_collection(Library *L, const char *name)
     for (int i = 0; i < L->ncolls; i++)
         if (strcmp(L->colls[i]->name, name) == 0)
             return L->colls[i];
-    Collection *c = calloc(1, sizeof *c);
-    if (!c)
-        exit(1);
+    Collection *c = xcalloc(1, sizeof *c);
     c->name = xstrdup(name);
     if (L->ncolls == L->ccap) {
         L->ccap = L->ccap ? L->ccap * 2 : 8;
@@ -561,7 +572,7 @@ static void game_add_to(Game *g, Collection *c)
 static void game_add_file(Library *L, Game *g, const char *path)
 {
     sl_add(&g->files, path);
-    map_put(&L->map_keys, &L->map_vals, &L->map_cap, &L->map_n, path, g, true);
+    map_put(&L->files, path, g);
 }
 
 /* GameFile pretty name: completeBaseName with '_' and '.' as spaces. */
@@ -728,8 +739,11 @@ static void dispatch(ParseState *ps, const char *key, StrList *vals)
         warn("%s: '%s' before any collection or game, ignored", ps->path, key);
         return;
     }
-    if (strncmp(key, "x-", 2) == 0)
-        return; /* extras: not shown */
+    if (strncmp(key, "x-", 2) == 0) { /* extras: Pegasus keeps and ignores them */
+        if (!ps->game && !strcmp(key, "x-shelf-kind"))
+            ps->coll->tools = vals->v[0] && !strcmp(vals->v[0], "tools");
+        return;
+    }
     const char *dot = strchr(key, '.');
     if (dot && (strncmp(key, "assets.", 7) == 0 || strncmp(key, "asset.", 6) == 0)) {
         if (!is_boxfront_name(dot + 1))
@@ -1021,8 +1035,7 @@ static void run_filter(Library *L, Filter *f)
 }
 
 /* media/<file stem or title>/boxFront.{png,jpg,webp,apng} */
-static void scan_media(Library *L, char ***keys, Game ***vals, size_t *cap, const char *root, const char *base,
-                       const char *dir, int depth)
+static void scan_media(const Map *by_name, const char *root, const char *base, const char *dir, int depth)
 {
     if (depth > 16)
         return;
@@ -1037,7 +1050,7 @@ static void scan_media(Library *L, char ***keys, Game ***vals, size_t *cap, cons
         struct stat st;
         if (stat(p, &st) == 0) {
             if (S_ISDIR(st.st_mode)) {
-                scan_media(L, keys, vals, cap, root, base, p, depth + 1);
+                scan_media(by_name, root, base, p, depth + 1);
             } else if (S_ISREG(st.st_mode)) {
                 const char *suf = suffix_of(p);
                 char *stem = stem_of(p);
@@ -1045,7 +1058,7 @@ static void scan_media(Library *L, char ***keys, Game ***vals, size_t *cap, cons
                                                !strcmp(suf, "webp") || !strcmp(suf, "apng"))) {
                     /* key: the file's dir with the media root replaced by its parent */
                     char *key = fmt("%s%s", base, dir + strlen(root));
-                    Game *g = map_get(*keys, *vals, *cap, key);
+                    Game *g = map_get(by_name, key);
                     if (g && !g->boxfront)
                         g->boxfront = clean_path(p);
                     free(key);
@@ -1060,19 +1073,17 @@ static void scan_media(Library *L, char ***keys, Game ***vals, size_t *cap, cons
 
 static void find_media(Library *L)
 {
-    char **keys = NULL;
-    Game **vals = NULL;
-    size_t cap = 0, n = 0;
+    Map by_name = { 0 }; /* "<file's dir>/<file stem>" and "<file's dir>/<title>" -> game */
     for (int i = 0; i < L->ngames; i++) {
         Game *g = L->games[i];
         for (int k = 0; k < g->files.n; k++) {
             char *dir = dir_of(g->files.v[k]);
             char *stem = stem_of(g->files.v[k]);
             char *a = fmt("%s/%s", dir, stem);
-            map_put(&keys, &vals, &cap, &n, a, g, true);
+            map_put(&by_name, a, g);
             if (g->title) {
                 char *b = fmt("%s/%s", dir, g->title);
-                map_put(&keys, &vals, &cap, &n, b, g, true);
+                map_put(&by_name, b, g);
                 free(b);
             }
             free(a);
@@ -1089,23 +1100,25 @@ static void find_media(Library *L)
         for (int k = 0; k < 2; k++) {
             char *root = fmt("%s/%s", roots.v[i], names[k]);
             if (is_dir(root))
-                scan_media(L, &keys, &vals, &cap, root, roots.v[i], root, 0);
+                scan_media(&by_name, root, roots.v[i], root, 0);
             free(root);
         }
     }
     sl_free(&roots);
-    map_free(keys, vals, cap);
+    map_free(&by_name);
 }
 
 static UCollator *collator;
 
-/* SHELF_TIMING=1: startup milestones on stderr (ms since process start) */
+/* SHELF_TIMING=1: startup milestones and image decode times on stderr */
+static bool timing;
+/* SHELF_SCREENSHOT: rendering without a window for tests; nothing is saved */
+static bool headless;
+
+/* A startup milestone (ms since the process started). */
 static void mark(const char *what)
 {
-    static int on = -1;
-    if (on < 0)
-        on = getenv("SHELF_TIMING") != NULL;
-    if (on) {
+    if (timing) {
         struct timespec t;
         clock_gettime(CLOCK_BOOTTIME, &t);
         static double t0;
@@ -1544,7 +1557,6 @@ typedef struct {
     pid_t pid;
     Game *game;
     long long start;
-    int fail_fd;
 } Running;
 
 /* Threads (pad, image loader, game waiter) and signal handlers talk to the main loop through this
@@ -1604,6 +1616,23 @@ static bool launch(Running *r, Game *g)
     } else {
         wd = dir_of(strchr(argv[0], '/') ? argv[0] : file);
     }
+    /* The game's environment: ours, plus the MangoHud preload that `run` keeps for games only (in
+     * shelf it would load Mesa). Built before fork: shelf has threads, so between fork and exec
+     * the child may only make async-signal-safe calls (no malloc, no setenv). */
+    extern char **environ;
+    const char *pre = getenv("SHELF_GAME_LD_PRELOAD");
+    int nenv = 0;
+    while (environ[nenv])
+        nenv++;
+    char **envp = xmalloc((nenv + 2) * sizeof *envp), *preload = pre && *pre ? fmt("LD_PRELOAD=%s", pre) : NULL;
+    int ne = 0;
+    for (int i = 0; i < nenv; i++)
+        if (!preload || strncmp(environ[i], "LD_PRELOAD=", 11) != 0)
+            envp[ne++] = environ[i];
+    if (preload)
+        envp[ne++] = preload;
+    envp[ne] = NULL;
+
     int pfd[2];
     if (pipe2(pfd, O_CLOEXEC) < 0)
         pfd[0] = pfd[1] = -1;
@@ -1613,11 +1642,7 @@ static bool launch(Running *r, Game *g)
         sigemptyset(&none);
         sigprocmask(SIG_SETMASK, &none, NULL);
         if (chdir(wd) != 0) { /* like QProcess: start anyway */ }
-        /* run keeps the MangoHud preload for games only (it would load Mesa into shelf) */
-        const char *pre = getenv("SHELF_GAME_LD_PRELOAD");
-        if (pre && *pre)
-            setenv("LD_PRELOAD", pre, 1);
-        execvp(argv[0], argv);
+        execvpe(argv[0], argv, envp);
         int e = errno;
         if (pfd[1] >= 0 && write(pfd[1], &e, sizeof e) < 0) { /* nothing to do */ }
         _exit(127);
@@ -1638,6 +1663,8 @@ static bool launch(Running *r, Game *g)
     }
     if (pfd[0] >= 0)
         close(pfd[0]);
+    free(envp);
+    free(preload);
     if (ok) {
         r->pid = pid;
         r->game = g;
@@ -1858,15 +1885,14 @@ typedef struct {
     bool running;
     int held; /* repeating action */
     Uint64 next_repeat;
-    Uint64 last_move;
     bool dirty;
     const char *starting; /* title shown as "Starting ..." while a launch is on its way */
     Uint64 save_due;      /* when to save the position (after moving stops); 0: saved */
 } App;
 
-/* ---- image loader thread: decode + scale off the UI thread; the UI makes the texture ----
- * The UI rebuilds the wish list on every frame (large art of the selected game first, then the
- * visible thumbnails), so stale requests from fast scrolling are simply dropped. */
+/* ---- image loader thread: decodes and scales box art and logos off the UI thread; the UI makes
+ * the textures. The UI rebuilds the wish list on every frame (large art of the selected game first,
+ * then logos and visible thumbnails), so stale requests from fast scrolling are simply dropped. */
 enum { IMG_THUMB, IMG_BIG, IMG_LOGO };
 typedef struct {
     char *path;
@@ -1887,7 +1913,6 @@ static struct {
     ImgReq busy; /* being decoded (path NULL: idle) */
     bool quit;
 } loader;
-
 
 /* A logo: the SVG rendered LOGO-high (or max_w wide if that is too wide), made white with its
  * alpha as the shape, so the UI can tint it. */
@@ -1946,7 +1971,7 @@ static SDL_Surface *decode_image(const char *path, int max_w, int max_h)
             s = t;
         }
     }
-    if (getenv("SHELF_TIMING"))
+    if (timing)
         fprintf(stderr, "shelf: image %dx%d: decode %.1f ms, convert+scale %.1f ms (%s)\n", s->w, s->h,
                 (t1 - t0) / 1e6, (SDL_GetTicksNS() - t1) / 1e6, name_of(path));
     return s;
@@ -1986,22 +2011,42 @@ static void loader_clear(void)
     SDL_UnlockMutex(loader.lock);
 }
 
-static void loader_want(const char *path, int max_w, int max_h, int kind)
+/* Ask for an image; urgent ones go to the front of the queue. */
+static void loader_want(const char *path, int max_w, int max_h, int kind, bool urgent)
 {
     SDL_LockMutex(loader.lock);
     bool dup = loader.busy.path && loader.busy.max_w == max_w && !strcmp(loader.busy.path, path);
     for (int i = 0; !dup && i < loader.n; i++)
         dup = loader.queue[i].max_w == max_w && !strcmp(loader.queue[i].path, path);
     if (!dup && loader.n < (int)SDL_arraysize(loader.queue)) {
-        loader.queue[loader.n++] = (ImgReq){ xstrdup(path), max_w, max_h, kind };
+        ImgReq r = { xstrdup(path), max_w, max_h, kind };
+        if (urgent) {
+            memmove(loader.queue + 1, loader.queue, loader.n * sizeof *loader.queue);
+            loader.queue[0] = r;
+            loader.n++;
+        } else {
+            loader.queue[loader.n++] = r;
+        }
         SDL_SignalCondition(loader.cond);
     }
     SDL_UnlockMutex(loader.lock);
 }
 
-/* Image cache: thumbs (many, small) and bigs (few, large); least recently used is evicted. */
-static ImgEntry *cache_get(App *a, ImgEntry *tab, int n, const char *path, int max)
+/* Image caches, one per kind: thumbs (many, small), bigs (few, large), logos. The least recently
+ * used entry is evicted. */
+static ImgEntry *cache_table(App *a, int kind, int *n)
 {
+    switch (kind) {
+    case IMG_BIG: *n = SDL_arraysize(a->bigs); return a->bigs;
+    case IMG_LOGO: *n = SDL_arraysize(a->logos); return a->logos;
+    default: *n = SDL_arraysize(a->thumbs); return a->thumbs;
+    }
+}
+
+static ImgEntry *cache_get(App *a, int kind, const char *path, int max)
+{
+    int n;
+    ImgEntry *tab = cache_table(a, kind, &n);
     for (int i = 0; i < n; i++)
         if (tab[i].path && tab[i].max == max && strcmp(tab[i].path, path) == 0) {
             tab[i].used = ++a->tick;
@@ -2013,10 +2058,8 @@ static ImgEntry *cache_get(App *a, ImgEntry *tab, int n, const char *path, int m
 /* A decoded image arrived: make the texture (failures are cached too, so they aren't retried). */
 static void cache_put(App *a, ImgResult *res)
 {
-    ImgEntry *tab = res->req.kind == IMG_BIG ? a->bigs : res->req.kind == IMG_LOGO ? a->logos : a->thumbs;
-    int n = res->req.kind == IMG_BIG ? (int)SDL_arraysize(a->bigs)
-          : res->req.kind == IMG_LOGO ? (int)SDL_arraysize(a->logos) : (int)SDL_arraysize(a->thumbs);
-    ImgEntry *lru = &tab[0];
+    int n;
+    ImgEntry *tab = cache_table(a, res->req.kind, &n), *lru = &tab[0];
     for (int i = 0; i < n; i++)
         if (!tab[i].path || tab[i].used < lru->used)
             lru = &tab[i];
@@ -2034,13 +2077,17 @@ static void cache_put(App *a, ImgResult *res)
     free(res);
 }
 
-static void cache_clear(ImgEntry *tab, int n)
+static void cache_clear(App *a)
 {
-    for (int i = 0; i < n; i++) {
-        free(tab[i].path);
-        if (tab[i].tex)
-            SDL_DestroyTexture(tab[i].tex);
-        memset(&tab[i], 0, sizeof tab[i]);
+    for (int kind = IMG_THUMB; kind <= IMG_LOGO; kind++) {
+        int n;
+        ImgEntry *tab = cache_table(a, kind, &n);
+        for (int i = 0; i < n; i++) {
+            free(tab[i].path);
+            if (tab[i].tex)
+                SDL_DestroyTexture(tab[i].tex);
+            memset(&tab[i], 0, sizeof tab[i]);
+        }
     }
 }
 
@@ -2063,13 +2110,10 @@ static void fill(App *a, SDL_Color c, float x, float y, float w, float h)
 }
 
 /* Draws text; returns its height. wrap > 0 wraps at that width. */
-static int text(App *a, TTF_Font *f, const char *s, SDL_Color c, float x, float y, int wrap, int *out_w)
+static int text(App *a, TTF_Font *f, const char *s, SDL_Color c, float x, float y, int wrap)
 {
-    if (!s || !*s) {
-        if (out_w)
-            *out_w = 0;
+    if (!s || !*s)
         return 0;
-    }
     TTF_Text *t = TTF_CreateText(a->eng, f, s, 0);
     if (!t)
         return 0;
@@ -2080,8 +2124,6 @@ static int text(App *a, TTF_Font *f, const char *s, SDL_Color c, float x, float 
     TTF_GetTextSize(t, &w, &h);
     TTF_DrawRendererText(t, x, y);
     TTF_DestroyText(t);
-    if (out_w)
-        *out_w = w;
     return h;
 }
 
@@ -2090,6 +2132,25 @@ static int text_width(TTF_Font *f, const char *s)
     int w = 0, h = 0;
     TTF_GetStringSize(f, s, 0, &w, &h);
     return w;
+}
+
+/* Layout (px). The list rows stretch to fill the height exactly (see draw_list). */
+#define TAB_H 64       /* tab bar height */
+#define TAB_PAD 20     /* space left and right of a tab's logo/symbol/name */
+#define ROW_NOMINAL 52 /* list row height before stretching */
+#define THUMB 40       /* list thumbnail box */
+#define PAGE 8         /* rows per page up/down */
+#define SYM_RECENT "◷"
+#define SYM_FAVS "★"
+#define SYM_TOOLS "⚙"
+
+/* Tools (a collection with x-shelf-kind: tools) are shown with icon-sized art. */
+static bool is_tool(const Game *g)
+{
+    for (int i = 0; i < g->ncolls; i++)
+        if (g->colls[i]->tools)
+            return true;
+    return false;
 }
 
 static Collection *cur_coll(App *a)
@@ -2116,14 +2177,13 @@ static void build_tabs(App *a)
     free(a->favs.games);
     a->recent = (Collection){ .name = "Recent", .virtual_ = true };
     a->favs = (Collection){ .name = "Favourites", .virtual_ = true };
-    for (int i = 0; i < L->ncolls; i++) /* games in a collection: each once */
+    for (int i = 0; i < L->ncolls; i++) /* every game once (in its first collection) */
         for (int k = 0; k < L->colls[i]->ngames; k++) {
             Game *g = L->colls[i]->games[k];
             if (g->colls[0] != L->colls[i])
                 continue;
-            /* Recent is for games: the Utilities tools (shortname utils) stay out of it */
-            bool tool = !strcmp(g->colls[0]->shortname, "utils") && g->ncolls == 1;
-            Collection *v[2] = { g->last_played && !tool ? &a->recent : NULL, g->favorite ? &a->favs : NULL };
+            /* Recent is for games: tools stay out of it */
+            Collection *v[2] = { g->last_played && !is_tool(g) ? &a->recent : NULL, g->favorite ? &a->favs : NULL };
             for (int j = 0; j < 2; j++)
                 if (v[j]) {
                     if (v[j]->ngames == v[j]->cap) {
@@ -2133,12 +2193,10 @@ static void build_tabs(App *a)
                     v[j]->games[v[j]->ngames++] = g;
                 }
         }
-    if (a->recent.ngames)
-        qsort(a->recent.games, a->recent.ngames, sizeof(Game *), cmp_recent);
+    sort(a->recent.games, a->recent.ngames, sizeof(Game *), cmp_recent);
     if (a->recent.ngames > RECENT_MAX)
         a->recent.ngames = RECENT_MAX;
-    if (a->favs.ngames)
-        qsort(a->favs.games, a->favs.ngames, sizeof(Game *), cmp_game);
+    sort(a->favs.games, a->favs.ngames, sizeof(Game *), cmp_game);
     free(a->tabs);
     free(a->sel);
     free(a->top);
@@ -2150,8 +2208,8 @@ static void build_tabs(App *a)
         a->tabs[a->ntabs++] = &a->favs;
     for (int i = 0; i < L->ncolls; i++)
         a->tabs[a->ntabs++] = L->colls[i];
-    a->sel = calloc(a->ntabs + 1, sizeof *a->sel);
-    a->top = calloc(a->ntabs + 1, sizeof *a->top);
+    a->sel = xcalloc(a->ntabs + 1, sizeof *a->sel);
+    a->top = xcalloc(a->ntabs + 1, sizeof *a->top);
     a->tab = 0;
 }
 
@@ -2205,7 +2263,7 @@ static void save_state(App *a)
     a->save_due = 0;
     Collection *c = cur_coll(a);
     Game *g = cur_game(a);
-    if (!c || !g || getenv("SHELF_SCREENSHOT"))
+    if (!c || !g || headless)
         return;
     char *path = state_path(), *dir = dir_of(path), *parent = dir_of(dir);
     mkdir(parent, 0755);
@@ -2257,7 +2315,6 @@ static void move(App *a, int d)
     if (s >= c->ngames)
         s = d > 1 ? c->ngames - 1 : 0;
     a->sel[a->tab] = s;
-    a->last_move = SDL_GetTicks();
     a->dirty = true;
     moved(a);
 }
@@ -2267,7 +2324,6 @@ static void switch_tab(App *a, int d)
     if (!a->ntabs)
         return;
     a->tab = (a->tab + d + a->ntabs) % a->ntabs;
-    a->last_move = 0;
     a->dirty = true;
     moved(a);
 }
@@ -2306,73 +2362,60 @@ static void join(char *b, size_t n, const StrList *l)
     }
 }
 
-static int render(App *a)
+/* Tabs: a logo per collection (shelf/logos/<shortname>.svg), a symbol for Recent, Favourites and
+ * tools, the name otherwise (also until the logo has loaded). The selected one is highlighted over
+ * the full bar height; the bar scrolls left if the selected tab would be off screen. */
+static void draw_tabs(App *a, int W)
 {
-    int W = a->W, H = a->H;
-    loader_clear(); /* rebuilt below: what this frame still lacks */
-    int need_more = 0; /* ms until something else should be drawn (0: nothing pending) */
-    fill(a, P.base, 0, 0, W, H);
-
-    /* tabs: a logo per collection (shelf/logos/<shortname>.svg), a symbol for Recent, Favourites
-     * and Utilities, the name otherwise. The selected one is highlighted over the full height. */
-    const int TAB_H = 64, PAD = 20;
     fill(a, P.mantle, 0, 0, W, TAB_H);
     int *tw = xmalloc((a->ntabs + 1) * sizeof *tw);
-    ImgEntry **lg = xmalloc((a->ntabs + 1) * sizeof *lg);
-    const char **glyph = xmalloc((a->ntabs + 1) * sizeof *glyph);
-    int x = 0, sel_x1 = 0;
+    ImgEntry **logo = xmalloc((a->ntabs + 1) * sizeof *logo);
+    const char **sym = xmalloc((a->ntabs + 1) * sizeof *sym);
+    int x = 0, sel_end = 0;
     for (int i = 0; i < a->ntabs; i++) {
         Collection *t = a->tabs[i];
-        lg[i] = NULL;
-        glyph[i] = t == &a->recent ? "\u25F7" : t == &a->favs ? "\u2605"
-                 : !strcmp(t->shortname, "utils") ? "\u2699" : NULL;
-        if (!glyph[i]) { /* the name shows until the logo is loaded (or if there is none) */
+        logo[i] = NULL;
+        sym[i] = t == &a->recent ? SYM_RECENT : t == &a->favs ? SYM_FAVS : t->tools ? SYM_TOOLS : NULL;
+        if (!sym[i]) {
             char *lp = logo_path(t->shortname);
-            if ((lg[i] = cache_get(a, a->logos, SDL_arraysize(a->logos), lp, LOGO_W)) && !lg[i]->tex)
-                lg[i] = NULL;
-            else if (!lg[i] && exists(lp))
-                loader_want(lp, LOGO_W, LOGO_H, IMG_LOGO);
+            if ((logo[i] = cache_get(a, IMG_LOGO, lp, LOGO_W)) && !logo[i]->tex)
+                logo[i] = NULL; /* failed to load */
+            else if (!logo[i] && exists(lp))
+                loader_want(lp, LOGO_W, LOGO_H, IMG_LOGO, false);
             free(lp);
         }
-        int cw = glyph[i] ? text_width(a->f_icon, glyph[i]) : lg[i] ? lg[i]->w : text_width(a->f_tab, t->name);
-        tw[i] = cw + 2 * PAD;
+        int w = sym[i] ? text_width(a->f_icon, sym[i]) : logo[i] ? logo[i]->w : text_width(a->f_tab, t->name);
+        tw[i] = w + 2 * TAB_PAD;
         if (i == a->tab)
-            sel_x1 = x + tw[i];
+            sel_end = x + tw[i];
         x += tw[i];
     }
-    x = sel_x1 > W ? W - sel_x1 : 0;
+    x = sel_end > W ? W - sel_end : 0;
     for (int i = 0; i < a->ntabs; i++) {
-        bool on = i == a->tab;
-        SDL_Color col = on ? P.text : P.overlay;
-        if (on)
+        SDL_Color col = i == a->tab ? P.text : P.overlay;
+        if (i == a->tab)
             fill(a, P.surface1, x, 0, tw[i], TAB_H);
-        if (glyph[i]) {
-            text(a, a->f_icon, glyph[i], col, x + PAD, (TAB_H - TTF_GetFontHeight(a->f_icon)) / 2.0f, 0, NULL);
-        } else if (lg[i]) {
-            SDL_SetTextureColorMod(lg[i]->tex, col.r, col.g, col.b);
-            SDL_FRect d = { x + PAD, (TAB_H - lg[i]->h) / 2.0f, lg[i]->w, lg[i]->h };
-            SDL_RenderTexture(a->ren, lg[i]->tex, NULL, &d);
+        if (sym[i]) {
+            text(a, a->f_icon, sym[i], col, x + TAB_PAD, (TAB_H - TTF_GetFontHeight(a->f_icon)) / 2.0f, 0);
+        } else if (logo[i]) {
+            SDL_SetTextureColorMod(logo[i]->tex, col.r, col.g, col.b);
+            SDL_FRect d = { x + TAB_PAD, (TAB_H - logo[i]->h) / 2.0f, logo[i]->w, logo[i]->h };
+            SDL_RenderTexture(a->ren, logo[i]->tex, NULL, &d);
         } else {
-            text(a, a->f_tab, a->tabs[i]->name, col, x + PAD, (TAB_H - TTF_GetFontHeight(a->f_tab)) / 2.0f, 0, NULL);
+            text(a, a->f_tab, a->tabs[i]->name, col, x + TAB_PAD, (TAB_H - TTF_GetFontHeight(a->f_tab)) / 2.0f, 0);
         }
         x += tw[i];
     }
     free(tw);
-    free(lg);
-    free(glyph);
+    free(logo);
+    free(sym);
+}
 
-    Collection *c = cur_coll(a);
-    if (!c || !c->ngames) {
-        text(a, a->f_title, "No games found", P.subtext, 40, TAB_H + 40, 0, NULL);
-        SDL_RenderPresent(a->ren);
-        return 0;
-    }
-
-    /* list */
-    /* Rows fill the height exactly, from the tab bar to the bottom edge: as many as fit at about
-     * ROW_NOMINAL px, all stretched to the same height (within a pixel of rounding). */
-    const int ROW_NOMINAL = 52, LW = W * 46 / 100, TOP = TAB_H, THUMB = 40;
-    int rows = SDL_max(1, (H - TOP + ROW_NOMINAL / 2) / ROW_NOMINAL);
+/* The game list, from the tab bar to the bottom edge: as many rows as fit at about ROW_NOMINAL,
+ * all stretched to the same height (to within a pixel of rounding). */
+static void draw_list(App *a, Collection *c, int LW, int H)
+{
+    int rows = SDL_max(1, (H - TAB_H + ROW_NOMINAL / 2) / ROW_NOMINAL);
     int *sel = &a->sel[a->tab], *top = &a->top[a->tab];
     if (*sel >= c->ngames)
         *sel = c->ngames - 1;
@@ -2382,61 +2425,49 @@ static int render(App *a)
         *top = *sel - rows + 1;
     if (*top > c->ngames - rows)
         *top = SDL_max(0, c->ngames - rows);
+    int th = TTF_GetFontHeight(a->f_row);
     for (int r = 0; r < rows && *top + r < c->ngames; r++) {
         Game *g = c->games[*top + r];
-        int y = TOP + r * (H - TOP) / rows, ROWH = TOP + (r + 1) * (H - TOP) / rows - y;
+        int y = TAB_H + r * (H - TAB_H) / rows, rh = TAB_H + (r + 1) * (H - TAB_H) / rows - y;
         bool on = *top + r == *sel;
         if (on) {
-            fill(a, P.surface0, 0, y, LW, ROWH);
-            fill(a, P.accent, 0, y, 5, ROWH);
+            fill(a, P.surface0, 0, y, LW, rh);
+            fill(a, P.accent, 0, y, 5, rh);
         }
         if (g->boxfront) {
-            ImgEntry *e = cache_get(a, a->thumbs, SDL_arraysize(a->thumbs), g->boxfront, THUMB);
+            ImgEntry *e = cache_get(a, IMG_THUMB, g->boxfront, THUMB);
             if (!e)
-                loader_want(g->boxfront, THUMB, THUMB + 4, IMG_THUMB);
-            if (e && e->tex) {
-                SDL_FRect d = { 16 + (THUMB - e->w) / 2.0f, y + (ROWH - e->h) / 2.0f, e->w, e->h };
-                SDL_RenderTexture(a->ren, e->tex, NULL, &d);
-            }
+                loader_want(g->boxfront, THUMB, THUMB + 4, IMG_THUMB, false);
+            else if (e->tex)
+                SDL_RenderTexture(a->ren, e->tex, NULL,
+                                  &(SDL_FRect){ 16 + (THUMB - e->w) / 2.0f, y + (rh - e->h) / 2.0f, e->w, e->h });
         }
-        SDL_Rect clip = { 0, y, LW - 14, ROWH };
-        SDL_SetRenderClipRect(a->ren, &clip);
-        int th = TTF_GetFontHeight(a->f_row);
-        text(a, a->f_row, g->title, on ? P.text : P.subtext, 16 + THUMB + 14, y + (ROWH - th) / 2.0f, 0, NULL);
+        SDL_SetRenderClipRect(a->ren, &(SDL_Rect){ 0, y, LW - 14, rh });
+        text(a, a->f_row, g->title, on ? P.text : P.subtext, 16 + THUMB + 14, y + (rh - th) / 2.0f, 0);
         SDL_SetRenderClipRect(a->ren, NULL);
         if (g->favorite)
-            fill(a, P.fav, LW - 10, y + ROWH / 2 - 3, 6, 6);
+            fill(a, P.fav, LW - 10, y + rh / 2 - 3, 6, 6);
     }
     if (c->ngames > rows) { /* scroll position */
-        float bh = (float)(H - TOP) * rows / c->ngames, by = TOP + (float)(H - TOP) * *top / c->ngames;
-        fill(a, P.surface1, LW - 3, by, 3, bh);
+        float h = (float)(H - TAB_H) * rows / c->ngames, y = TAB_H + (float)(H - TAB_H) * *top / c->ngames;
+        fill(a, P.surface1, LW - 3, y, 3, h);
     }
+}
 
-    /* details */
-    Game *g = c->games[*sel];
-    int PX = LW + 28, PW = W - PX - 28, y = TOP + 20;
-    int IW = PW * 44 / 100, IH = (H - TOP) * 58 / 100;
-    bool tool = false; /* Utilities tools: their icon stays icon-sized */
-    for (int i = 0; i < g->ncolls; i++)
-        tool |= !strcmp(g->colls[i]->shortname, "utils");
-    if (tool)
-        IW = IH = 128;
+/* The selected game: box art (icon-sized for tools), title, details, play time, description. */
+static void draw_details(App *a, Game *g, int LW, int W, int H)
+{
+    int PX = LW + 28, PW = W - PX - 28, y = TAB_H + 20;
+    bool tool = is_tool(g);
+    int IW = tool ? 128 : PW * 44 / 100, IH = tool ? 128 : (H - TAB_H) * 58 / 100;
     int img_h = 0;
     if (g->boxfront) {
-        ImgEntry *e = cache_get(a, a->bigs, SDL_arraysize(a->bigs), g->boxfront, IW);
-        if (!e) { /* first in the queue: the selected game's art matters most */
-            loader_want(g->boxfront, IW, IH, IMG_BIG);
-            SDL_LockMutex(loader.lock);
-            if (loader.n > 1) {
-                ImgReq big = loader.queue[loader.n - 1];
-                memmove(loader.queue + 1, loader.queue, (loader.n - 1) * sizeof *loader.queue);
-                loader.queue[0] = big;
-            }
-            SDL_UnlockMutex(loader.lock);
-        }
+        ImgEntry *e = cache_get(a, IMG_BIG, g->boxfront, IW);
+        if (!e) /* the selected game's art matters most */
+            loader_want(g->boxfront, IW, IH, IMG_BIG, true);
         if (e && e->tex) {
             float k = SDL_min((float)IW / e->w, (float)IH / e->h);
-            if (k > 1.0f)
+            if (k > 1.0f) /* small art (SNES) up to twice its size; tool icons as they are */
                 k = tool ? 1.0f : SDL_min(k, 2.0f);
             SDL_FRect d = { PX, y, e->w * k, e->h * k };
             SDL_RenderTexture(a->ren, e->tex, NULL, &d);
@@ -2446,8 +2477,8 @@ static int render(App *a)
             fill(a, P.surface0, PX, y, IW * 0.7f, IH);
         }
     }
-    int tx = g->boxfront ? PX + IW + 24 : PX, tw2 = PX + PW - tx, ty = y;
-    ty += text(a, a->f_title, g->title, P.text, tx, ty, tw2, NULL) + 10;
+    int tx = g->boxfront ? PX + IW + 24 : PX, tw = PX + PW - tx, ty = y;
+    ty += text(a, a->f_title, g->title, P.text, tx, ty, tw) + 10;
     char line[512], part[256];
     line[0] = 0;
     join(part, sizeof part, &g->developers);
@@ -2459,10 +2490,10 @@ static int render(App *a)
         snprintf(line + strlen(line), sizeof line - strlen(line), "%s1-%d players", *line ? "  ·  " : "",
                  g->players);
     if (*line)
-        ty += text(a, a->f_meta, line, P.subtext, tx, ty, tw2, NULL) + 6;
+        ty += text(a, a->f_meta, line, P.subtext, tx, ty, tw) + 6;
     join(part, sizeof part, &g->genres);
     if (*part)
-        ty += text(a, a->f_meta, part, P.subtext, tx, ty, tw2, NULL) + 6;
+        ty += text(a, a->f_meta, part, P.subtext, tx, ty, tw) + 6;
     if (g->play_count) {
         char d1[64], d2[64];
         format_duration(d1, sizeof d1, g->play_time);
@@ -2471,38 +2502,54 @@ static int render(App *a)
     } else {
         snprintf(line, sizeof line, "Not played yet");
     }
-    ty += text(a, a->f_meta, line, P.overlay, tx, ty, tw2, NULL) + 6;
+    ty += text(a, a->f_meta, line, P.overlay, tx, ty, tw) + 6;
     if (g->favorite)
-        ty += text(a, a->f_meta, "Favourite", P.fav, tx, ty, tw2, NULL) + 6;
+        ty += text(a, a->f_meta, "Favourite", P.fav, tx, ty, tw) + 6;
     const char *desc = g->description ? g->description : g->summary;
-    if (desc) {
-        int dy = SDL_max(y + img_h, ty) + 20;
-        SDL_Rect clip = { PX, dy, PW, H - dy - 12 };
-        if (clip.h > 20) {
-            SDL_SetRenderClipRect(a->ren, &clip);
-            text(a, a->f_desc, desc, P.subtext, PX, dy, PW, NULL);
-            SDL_SetRenderClipRect(a->ren, NULL);
-        }
+    int dy = SDL_max(y + img_h, ty) + 20;
+    if (desc && H - dy - 12 > 20) {
+        SDL_SetRenderClipRect(a->ren, &(SDL_Rect){ PX, dy, PW, H - dy - 12 });
+        text(a, a->f_desc, desc, P.subtext, PX, dy, PW);
+        SDL_SetRenderClipRect(a->ren, NULL);
     }
-    if (a->starting) { /* the launch overlay, like the Pegasus patch: dim, centered title */
-        SDL_SetRenderDrawBlendMode(a->ren, SDL_BLENDMODE_BLEND);
-        fill(a, (SDL_Color){ 0, 0, 0, 0xd8 }, 0, 0, W, H);
-        SDL_SetRenderDrawBlendMode(a->ren, SDL_BLENDMODE_NONE);
-        char *msg = fmt("Starting %s\u2026", a->starting);
-        TTF_Text *t = TTF_CreateText(a->eng, a->f_title, msg, 0);
-        if (t) {
-            int tw, th;
-            TTF_SetTextWrapWidth(t, W * 8 / 10);
-            TTF_SetTextWrapWhitespaceVisible(t, false);
-            TTF_GetTextSize(t, &tw, &th);
-            TTF_SetTextColor(t, 0xee, 0xee, 0xee, 255);
-            TTF_DrawRendererText(t, (W - tw) / 2.0f, (H - th) / 2.0f);
-            TTF_DestroyText(t);
-        }
-        free(msg);
+}
+
+/* "Starting <title>..." over a dimmed screen while a launch is on its way (like the Pegasus patch). */
+static void draw_overlay(App *a, int W, int H)
+{
+    SDL_SetRenderDrawBlendMode(a->ren, SDL_BLENDMODE_BLEND);
+    fill(a, (SDL_Color){ 0, 0, 0, 0xd8 }, 0, 0, W, H);
+    SDL_SetRenderDrawBlendMode(a->ren, SDL_BLENDMODE_NONE);
+    char *msg = fmt("Starting %s…", a->starting);
+    TTF_Text *t = TTF_CreateText(a->eng, a->f_title, msg, 0);
+    if (t) {
+        int tw, th;
+        TTF_SetTextWrapWidth(t, W * 8 / 10);
+        TTF_GetTextSize(t, &tw, &th);
+        TTF_SetTextColor(t, 0xee, 0xee, 0xee, 255);
+        TTF_DrawRendererText(t, (W - tw) / 2.0f, (H - th) / 2.0f);
+        TTF_DestroyText(t);
     }
-    SDL_RenderPresent(a->ren);
-    return need_more;
+    free(msg);
+}
+
+/* Draw the whole frame into the canvas (present() shows it). Also rebuilds the image wish list. */
+static void render(App *a)
+{
+    int W = a->W, H = a->H, LW = W * 46 / 100;
+    loader_clear(); /* rebuilt below: what this frame still lacks */
+    fill(a, P.base, 0, 0, W, H);
+    draw_tabs(a, W);
+    Collection *c = cur_coll(a);
+    if (c && c->ngames) {
+        draw_list(a, c, LW, H);
+        draw_details(a, c->games[a->sel[a->tab]], LW, W, H);
+    } else {
+        text(a, a->f_title, "No games found", P.subtext, 40, TAB_H + 40, 0);
+    }
+    if (a->starting)
+        draw_overlay(a, W, H);
+    SDL_FlushRenderer(a->ren);
 }
 
 static void show_now(App *a);
@@ -2563,8 +2610,8 @@ static void action(App *a, int act, bool repeat)
     switch (act) {
     case A_UP: move(a, -1); break;
     case A_DOWN: move(a, 1); break;
-    case A_PGUP: move(a, -8); break;
-    case A_PGDN: move(a, 8); break;
+    case A_PGUP: move(a, -PAGE); break;
+    case A_PGDN: move(a, PAGE); break;
     case A_LEFT: if (!repeat) switch_tab(a, -1); break;
     case A_RIGHT: if (!repeat) switch_tab(a, 1); break;
     case A_LAUNCH: if (!repeat) start_game(a); break;
@@ -2595,6 +2642,7 @@ static struct {
     struct xdg_toplevel *top;
     int cfg_w, cfg_h;
     bool configured, closed, focused, shift;
+    bool frame_waiting; /* a frame is drawn but both buffers are still with the compositor */
     ShmBuf bufs[2];
 } wl;
 
@@ -2604,6 +2652,10 @@ static void buf_release(void *data, struct wl_buffer *b)
 {
     (void)b;
     ((ShmBuf *)data)->busy = false;
+    if (wl.frame_waiting) { /* now it can go out */
+        wl.frame_waiting = false;
+        the_app->dirty = true;
+    }
 }
 static const struct wl_buffer_listener buf_listener = { buf_release };
 
@@ -2796,9 +2848,7 @@ static bool make_canvas(App *a, int w, int h)
         TTF_DestroyRendererTextEngine(a->eng);
         a->eng = NULL;
     }
-    cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
-    cache_clear(a->bigs, SDL_arraysize(a->bigs));
-    cache_clear(a->logos, SDL_arraysize(a->logos));
+    cache_clear(a);
     if (a->ren)
         SDL_DestroyRenderer(a->ren);
     if (a->canvas)
@@ -2887,6 +2937,46 @@ static bool loader_idle(void)
     return idle;
 }
 
+/* Testing without a window (SHELF_SCREENSHOT=file.png, SHELF_KEYS=...): once the box art is in,
+ * press the next key (d/u down/up, l/r tab, o launch overlay), or save the frame. Returns true when
+ * the screenshot is saved. */
+static bool screenshot_step(App *a, const char *shot)
+{
+    static int next;
+    if (!loader_idle())
+        return false;
+    const char *keys = getenv("SHELF_KEYS");
+    if (keys && keys[next]) {
+        char c = keys[next++];
+        if (c == 'o')
+            a->starting = cur_game(a) ? cur_game(a)->title : "?";
+        else
+            action(a, c == 'd' ? A_DOWN : c == 'u' ? A_UP : c == 'l' ? A_LEFT : A_RIGHT, false);
+        a->dirty = true;
+        return false;
+    }
+    SDL_LockSurface(a->canvas);
+    SDL_Surface *view = SDL_CreateSurfaceFrom(a->W, a->H, a->canvas->format, a->canvas->pixels, a->canvas->pitch);
+    IMG_SavePNG(view, shot);
+    SDL_DestroySurface(view);
+    SDL_UnlockSurface(a->canvas);
+    return true;
+}
+
+/* How long the main loop may sleep: until the next key repeat or position save (-1: forever). */
+static int sleep_ms(App *a)
+{
+    Uint64 now = SDL_GetTicks();
+    int t = -1;
+    if (a->held && !a->running)
+        t = a->next_repeat > now ? (int)(a->next_repeat - now) : 0;
+    if (a->save_due) {
+        int s = a->save_due > now ? (int)(a->save_due - now) : 0;
+        t = t < 0 ? s : SDL_min(t, s);
+    }
+    return t;
+}
+
 int main(int argc, char **argv)
 {
     UErrorCode st = U_ZERO_ERROR;
@@ -2902,10 +2992,12 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    timing = getenv("SHELF_TIMING") != NULL;
     mark("main");
     /* testing: SHELF_SCREENSHOT=file.png [SHELF_KEYS=dddr...] renders 1280x720 without a window,
      * presses the keys (d/u down/up, l/r tab), waits for the box art, saves and quits */
     const char *shot = getenv("SHELF_SCREENSHOT");
+    headless = shot != NULL;
     static App app;
     App *a = &app;
     the_app = a;
@@ -2913,6 +3005,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "shelf: init failed\n");
         return 1;
     }
+    fcntl(msg_pipe[0], F_SETFL, O_NONBLOCK); /* the main loop drains it; writers may block */
     signal(SIGTERM, on_signal);
     signal(SIGINT, on_signal);
     if (!shot && !wl_open()) {
@@ -2952,10 +3045,11 @@ int main(int argc, char **argv)
     }
 
     a->dirty = true;
-    int frames = 0, keyi = 0;
+    int frames = 0;
     bool quit = false, all_marked = false;
     while (!quit && !wl.closed) {
-        if (a->dirty && !a->running && (shot || wl.configured)) {
+        bool can_draw = !a->running && (shot || wl.configured);
+        if (a->dirty && can_draw) {
             if (!make_canvas(a, a->W, a->H)) {
                 fprintf(stderr, "shelf: %s\n", SDL_GetError());
                 break;
@@ -2963,41 +3057,18 @@ int main(int argc, char **argv)
             a->dirty = false;
             render(a);
             if (!shot && !present(a))
-                a->dirty = true; /* retried after a buffer release */
+                wl.frame_waiting = true; /* shown when the compositor releases a buffer */
             if (!frames++)
                 mark("first frame");
             if (!all_marked && frames > 1 && loader_idle()) {
                 mark("all visible images loaded");
                 all_marked = true;
             }
-            if (shot && loader_idle()) {
-                const char *keys = getenv("SHELF_KEYS");
-                if (keys && keys[keyi]) {
-                    char c = keys[keyi++];
-                    if (c == 'o') /* show the launch overlay */
-                        a->starting = cur_game(a) ? cur_game(a)->title : "?";
-                    else
-                        action(a, c == 'd' ? A_DOWN : c == 'u' ? A_UP : c == 'l' ? A_LEFT : A_RIGHT, false);
-                    a->dirty = true;
-                    continue;
-                }
-                SDL_LockSurface(a->canvas);
-                SDL_Surface *view = SDL_CreateSurfaceFrom(a->W, a->H, a->canvas->format, a->canvas->pixels,
-                                                          a->canvas->pitch);
-                IMG_SavePNG(view, shot);
-                SDL_DestroySurface(view);
-                SDL_UnlockSurface(a->canvas);
+            if (shot && screenshot_step(a, shot))
                 break;
-            }
+            continue;
         }
-        int timeout = -1;
-        Uint64 now = SDL_GetTicks();
-        if (a->held && !a->running)
-            timeout = a->next_repeat > now ? (int)(a->next_repeat - now) : 0;
-        if (a->save_due) {
-            int t = a->save_due > now ? (int)(a->save_due - now) : 0;
-            timeout = timeout < 0 ? t : SDL_min(timeout, t);
-        }
+        /* sleep until a message (pad, image, game exit, signal), Wayland event or timer */
         struct pollfd fds[2] = { { .fd = msg_pipe[0], .events = POLLIN }, { .fd = -1, .events = POLLIN } };
         if (!shot) {
             while (wl_display_prepare_read(wl.dpy) != 0)
@@ -3005,7 +3076,7 @@ int main(int argc, char **argv)
             wl_display_flush(wl.dpy);
             fds[1].fd = wl_display_get_fd(wl.dpy);
         }
-        int r = poll(fds, 2, a->dirty && !a->running && (shot || wl.configured) ? 0 : timeout);
+        int r = poll(fds, 2, sleep_ms(a));
         if (!shot) {
             if (r > 0 && (fds[1].revents & POLLIN))
                 wl_display_read_events(wl.dpy);
@@ -3017,15 +3088,10 @@ int main(int argc, char **argv)
             }
             wl_display_dispatch_pending(wl.dpy);
         }
-        if (r > 0 && (fds[0].revents & POLLIN)) {
-            Msg m;
-            int fl = fcntl(msg_pipe[0], F_GETFL);
-            fcntl(msg_pipe[0], F_SETFL, fl | O_NONBLOCK);
-            while (read(msg_pipe[0], &m, sizeof m) == sizeof m)
-                handle_msg(a, &m, &quit);
-            fcntl(msg_pipe[0], F_SETFL, fl);
-        }
-        now = SDL_GetTicks();
+        Msg m;
+        while (read(msg_pipe[0], &m, sizeof m) == sizeof m)
+            handle_msg(a, &m, &quit);
+        Uint64 now = SDL_GetTicks();
         if (a->held && !a->running && now >= a->next_repeat) {
             action(a, a->held, true);
             a->next_repeat = now + REPEAT_RATE_MS;
@@ -3046,9 +3112,15 @@ int main(int argc, char **argv)
     if (lt)
         SDL_WaitThread(lt, NULL);
     loader_clear();
-    cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
-    cache_clear(a->bigs, SDL_arraysize(a->bigs));
-    cache_clear(a->logos, SDL_arraysize(a->logos));
+    for (Msg m; read(msg_pipe[0], &m, sizeof m) == sizeof m;) /* images decoded but not taken */
+        if (m.type == M_IMG) {
+            ImgResult *res = m.ptr;
+            if (res->surf)
+                SDL_DestroySurface(res->surf);
+            free(res->req.path);
+            free(res);
+        }
+    cache_clear(a);
     TTF_DestroyRendererTextEngine(a->eng);
     SDL_DestroyRenderer(a->ren);
     SDL_DestroySurface(a->canvas);
