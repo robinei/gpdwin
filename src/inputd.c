@@ -13,6 +13,13 @@
  * opening it undoes that. Brightness is left alone (level 0 doesn't turn this panel off). logind
  * ignores the lid, see docs/power.md.
  *
+ * Power button (logind ignores it, HandlePowerKey=ignore): a short press only wakes the screen (a
+ * zero pointer move resets swayidle, whose resume turns the screen on), so a press meant to wake a
+ * device whose screen is merely off never puts it to sleep. Holding it HOLD_MS suspends
+ * (suspend-then-hibernate). The key must still be down when the time is up (EVIOCGKEY), so a
+ * press whose release was lost across a resume doesn't count. The hardware power-off needs a much
+ * longer hold.
+ *
  * Sleeps until there is something to do: the untouched pad sends no events, and inotify on
  * /dev/input reports when the pad (re)appears (it disconnects while the screen is off and across
  * suspend).
@@ -39,6 +46,8 @@
 #define PAD_NAME "Microsoft X-Box 360 pad"
 #define LID_NAME "Lid Switch"
 #define POKE_EVERY 30 /* seconds; the first idle step (dim) comes after 2 min */
+#define HOLD_MS 1000   /* power button held this long: suspend */
+#define MAX_POWER 2    /* input devices with KEY_POWER (ACPI button, gpio-keys) */
 
 extern char **environ;
 
@@ -64,6 +73,48 @@ static int open_named(const char *want)
     if (d)
         closedir(d);
     return found;
+}
+
+/* Open the input devices that have KEY_POWER; returns how many. */
+static int open_power(int *fds, int max)
+{
+    DIR *d = opendir("/dev/input");
+    struct dirent *e;
+    int n = 0;
+    while (d && n < max && (e = readdir(d))) {
+        char path[300], name[256] = "";
+        unsigned long keys[KEY_MAX / (8 * sizeof(long)) + 1] = { 0 };
+        if (strncmp(e->d_name, "event", 5) != 0)
+            continue;
+        snprintf(path, sizeof path, "/dev/input/%s", e->d_name);
+        int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+        if (fd < 0)
+            continue;
+        ioctl(fd, EVIOCGNAME(sizeof name - 1), name);
+        if (strcmp(name, PAD_NAME) != 0 && ioctl(fd, EVIOCGBIT(EV_KEY, sizeof keys), keys) >= 0 &&
+            (keys[KEY_POWER / (8 * sizeof(long))] >> (KEY_POWER % (8 * sizeof(long))) & 1)) {
+            fds[n++] = fd;
+        } else {
+            close(fd);
+        }
+    }
+    if (d)
+        closedir(d);
+    return n;
+}
+
+static int key_down(int fd, int code)
+{
+    unsigned long keys[KEY_MAX / (8 * sizeof(long)) + 1] = { 0 };
+    return ioctl(fd, EVIOCGKEY(sizeof keys), keys) >= 0 &&
+           (keys[code / (8 * sizeof(long))] >> (code % (8 * sizeof(long))) & 1);
+}
+
+static long long now_ms(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec * 1000LL + t.tv_nsec / 1000000;
 }
 
 static int open_pad(void)
@@ -127,6 +178,14 @@ static void activity(void)
     swaymsg("seat seat0 cursor move 0 0");
 }
 
+static void suspend(void)
+{
+    char *argv[] = { "sudo", "-n", "systemctl", "suspend-then-hibernate", NULL };
+    pid_t pid;
+    if (posix_spawnp(&pid, "sudo", NULL, NULL, argv, environ) != 0)
+        perror("inputd: sudo");
+}
+
 static void swaymsg_sh(const char *command)
 {
     char *argv[] = { "sh", "-c", (char *)command, NULL };
@@ -172,19 +231,36 @@ int main(void)
     /* IN_ATTRIB: udev sets the node's permissions just after the kernel creates it */
     inotify_add_watch(watch, "/dev/input", IN_CREATE | IN_ATTRIB);
 
-    struct pollfd fds[3] = {
+    struct pollfd fds[3 + MAX_POWER] = {
         { .fd = watch, .events = POLLIN },
         { .fd = (pad_fd = open_pad()), .events = POLLIN },
         { .fd = open_named(LID_NAME), .events = POLLIN },
     };
+    int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 3 + npower;
+    for (int i = 0; i < npower; i++)
+        fds[3 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
+    long long hold_until = 0; /* power button pressed: when a hold becomes "suspend" */
+    int hold_fd = -1;
 
     unsigned long sw[1] = { 0 };
     if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0 && (sw[0] >> SW_LID & 1))
         on_lid(1); /* started with the lid already closed */
 
     for (;;) {
-        if (poll(fds, 3, -1) < 0)
+        int timeout = -1;
+        if (hold_until) {
+            long long left = hold_until - now_ms();
+            timeout = left > 0 ? (int)left : 0;
+        }
+        int ready = poll(fds, nfds, timeout);
+        if (ready < 0)
             continue;
+        if (ready == 0 && hold_until) { /* held HOLD_MS */
+            hold_until = 0;
+            if (key_down(hold_fd, KEY_POWER))
+                suspend();
+            continue;
+        }
 
         if (fds[0].revents) {
             char buf[4096];
@@ -216,6 +292,24 @@ int main(void)
             while (read(fds[2].fd, &ev, sizeof ev) == sizeof ev)
                 if (ev.type == EV_SW && ev.code == SW_LID)
                     on_lid(ev.value);
+        }
+
+        for (int i = 3; i < nfds; i++) {
+            struct input_event ev;
+            if (!fds[i].revents)
+                continue;
+            while (read(fds[i].fd, &ev, sizeof ev) == sizeof ev) {
+                if (ev.type != EV_KEY || ev.code != KEY_POWER)
+                    continue;
+                if (ev.value == 1) {
+                    hold_until = now_ms() + HOLD_MS;
+                    hold_fd = fds[i].fd;
+                } else if (ev.value == 0 && hold_until) { /* short press: wake the screen */
+                    hold_until = 0;
+                    if (!lid_closed)
+                        swaymsg("seat seat0 cursor move 0 0");
+                }
+            }
         }
     }
 }

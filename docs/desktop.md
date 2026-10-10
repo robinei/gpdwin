@@ -42,7 +42,11 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   and runs `lid.sh close`: `screen.sh off`, CPU turbo off, GPU limit to RPn (saved values in
   `$XDG_RUNTIME_DIR/lid-saved`). Opening it undoes all of that and counts as activity (cursor move
   0 0 resets swayidle). Brightness is not touched (level 0 does not turn the panel off). If inputd
-  dies while closed, input stays disabled: `swaymsg input '*' events enabled`. Measured: the
+  dies while closed, input stays disabled: `swaymsg input '*' events enabled`.
+  Power button (every input device with KEY_POWER; logind ignores the key): a short press sends
+  the zero cursor move (screen back on via swayidle's resume), held 1 s (still down per EVIOCGKEY
+  when the time is up) runs `sudo -n systemctl suspend-then-hibernate`. A press that wakes the
+  device from sleep is short, so it never re-suspends; holding it ≥1 s while waking would. Measured: the
   throttling saves nothing visible (~305 mA idle either way, Claude Code and Wi-Fi dominate).
 - `screen.sh off|on`: the one place for screen off/on, used by the lid (`lid.sh`) and the idle
   screen-off step (`idle-screen-off.sh`, battery only; swayidle's resume runs `screen.sh on`).
