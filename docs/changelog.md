@@ -414,3 +414,10 @@ Details before 2026-10-06 are in `docs/archive/`.
   (outside the repo, backup of the previous launcher in `~/Games/tools/shim/unepic-gpd-launch.bak`).
   D-pad and left stick navigate menus now, B goes back; A/X/Y and the in-game rebinding still don't work
   (docs/steam-library.md). Revert: restore the backup launcher.
+
+## 2026-10-10 — Unepic removed
+- Deleted `~/Games/installed/unepic` (271 MB) and its emulator saves `~/.local/share/GSE Saves/233980`; shelf/Pegasus
+  metadata regenerated. The native Linux build's gamepad support could not be made to work reliably
+  (docs/steam-library.md); the Windows version under Wine is the fallback if wanted. Kept in `~/Games/tools/shim/`:
+  the original launcher, the config before and after the binding edits, and the early save `unepic-game_0.sav`.
+  To get the game back: `depotdownloader -app 233980 ...` (see docs/steam-library.md).

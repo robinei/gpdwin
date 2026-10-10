@@ -30,24 +30,23 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   disabled because `padEnabled` stayed at its default) while writing it fine. Fix: `lib64/steam_interfaces.txt`
   as a symlink to `../steam_settings/steam_interfaces.txt`. Do the same for every native game with this
   emulator (Isaac has the file only in `steam_settings/`, not yet checked).
-  Unepic and the gamepad (2026-10-10): the game reads the raw SDL joystick API once per frame into one table
-  of "pressed" flags (slots 0-3 D-pad hat as left, right, bit 2, bit 0; then two per axis; then the buttons
-  from slot 16: A=16 B=17 X=18 Y=19 LB=20 RB=21 Back=22 Start=23 Guide=24 L3=25 R3=26 on an Xbox 360 pad),
-  and each action (`padMap_N` in its cloud `config.cfg`, value = slot + 1) names one slot. It never asks Steam
-  about the controller (no ISteamController/Input) and ignores the axis/button/hat counts when opening the
-  pad, so there is no pad-type detection: the layouts are hard-coded and inconsistent (the controller dialog
-  uses PlayStation icons, the quick-slot bar Xbox ones). Problems on an Xbox 360 pad and the fix,
-  `games/shims/padshim.c` (LD_PRELOAD, built to `~/Games/tools/shim/padshim.so`, set in Unepic's
-  `gpd-launch.sh`): triggers rest at -32768 (the game saw them as always pressed and ignored the pad; shim
-  rescales them to 0..32767), D-pad up and down are swapped (`PADSHIM_SWAP_HAT_UD=1`), the default bindings
-  assume Windows' axis order LX LY RX RY LT RT (`PADSHIM_XINPUT_LAYOUT=1`; the right stick is unused in
-  menus). Result: D-pad and left stick navigate, B goes back. Still open: A, X and Y do nothing in menus, and
-  the game's pad-rebinding prompt never accepts A, B, X, Y, LB or RB (it does take Back, shown as the PS
-  cross icon, Start as circle, LT as "dpad down", RT as "dpad right"; nothing is written to `padMap` until
-  the dialog is confirmed). Method that worked: a small LD_PRELOAD logger for the SDL joystick calls and
+  Unepic (233980) was removed again on 2026-10-10 after a long attempt to get its native Linux build usable
+  with the gamepad (the Windows build under Wine is the fallback; untested). What was learned, in case
+  another game with the same engine or a similar problem turns up: the game reads the raw SDL joystick API
+  once per frame into one table of "pressed" flags (slots 0-3 D-pad hat as left, right, bit 2, bit 0; then two
+  per axis; then the buttons from slot 16: A=16 B=17 X=18 Y=19 LB=20 RB=21 Back=22 Start=23 Guide=24 L3=25
+  R3=26 on an Xbox 360 pad); each action (`padMap_N` in its cloud `config.cfg`, value = slot + 1) names one
+  slot. The defaults assume another pad layout (Jump on Back, Pause on A, Target on a right-stick direction,
+  triggers unbound), the controller dialog shows PlayStation icons and takes only Back, Start, LT and RT, and
+  there is no pad-type detection (it never asks Steam about the controller and ignores the axis/button/hat
+  counts). `games/shims/padshim.c` (LD_PRELOAD) fixes the generic problems: Xbox triggers rest at -32768 (the
+  game saw them as pressed and ignored the pad; rescaled to 0..32767), D-pad up/down swapped
+  (`PADSHIM_SWAP_HAT_UD=1`), axis order (`PADSHIM_XINPUT_LAYOUT=1`). Editing the seven `padMap_` values in the
+  config would have fixed the bindings, but pad polling then failed to start in some launches (a field the
+  poll function checks was 0 instead of 20-25; not understood, not tied to shelf or the config) and
+  the attempt was dropped. Method that worked: a small LD_PRELOAD logger for the SDL joystick calls and
   `sudo gdb -p` with breakpoints/watchpoints (no PIE: addresses are fixed; `ptrace_scope` is 1, so attaching
-  needs sudo). An attempt to swap A/B/X/Y with Back/Start/Guide/L3 (so the face buttons land where the
-  dialog captures) was dropped before testing: it would move A/B/X/Y away from the slots the defaults use.
+  needs sudo).
   Launch the game from shelf when testing: shelf ignores the pad only for games it started itself, otherwise it reacts to pad presses (it launched
   other games while Unepic was in front). Found with gdb: break on the fault, read the stack/registers, disassemble the caller.
   Games wrapped in Valve's Steam DRM (a `.bind` ELF section, SteamStub; test with `readelf -SW BINARY |
