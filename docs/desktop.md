@@ -8,8 +8,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   `autostart`, `handheld`.
 - `theme`: Catppuccin Mocha palette, `default_border pixel 1`, muted focus colours, no title
   bars, `gaps inner 4` with `smart_gaps`/`smart_borders` (lone windows have no border/gap),
-  plain black background (`wallpaper.jpg`, 1280x720, is kept; the old line is commented out
-  in `theme`). Bar on top.
+  no background process: sway leaves uncovered areas black by itself, so `swaybg_command -`
+  (`wallpaper.jpg`, 1280x720, is kept; the old line is commented out in `theme`). Bar on top.
 - Bar: `~/.local/bin/statusbar`, built from `src/statusbar.c` (one C file, event driven; the
   header comment explains every source). `cpu 2.4G | gpu 400M | ram 0.6/3.7G | <ssid> N% |
   vol N% | bat N% | clock`. CPU = fastest core, GPU `idle` = ≥90% of the last second in RC6;
