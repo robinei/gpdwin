@@ -405,3 +405,10 @@ Details before 2026-10-06 are in `docs/archive/`.
 - The previous game's large art stays up for up to 150 ms while the next loads (no grey flash); tabs
   are blank until their logo loads (no name flash). One font object per face/size (the two 18 px
   regular ones were merged; each costs ~1.5 ms on first use).
+
+## 2026-10-10 — Unepic gamepad: partly working
+- `games/shims/padshim.c` (LD_PRELOAD, `~/Games/tools/shim/padshim.so`) fixes the Xbox pad's resting triggers,
+  swapped D-pad up/down and the axis order for Unepic; `~/Games/installed/unepic/gpd-launch.sh` sets it
+  (outside the repo, backup of the previous launcher in `~/Games/tools/shim/unepic-gpd-launch.bak`).
+  D-pad and left stick navigate menus now, B goes back; A/X/Y and the in-game rebinding still don't work
+  (docs/steam-library.md). Revert: restore the backup launcher.
