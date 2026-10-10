@@ -12,8 +12,9 @@ set $blue     #89b4fa
 set $pink     #f5c2e7
 set $red      #f38ba8
 
-# Plain black (clean boot); the old wallpaper: output * bg ~/.config/sway/wallpaper.jpg fill $crust
-output * bg #000000 solid_color
+# No background: sway (wlroots scene) leaves uncovered areas black, so no swaybg process runs.
+# The old wallpaper: output * bg ~/.config/sway/wallpaper.jpg fill $crust
+swaybg_command -
 
 font pango:DejaVu Sans 10
 
