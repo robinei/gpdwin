@@ -82,6 +82,22 @@ def uninstall(rec):
     write_metadata()
 
 
+def link_saves(rec):
+    """Re-attach the game's save folders to the central store ~/Saves (scripts/saves-link). Returns the
+    printable lines: what was linked, or a note that no save location is known for the game."""
+    root = Path(__file__).resolve().parents[2]
+    try:
+        games = json.loads((root / "games/saves.json").read_text())["games"]
+    except (OSError, ValueError, KeyError):
+        return []
+    if not any(str(g["appid"]) == str(rec["id"]) and g.get("data") for g in games):
+        return ["No save location known for this game yet: its saves stay wherever the game writes them "
+                "(inside the Wine prefix or the install folder). See docs/saves.md, 'Central save store'."]
+    r = subprocess.run([str(root / "scripts/saves-link"), "--apply", str(rec["id"])],
+                       capture_output=True, text=True)
+    return (r.stdout + r.stderr).strip().splitlines()
+
+
 # ---------- executable detection ----------
 WIN_SKIP = re.compile(r"unins|setup|redist|vcredist|vc_redist|dxsetup|directx|dotnet|ndp\d|crash|report|"
                       r"ue4prereq|prereq|physx|oalinst|easyanticheat|eac_|battleye|helper|updater|"

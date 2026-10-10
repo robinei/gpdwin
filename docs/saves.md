@@ -10,6 +10,34 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 | Super Meat Boy (40800) | `~/.local/share/SuperMeatBoy/UserData/` (Linux) | `steamapps/common/Super Meat Boy/UserData/` (Windows/Proton; cloud root 1) | Progress: `savegame.dat` (same format). Settings: `reg0.dat` (Linux) vs `Reg0.dat` (Windows): different contents, not copied. |
 | Bastion (107100) | `~/.local/share/Bastion/` (Linux, FNA) | `userdata/<id>/107100/remote/` (Windows/Proton; cloud root 0) | Files are `<profile>.{sav,keyctrls,mousectrls}`; Linux uses the profile name from `activeProfile` (`Profile1.sav`), Steam Cloud stores lowercase (`profile1.sav`). Same .NET code, same format. |
 
+## Central save store (`~/Saves`, `scripts/saves-link`, since 2026-10-10)
+- Goal: prefixes, install folders and `~/.local/share/<game>` can be deleted and recreated without losing
+  saves. Each game's real save data lives in `~/Saves/<game>/<folder>/` (`<game>` = its folder name under
+  `~/Games/installed`) and the place where the game looks for it is a symlink into it. Back up or sync
+  `~/Saves`, nothing else.
+- What is linked: the game's **whole data folder**, listed as `"data": [...]` per game in `games/saves.json`
+  (so settings that sit next to the saves come along, nothing else is moved). Whole folders, not single files:
+  a game that saves by writing a temp file and renaming it over the old one would turn a symlinked *file* into
+  a normal file and the save would silently leave the store. The `"files"` entries (what the Game Saves tool
+  syncs) keep their original paths; they resolve through the link, so the tool needed no change (its full output
+  was identical before and after the move).
+- `scripts/saves-link` shows the state of every game (changes nothing); `--apply [GAME...]` fixes it:
+  `migrate` (real folder: move into the store, link back; same filesystem, atomic, file count and size checked),
+  `relink` (fresh prefix or install: the store has it, create the link), `create` (nothing anywhere: empty store
+  folder and link), `conflict`/`other` (reported, nothing done). It refuses while a process runs from the
+  game's install folder. The game installer (`scripts/games`) runs it after every install, so a reinstall
+  re-attaches the saves; for a game without a `"data"` entry it says so.
+- Checked on the device: Bastion started through the link, loaded its progress, rewrote its profile files
+  inside `~/Saves/bastion/Bastion`, and the link was still a link afterwards.
+- Wine games: the link sits inside the prefix (Heretic/Hexen: `~/.wine/drive_c/users/robin/Saved Games/
+  Nightdive Studios`). Wine follows it. If a prefix is recreated, run `saves-link --apply`.
+- **Not covered yet** (no `"data"` entry; find the folder with `scripts/saves-discover` or by looking at what
+  the game writes, then add it to `games/saves.json`): a-short-hike, caves-of-qud, starcom-nexus,
+  strife-veteran-edition, the-binding-of-isaac-rebirth, undertale (native Linux), cave-story and
+  commander-keen (saves in the install folder: needs per-file links, check that the game keeps them),
+  sam-max, spelunky (Wine; saves location unknown). The Steam emulator's saves (`~/.local/share/GSE Saves/<appid>`,
+  used by games with the emulator `libsteam_api.so`) are not in the store either.
+
 ## Game Saves (shelf: Utilities > Game Saves; `scripts/save-status`)
 - Full-screen curses UI, manual per game, no automatic sync (Syncthing was rejected). One row
   per game in `games/saves.json`: status against the desktop and against Steam Cloud (in sync /

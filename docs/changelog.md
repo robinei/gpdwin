@@ -455,3 +455,11 @@ Details before 2026-10-06 are in `docs/archive/`.
   `pe_is_32bit`); `"runner": "wine"` forces the system Wine. Cave Story+ moved (its saves are in the game folder,
   nothing to copy; system-Wine launcher in its `old-launchers/gpd-launch-systemwine.sh`, started once on the
   old-style Wine to check). Heretic/Hexen (64-bit) stays on the system Wine. Docs/frontend.md updated.
+
+## 2026-10-10 — Central save store ~/Saves
+- New `scripts/saves-link` and a `"data"` list per game in `games/saves.json`: the 11 games the save tool knows were moved
+  to `~/Saves/<game>/<folder>` with a symlink back at the original place (Super Meat Boy, Stardew Valley,
+  Bastion, SteamWorld Heist, FEZ, Kingdom, Death Road to Canada, Hyper Light Drifter, Risk of Rain,
+  Heretic/Hexen, Psychonauts). `scripts/save-status --list` output identical before/after; Bastion verified by
+  playing. The installer re-attaches saves after an install (`core.link_saves`). Design and the games not yet
+  covered: docs/saves.md "Central save store". Revert one game: remove the link, move the folder back.

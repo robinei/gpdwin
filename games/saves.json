@@ -11,6 +11,9 @@
      "desktop": "{steam}/steamapps/common/Super Meat Boy/UserData/savegame.dat",
      "cloud": "%GameInstall%UserData/savegame.dat"
     }
+   ],
+   "data": [
+    "~/.local/share/SuperMeatBoy"
    ]
   },
   {
@@ -26,6 +29,9 @@
       "steam_autocloud.vdf"
      ]
     }
+   ],
+   "data": [
+    "~/.config/StardewValley"
    ]
   },
   {
@@ -47,6 +53,9 @@
      "desktop": "{userdata}/107100/remote/profile1.mousectrls",
      "cloud": "profile1.mousectrls"
     }
+   ],
+   "data": [
+    "~/.local/share/Bastion"
    ]
   },
   {
@@ -66,6 +75,9 @@
      "gpd": "~/.local/share/SteamWorld Heist/savegame_002.dat",
      "desktop": "{home}/.local/share/SteamWorld Heist/savegame_002.dat"
     }
+   ],
+   "data": [
+    "~/.local/share/SteamWorld Heist"
    ]
   },
   {
@@ -97,6 +109,9 @@
      "gpd": "~/.local/share/FEZ/SaveSlot2_Backup",
      "desktop": "{home}/.local/share/FEZ/SaveSlot2_Backup"
     }
+   ],
+   "data": [
+    "~/.local/share/FEZ"
    ]
   },
   {
@@ -108,6 +123,9 @@
      "gpd": "~/.config/unity3d/noio/Kingdom/storage_v26_AUTO.dat",
      "desktop": "{home}/.config/unity3d/noio/Kingdom/storage_v26_AUTO.dat"
     }
+   ],
+   "data": [
+    "~/.config/unity3d/noio/Kingdom"
    ]
   },
   {
@@ -123,6 +141,9 @@
      "gpd": "~/.madgarden/DR2C/cheevos.save",
      "desktop": "{home}/.madgarden/DR2C/cheevos.save"
     }
+   ],
+   "data": [
+    "~/.madgarden/DR2C"
    ]
   },
   {
@@ -138,6 +159,9 @@
       "gameprefs.dat"
      ]
     }
+   ],
+   "data": [
+    "~/.config/HyperLightDrifter"
    ]
   },
   {
@@ -149,6 +173,9 @@
      "gpd": "~/.config/Risk_of_Rain/save.ini",
      "desktop": "{home}/.config/Risk_of_Rain/save.ini"
     }
+   ],
+   "data": [
+    "~/.config/Risk_of_Rain"
    ]
   },
   {
@@ -162,6 +189,9 @@
      "cloud": "%WinSavedGames%Nightdive Studios/Heretic/saves/",
      "dir": true
     }
+   ],
+   "data": [
+    "~/.wine/drive_c/users/robin/Saved Games/Nightdive Studios"
    ]
   },
   {
@@ -209,6 +239,9 @@
      "desktop": "{steam}/steamapps/common/Psychonauts/profiles/profile 2/savedgame6",
      "cloud": "%GameInstall%profiles/profile 2/savedgame6"
     }
+   ],
+   "data": [
+    "~/.local/share/Psychonauts"
    ]
   }
  ]
