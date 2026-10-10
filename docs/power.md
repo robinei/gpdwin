@@ -38,25 +38,25 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   while discharging.
 - Bar: battery text yellow at ≤30%, red at ≤15%, `+` while charging.
 
-## Charging stuck at 500 mA (open, 2026-10-10)
+## Charging stuck at 500 mA after hibernate (fixed 2026-10-10, pending confirmation)
 - Seen once: after a hibernate wake, plugging in the PD charger (9 V / 3 A) left
   `bq24190-charger/input_current_limit` at 500000, status "Not charging", battery slowly
   discharging. Replugging didn't help; a reboot did. Kernel log at plug-in: `Can't read SS reg: -110`
   (I2C timeouts through the PMIC's charger I2C adapter, `i2c-cht-wc`).
 - How the limit is set: the bq24190's own detection (D+/D- not wired, `f_vbus_stat=1`) gives 500 mA on
   every VBUS rise; 300 ms after the USB-C side (tcpm) reports a change, `bq24190_input_current_limit_work`
-  copies tcpm's `current_max` into the chip. That write is one-shot: errors are ignored, no retry, and
-  nothing else re-syncs it (not the chip IRQ, not resume).
-- Suspected root cause: firmware re-initialises the Whiskey Cove PMIC charger block on hibernate wake
-  (as it does the backlight), re-enabling the PMIC's own charger state machine, which then fights the
-  kernel over the bq24190. Linux disables it only at probe (`extcon-intel-cht-wc` sets `CHGRCTRL0`
-  SWCONTROL|CCSM_OFF), which is why a reboot fixes it. All -110 bursts in the journal are in boots
-  that had woken from hibernate.
-- Evidence collection: `/usr/lib/systemd/system-sleep/charger-log` logs PMIC registers and bq24190
-  fields before and after every sleep: `journalctl -t charger-log`. Good-boot values: `CHGRCTRL0=0x38`,
-  `CHGDISCTRL=0x10`. If a post-hibernate line differs, the PMIC theory holds and the fix is to restore
-  those registers after resume; otherwise retry the iinlim sync (udev rule or kernel patch).
-- Workaround: `echo 3000000 | sudo tee /sys/class/power_supply/bq24190-charger/input_current_limit`,
+  copies tcpm's `current_max` into the chip. That write is one-shot: errors are ignored, no retry.
+- Cause (confirmed by the sleep hook's log, 2026-10-10 15:03): firmware resets the Whiskey Cove PMIC's
+  charger registers on hibernate wake. `CHGRCTRL0` 0x38 → 0x10 (SWCONTROL and CCSM_OFF cleared: the
+  PMIC's own charger state machine is back and fights the kernel over the bq24190), `CHGDISCTRL`
+  0x10 → 0x50 (charge-disable pin under hardware control), IRQ masks `PWRSRC_IRQ_MASK` 0x86 → 0x9f,
+  `EXTCHGRIRQ_MSK` 0x10 → 0x1f, `IRQLVL1_MASK` 0xae → 0xbf (plug-in and charger-I2C interrupts
+  masked). Linux writes these only at probe (`extcon-intel-cht-wc`, `i2c-cht-wc`, the MFD), so a
+  reboot fixes it.
+- Fix: `/usr/lib/systemd/system-sleep/pmic-charger` saves these registers before sleep and writes
+  back any that differ after wake (`i2cset` on i2c-5). It logs the charger state before/after and
+  what it restored: `journalctl -t pmic-charger`.
+- Workaround if it recurs: `echo 3000000 | sudo tee /sys/class/power_supply/bq24190-charger/input_current_limit`,
   or reboot.
 
 ## Measured power (2026-10-07, on battery, Pegasus idle, brightness 5%)

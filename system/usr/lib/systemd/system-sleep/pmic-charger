@@ -1,0 +1,60 @@
+#!/bin/sh
+# Whiskey Cove PMIC charger registers across sleep (docs/power.md, "Charging stuck at 500 mA").
+# Firmware resets them on hibernate wake (seen 2026-10-10: CHGRCTRL0 0x38 -> 0x10, CHGDISCTRL
+# 0x10 -> 0x50, and three IRQ masks): the PMIC's own charger state machine comes back and fights the
+# kernel over the bq24190, and the plug-in and charger-I2C interrupts are masked. Linux sets these
+# only at probe, so:
+#   pre:  save them (as the kernel left them) and log the charger state
+#   post: log, then write back every register that differs from the saved value
+# Log: journalctl -t pmic-charger. Single-byte SMBus accesses on the PMIC's bus (i2c-5).
+P=/sys/class/power_supply
+B=$P/bq24190-charger
+T=$P/tcpm-source-psy-i2c-fusb302
+S=/run/pmic-charger-saved
+# name addr reg: config registers only (no IRQ status registers, those are acknowledged by writing)
+REGS="CHGRCTRL0 0x5e 0x16
+CHGRCTRL1 0x5e 0x17
+CHGDISCTRL 0x5e 0x2f
+PWRSRC_IRQ_MASK 0x6e 0x0f
+EXTCHGRIRQ_MSK 0x6e 0x17
+IRQLVL1_MASK 0x6e 0x0e"
+
+state() {
+    echo "$REGS" | while read -r name addr reg; do
+        printf ' %s=%s' "$name" "$(i2cget -f -y 5 "$addr" "$reg" 2>/dev/null || echo err)"
+    done
+    for r in "USBSRC 0x5e 0x29" "PHYCTRL 0x5e 0x07" "PWRSRC_STS 0x6e 0x1e"; do
+        set -- $r
+        printf ' %s=%s' "$1" "$(i2cget -f -y 5 "$2" "$3" 2>/dev/null || echo err)"
+    done
+    for f in online status input_current_limit f_vbus_stat f_pg_stat f_dpm_stat f_chrg_stat \
+        f_iinlim f_en_hiz f_chg_config f_ichg f_vreg f_watchdog f_watchdog_fault; do
+        printf ' %s=%s' "$f" "$(cat $B/$f 2>/dev/null || echo err)"
+    done
+    printf ' tcpm_online=%s tcpm_current_max=%s' "$(cat $T/online 2>/dev/null)" \
+        "$(cat $T/current_max 2>/dev/null)"
+}
+
+log() { logger -t pmic-charger "$*"; }
+
+case "$1" in
+pre)
+    : > "$S"
+    echo "$REGS" | while read -r name addr reg; do
+        v=$(i2cget -f -y 5 "$addr" "$reg" 2>/dev/null) && echo "$name $addr $reg $v" >> "$S"
+    done
+    log "pre $2 (${SYSTEMD_SLEEP_ACTION:-}):$(state)"
+    ;;
+post)
+    log "post $2 (${SYSTEMD_SLEEP_ACTION:-}):$(state)"
+    [ -f "$S" ] || exit 0
+    fixed=
+    while read -r name addr reg want; do
+        have=$(i2cget -f -y 5 "$addr" "$reg" 2>/dev/null) || continue
+        [ "$have" = "$want" ] && continue
+        i2cset -f -y 5 "$addr" "$reg" "$want" && fixed="$fixed $name=$have->$want"
+    done < "$S"
+    [ -n "$fixed" ] && log "restored:$fixed;$(state)"
+    ;;
+esac
+exit 0
