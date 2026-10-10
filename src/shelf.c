@@ -1861,6 +1861,7 @@ typedef struct {
     Uint64 last_move;
     bool dirty;
     const char *starting; /* title shown as "Starting ..." while a launch is on its way */
+    Uint64 save_due;      /* when to save the position (after moving stops); 0: saved */
 } App;
 
 /* ---- image loader thread: decode + scale off the UI thread; the UI makes the texture ----
@@ -2189,6 +2190,62 @@ static void reload(App *a)
     a->dirty = true;
 }
 
+/* Where you are (tab name, game file), so shelf resumes there: ~/.local/state/shelf/last, written
+ * once moving has stopped for SAVE_DELAY_MS, at launch and at quit. At start the newer of this and
+ * Pegasus' theme memory (the last game launched by either frontend) wins. */
+#define SAVE_DELAY_MS 1500
+static char *state_path(void)
+{
+    const char *x = getenv("XDG_STATE_HOME");
+    return x && *x ? fmt("%s/shelf/last", x) : fmt("%s/.local/state/shelf/last", getenv("HOME") ? getenv("HOME") : "");
+}
+
+static void save_state(App *a)
+{
+    a->save_due = 0;
+    Collection *c = cur_coll(a);
+    Game *g = cur_game(a);
+    if (!c || !g || getenv("SHELF_SCREENSHOT"))
+        return;
+    char *path = state_path(), *dir = dir_of(path), *parent = dir_of(dir);
+    mkdir(parent, 0755);
+    mkdir(dir, 0755);
+    char *data = fmt("%s\n%s\n", c->name, g->files.v[0]);
+    write_file(path, data);
+    free(data), free(parent), free(dir), free(path);
+}
+
+static void moved(App *a)
+{
+    a->save_due = SDL_GetTicks() + SAVE_DELAY_MS;
+}
+
+/* Startup position: our own state or Pegasus' theme memory, whichever was written last. */
+static void restore_position(App *a)
+{
+    char *sp = state_path(), *cfg = config_dir(), *mp = fmt("%s/theme_settings/pegasus-theme-grid.json", cfg);
+    struct stat ss, ms;
+    bool have_s = stat(sp, &ss) == 0, have_m = stat(mp, &ms) == 0;
+    if (have_s && (!have_m || ss.st_mtime >= ms.st_mtime)) {
+        char *text = read_file(sp, NULL), *nl = text ? strchr(text, '\n') : NULL;
+        if (nl) {
+            *nl = 0;
+            char *file = nl + 1, *end = strchr(file, '\n');
+            if (end)
+                *end = 0;
+            select_game(a, text, NULL, file);
+        }
+        free(text);
+    } else if (have_m) {
+        char *mc = NULL, *mg = NULL;
+        read_memory(&mc, &mg);
+        select_game(a, mc, mg, NULL);
+        free(mc);
+        free(mg);
+    }
+    free(sp), free(cfg), free(mp);
+}
+
 static void move(App *a, int d)
 {
     Collection *c = cur_coll(a);
@@ -2202,6 +2259,7 @@ static void move(App *a, int d)
     a->sel[a->tab] = s;
     a->last_move = SDL_GetTicks();
     a->dirty = true;
+    moved(a);
 }
 
 static void switch_tab(App *a, int d)
@@ -2211,6 +2269,7 @@ static void switch_tab(App *a, int d)
     a->tab = (a->tab + d + a->ntabs) % a->ntabs;
     a->last_move = 0;
     a->dirty = true;
+    moved(a);
 }
 
 static void format_duration(char *b, size_t n, long long s)
@@ -2466,6 +2525,7 @@ static void start_game(App *a)
         return;
     Collection *c = cur_coll(a);
     write_memory(c->virtual_ ? g->colls[0]->name : c->name, g->title);
+    save_state(a);
     /* "Starting ..." goes on screen before the game starts, and stays until its window covers
      * shelf (seconds for Wine games on the Atom), so the wait doesn't look like a hang */
     a->starting = g->title;
@@ -2880,11 +2940,7 @@ int main(int argc, char **argv)
     load_library(&a->lib);
     mark("library");
     build_tabs(a);
-    char *mc = NULL, *mg = NULL;
-    read_memory(&mc, &mg);
-    select_game(a, mc, mg, NULL);
-    free(mc);
-    free(mg);
+    restore_position(a);
 
     loader.lock = SDL_CreateMutex();
     loader.cond = SDL_CreateCondition();
@@ -2938,6 +2994,10 @@ int main(int argc, char **argv)
         Uint64 now = SDL_GetTicks();
         if (a->held && !a->running)
             timeout = a->next_repeat > now ? (int)(a->next_repeat - now) : 0;
+        if (a->save_due) {
+            int t = a->save_due > now ? (int)(a->save_due - now) : 0;
+            timeout = timeout < 0 ? t : SDL_min(timeout, t);
+        }
         struct pollfd fds[2] = { { .fd = msg_pipe[0], .events = POLLIN }, { .fd = -1, .events = POLLIN } };
         if (!shot) {
             while (wl_display_prepare_read(wl.dpy) != 0)
@@ -2970,7 +3030,11 @@ int main(int argc, char **argv)
             action(a, a->held, true);
             a->next_repeat = now + REPEAT_RATE_MS;
         }
+        if (a->save_due && now >= a->save_due)
+            save_state(a);
     }
+    if (a->save_due)
+        save_state(a);
     if (wl.closed)
         warn("window closed");
 

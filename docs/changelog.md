@@ -375,3 +375,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-10: shelf tabs: system logos (from Pegasus' grid theme, `shelf/logos/`) and symbols instead of names; full-height selection.
 - 2026-10-10: shelf: logos load through the image thread; LB/RB page (d-pad left/right switch tabs).
 - 2026-10-10: shelf: "Starting <title>…" overlay while a game launches.
+- 2026-10-10: shelf remembers the current tab and game across restarts (`~/.local/state/shelf/last`).
