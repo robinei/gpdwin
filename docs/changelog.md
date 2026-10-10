@@ -434,3 +434,9 @@ Details before 2026-10-06 are in `docs/archive/`.
   Utilities terminals use app_id `shelf-tool`.
 - Kept: Pegasus' data formats and places (`~/.config/pegasus-frontend/` game_dirs/stats/favourites, the metadata
   files), and the installed package, for checking compatibility by hand. Revert: git history before this entry.
+
+## 2026-10-10 — shelf: tab positions survive rescans, darker background
+- The rescan after a game or tool exits kept only the current tab's place; now every tab keeps its selected game
+  and scroll position. Switching tabs already kept them.
+- Background is now crust `#11111b` (was base `#1e1e2e`), the Utilities icons' outer margin, which showed as a
+  frame; tab bar black (continues the sway bar), selected row base, selected tab surface0.

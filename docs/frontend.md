@@ -61,10 +61,14 @@ source at the installed commit).
 - Launching draws a dimmed "Starting <title>…" overlay first, which stays
   until the game's window covers shelf; `SHELF_KEYS=o` shows it in a screenshot.
 - After a game or tool exits it rescans everything, so games added by the installer or box art
-  from Fetch Box Art show up without a restart.
+  from Fetch Box Art show up without a restart. Every tab keeps its selected game and scroll
+  position across that (in memory; only the current tab is saved to disk).
+- Colours (Catppuccin Mocha): background crust `#11111b`, the outer margin of the Utilities icons,
+  so only their cards show; tab bar black like the sway bar above it; selected tab surface0,
+  selected row base.
 - Testing without a screen: `shelf --list` prints collections, games, art and stats.
   `SHELF_SCREENSHOT=x.png SHELF_KEYS=ddr shelf` renders 1280x720 without any window, presses keys
-  (d/u/l/r), waits for the box art, saves a PNG and quits. `XDG_CONFIG_HOME` points it at another config dir.
+  (d/u/l/r, o launch overlay, R rescan), waits for the box art, saves a PNG and quits. `XDG_CONFIG_HOME` points it at another config dir.
 - Found by name: `screen.sh` (freezing), `inputd` (Menu key), the sway workspace-1 rules and
   `restart-shelf` match `shelf`.
 

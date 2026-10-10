@@ -1724,15 +1724,18 @@ static int pad_thread(void *unused)
 
 /* ------------------------------------------------------------------ UI */
 
+/* Catppuccin Mocha. The background is crust, the outer margin of the Utilities icons (so it
+ * disappears around their cards); the tab bar is black like the sway bar above it. */
 typedef struct {
-    SDL_Color base, mantle, surface0, surface1, text, subtext, overlay, accent, fav;
+    SDL_Color bg, bar, tab_on, row_on, box, text, subtext, overlay, accent, fav;
 } Palette;
 
 static const Palette P = {
-    .base = { 0x1e, 0x1e, 0x2e, 255 },
-    .mantle = { 0x11, 0x11, 0x1b, 255 },
-    .surface0 = { 0x31, 0x32, 0x44, 255 },
-    .surface1 = { 0x45, 0x47, 0x5a, 255 },
+    .bg = { 0x11, 0x11, 0x1b, 255 },      /* crust */
+    .bar = { 0x00, 0x00, 0x00, 255 },
+    .tab_on = { 0x31, 0x32, 0x44, 255 },  /* surface0: selected tab */
+    .row_on = { 0x1e, 0x1e, 0x2e, 255 },  /* base: selected row */
+    .box = { 0x31, 0x32, 0x44, 255 },     /* surface0: art not loaded yet, scroll bar */
     .text = { 0xcd, 0xd6, 0xf4, 255 },
     .subtext = { 0xa6, 0xad, 0xc8, 255 },
     .overlay = { 0x6c, 0x70, 0x86, 255 },
@@ -2248,38 +2251,55 @@ static void build_tabs(App *a)
     a->tab = 0;
 }
 
-/* Select a collection by name and a game in it by title or file path (either may be NULL). */
-static void select_game(App *a, const char *coll, const char *file)
+/* Select a collection by name and, if found in it, a game by file path (file may be NULL). Returns
+ * the tab, or -1 if there is no such collection. */
+static int select_game(App *a, const char *coll, const char *file)
 {
     for (int i = 0; i < a->ntabs; i++) {
         Collection *c = a->tabs[i];
         if (!coll || strcmp(c->name, coll) != 0)
             continue;
         a->tab = i;
-        for (int k = 0; k < c->ngames; k++) {
-            Game *g = c->games[k];
-            if (!strcmp(g->files.v[0], file)) {
+        for (int k = 0; file && k < c->ngames; k++)
+            if (!strcmp(c->games[k]->files.v[0], file)) {
                 a->sel[i] = k;
                 break;
             }
-        }
-        return;
+        return i;
     }
+    return -1;
 }
 
+/* Rescan, keeping every tab's selected game and its row on screen (found again by collection
+ * name and file path). */
 static void reload(App *a)
 {
-    char *coll = NULL, *file = NULL;
-    if (cur_coll(a))
-        coll = xstrdup(cur_coll(a)->name);
-    if (cur_game(a))
-        file = xstrdup(cur_game(a)->files.v[0]);
+    int n = a->ntabs, cur = a->tab;
+    struct {
+        char *coll, *file;
+        int row;
+    } *keep = xcalloc(n + 1, sizeof *keep);
+    for (int i = 0; i < n; i++) {
+        Collection *c = a->tabs[i];
+        keep[i].coll = xstrdup(c->name);
+        if (c->ngames) {
+            keep[i].file = xstrdup(c->games[a->sel[i]]->files.v[0]);
+            keep[i].row = a->sel[i] - a->top[i];
+        }
+    }
     lib_free(&a->lib);
     load_library(&a->lib);
     build_tabs(a);
-    select_game(a, coll, file);
-    free(coll);
-    free(file);
+    for (int i = 0; i < n; i++) {
+        int t = keep[i].file ? select_game(a, keep[i].coll, keep[i].file) : -1;
+        if (t >= 0)
+            a->top[t] = SDL_max(0, a->sel[t] - keep[i].row); /* draw_list clamps it */
+    }
+    a->tab = 0; /* if the current collection is gone */
+    select_game(a, n ? keep[cur].coll : NULL, n ? keep[cur].file : NULL);
+    for (int i = 0; i < n; i++)
+        free(keep[i].coll), free(keep[i].file);
+    free(keep);
     a->dirty = true;
 }
 
@@ -2390,7 +2410,7 @@ static void join(char *b, size_t n, const StrList *l)
  * the full bar height; the bar scrolls left if the selected tab would be off screen. */
 static void draw_tabs(App *a, int W)
 {
-    fill(a, P.mantle, 0, 0, W, TAB_H);
+    fill(a, P.bar, 0, 0, W, TAB_H);
     int *tw = xmalloc((a->ntabs + 1) * sizeof *tw);
     ImgEntry **logo = xmalloc((a->ntabs + 1) * sizeof *logo);
     const char **sym = xmalloc((a->ntabs + 1) * sizeof *sym);
@@ -2422,7 +2442,7 @@ static void draw_tabs(App *a, int W)
     for (int i = 0; i < a->ntabs; i++) {
         SDL_Color col = i == a->tab ? P.text : P.overlay;
         if (i == a->tab)
-            fill(a, P.surface1, x, 0, tw[i], TAB_H);
+            fill(a, P.tab_on, x, 0, tw[i], TAB_H);
         if (sym[i]) {
             text(a, a->f_icon, sym[i], col, x + TAB_PAD, (TAB_H - TTF_GetFontHeight(a->f_icon)) / 2.0f, 0);
         } else if (logo[i]) {
@@ -2460,7 +2480,7 @@ static void draw_list(App *a, Collection *c, int LW, int H)
         int y = TAB_H + r * (H - TAB_H) / rows, rh = TAB_H + (r + 1) * (H - TAB_H) / rows - y;
         bool on = *top + r == *sel;
         if (on) {
-            fill(a, P.surface0, 0, y, LW, rh);
+            fill(a, P.row_on, 0, y, LW, rh);
             fill(a, P.accent, 0, y, 5, rh);
         }
         if (g->boxfront) {
@@ -2479,7 +2499,7 @@ static void draw_list(App *a, Collection *c, int LW, int H)
     }
     if (c->ngames > rows) { /* scroll position */
         float h = (float)(H - TAB_H) * rows / c->ngames, y = TAB_H + (float)(H - TAB_H) * *top / c->ngames;
-        fill(a, P.surface1, LW - 3, y, 3, h);
+        fill(a, P.box, LW - 3, y, 3, h);
     }
 }
 
@@ -2519,7 +2539,7 @@ static void draw_details(App *a, Game *g, int LW, int W, int H)
             img_h = d.h;
         } else {
             img_h = IH;
-            fill(a, P.surface0, PX, y, IW * 0.7f, IH);
+            fill(a, P.box, PX, y, IW * 0.7f, IH);
         }
     } else { /* nothing to stand in for */
         free(a->big_shown);
@@ -2588,7 +2608,7 @@ static void render(App *a)
 {
     int W = a->W, H = a->H, LW = W * 46 / 100;
     loader_clear(); /* rebuilt below: what this frame still lacks */
-    fill(a, P.base, 0, 0, W, H);
+    fill(a, P.bg, 0, 0, W, H);
     draw_tabs(a, W);
     Collection *c = cur_coll(a);
     if (c && c->ngames) {
@@ -2988,14 +3008,14 @@ static void on_signal(int sig)
 static bool loader_idle(void)
 {
     SDL_LockMutex(loader.lock);
-    bool idle = !loader.n && !loader.busy.path;
+    bool idle = !loader.n && !loader.busy.path && !loader.posted;
     SDL_UnlockMutex(loader.lock);
     return idle;
 }
 
 /* Testing without a window (SHELF_SCREENSHOT=file.png, SHELF_KEYS=...): once the box art is in,
- * press the next key (d/u down/up, l/r tab, o launch overlay), or save the frame. Returns true when
- * the screenshot is saved. */
+ * press the next key (d/u down/up, l/r tab, o launch overlay, R rescan), or save the frame.
+ * Returns true when the screenshot is saved. */
 static bool screenshot_step(App *a, const char *shot)
 {
     static int next;
@@ -3006,6 +3026,8 @@ static bool screenshot_step(App *a, const char *shot)
         char c = keys[next++];
         if (c == 'o')
             a->starting = cur_game(a) ? cur_game(a)->title : "?";
+        else if (c == 'R')
+            reload(a);
         else
             action(a, c == 'd' ? A_DOWN : c == 'u' ? A_UP : c == 'l' ? A_LEFT : A_RIGHT, false);
         a->dirty = true;
@@ -3054,7 +3076,7 @@ int main(int argc, char **argv)
     timing = getenv("SHELF_TIMING") != NULL;
     mark("main");
     /* testing: SHELF_SCREENSHOT=file.png [SHELF_KEYS=dddr...] renders 1280x720 without a window,
-     * presses the keys (d/u down/up, l/r tab), waits for the box art, saves and quits */
+     * presses the keys (see screenshot_step), waits for the box art, saves and quits */
     const char *shot = getenv("SHELF_SCREENSHOT");
     headless = shot != NULL;
     static App app;
