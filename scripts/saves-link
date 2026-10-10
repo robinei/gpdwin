@@ -3,9 +3,11 @@
 
 Prefixes, install folders and ~/.local/share/<game> can then be deleted and recreated without losing saves
 (docs/saves.md "Central save store"). The list of data folders per game is the "data" key of
-games/saves.json (whole folders, not single files: a game that saves by writing a temp file and renaming
-it over the old one would silently turn a symlinked *file* into a normal file). Settings that live in the
-same folder come along.
+games/saves.json (whole folders where possible: a game that saves by writing a temp file and renaming
+it over the old one would silently turn a symlinked *file* into a normal file, and the status then shows
+"conflict"). Settings that live in the same folder come along. For saves that sit among the game's own files
+in its install folder an entry may be a single file or a pattern such as ".../Save*.dat" (a pattern only matches
+files that are real files now, so run --apply again after the game made new ones).
 
   saves-link                       show the state of every game (changes nothing)
   saves-link --apply [GAME...]     fix what is not in place yet (all games, or those named: slug, name or app id)
@@ -22,7 +24,7 @@ Nothing is touched while a process of the game (anything running from its instal
 <game> is the install folder's name under ~/Games/installed (the game with that Steam app id), else a
 slug of the name.
 """
-import json, os, re, shutil, sys
+import glob, json, os, re, shutil, sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -48,7 +50,13 @@ def installed_slugs():
 def targets(game, slug):
     """[(location, store_path)] for the game's "data" folders; names inside the store are the folder's last
     component, with the parent's name in front when two of the game's folders end the same."""
-    paths = [Path(os.path.expanduser(p)) for p in game.get("data", [])]
+    paths = []
+    for p in game.get("data", []):
+        p = os.path.expanduser(p)
+        if any(c in p for c in "*?["):       # a pattern for files that appear later (saves in an install folder)
+            paths += [Path(m) for m in sorted(glob.glob(p)) if not os.path.islink(m)]
+        else:
+            paths.append(Path(p))
     names = [p.name for p in paths]
     out = []
     for p in paths:

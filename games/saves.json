@@ -243,6 +243,147 @@
    "data": [
     "~/.local/share/Psychonauts"
    ]
+  },
+  {
+   "name": "A Short Hike",
+   "appid": "1055540",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.config/unity3d/adamgryu/A Short Hike/GameSaveNew.mountain",
+     "desktop": "{home}/.config/unity3d/adamgryu/A Short Hike/GameSaveNew.mountain"
+    }
+   ],
+   "data": [
+    "~/.config/unity3d/adamgryu/A Short Hike"
+   ]
+  },
+  {
+   "name": "Caves of Qud",
+   "appid": "333640",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.config/unity3d/Freehold Games/CavesOfQud/Synced/Saves",
+     "desktop": "{home}/.config/unity3d/Freehold Games/CavesOfQud/Synced/Saves",
+     "dir": true
+    }
+   ],
+   "data": [
+    "~/.config/unity3d/Freehold Games/CavesOfQud"
+   ]
+  },
+  {
+   "name": "Undertale",
+   "appid": "391540",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.config/UNDERTALE",
+     "desktop": "{home}/.config/UNDERTALE",
+     "dir": true
+    }
+   ],
+   "data": [
+    "~/.config/UNDERTALE"
+   ]
+  },
+  {
+   "name": "The Binding of Isaac: Rebirth",
+   "appid": "250900",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.local/share/binding of isaac afterbirth+",
+     "desktop": "{home}/.local/share/binding of isaac afterbirth+",
+     "dir": true
+    }
+   ],
+   "data": [
+    "~/.local/share/binding of isaac afterbirth+"
+   ]
+  },
+  {
+   "name": "Strife: Veteran Edition",
+   "appid": "317040",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.local/share/strife-ve",
+     "desktop": "{home}/.local/share/strife-ve",
+     "dir": true
+    }
+   ],
+   "data": [
+    "~/.local/share/strife-ve"
+   ]
+  },
+  {
+   "name": "Commander Keen Complete Pack",
+   "appid": "9180",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.CommanderGenius",
+     "desktop": "{home}/.CommanderGenius",
+     "dir": true
+    }
+   ],
+   "data": [
+    "~/.CommanderGenius"
+   ]
+  },
+  {
+   "name": "Spelunky",
+   "appid": "239350",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/Games/installed/spelunky/Data/spelunky_save.sav",
+     "desktop": "{steam}/steamapps/common/Spelunky/Data/spelunky_save.sav"
+    },
+    {
+     "gpd": "~/Games/installed/spelunky/Data/config.txt",
+     "desktop": "{steam}/steamapps/common/Spelunky/Data/config.txt"
+    }
+   ],
+   "data": [
+    "~/Games/installed/spelunky/Data/spelunky_save.sav",
+    "~/Games/installed/spelunky/Data/config.txt"
+   ]
+  },
+  {
+   "name": "Sam & Max 101: Culture Shock",
+   "appid": "8200",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/Games/installed/sam-max-101-culture-shock/AUTO SAVE.save",
+     "desktop": "{steam}/steamapps/common/Sam & Max 101 Culture Shock/AUTO SAVE.save"
+    }
+   ],
+   "data": [
+    "~/Games/installed/sam-max-101-culture-shock/*.save"
+   ]
+  },
+  {
+   "name": "Cave Story+",
+   "appid": "200900",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/Games/installed/cave-story/Save.dat",
+     "desktop": "{steam}/steamapps/common/Cave Story+/Save.dat"
+    },
+    {
+     "gpd": "~/Games/installed/cave-story/Profile-StoryMode-0.dat",
+     "desktop": "{steam}/steamapps/common/Cave Story+/Profile-StoryMode-0.dat"
+    }
+   ],
+   "data": [
+    "~/Games/installed/cave-story/Save*.dat",
+    "~/Games/installed/cave-story/Profile-*.dat"
+   ]
   }
  ]
 }

@@ -31,12 +31,15 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   inside `~/Saves/bastion/Bastion`, and the link was still a link afterwards.
 - Wine games: the link sits inside the prefix (Heretic/Hexen: `~/.wine/drive_c/users/robin/Saved Games/
   Nightdive Studios`). Wine follows it. If a prefix is recreated, run `saves-link --apply`.
-- **Not covered yet** (no `"data"` entry; find the folder with `scripts/saves-discover` or by looking at what
-  the game writes, then add it to `games/saves.json`): a-short-hike, caves-of-qud, starcom-nexus,
-  strife-veteran-edition, the-binding-of-isaac-rebirth, undertale (native Linux), cave-story and
-  commander-keen (saves in the install folder: needs per-file links, check that the game keeps them),
-  sam-max, spelunky (Wine; saves location unknown). The Steam emulator's saves (`~/.local/share/GSE Saves/<appid>`,
-  used by games with the emulator `libsteam_api.so`) are not in the store either.
+- Install-folder saves (Spelunky, Sam & Max, Cave Story+): `"data"` may name single files or a pattern
+  (`.../cave-story/Save*.dat`), linked file by file because the folder also holds the game. Risk: a game that
+  replaces a file by rename would drop the link; `saves-link` then shows `conflict` (a real file next to the
+  store copy). Check it after playing each game once (`scripts/saves-link`), and run `--apply` again after a game
+  created new save files (a pattern only matches files that exist as real files at that moment).
+- **Not covered yet:** Starcom: Nexus (no save found yet: not played), the Steam emulator's saves
+  (`~/.local/share/GSE Saves/<appid>`, games with the emulator `libsteam_api.so`; Isaac, Spelunky), DevilutionX
+  (`~/.local/share/diasurgical`, 667 MB incl. game data) and Wine's own per-prefix settings. Add a `"data"` entry
+  for them when needed (`scripts/saves-discover` or look at what the game writes).
 
 ## Game Saves (shelf: Utilities > Game Saves; `scripts/save-status`)
 - Full-screen curses UI, manual per game, no automatic sync (Syncthing was rejected). One row

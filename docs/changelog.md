@@ -463,3 +463,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   Heretic/Hexen, Psychonauts). `scripts/save-status --list` output identical before/after; Bastion verified by
   playing. The installer re-attaches saves after an install (`core.link_saves`). Design and the games not yet
   covered: docs/saves.md "Central save store". Revert one game: remove the link, move the folder back.
+- Central save store, second batch: A Short Hike, Caves of Qud, Undertale, Isaac, Strife, Commander Keen (Commander Genius
+  config/saves) and, as single-file links in their install folders, Spelunky, Sam & Max and Cave Story+. `saves-link`
+  accepts files and patterns in `"data"`. Still to verify by playing: that the install-folder games keep the links
+  (`scripts/saves-link` shows `conflict` if one was replaced).
