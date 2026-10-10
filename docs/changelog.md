@@ -373,3 +373,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-10: no swaybg: sway 1.12 draws uncovered areas black by itself (checked with grim), so the `output * bg #000000` line went and `swaybg_command -` is set (saves a 7 MB process).
 - 2026-10-10: the keyboard's Menu key (KEY_COMPOSE) brings up the frontend instead of the pad's Guide button (which sends nothing in mouse mode). Revert: git revert, `scripts/sync install`, restart inputd.
 - 2026-10-10: shelf tabs: system logos (from Pegasus' grid theme, `shelf/logos/`) and symbols instead of names; full-height selection.
+- 2026-10-10: shelf: logos load through the image thread; LB/RB page (d-pad left/right switch tabs).

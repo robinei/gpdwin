@@ -22,7 +22,7 @@
  * Input: keyboard through SDL. The gamepad is read directly from evdev in a thread (inotify for
  * hotplug), not through SDL's gamepad layer: with a joystick open SDL polls about every millisecond,
  * and the pad disconnects whenever the screen goes off. Pad: d-pad/stick up/down move (held: repeat),
- * left/right or LB/RB switch collection, triggers page, A launch, Y favourite.
+ * left/right switch collection, LB/RB or triggers page (held: repeat), A launch, Y favourite.
  * Keys: arrows, Page Up/Down, Home/End, Tab/Shift+Tab, Enter launch, F favourite.
  *
  * Options: --list prints what was found (no window) and exits.
@@ -1766,7 +1766,7 @@ static int pad_thread(void *unused)
             while ((n = read(pad, &ev, sizeof ev)) == sizeof ev) {
                 if (ev.type == EV_KEY && ev.value != 2) {
                     int a = ev.code == BTN_A ? A_LAUNCH : ev.code == BTN_Y ? A_FAV : ev.code == BTN_B ? A_BACK
-                          : ev.code == BTN_TL ? A_LEFT : ev.code == BTN_TR ? A_RIGHT : A_NONE;
+                          : ev.code == BTN_TL ? A_PGUP : ev.code == BTN_TR ? A_PGDN : A_NONE;
                     if (a)
                         push_pad(a, ev.value);
                 } else if (ev.type == EV_ABS) {
@@ -1846,12 +1846,7 @@ typedef struct {
     int W, H;            /* window size */
     TTF_TextEngine *eng;
     TTF_Font *f_tab, *f_icon, *f_row, *f_title, *f_meta, *f_desc;
-    struct {
-        char *key;
-        SDL_Texture *tex; /* white with alpha, tinted per use; NULL: no logo */
-        int w, h;
-    } logos[32];
-    int nlogos;
+    ImgEntry logos[32]; /* white with alpha, tinted per use */
     Library lib;
     Collection recent, favs;
     Collection **tabs;
@@ -1870,10 +1865,11 @@ typedef struct {
 /* ---- image loader thread: decode + scale off the UI thread; the UI makes the texture ----
  * The UI rebuilds the wish list on every frame (large art of the selected game first, then the
  * visible thumbnails), so stale requests from fast scrolling are simply dropped. */
+enum { IMG_THUMB, IMG_BIG, IMG_LOGO };
 typedef struct {
     char *path;
     int max_w, max_h;
-    bool big;
+    int kind;
 } ImgReq;
 
 typedef struct {
@@ -1890,6 +1886,37 @@ static struct {
     bool quit;
 } loader;
 
+
+/* A logo: the SVG rendered LOGO-high (or max_w wide if that is too wide), made white with its
+ * alpha as the shape, so the UI can tint it. */
+static SDL_Surface *decode_logo(const char *path, int max_w, int max_h)
+{
+    SDL_Surface *s = NULL;
+    for (int pass = 0; pass < 2; pass++) {
+        SDL_IOStream *io = SDL_IOFromFile(path, "rb");
+        if (!io)
+            break;
+        if (s)
+            SDL_DestroySurface(s);
+        s = pass == 0 ? IMG_LoadSizedSVG_IO(io, 0, max_h) : IMG_LoadSizedSVG_IO(io, max_w, 0);
+        SDL_CloseIO(io);
+        if (!s || s->w <= max_w)
+            break;
+    }
+    if (!s)
+        return NULL;
+    SDL_Surface *t = SDL_ConvertSurface(s, SDL_PIXELFORMAT_ARGB8888);
+    SDL_DestroySurface(s);
+    if (t && SDL_LockSurface(t)) {
+        for (int y = 0; y < t->h; y++) {
+            Uint32 *row = (Uint32 *)((char *)t->pixels + y * t->pitch);
+            for (int x = 0; x < t->w; x++)
+                row[x] |= 0x00FFFFFF;
+        }
+        SDL_UnlockSurface(t);
+    }
+    return t;
+}
 
 static SDL_Surface *decode_image(const char *path, int max_w, int max_h)
 {
@@ -1938,7 +1965,8 @@ static int loader_thread(void *unused)
         SDL_UnlockMutex(loader.lock);
         ImgResult *res = xmalloc(sizeof *res);
         res->req = r;
-        res->surf = decode_image(r.path, r.max_w, r.max_h);
+        res->surf = r.kind == IMG_LOGO ? decode_logo(r.path, r.max_w, r.max_h)
+                                       : decode_image(r.path, r.max_w, r.max_h);
         post(M_IMG, 0, 0, res);
         SDL_LockMutex(loader.lock);
         loader.busy.path = NULL; /* the result owns the string now */
@@ -1956,14 +1984,14 @@ static void loader_clear(void)
     SDL_UnlockMutex(loader.lock);
 }
 
-static void loader_want(const char *path, int max_w, int max_h, bool big)
+static void loader_want(const char *path, int max_w, int max_h, int kind)
 {
     SDL_LockMutex(loader.lock);
     bool dup = loader.busy.path && loader.busy.max_w == max_w && !strcmp(loader.busy.path, path);
     for (int i = 0; !dup && i < loader.n; i++)
         dup = loader.queue[i].max_w == max_w && !strcmp(loader.queue[i].path, path);
     if (!dup && loader.n < (int)SDL_arraysize(loader.queue)) {
-        loader.queue[loader.n++] = (ImgReq){ xstrdup(path), max_w, max_h, big };
+        loader.queue[loader.n++] = (ImgReq){ xstrdup(path), max_w, max_h, kind };
         SDL_SignalCondition(loader.cond);
     }
     SDL_UnlockMutex(loader.lock);
@@ -1983,8 +2011,9 @@ static ImgEntry *cache_get(App *a, ImgEntry *tab, int n, const char *path, int m
 /* A decoded image arrived: make the texture (failures are cached too, so they aren't retried). */
 static void cache_put(App *a, ImgResult *res)
 {
-    ImgEntry *tab = res->req.big ? a->bigs : a->thumbs;
-    int n = res->req.big ? (int)SDL_arraysize(a->bigs) : (int)SDL_arraysize(a->thumbs);
+    ImgEntry *tab = res->req.kind == IMG_BIG ? a->bigs : res->req.kind == IMG_LOGO ? a->logos : a->thumbs;
+    int n = res->req.kind == IMG_BIG ? (int)SDL_arraysize(a->bigs)
+          : res->req.kind == IMG_LOGO ? (int)SDL_arraysize(a->logos) : (int)SDL_arraysize(a->thumbs);
     ImgEntry *lru = &tab[0];
     for (int i = 0; i < n; i++)
         if (!tab[i].path || tab[i].used < lru->used)
@@ -2013,64 +2042,15 @@ static void cache_clear(ImgEntry *tab, int n)
     }
 }
 
-/* Collection logo: ~/.local/share/shelf/logos/<shortname>.svg (shelf/logos/ in the repo), made
- * white (its alpha is the shape) so it can be tinted, fitted into LOGO_W x LOGO_H. Cached. */
+/* Collection logos: ~/.local/share/shelf/logos/<shortname>.svg (shelf/logos/ in the repo), loaded
+ * by the image thread like box art and fitted into LOGO_W x LOGO_H. */
 #define LOGO_W 140
 #define LOGO_H 34
-static int logo_get(App *a, const char *key)
+static char *logo_path(const char *shortname)
 {
-    for (int i = 0; i < a->nlogos; i++)
-        if (!strcmp(a->logos[i].key, key))
-            return i;
-    if (a->nlogos == (int)SDL_arraysize(a->logos))
-        return -1;
-    int i = a->nlogos++;
-    a->logos[i].key = xstrdup(key);
-    a->logos[i].tex = NULL;
     const char *dh = getenv("XDG_DATA_HOME");
-    char *path = dh && *dh ? fmt("%s/shelf/logos/%s.svg", dh, key)
-                           : fmt("%s/.local/share/shelf/logos/%s.svg", getenv("HOME") ? getenv("HOME") : "", key);
-    SDL_Surface *s = NULL;
-    for (int pass = 0; pass < 2 && exists(path); pass++) {
-        SDL_IOStream *io = SDL_IOFromFile(path, "rb");
-        if (!io)
-            break;
-        if (s)
-            SDL_DestroySurface(s);
-        s = pass == 0 ? IMG_LoadSizedSVG_IO(io, 0, LOGO_H) : IMG_LoadSizedSVG_IO(io, LOGO_W, 0);
-        SDL_CloseIO(io);
-        if (!s || s->w <= LOGO_W)
-            break; /* else too wide at full height: fit the width instead */
-    }
-    free(path);
-    if (s) {
-        SDL_Surface *t = SDL_ConvertSurface(s, SDL_PIXELFORMAT_ARGB8888);
-        SDL_DestroySurface(s);
-        s = t;
-    }
-    if (s && SDL_LockSurface(s)) {
-        for (int y = 0; y < s->h; y++) {
-            Uint32 *row = (Uint32 *)((char *)s->pixels + y * s->pitch);
-            for (int x = 0; x < s->w; x++)
-                row[x] |= 0x00FFFFFF;
-        }
-        SDL_UnlockSurface(s);
-        a->logos[i].tex = SDL_CreateTextureFromSurface(a->ren, s);
-        a->logos[i].w = s->w, a->logos[i].h = s->h;
-    }
-    if (s)
-        SDL_DestroySurface(s);
-    return i;
-}
-
-static void logos_clear(App *a)
-{
-    for (int i = 0; i < a->nlogos; i++) {
-        free(a->logos[i].key);
-        if (a->logos[i].tex)
-            SDL_DestroyTexture(a->logos[i].tex);
-    }
-    a->nlogos = 0;
+    return dh && *dh ? fmt("%s/shelf/logos/%s.svg", dh, shortname)
+                     : fmt("%s/.local/share/shelf/logos/%s.svg", getenv("HOME") ? getenv("HOME") : "", shortname);
 }
 
 static void fill(App *a, SDL_Color c, float x, float y, float w, float h)
@@ -2269,6 +2249,7 @@ static void join(char *b, size_t n, const StrList *l)
 static int render(App *a)
 {
     int W = a->W, H = a->H;
+    loader_clear(); /* rebuilt below: what this frame still lacks */
     int need_more = 0; /* ms until something else should be drawn (0: nothing pending) */
     fill(a, P.base, 0, 0, W, H);
 
@@ -2276,18 +2257,24 @@ static int render(App *a)
      * and Utilities, the name otherwise. The selected one is highlighted over the full height. */
     const int TAB_H = 64, PAD = 20;
     fill(a, P.mantle, 0, 0, W, TAB_H);
-    int *tw = xmalloc((a->ntabs + 1) * sizeof *tw), *lg = xmalloc((a->ntabs + 1) * sizeof *lg);
+    int *tw = xmalloc((a->ntabs + 1) * sizeof *tw);
+    ImgEntry **lg = xmalloc((a->ntabs + 1) * sizeof *lg);
     const char **glyph = xmalloc((a->ntabs + 1) * sizeof *glyph);
     int x = 0, sel_x1 = 0;
     for (int i = 0; i < a->ntabs; i++) {
         Collection *t = a->tabs[i];
-        lg[i] = -1;
+        lg[i] = NULL;
         glyph[i] = t == &a->recent ? "\u25F7" : t == &a->favs ? "\u2605"
                  : !strcmp(t->shortname, "utils") ? "\u2699" : NULL;
-        if (!glyph[i] && (lg[i] = logo_get(a, t->shortname)) >= 0 && !a->logos[lg[i]].tex)
-            lg[i] = -1;
-        int cw = glyph[i] ? text_width(a->f_icon, glyph[i]) : lg[i] >= 0 ? a->logos[lg[i]].w
-               : text_width(a->f_tab, t->name);
+        if (!glyph[i]) { /* the name shows until the logo is loaded (or if there is none) */
+            char *lp = logo_path(t->shortname);
+            if ((lg[i] = cache_get(a, a->logos, SDL_arraysize(a->logos), lp, LOGO_W)) && !lg[i]->tex)
+                lg[i] = NULL;
+            else if (!lg[i] && exists(lp))
+                loader_want(lp, LOGO_W, LOGO_H, IMG_LOGO);
+            free(lp);
+        }
+        int cw = glyph[i] ? text_width(a->f_icon, glyph[i]) : lg[i] ? lg[i]->w : text_width(a->f_tab, t->name);
         tw[i] = cw + 2 * PAD;
         if (i == a->tab)
             sel_x1 = x + tw[i];
@@ -2301,11 +2288,10 @@ static int render(App *a)
             fill(a, P.surface1, x, 0, tw[i], TAB_H);
         if (glyph[i]) {
             text(a, a->f_icon, glyph[i], col, x + PAD, (TAB_H - TTF_GetFontHeight(a->f_icon)) / 2.0f, 0, NULL);
-        } else if (lg[i] >= 0) {
-            SDL_Texture *t = a->logos[lg[i]].tex;
-            SDL_SetTextureColorMod(t, col.r, col.g, col.b);
-            SDL_FRect d = { x + PAD, (TAB_H - a->logos[lg[i]].h) / 2.0f, a->logos[lg[i]].w, a->logos[lg[i]].h };
-            SDL_RenderTexture(a->ren, t, NULL, &d);
+        } else if (lg[i]) {
+            SDL_SetTextureColorMod(lg[i]->tex, col.r, col.g, col.b);
+            SDL_FRect d = { x + PAD, (TAB_H - lg[i]->h) / 2.0f, lg[i]->w, lg[i]->h };
+            SDL_RenderTexture(a->ren, lg[i]->tex, NULL, &d);
         } else {
             text(a, a->f_tab, a->tabs[i]->name, col, x + PAD, (TAB_H - TTF_GetFontHeight(a->f_tab)) / 2.0f, 0, NULL);
         }
@@ -2336,7 +2322,6 @@ static int render(App *a)
         *top = *sel - rows + 1;
     if (*top > c->ngames - rows)
         *top = SDL_max(0, c->ngames - rows);
-    loader_clear(); /* rebuilt below: what this frame still lacks */
     for (int r = 0; r < rows && *top + r < c->ngames; r++) {
         Game *g = c->games[*top + r];
         int y = TOP + r * ROW;
@@ -2348,7 +2333,7 @@ static int render(App *a)
         if (g->boxfront) {
             ImgEntry *e = cache_get(a, a->thumbs, SDL_arraysize(a->thumbs), g->boxfront, THUMB);
             if (!e)
-                loader_want(g->boxfront, THUMB, THUMB + 4, false);
+                loader_want(g->boxfront, THUMB, THUMB + 4, IMG_THUMB);
             if (e && e->tex) {
                 SDL_FRect d = { 16 + (THUMB - e->w) / 2.0f, y + (ROW - e->h) / 2.0f, e->w, e->h };
                 SDL_RenderTexture(a->ren, e->tex, NULL, &d);
@@ -2380,7 +2365,7 @@ static int render(App *a)
     if (g->boxfront) {
         ImgEntry *e = cache_get(a, a->bigs, SDL_arraysize(a->bigs), g->boxfront, IW);
         if (!e) { /* first in the queue: the selected game's art matters most */
-            loader_want(g->boxfront, IW, IH, true);
+            loader_want(g->boxfront, IW, IH, IMG_BIG);
             SDL_LockMutex(loader.lock);
             if (loader.n > 1) {
                 ImgReq big = loader.queue[loader.n - 1];
@@ -2714,7 +2699,7 @@ static bool make_canvas(App *a, int w, int h)
     }
     cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
     cache_clear(a->bigs, SDL_arraysize(a->bigs));
-    logos_clear(a);
+    cache_clear(a->logos, SDL_arraysize(a->logos));
     if (a->ren)
         SDL_DestroyRenderer(a->ren);
     if (a->canvas)
@@ -2956,7 +2941,7 @@ int main(int argc, char **argv)
     loader_clear();
     cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
     cache_clear(a->bigs, SDL_arraysize(a->bigs));
-    logos_clear(a);
+    cache_clear(a->logos, SDL_arraysize(a->logos));
     TTF_DestroyRendererTextEngine(a->eng);
     SDL_DestroyRenderer(a->ren);
     SDL_DestroySurface(a->canvas);
