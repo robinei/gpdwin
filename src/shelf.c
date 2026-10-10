@@ -66,7 +66,6 @@
 #define RECENT_MAX 20
 #define REPEAT_DELAY_MS 300
 #define REPEAT_RATE_MS 70
-#define BIG_IMAGE_DELAY_MS 120 /* while scrolling, load the large box art once movement pauses */
 
 /* ------------------------------------------------------------------ small helpers */
 
@@ -1845,14 +1844,47 @@ typedef struct {
     bool dirty;
 } App;
 
-static SDL_Texture *load_image(App *a, const char *path, int max_w, int max_h, int *w, int *h)
+/* ---- image loader thread: decode + scale off the UI thread; the UI makes the texture ----
+ * The UI rebuilds the wish list on every frame (large art of the selected game first, then the
+ * visible thumbnails), so stale requests from fast scrolling are simply dropped. */
+typedef struct {
+    char *path;
+    int max_w, max_h;
+    bool big;
+} ImgReq;
+
+typedef struct {
+    ImgReq req;
+    SDL_Surface *surf; /* NULL: failed */
+} ImgResult;
+
+static struct {
+    SDL_Mutex *lock;
+    SDL_Condition *cond;
+    ImgReq queue[64];
+    int n;
+    ImgReq busy; /* being decoded (path NULL: idle) */
+    bool quit;
+} loader;
+
+static Uint32 EV_IMG;
+
+static SDL_Surface *decode_image(const char *path, int max_w, int max_h)
 {
     Uint64 t0 = SDL_GetTicksNS();
     SDL_Surface *s = IMG_Load(path);
-    Uint64 t1 = SDL_GetTicksNS();
     if (!s) {
         warn("%s: %s", path, SDL_GetError());
         return NULL;
+    }
+    Uint64 t1 = SDL_GetTicksNS();
+    /* SDL's scaler is slow for anything but 32-bit pixels (16-bit PNGs took ~100 ms) */
+    if (s->format != SDL_PIXELFORMAT_ARGB8888) {
+        SDL_Surface *t = SDL_ConvertSurface(s, SDL_PIXELFORMAT_ARGB8888);
+        if (t) {
+            SDL_DestroySurface(s);
+            s = t;
+        }
     }
     float k = SDL_min((float)max_w / s->w, (float)max_h / s->h);
     if (k < 1.0f) {
@@ -1863,38 +1895,93 @@ static SDL_Texture *load_image(App *a, const char *path, int max_w, int max_h, i
             s = t;
         }
     }
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(a->ren, s);
     if (getenv("SHELF_TIMING"))
-        fprintf(stderr, "shelf: image %dx%d: decode %.1f ms, scale+upload %.1f ms (%s)\n", s->w, s->h,
+        fprintf(stderr, "shelf: image %dx%d: decode %.1f ms, convert+scale %.1f ms (%s)\n", s->w, s->h,
                 (t1 - t0) / 1e6, (SDL_GetTicksNS() - t1) / 1e6, name_of(path));
-    *w = s->w;
-    *h = s->h;
-    SDL_DestroySurface(s);
-    return tex;
+    return s;
+}
+
+static int loader_thread(void *unused)
+{
+    (void)unused;
+    SDL_LockMutex(loader.lock);
+    for (;;) {
+        while (!loader.n && !loader.quit)
+            SDL_WaitCondition(loader.cond, loader.lock);
+        if (loader.quit)
+            break;
+        ImgReq r = loader.queue[0];
+        memmove(loader.queue, loader.queue + 1, --loader.n * sizeof *loader.queue);
+        loader.busy = r;
+        SDL_UnlockMutex(loader.lock);
+        ImgResult *res = xmalloc(sizeof *res);
+        res->req = r;
+        res->surf = decode_image(r.path, r.max_w, r.max_h);
+        SDL_Event ev = { 0 };
+        ev.type = EV_IMG;
+        ev.user.data1 = res;
+        SDL_PushEvent(&ev);
+        SDL_LockMutex(loader.lock);
+        loader.busy.path = NULL; /* the result owns the string now */
+    }
+    SDL_UnlockMutex(loader.lock);
+    return 0;
+}
+
+static void loader_clear(void)
+{
+    SDL_LockMutex(loader.lock);
+    for (int i = 0; i < loader.n; i++)
+        free(loader.queue[i].path);
+    loader.n = 0;
+    SDL_UnlockMutex(loader.lock);
+}
+
+static void loader_want(const char *path, int max_w, int max_h, bool big)
+{
+    SDL_LockMutex(loader.lock);
+    bool dup = loader.busy.path && loader.busy.max_w == max_w && !strcmp(loader.busy.path, path);
+    for (int i = 0; !dup && i < loader.n; i++)
+        dup = loader.queue[i].max_w == max_w && !strcmp(loader.queue[i].path, path);
+    if (!dup && loader.n < (int)SDL_arraysize(loader.queue)) {
+        loader.queue[loader.n++] = (ImgReq){ xstrdup(path), max_w, max_h, big };
+        SDL_SignalCondition(loader.cond);
+    }
+    SDL_UnlockMutex(loader.lock);
 }
 
 /* Image cache: thumbs (many, small) and bigs (few, large); least recently used is evicted. */
-static ImgEntry *cache_get(App *a, ImgEntry *tab, int n, const char *path, int max, int max_h, bool load)
+static ImgEntry *cache_get(App *a, ImgEntry *tab, int n, const char *path, int max)
 {
-    ImgEntry *lru = &tab[0];
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
         if (tab[i].path && tab[i].max == max && strcmp(tab[i].path, path) == 0) {
             tab[i].used = ++a->tick;
             return &tab[i];
         }
+    return NULL;
+}
+
+/* A decoded image arrived: make the texture (failures are cached too, so they aren't retried). */
+static void cache_put(App *a, ImgResult *res)
+{
+    ImgEntry *tab = res->req.big ? a->bigs : a->thumbs;
+    int n = res->req.big ? (int)SDL_arraysize(a->bigs) : (int)SDL_arraysize(a->thumbs);
+    ImgEntry *lru = &tab[0];
+    for (int i = 0; i < n; i++)
         if (!tab[i].path || tab[i].used < lru->used)
             lru = &tab[i];
-    }
-    if (!load)
-        return NULL;
     free(lru->path);
     if (lru->tex)
         SDL_DestroyTexture(lru->tex);
-    lru->path = xstrdup(path);
-    lru->max = max;
-    lru->tex = load_image(a, path, max, max_h, &lru->w, &lru->h);
+    lru->path = res->req.path;
+    lru->max = res->req.max_w;
+    lru->tex = res->surf ? SDL_CreateTextureFromSurface(a->ren, res->surf) : NULL;
+    lru->w = res->surf ? res->surf->w : 0;
+    lru->h = res->surf ? res->surf->h : 0;
     lru->used = ++a->tick;
-    return lru;
+    if (res->surf)
+        SDL_DestroySurface(res->surf);
+    free(res);
 }
 
 static void cache_clear(ImgEntry *tab, int n)
@@ -2153,7 +2240,7 @@ static int render(App *a)
         *top = *sel - rows + 1;
     if (*top > c->ngames - rows)
         *top = SDL_max(0, c->ngames - rows);
-    int to_load = 0;
+    loader_clear(); /* rebuilt below: what this frame still lacks */
     for (int r = 0; r < rows && *top + r < c->ngames; r++) {
         Game *g = c->games[*top + r];
         int y = TOP + r * ROW;
@@ -2163,13 +2250,9 @@ static int render(App *a)
             fill(a, P.accent, 0, y, 5, ROW);
         }
         if (g->boxfront) {
-            ImgEntry *e = cache_get(a, a->thumbs, SDL_arraysize(a->thumbs), g->boxfront, THUMB, THUMB + 4, false);
-            if (!e && !to_load) { /* one decode per frame keeps the list responsive */
-                e = cache_get(a, a->thumbs, SDL_arraysize(a->thumbs), g->boxfront, THUMB, THUMB + 4, true);
-                to_load = 1;
-            } else if (!e) {
-                need_more = 1;
-            }
+            ImgEntry *e = cache_get(a, a->thumbs, SDL_arraysize(a->thumbs), g->boxfront, THUMB);
+            if (!e)
+                loader_want(g->boxfront, THUMB, THUMB + 4, false);
             if (e && e->tex) {
                 SDL_FRect d = { 16 + (THUMB - e->w) / 2.0f, y + (ROW - e->h) / 2.0f, e->w, e->h };
                 SDL_RenderTexture(a->ren, e->tex, NULL, &d);
@@ -2194,11 +2277,17 @@ static int render(App *a)
     int IW = PW * 44 / 100, IH = (H - TOP) * 58 / 100;
     int img_h = 0;
     if (g->boxfront) {
-        Uint64 now = SDL_GetTicks();
-        bool settled = !a->last_move || now - a->last_move >= BIG_IMAGE_DELAY_MS;
-        ImgEntry *e = cache_get(a, a->bigs, SDL_arraysize(a->bigs), g->boxfront, IW, IH, settled);
-        if (!e)
-            need_more = SDL_max(need_more, (int)(BIG_IMAGE_DELAY_MS - (now - a->last_move)) + 1);
+        ImgEntry *e = cache_get(a, a->bigs, SDL_arraysize(a->bigs), g->boxfront, IW);
+        if (!e) { /* first in the queue: the selected game's art matters most */
+            loader_want(g->boxfront, IW, IH, true);
+            SDL_LockMutex(loader.lock);
+            if (loader.n > 1) {
+                ImgReq big = loader.queue[loader.n - 1];
+                memmove(loader.queue + 1, loader.queue, (loader.n - 1) * sizeof *loader.queue);
+                loader.queue[0] = big;
+            }
+            SDL_UnlockMutex(loader.lock);
+        }
         if (e && e->tex) {
             float k = SDL_min((float)IW / e->w, (float)IH / e->h);
             if (k > 1.0f)
@@ -2250,7 +2339,7 @@ static int render(App *a)
         }
     }
     SDL_RenderPresent(a->ren);
-    return to_load ? 1 : need_more;
+    return need_more;
 }
 
 static void game_finished(App *a)
@@ -2333,8 +2422,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "shelf: %s\n", SDL_GetError());
         return 1;
     }
-    EV_PAD = SDL_RegisterEvents(2);
+    EV_PAD = SDL_RegisterEvents(3);
     EV_EXIT = EV_PAD + 1;
+    EV_IMG = EV_PAD + 2;
+    loader.lock = SDL_CreateMutex();
+    loader.cond = SDL_CreateCondition();
+    SDL_Thread *lt = SDL_CreateThread(loader_thread, "images", NULL);
 
     static App app;
     App *a = &app;
@@ -2389,6 +2482,9 @@ int main(int argc, char **argv)
         while (got) {
             if (ev.type == SDL_EVENT_QUIT) {
                 quit = true;
+            } else if (ev.type == EV_IMG) {
+                cache_put(a, ev.user.data1);
+                a->dirty = true;
             } else if (ev.type == EV_EXIT) {
                 if (a->running)
                     game_finished(a);
@@ -2438,16 +2534,21 @@ int main(int argc, char **argv)
             static int frames;
             if (!frames++)
                 mark("first frame");
-            if (!pending) {
-                static bool done;
-                if (!done)
+            static bool done;
+            if (!done) {
+                SDL_LockMutex(loader.lock);
+                done = !loader.n && !loader.busy.path && frames > 1;
+                SDL_UnlockMutex(loader.lock);
+                if (done)
                     mark("all visible images loaded");
-                done = true;
             }
             /* testing: SHELF_SCREENSHOT=file.png [SHELF_KEYS=dddr...] renders without a display
              * (SDL_VIDEO_DRIVER=offscreen), presses the keys (d/u down/up, l/r tab), saves, quits */
             const char *shot = getenv("SHELF_SCREENSHOT");
-            if (shot && !pending) {
+            SDL_LockMutex(loader.lock);
+            bool images_idle = !loader.n && !loader.busy.path;
+            SDL_UnlockMutex(loader.lock);
+            if (shot && !pending && images_idle) {
                 static int k;
                 const char *keys = getenv("SHELF_KEYS");
                 if (keys && keys[k]) {
@@ -2469,6 +2570,20 @@ int main(int argc, char **argv)
     }
 
     if (pad_quit_pipe[1] >= 0 && write(pad_quit_pipe[1], "q", 1) < 0) { /* thread dies with us */ }
+    SDL_LockMutex(loader.lock);
+    loader.quit = true;
+    SDL_SignalCondition(loader.cond);
+    SDL_UnlockMutex(loader.lock);
+    if (lt)
+        SDL_WaitThread(lt, NULL);
+    loader_clear();
+    for (SDL_Event ev; SDL_PeepEvents(&ev, 1, SDL_GETEVENT, EV_IMG, EV_IMG) == 1;) {
+        ImgResult *res = ev.user.data1;
+        if (res->surf)
+            SDL_DestroySurface(res->surf);
+        free(res->req.path);
+        free(res);
+    }
     cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
     cache_clear(a->bigs, SDL_arraysize(a->bigs));
     TTF_DestroyRendererTextEngine(a->eng);
