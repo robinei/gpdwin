@@ -1095,6 +1095,38 @@ static void find_media(Library *L)
 
 static UCollator *collator;
 
+/* SHELF_TIMING=1: startup milestones on stderr (ms since process start) */
+static void mark(const char *what)
+{
+    static int on = -1;
+    if (on < 0)
+        on = getenv("SHELF_TIMING") != NULL;
+    if (on) {
+        struct timespec t;
+        clock_gettime(CLOCK_MONOTONIC, &t);
+        static double t0;
+        double now = t.tv_sec * 1e3 + t.tv_nsec / 1e6;
+        if (!t0) {
+            /* process start time from /proc/self/stat (field 22, clock ticks since boot) */
+            FILE *f = fopen("/proc/self/stat", "r");
+            unsigned long long st = 0;
+            if (f) {
+                char buf[1024];
+                if (fgets(buf, sizeof buf, f)) {
+                    char *p = strrchr(buf, ')');
+                    for (int i = 0; p && i < 20; i++)
+                        p = strchr(p + 1, ' ');
+                    if (p)
+                        st = strtoull(p + 1, NULL, 10);
+                }
+                fclose(f);
+            }
+            t0 = st * 1e3 / sysconf(_SC_CLK_TCK);
+        }
+        fprintf(stderr, "shelf: %7.1f ms  %s\n", now - t0, what);
+    }
+}
+
 static int coll_cmp(const char *a, const char *b)
 {
     if (!a)
@@ -2291,6 +2323,7 @@ int main(int argc, char **argv)
      * (libgallium + libLLVM, ~120 MB resident) out of the process. SDL_RENDER_DRIVER overrides. */
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
     SDL_SetHint(SDL_HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR, "0");
+    mark("main");
     if (!SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) {
         fprintf(stderr, "shelf: %s\n", SDL_GetError());
         return 1;
@@ -2307,6 +2340,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "shelf: %s\n", SDL_GetError());
         return 1;
     }
+    mark("window and renderer");
     SDL_SetRenderVSync(a->ren, 1);
     a->f_tab = TTF_OpenFont(FONT_BOLD, 22);
     a->f_row = TTF_OpenFont(FONT_REGULAR, 22);
@@ -2318,7 +2352,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    mark("fonts");
     load_library(&a->lib);
+    mark("library");
     build_tabs(a);
     char *mc = NULL, *mg = NULL;
     read_memory(&mc, &mg);
@@ -2394,6 +2430,15 @@ int main(int argc, char **argv)
         if ((a->dirty || pending) && !a->running) {
             a->dirty = false;
             pending = render(a);
+            static int frames;
+            if (!frames++)
+                mark("first frame");
+            if (!pending) {
+                static bool done;
+                if (!done)
+                    mark("all visible images loaded");
+                done = true;
+            }
             /* testing: SHELF_SCREENSHOT=file.png [SHELF_KEYS=dddr...] renders without a display
              * (SDL_VIDEO_DRIVER=offscreen), presses the keys (d/u down/up, l/r tab), saves, quits */
             const char *shot = getenv("SHELF_SCREENSHOT");
