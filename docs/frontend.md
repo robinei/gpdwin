@@ -357,3 +357,33 @@
   if you change the game resolution there. Results: levels are perfect; menus and title pictures (320x200 art
   stretched to 426x240) show scaling artifacts. A fix would be a patch in the engine, not done.
 - Tested: menu lists Keen 1-5, fullscreen, Keen 4 plays.
+
+## shelf (lightweight frontend, 2026-10-10)
+`src/shelf.c` (C, SDL3 + SDL3_image + SDL3_ttf, sqlite, ICU; built by `scripts/sync install`, manifest
+`build` entry with pkg-config packages). It reads and writes Pegasus' own files, so either can be
+used at any time without losing anything: game_dirs.txt, the metadata files, `media/`, `stats.db`
+(same rows, Pegasus' exact SQL), `favorites.txt` (Pegasus' format), and the grid theme's memory
+(`theme_settings/pegasus-theme-grid.json`: both open on the last launched game). The exact Pegasus
+rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the installed commit).
+- Switch: `echo shelf > ~/.config/gpd/frontend` (anything else or no file: Pegasus), then
+  `scripts/restart-pegasus`. `run` starts whichever is chosen with the same environment (MangoHud
+  preload, PATH) and crash restart; MangoHud blacklists both.
+- UI: collections as tabs ("Recent", last 20 played games without the Utilities tools, and
+  "Favourites" first), a list with small box art on the left, large box art and details (developer,
+  year, players, genre, play time, last played, description) on the right. No animations, no
+  settings, no power menu (the power button and Utilities cover those).
+- Input: pad read directly from evdev in a thread (not SDL's gamepad layer, which polls ~1000/s
+  with a joystick open, and whose hotplug path is where Pegasus crashes): d-pad/stick up/down
+  (held: repeats), left/right or LB/RB switch tabs, triggers page, A launch, Y favourite.
+  Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F.
+- Draws only when something changed (zero CPU when idle). Software renderer by default: no Mesa in
+  the process (`SDL_RENDER_DRIVER=opengl` to compare). Library load (parse, scan, media, stats,
+  sort) takes 20 ms on the device for 43 games.
+- After a game or tool exits it rescans everything, so games added by the installer or box art
+  from Fetch Box Art show up without a restart.
+- Testing without a screen: `shelf --list` prints collections, games, art and stats.
+  `SDL_VIDEO_DRIVER=offscreen SHELF_SCREENSHOT=x.png SHELF_KEYS=ddr shelf` renders, presses keys
+  (d/u/l/r), saves a PNG and quits. `XDG_CONFIG_HOME` points it at another config dir.
+- Found by name like Pegasus: `screen.sh` (freezing), `inputd` (Guide), the sway workspace-1 rules
+  and `restart-pegasus` match `pegasus-fe` or `shelf`.
+
