@@ -15,6 +15,10 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   initramfs finds the image via the `HibernateLocation` EFI variable. The RTC alarm does not wake
   the device from hibernation; the power button does. Resume takes ~15-30 s.
 - Suspend needed the xHCI wakeup fix (hardware.md).
+- Lid closed = awake but frozen (~1.5 W) until the 30 min idle suspend, then suspend-then-hibernate
+  (hibernate after another 30 min, ~0 W). Deliberate tradeoff (Robin, 2026-10-10): opening the lid
+  within 30 min resumes instantly; a closed lid costs ~0.75 Wh (~3%) before it sleeps. Overnight
+  2026-10-09/10: 84% → ~81% including that and ~30 min of morning use.
 - The lid does not wake the device; the power button does. The lid's wake source is an ACPI GPIO
   event (`INT33FF:00` pin 35, IRQ "ACPI:Event"); it woke the device on close *and* open, and a
   lid-close wake left it awake with the lid shut (logind ignores the lid). Disabled with kernel
