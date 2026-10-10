@@ -53,6 +53,38 @@ The sections below are the round-1 audit and the measurements in the order they 
 otherwise, this summary wins (e.g. "the link back-pressures the pipe" below: the pipe is slaved to the DSI
 timing generator, R2A).
 
+## Display hang at screen-on, 2026-10-10 19:02 (separate bug, not the DSI link)
+
+Log: `data/stall-2026-10-10-1902.log`; state of the stuck device (read-only, same boot):
+`data/stall-2026-10-10-1902-state.txt` (`scripts/stuck-regs.py`, `scripts/stuck-irq.py`).
+
+- Trigger: screen-on by the power button after ~9 min with the output off (swayidle). The pad
+  re-enumerating 1.5 s after the key press happens on every wake (lid opens too) and is not the cause.
+  The modeset enable's vblank wait timed out, then every flip_done.
+- MEASURED, ~20 min later: pipe B **is running** (PIPECONF 0xc0000000, frame counter +12 per 0.2 s,
+  scanline moving). MIPI port C enabled earlier, plane off now (sway's later power-off commit got
+  partway). Display power well on (use count 3), runtime PM active, "IRQs disabled: no".
+- MEASURED: **`VLV_IER` (0x1820a0) = 0** while `VLV_IMR` = 0xffcd6daf (not ~0, so
+  `_vlv_display_irq_postinstall()` did run), `VLV_IIR` = 0x10 (pipe B event latched), PIPEBSTAT
+  vblank status bits latched, and the i915 MSI count did not move in 2 s. The display interrupts are
+  off in hardware, so no vblank, no flip_done: a "stalled pipe" is the wrong reading.
+- CODE (v7.2.9): only three places write `VLV_IER`: `irq_reset`, `irq_init` (power well enable via
+  `valleyview_enable_display_irqs()`, under `display->irq.lock`) and `cherryview_irq_handler()`,
+  which does `ier = rmw(VLV_IER, ~0, 0)` ... `write(VLV_IER, ier)` **without** that lock. Race: the
+  handler (a GT interrupt on CPU0; display IRQs were off while the well was off, so IER read 0)
+  saves 0, the power-well enable on CPU3 writes the enable mask, the handler writes 0 back. IMR
+  survives (the handler never touches it), which matches the measurement. The enable path has no
+  `synchronize_irq()` (the disable path has one). Display IRQs then stay off until the next power-well
+  off/on. Fix candidate: after enabling, `synchronize_irq()` and re-apply IER (or restore IER from
+  software state in the handler). Inference, strongly supported; a deterministic repro is still to do
+  (screen off/on in a loop with a GPU load running, so GT interrupts coincide with the well enable).
+- OUR PATCH made it permanent: 0012's `fifo_work` (drm_vblank_work) was queued for a vblank that never
+  came; `drm_vblank_work_flush_all()` in `intel_atomic_commit_tail()` waits without a timeout, so
+  sway's power-off commit at 19:04 hung in D state (log 19:08 hung task) before the crtc disable,
+  which would have cycled the power well and probably restored IER. 0012's ">200 ms pending" branch
+  only clears its flag; it must cancel the work.
+- The earlier 15:26 flip_done timeout after a live write may be the same race rather than the write.
+
 ## Panel numbers used everywhere
 720x1280, h 720/738/756/774, v 1280/1294/1298/1308, VBT clock 61000 kHz. The driver adopts the GOP's
 pclk 61111 kHz (`vlv_dsi_init`, fuzzy clock check): DSI PLL M=88 N=4 P=6 from the 100 MHz CHV ref gives
