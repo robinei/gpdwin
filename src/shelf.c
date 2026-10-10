@@ -1860,6 +1860,7 @@ typedef struct {
     Uint64 next_repeat;
     Uint64 last_move;
     bool dirty;
+    const char *starting; /* title shown as "Starting ..." while a launch is on its way */
 } App;
 
 /* ---- image loader thread: decode + scale off the UI thread; the UI makes the texture ----
@@ -2424,12 +2425,32 @@ static int render(App *a)
             SDL_SetRenderClipRect(a->ren, NULL);
         }
     }
+    if (a->starting) { /* the launch overlay, like the Pegasus patch: dim, centered title */
+        SDL_SetRenderDrawBlendMode(a->ren, SDL_BLENDMODE_BLEND);
+        fill(a, (SDL_Color){ 0, 0, 0, 0xd8 }, 0, 0, W, H);
+        SDL_SetRenderDrawBlendMode(a->ren, SDL_BLENDMODE_NONE);
+        char *msg = fmt("Starting %s\u2026", a->starting);
+        TTF_Text *t = TTF_CreateText(a->eng, a->f_title, msg, 0);
+        if (t) {
+            int tw, th;
+            TTF_SetTextWrapWidth(t, W * 8 / 10);
+            TTF_SetTextWrapWhitespaceVisible(t, false);
+            TTF_GetTextSize(t, &tw, &th);
+            TTF_SetTextColor(t, 0xee, 0xee, 0xee, 255);
+            TTF_DrawRendererText(t, (W - tw) / 2.0f, (H - th) / 2.0f);
+            TTF_DestroyText(t);
+        }
+        free(msg);
+    }
     SDL_RenderPresent(a->ren);
     return need_more;
 }
 
+static void show_now(App *a);
+
 static void game_finished(App *a)
 {
+    a->starting = NULL;
     long long dur = time(NULL) - a->run.start;
     if (dur < 0)
         dur = 0;
@@ -2445,8 +2466,16 @@ static void start_game(App *a)
         return;
     Collection *c = cur_coll(a);
     write_memory(c->virtual_ ? g->colls[0]->name : c->name, g->title);
-    if (launch(&a->run, g))
+    /* "Starting ..." goes on screen before the game starts, and stays until its window covers
+     * shelf (seconds for Wine games on the Atom), so the wait doesn't look like a hang */
+    a->starting = g->title;
+    show_now(a);
+    if (launch(&a->run, g)) {
         a->running = true;
+    } else {
+        a->starting = NULL;
+        a->dirty = true;
+    }
     a->held = A_NONE;
 }
 
@@ -2566,6 +2595,16 @@ static bool present(App *a)
     sb->busy = true;
     wl_display_flush(wl.dpy);
     return true;
+}
+
+/* Draw and show a frame right away (used before launching, when the main loop won't draw). */
+static void show_now(App *a)
+{
+    if (!a->canvas)
+        return;
+    render(a);
+    if (wl.dpy && wl.configured && present(a))
+        wl_display_roundtrip(wl.dpy); /* make sure the compositor has it before we fork */
 }
 
 static void wm_ping(void *d, struct xdg_wm_base *wm, uint32_t serial)
@@ -2879,7 +2918,11 @@ int main(int argc, char **argv)
                 const char *keys = getenv("SHELF_KEYS");
                 if (keys && keys[keyi]) {
                     char c = keys[keyi++];
-                    action(a, c == 'd' ? A_DOWN : c == 'u' ? A_UP : c == 'l' ? A_LEFT : A_RIGHT, false);
+                    if (c == 'o') /* show the launch overlay */
+                        a->starting = cur_game(a) ? cur_game(a)->title : "?";
+                    else
+                        action(a, c == 'd' ? A_DOWN : c == 'u' ? A_UP : c == 'l' ? A_LEFT : A_RIGHT, false);
+                    a->dirty = true;
                     continue;
                 }
                 SDL_LockSurface(a->canvas);
