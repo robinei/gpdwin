@@ -370,9 +370,10 @@ rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the in
   preload, PATH) and crash restart; MangoHud blacklists both.
 - Tabs show each collection's logo (`shelf/logos/<shortname>.svg`, linked to
   `~/.local/share/shelf/logos/`; from Pegasus' grid theme, CC BY-NC-SA, see the README there),
-  loaded by the image thread like box art, drawn in one colour; ◷ Recent, ★ Favourites, ⚙ for tools (DejaVu glyphs), the name if there
-  is no logo. A collection with `x-shelf-kind: tools` (Utilities) gets the gear, icon-sized art and
-  stays out of Recent; Pegasus keeps and ignores `x-` keys. The selected tab is highlighted over the full bar height.
+  loaded by the image thread like box art and drawn in one colour; ◷ Recent, ★ Favourites, ⚙ for
+  tools (DejaVu glyphs); the name if there is no logo. A collection with `x-shelf-kind: tools`
+  (Utilities) gets the gear and icon-sized art, and stays out of Recent; Pegasus keeps and ignores
+  `x-` keys. The selected tab is highlighted over the full bar height.
 - UI: collections as tabs ("Recent", last 20 played games without the Utilities tools, and
   "Favourites" first), a list with small box art on the left, large box art and details (developer,
   year, players, genre, play time, last played, description) on the right. No animations, no
