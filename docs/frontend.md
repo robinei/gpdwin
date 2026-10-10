@@ -376,8 +376,10 @@ rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the in
   with a joystick open, and whose hotplug path is where Pegasus crashes): d-pad/stick up/down
   (held: repeats), left/right or LB/RB switch tabs, triggers page, A launch, Y favourite.
   Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F.
-- Draws only when something changed (zero CPU when idle). Software renderer by default: no Mesa in
-  the process (`SDL_RENDER_DRIVER=opengl` to compare).
+- Draws only when something changed (zero CPU when idle). SDL's default (GPU) renderer: SDL's
+  Wayland backend loads EGL/Mesa even for the software renderer, so software only adds a copy.
+  Forced to Wayland (SDL3 picks X11 on compositors without the fifo protocol, like sway).
+- `run` hands the MangoHud preload to games only (`SHELF_GAME_LD_PRELOAD`), not to shelf.
 - Box art is decoded and scaled in a background thread (selected game first, then the visible
   thumbnails); the UI draws at once and art appears as it is ready. Keep images 8-bit: 16-bit
   PNGs took ~100 ms each to convert (the Utilities icons were converted for this).

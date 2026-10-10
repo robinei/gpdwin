@@ -2419,9 +2419,8 @@ int main(int argc, char **argv)
     SDL_SetHint(SDL_HINT_APP_ID, "shelf");
     /* SDL3 prefers X11 when the compositor lacks the fifo protocol (sway): ask for Wayland */
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
-    /* Software rendering into Wayland shared memory: a 2D list needs no GPU, and it keeps Mesa
-     * (libgallium + libLLVM, ~120 MB resident) out of the process. SDL_RENDER_DRIVER overrides. */
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+    /* Default (GPU) renderer: SDL's Wayland backend loads EGL/Mesa even for the software renderer,
+     * which would then only add a CPU copy per frame. Mesa's pages are mostly shared with sway. */
     SDL_SetHint(SDL_HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR, "0");
     mark("main");
     if (!SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) {
