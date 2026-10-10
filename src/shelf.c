@@ -2271,8 +2271,8 @@ static int select_game(App *a, const char *coll, const char *file)
 }
 
 /* Every tab's place as text: the current collection's name, then a line per tab,
- * "<selected game's row on screen>\t<collection>\t<selected game's file>". Kept across a rescan, and
- * saved as the state file. */
+ * "<selected index>\t<its row on screen>\t<collection>\t<selected game's file>". Kept across a
+ * rescan, and saved as the state file. */
 static char *tab_state(App *a)
 {
     char *b = xstrdup(cur_coll(a) ? cur_coll(a)->name : "");
@@ -2280,7 +2280,8 @@ static char *tab_state(App *a)
         Collection *c = a->tabs[i];
         if (!c->ngames)
             continue;
-        char *t = fmt("%s\n%d\t%s\t%s", b, a->sel[i] - a->top[i], c->name, c->games[a->sel[i]]->files.v[0]);
+        char *t = fmt("%s\n%d\t%d\t%s\t%s", b, a->sel[i], a->sel[i] - a->top[i], c->name,
+                      c->games[a->sel[i]]->files.v[0]);
         free(b);
         b = t;
     }
@@ -2289,23 +2290,28 @@ static char *tab_state(App *a)
     return t;
 }
 
-/* Put every tab back where tab_state() saw it, found again by collection name and file path
- * (collections and games that are gone are skipped). Also reads the old state file (collection,
- * file). */
+/* Put every tab back where tab_state() saw it: the collection by name, the game by file path. A
+ * game that is gone leaves the selection at its old index (so on the game after it, or the last);
+ * a collection that is gone is skipped. Also reads the old state file (collection, file). */
 static void apply_tab_state(App *a, char *text)
 {
     char *cur = NULL, *cur_file = NULL, *save;
     for (char *line = strtok_r(text, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
-        char *coll = strchr(line, '\t'), *file = coll ? strchr(coll + 1, '\t') : NULL;
+        char *f[4] = { line };
+        int nf = 1;
+        for (char *p = line; nf < 4 && (p = strchr(p, '\t')); f[nf++] = ++p)
+            *p = 0;
         if (!cur) {
             cur = line;
-        } else if (!coll) {
+        } else if (nf == 1) {
             cur_file = line; /* old format */
-        } else if (file) {
-            *coll++ = 0, *file++ = 0;
-            int t = select_game(a, coll, file);
-            if (t >= 0)
-                a->top[t] = SDL_max(0, a->sel[t] - atoi(line)); /* draw_list clamps it */
+        } else if (nf == 4) {
+            int t = select_game(a, f[2], NULL);
+            if (t < 0 || !a->tabs[t]->ngames)
+                continue;
+            a->sel[t] = SDL_clamp(atoi(f[0]), 0, a->tabs[t]->ngames - 1); /* if the game is gone */
+            select_game(a, f[2], f[3]);
+            a->top[t] = SDL_max(0, a->sel[t] - atoi(f[1])); /* draw_list clamps it */
         }
     }
     a->tab = 0; /* if the current collection is gone */

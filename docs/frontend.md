@@ -57,8 +57,9 @@ source at the installed commit).
 - The list fills the height exactly, from the tab bar to the bottom edge: as many rows as fit at
   ~52 px, all stretched to the same height for the current window size.
 - Resumes where you were, in every tab: `~/.local/state/shelf/last` holds the current tab's name, then
-  one line per tab, `<row on screen>\t<collection>\t<selected game's file>` (games are found again by
-  file path; gone ones are skipped). Written 1.5 s after moving stops, at launch and at quit. The
+  one line per tab, `<index>\t<row on screen>\t<collection>\t<selected game's file>`. Games are found
+  again by file path; if the game is gone, the selection stays at its index (the game after it, or
+  the last); a collection that is gone is skipped. Written 1.5 s after moving stops, at launch and at quit. The
   rescan after a game exits uses the same text, so both behave alike.
 - Launching draws a dimmed "Starting <title>…" overlay first, which stays
   until the game's window covers shelf; `SHELF_KEYS=o` shows it in a screenshot.
