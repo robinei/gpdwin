@@ -394,3 +394,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   over 200 ms (it had hung every later commit). Added to the DKMS patch list (`kernel/i915/install-dkms.sh`, which
   also no longer sets a 3 s boot menu timeout) and reinstalled on the device. Evidence:
   `kernel/dsi-investigation/data/stall-2026-10-10-1902*`. Revert: drop 0015/0016 from `PATCHES`, rerun the script.
+- Verified on the device: screen off/on stress loop under GPU load hit the race 14 times in 300 screen-ons, all
+  restored by 0015, no timeouts (`kernel/dsi-investigation/data/race-test-2026-10-10-2009.log`).

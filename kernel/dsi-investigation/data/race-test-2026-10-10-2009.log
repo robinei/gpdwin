@@ -1,0 +1,29 @@
+start 2026-10-10 20:09:40 cycles=300 off=1 on=1.5
+20:11:09 cycle 25
+20:12:38 cycle 50
+20:14:08 cycle 75
+20:15:38 cycle 100
+20:17:06 cycle 125
+20:18:33 cycle 150
+20:20:02 cycle 175
+20:21:30 cycle 200
+20:22:59 cycle 225
+20:24:29 cycle 250
+20:25:58 cycle 275
+20:27:28 cycle 300
+end 20:27:28 after 300 cycles; gpuload: 1420000 finishes, 1337/s
+[  174.901082] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  238.648208] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  252.887111] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  328.149049] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  500.140247] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  510.941097] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  575.455249] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  870.371150] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  945.604066] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[  952.884250] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[ 1067.158481] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[ 1099.415180] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[ 1170.901133] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+[ 1203.149085] gpdwin kernel: i915 0000:00:02.0: [drm] VLV_IER 0x00000000 after display irq enable, restoring 0x00329250
+restored: 14 timeouts: 0

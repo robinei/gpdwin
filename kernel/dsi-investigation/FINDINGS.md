@@ -85,6 +85,12 @@ Log: `data/stall-2026-10-10-1902.log`; state of the stuck device (read-only, sam
   sway's power-off commit at 19:04 hung in D state (log 19:08 hung task) before the crtc disable,
   which would have cycled the power well and probably restored IER. 0012's ">200 ms pending" branch
   only clears its flag; it must cancel the work. **Patches 0015 and 0016 (2026-10-10).**
+- **REPRODUCED and fix verified (2026-10-10 20:09-20:27, 0015 installed):** `scripts/screen-race-test.sh` (output
+  off 1 s / on 1.5 s, 300 cycles, `scripts/gpuload.c` keeping ~1300 GPU requests/s): the display power well goes
+  fully off with the output off (use count 3 -> 0), and 0015 logged "VLV_IER 0x00000000 after display irq enable,
+  restoring 0x00329250" **14 times in 300 screen-ons (~5%)**, 0 vblank/flip_done timeouts. 0x00329250 = ~VLV_IMR
+  of the stuck device: exactly the lost mask. Each of those 14 would have been a dead display without 0015.
+  Log: `data/race-test-2026-10-10-2009.log`. Not run without the fix (each hit needs a reboot).
 - The earlier 15:26 flip_done timeout after a live write may be the same race rather than the write.
 
 ## Panel numbers used everywhere

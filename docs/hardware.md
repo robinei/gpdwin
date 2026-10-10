@@ -124,7 +124,8 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     back over the new mask. 0015 waits for running handlers after the enable and applies the mask again (and logs
     "VLV_IER 0x... after display irq enable" when it had been lost). 0016: 0012's vblank FIFO sample stayed queued for the
     missing vblank, which hung every later commit in `drm_vblank_work_flush_all()` (no timeout); now cancelled after 200 ms.
-    Only a reboot recovered it before. Details: `kernel/dsi-investigation/FINDINGS.md`.
+    Only a reboot recovered it before. **Verified:** a stress loop (`kernel/dsi-investigation/scripts/screen-race-test.sh`, screen
+    off/on under GPU load) hits the race in ~5% of screen-ons; with 0015 all 14 of 300 were restored, no timeouts. Details: `kernel/dsi-investigation/FINDINGS.md`.
     Note: DKMS moves the replaced stock modules to `/var/lib/dkms/<pkg>/original_module/` (restored on
     uninstall), so `pacman -Qkk linux` reports them missing; expected.
   - **Burst mode experiment (0014, in the DKMS build, off by default):** `i915.vlv_dsi_burst_pct=120` on the
