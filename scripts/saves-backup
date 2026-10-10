@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""Back up every game's save data to ~/Saves/<game>/ (docs/saves.md "Save backup").
+
+The saves stay where each game keeps them. The list of what to copy is the "data" key of games/saves.json
+(folders, files, or patterns such as ".../Save*.dat" for saves among a game's own files in its install folder).
+<game> is the install folder's name under ~/Games/installed (the game with that Steam app id), else a slug of
+the name. Runs after every game exit (scripts/game-wrap, called by the launchers) and from a user timer
+(dotfiles/systemd/user/saves-backup.timer).
+
+  saves-backup [GAME...]              copy what is new or changed (all games, or those named: slug, name, app id)
+  saves-backup --status [GAME...]     what a backup would do, last backup time (changes nothing)
+  saves-backup --restore [GAME...]    put the backup back where the game looks for it: only files that are missing
+                                      there (fresh install, new Wine prefix); files that differ are listed and kept
+  saves-backup --restore --force      ... and replace differing files (the current one goes to the history first)
+  saves-backup --unlink [GAME...]     one-time: turn the symlinks/hard links of the 2026-10-10 central store into
+                                      real files again (every game's data back in its own place, copy in the store)
+  --quiet                             print only problems
+
+The backup only adds and updates, it never deletes (a reinstalled game with empty save folders must not wipe the
+backup). A file that is replaced in the backup first goes to ~/Saves/<game>/.history/<time>/ (the newest 10
+of those are kept). A folder with no files at all is not backed up.
+"""
+import datetime, fcntl, fnmatch, glob, json, os, re, shutil, sys, time
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+HOME = Path.home()
+STORE = HOME / "Saves"
+INSTALLED = HOME / "Games/installed"
+KEEP_SNAPSHOTS = 10
+QUIET = False
+
+
+def say(*a):
+    if not QUIET:
+        print(*a)
+
+
+def slug_of(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def installed_slugs():
+    ids = {}
+    for j in INSTALLED.glob("*/.gpd-game.json"):
+        try:
+            ids[str(json.loads(j.read_text())["id"])] = j.parent.name
+        except (OSError, ValueError, KeyError):
+            pass
+    return ids
+
+
+class Entry:
+    """One "data" item of a game: a folder, a file, or a pattern (files that match, in a folder)."""
+    def __init__(self, slug, spec, name):
+        self.slug = slug
+        self.spec = os.path.expanduser(spec)
+        self.is_pattern = any(c in self.spec for c in "*?[")
+        self.name = name                      # name in the store (not used for patterns: the file's name)
+        self.store = STORE / slug
+
+    def pairs(self):
+        """[(location, store_path)] for what exists at the location now."""
+        if self.is_pattern:
+            return [(Path(m), self.store / Path(m).name) for m in sorted(glob.glob(self.spec))]
+        return [(Path(self.spec), self.store / self.name)]
+
+    def store_pairs(self):
+        """[(location, store_path)] for what the store has (for --restore)."""
+        if self.is_pattern:
+            base = Path(self.spec).parent
+            pat = Path(self.spec).name
+            if not self.store.is_dir():
+                return []
+            return [(base / p.name, p) for p in sorted(self.store.iterdir())
+                    if p.is_file() and fnmatch.fnmatch(p.name, pat)]
+        return [(Path(self.spec), self.store / self.name)]
+
+
+def entries(game, slug):
+    specs = game.get("data", [])
+    names = [Path(os.path.expanduser(s)).name for s in specs]
+    out = []
+    for s, n in zip(specs, names):
+        if names.count(n) > 1:
+            n = f"{Path(os.path.expanduser(s)).parent.name}-{n}"
+        out.append(Entry(slug, s, n))
+    return out
+
+
+def files_below(p):
+    """[(relative path, absolute path)] of the files at p (a file gives itself), following symlinks."""
+    if p.is_file():
+        return [(Path(p.name), p)]
+    out = []
+    for root, _dirs, files in os.walk(p, followlinks=True):
+        for f in sorted(files):
+            fp = Path(root) / f
+            if fp.is_file():
+                out.append((fp.relative_to(p), fp))
+    return out
+
+
+def differs(a, b):
+    try:
+        sa, sb = a.stat(), b.stat()
+    except OSError:
+        return True
+    return sa.st_size != sb.st_size or int(sa.st_mtime) != int(sb.st_mtime)
+
+
+class Snapshot:
+    """Lazily created history directory for files that are about to be replaced."""
+    def __init__(self, store, tag=""):
+        self.base = store / ".history" / (time.strftime("%Y%m%d-%H%M%S") + f"-{os.getpid()}" + tag)
+        self.used = False
+
+    def keep(self, path, rel):
+        dst = self.base / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, dst)
+        self.used = True
+
+
+def prune(store):
+    hist = store / ".history"
+    if hist.is_dir():
+        for d in sorted(p for p in hist.iterdir() if p.is_dir())[:-KEEP_SNAPSHOTS]:
+            shutil.rmtree(d, ignore_errors=True)
+
+
+def copy_file(src, dst):
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(dst.name + ".tmp-saves")
+    shutil.copy2(src, tmp)
+    os.replace(tmp, dst)
+
+
+def plan(entry):
+    """[(src, dst, rel)] files that a backup would copy (missing or different in the store)."""
+    todo = []
+    for loc, st in entry.pairs():
+        if not loc.exists():
+            continue
+        for rel, src in files_below(loc):
+            dst = st / rel if loc.is_dir() else st
+            if not dst.exists() or differs(src, dst):
+                todo.append((src, dst, Path(st.name) / rel if loc.is_dir() else Path(st.name)))
+    return todo
+
+
+def backup(entry, status_only=False):
+    todo = plan(entry)
+    if status_only:
+        return len(todo), 0
+    snap = Snapshot(entry.store)
+    done = 0
+    for src, dst, rel in todo:
+        if dst.exists():
+            snap.keep(dst, rel)
+        copy_file(src, dst)
+        done += 1
+    return done, len(todo)
+
+
+def restore(entry, force=False):
+    """Copy missing files from the store back to the location. Returns (copied, kept_different)."""
+    copied = kept = 0
+    snap = Snapshot(entry.store, "-restore")
+    for loc, st in entry.store_pairs():
+        if not st.exists():
+            continue
+        for rel, src in files_below(st):
+            dst = loc / rel if st.is_dir() else loc
+            if dst.exists() and not differs(src, dst):
+                continue
+            if dst.exists():
+                if not force:
+                    kept += 1
+                    say(f"    differs, kept: {dst}")
+                    continue
+                snap.keep(dst, Path(st.name) / rel if st.is_dir() else Path(st.name))
+            copy_file(src, dst)
+            copied += 1
+    return copied, kept
+
+
+def unlink_legacy(entry):
+    """Undo the 2026-10-10 symlink/hard-link store: real files at the location again, own copies in the store."""
+    changed = []
+    for loc, st in entry.store_pairs() if entry.is_pattern else [(Path(entry.spec), entry.store / entry.name)]:
+        if loc.is_symlink():
+            target = Path(os.path.realpath(loc))
+            if not target.exists():
+                os.unlink(loc)               # dangling: the game deleted the file behind the link
+                changed.append(f"removed dangling link {loc}")
+                continue
+            tmp = loc.with_name(loc.name + ".tmp-unlink")
+            if target.is_dir():
+                shutil.copytree(target, tmp, symlinks=False)
+                n1 = len(files_below(target))
+                n2 = len(files_below(tmp))
+                if n1 != n2:
+                    shutil.rmtree(tmp)
+                    raise RuntimeError(f"copy of {target} incomplete ({n2}/{n1} files)")
+            else:
+                shutil.copy2(target, tmp)
+            os.unlink(loc)
+            os.rename(tmp, loc)
+            changed.append(f"link -> real copy: {loc}")
+        elif loc.is_file() and st.is_file() and os.path.samefile(loc, st):
+            tmp = st.with_name(st.name + ".tmp-unlink")
+            shutil.copy2(st, tmp)            # a new file for the store: the two names stop being one file
+            os.replace(tmp, st)
+            changed.append(f"hard link split: {loc}")
+    return changed
+
+
+def lock():
+    STORE.mkdir(exist_ok=True)
+    f = open(STORE / ".lock", "w")
+    end = time.time() + 60
+    while True:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return f
+        except OSError:
+            if time.time() > end:
+                raise SystemExit("saves-backup: another backup is running")
+            time.sleep(1)
+
+
+def main():
+    global QUIET
+    args = sys.argv[1:]
+    if "-h" in args or "--help" in args:
+        print(__doc__)
+        return 0
+    QUIET = "--quiet" in args
+    mode = "status" if "--status" in args else "restore" if "--restore" in args else \
+        "unlink" if "--unlink" in args else "backup"
+    force = "--force" in args
+    wanted = [a for a in args if not a.startswith("--")]
+    cfg = json.loads((REPO / "games/saves.json").read_text())
+    ids = installed_slugs()
+    lk = lock() if mode != "status" else None
+    problems = shown = 0
+    for g in cfg["games"]:
+        if "data" not in g:
+            continue
+        slug = ids.get(str(g["appid"])) or slug_of(g["name"])
+        if wanted and not ({slug, slug_of(g["name"]), g["name"], str(g["appid"])} & set(wanted)):
+            continue
+        shown += 1
+        total = changed = 0
+        notes = []
+        for e in entries(g, slug):
+            try:
+                if mode == "backup":
+                    n, t = backup(e)
+                    changed += n
+                elif mode == "status":
+                    n, _ = backup(e, status_only=True)
+                    changed += n
+                elif mode == "restore":
+                    n, kept = restore(e, force)
+                    changed += n
+                    if kept:
+                        notes.append(f"{kept} differ")
+                else:
+                    notes += unlink_legacy(e)
+            except (OSError, RuntimeError, shutil.Error) as ex:
+                problems += 1
+                notes.append(f"FAILED {e.spec}: {ex}")
+        if mode == "backup" and changed:
+            (STORE / slug / ".last-backup").write_text(datetime.datetime.now().isoformat(timespec="seconds") + "\n")
+            prune(STORE / slug)
+        word = {"backup": "copied", "status": "to back up", "restore": "restored", "unlink": "changed"}[mode]
+        if mode == "unlink":
+            line = f"{slug:30} {len(notes)} {word}"
+        else:
+            last = ""
+            lb = STORE / slug / ".last-backup"
+            if mode == "status" and lb.exists():
+                last = "  last backup " + lb.read_text().strip()
+            line = f"{slug:30} {changed} files {word}{last}"
+        if mode != "backup" or changed or notes:
+            say(line + ("  " + "; ".join(notes) if notes and mode != "unlink" else ""))
+        if mode == "unlink":
+            for n in notes:
+                say("    " + n)
+        for n in notes:
+            if n.startswith("FAILED"):
+                print(f"saves-backup: {slug}: {n}", file=sys.stderr)
+    if not shown:
+        if not QUIET:
+            print("no game matches" if wanted else 'no game has a "data" list in games/saves.json', file=sys.stderr)
+        return 0 if QUIET else 1
+    if lk:
+        lk.close()
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up game saves to ~/Saves (and to the desktop when it is reachable)
+
+[Service]
+Type=oneshot
+ExecStart=%h/gpd/scripts/saves-backup --quiet
+ExecStart=-%h/gpd/scripts/saves-sync-desktop --quiet
+Nice=19
+IOSchedulingClass=idle

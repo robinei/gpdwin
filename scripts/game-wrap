@@ -1,0 +1,20 @@
+#!/bin/sh
+# Game launchers end with:  exec "$HOME/gpd/scripts/game-wrap" COMMAND ARGS...   (instead of: exec COMMAND ARGS...)
+# Runs the game as a child and, when it ends however it ends (quit, crash, TERM/INT/HUP, which are passed on to
+# the game), backs up its saves to ~/Saves (scripts/saves-backup). Only a SIGKILL of this wrapper skips the
+# backup; the user timer (dotfiles/systemd/user/saves-backup.timer) covers that. The game is the folder under
+# ~/Games/installed that the launcher cd'ed into.
+slug=$GPD_GAME            # a launcher that does not cd into its install folder sets GPD_GAME=<folder name>
+[ -n "$slug" ] || case "$PWD/" in
+    "$HOME"/Games/installed/*/) slug=${PWD#"$HOME"/Games/installed/}; slug=${slug%%/*} ;;
+esac
+"$@" <&0 &
+child=$!
+trap 'kill -TERM "$child" 2>/dev/null' TERM INT HUP
+while :; do
+    wait "$child"; rc=$?
+    kill -0 "$child" 2>/dev/null || break
+done
+trap '' TERM INT HUP
+[ -n "$slug" ] && timeout 120 "$HOME/gpd/scripts/saves-backup" --quiet "$slug" || true
+exit $rc

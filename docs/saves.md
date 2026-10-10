@@ -10,36 +10,49 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 | Super Meat Boy (40800) | `~/.local/share/SuperMeatBoy/UserData/` (Linux) | `steamapps/common/Super Meat Boy/UserData/` (Windows/Proton; cloud root 1) | Progress: `savegame.dat` (same format). Settings: `reg0.dat` (Linux) vs `Reg0.dat` (Windows): different contents, not copied. |
 | Bastion (107100) | `~/.local/share/Bastion/` (Linux, FNA) | `userdata/<id>/107100/remote/` (Windows/Proton; cloud root 0) | Files are `<profile>.{sav,keyctrls,mousectrls}`; Linux uses the profile name from `activeProfile` (`Profile1.sav`), Steam Cloud stores lowercase (`profile1.sav`). Same .NET code, same format. |
 
-## Central save store (`~/Saves`, `scripts/saves-link`, since 2026-10-10)
+## Save backup (`~/Saves`, `scripts/saves-backup`, since 2026-10-11)
 - Goal: prefixes, install folders and `~/.local/share/<game>` can be deleted and recreated without losing
-  saves. Each game's real save data lives in `~/Saves/<game>/<folder>/` (`<game>` = its folder name under
-  `~/Games/installed`) and the place where the game looks for it is a symlink into it. Back up or sync
-  `~/Saves`, nothing else.
-- What is linked: the game's **whole data folder**, listed as `"data": [...]` per game in `games/saves.json`
-  (so settings that sit next to the saves come along, nothing else is moved). Whole folders, not single files:
-  a game that saves by writing a temp file and renaming it over the old one would turn a symlinked *file* into
-  a normal file and the save would silently leave the store. The `"files"` entries (what the Game Saves tool
-  syncs) keep their original paths; they resolve through the link, so the tool needed no change (its full output
-  was identical before and after the move).
-- `scripts/saves-link` shows the state of every game (changes nothing); `--apply [GAME...]` fixes it:
-  `migrate` (real folder: move into the store, link back; same filesystem, atomic, file count and size checked),
-  `relink` (fresh prefix or install: the store has it, create the link), `create` (nothing anywhere: empty store
-  folder and link), `conflict`/`other` (reported, nothing done). It refuses while a process runs from the
-  game's install folder. The game installer (`scripts/games`) runs it after every install, so a reinstall
-  re-attaches the saves; for a game without a `"data"` entry it says so.
-- Checked on the device: Bastion started through the link, loaded its progress, rewrote its profile files
-  inside `~/Saves/bastion/Bastion`, and the link was still a link afterwards.
-- Wine games: the link sits inside the prefix (Heretic/Hexen: `~/.wine/drive_c/users/robin/Saved Games/
-  Nightdive Studios`). Wine follows it. If a prefix is recreated, run `saves-link --apply`.
-- Install-folder saves (Spelunky, Sam & Max, Cave Story+): `"data"` may name single files or a pattern
-  (`.../cave-story/Save*.dat`), linked file by file because the folder also holds the game. Risk: a game that
-  replaces a file by rename would drop the link; `saves-link` then shows `conflict` (a real file next to the
-  store copy). Check it after playing each game once (`scripts/saves-link`), and run `--apply` again after a game
-  created new save files (a pattern only matches files that exist as real files at that moment).
-- **Not covered yet:** Starcom: Nexus (no save found yet: not played), the Steam emulator's saves
-  (`~/.local/share/GSE Saves/<appid>`, games with the emulator `libsteam_api.so`; Isaac, Spelunky), DevilutionX
-  (`~/.local/share/diasurgical`, 667 MB incl. game data) and Wine's own per-prefix settings. Add a `"data"` entry
-  for them when needed (`scripts/saves-discover` or look at what the game writes).
+  saves. The saves stay where each game keeps them (no symlinks, see below); `~/Saves/<game>/` is a backup
+  mirror (`<game>` = the folder name under `~/Games/installed`) and `scripts/saves-backup --restore` puts it
+  back. Back up or sync `~/Saves`, nothing else.
+- What is backed up: the `"data"` list per game in `games/saves.json`: a game's whole data folder (so settings
+  that sit next to the saves come along, nothing else is copied), a single file, or a pattern for saves among
+  the game's own files in its install folder (`.../cave-story/Save*.dat`; a pattern matches the files that
+  exist at that moment, new ones are picked up by the next run). The `"files"` entries (what the Game Saves
+  tool syncs with the desktop and Steam Cloud) are separate and unchanged.
+- When: (1) after every game exit: launchers end in `exec "$HOME/gpd/scripts/game-wrap" COMMAND ...`, which runs
+  the game as a child and backs up when it ends however it ends (quit, crash, TERM/INT/HUP are passed on to the
+  game); a game whose launcher does not `cd` into its install folder sets `GPD_GAME=<folder name>`. Only a
+  SIGKILL of the wrapper skips it. (2) every 30 minutes by the user timer `saves-backup.timer`
+  (`dotfiles/systemd/user/`, manifest links, enabled with `systemctl --user enable --now saves-backup.timer`).
+  It is a calendar timer with `Persistent=true`: a run missed during suspend, hibernation or while the
+  device was off happens right after it is back; it does not wake the device from sleep. A run with nothing
+  new takes ~0.4 s and 7 MB. `saves-backup --status` shows what is pending and the last backup time.
+- The backup only adds and updates, it **never deletes**: a reinstalled game with empty save folders must not
+  wipe the backup, and a game that removes old saves (Sam & Max) leaves them in the backup. A file that is
+  replaced in the backup first goes to `~/Saves/<game>/.history/<time>/` (the newest 10 snapshots are kept),
+  which also protects against a game writing a corrupt save.
+- Restore: `scripts/saves-backup --restore [GAME]` copies back files that are missing at the game's place
+  (fresh install, new Wine prefix), lists files that differ and keeps them; `--force` replaces them (the
+  current file goes to the history first). The game installer (`scripts/games`) restores after every install and
+  says so for a game without a `"data"` entry.
+- **Why no symlinks (tried 2026-10-10, dropped):** folder symlinks worked (Bastion, native games), but Wine
+  games broke on file symlinks: Wine reports a symlink with the size of the link (Sam & Max showed black save
+  thumbnails) and deleting the file through the link removed the target in the store (the game's own
+  "replace the old save"). Hard links worked but diverge when a game replaces a file instead of rewriting it.
+  Copies cannot do any of that.
+- Off-device copy: `scripts/saves-sync-desktop` (run by the timer after the local backup) copies `~/Saves` to
+  `~/gpd-saves` on the desktop with `rsync` when something new was backed up and the desktop is reachable
+  (history folders excluded, nothing deleted there). Setup, once: on the GPD `sudo pacman -S rsync` (key is
+  `~/.ssh/gpd-saves`, never in the repo); on the desktop install `rsync`, `mkdir ~/gpd-saves`, and add to
+  `~/.ssh/authorized_keys` the line `restrict,command="/usr/bin/rrsync -wo /home/robin/gpd-saves" <contents of
+  ~/.ssh/gpd-saves.pub>` (the key can then only write into that folder). Until then the script says what is
+  missing and exits quietly. Syncthing was considered for this (24 MB installed, a resident daemon, a sync
+  and not a backup: deletions and bad saves propagate) and not chosen.
+- **Not covered yet** (no `"data"` entry; find the folder with `scripts/saves-discover` or by looking at what
+  the game writes, then add it to `games/saves.json`): Starcom: Nexus (no save found: not played yet), the
+  Steam emulator's saves (`~/.local/share/GSE Saves/<appid>`, games with the emulator `libsteam_api.so`; Isaac,
+  Spelunky), DevilutionX (`~/.local/share/diasurgical`, 667 MB incl. game data), Wine's own per-prefix settings.
 
 ## Game Saves (shelf: Utilities > Game Saves; `scripts/save-status`)
 - Full-screen curses UI, manual per game, no automatic sync (Syncthing was rejected). One row

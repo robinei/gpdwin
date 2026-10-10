@@ -1,0 +1,27 @@
+#!/bin/sh
+# Copy ~/Saves to the desktop when something new was backed up and the desktop is reachable (called by the
+# saves-backup service after the local backup; docs/saves.md "Off-device copy"). Needs `rsync` here and a
+# restricted key: ~/.ssh/gpd-saves, accepted on the desktop only as `rrsync -wo ~/gpd-saves` (write-only
+# into that one folder). Never deletes anything on the desktop; the local history folders are not copied.
+# Not set up or desktop off/away: it says so and exits 0 (the next timer run tries again).
+KEY="$HOME/.ssh/gpd-saves"
+HOST="${SAVES_DESKTOP:-robin@desktop.lan}"
+STAMP="$HOME/Saves/.last-desktop-sync"
+quiet=0
+[ "$1" = "--quiet" ] && quiet=1
+msg() { [ "$quiet" = 1 ] || echo "saves-sync-desktop: $*"; }
+command -v rsync >/dev/null || { msg "rsync is not installed"; exit 0; }
+[ -f "$KEY" ] || { msg "no key $KEY (see docs/saves.md, Off-device copy)"; exit 0; }
+newest=$(ls -t "$HOME"/Saves/*/.last-backup 2>/dev/null | head -n 1)
+[ -n "$newest" ] || exit 0
+if [ -f "$STAMP" ] && [ ! "$newest" -nt "$STAMP" ]; then msg "nothing new since the last copy"; exit 0; fi
+if rsync -a --no-owner --no-group --timeout=60 \
+        --exclude=.history/ --exclude=.lock --exclude='*.tmp-saves' \
+        -e "ssh -i $KEY -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=5" \
+        "$HOME/Saves/" "$HOST:/" 2>/dev/null; then
+    touch "$STAMP"
+    msg "copied to $HOST"
+else
+    msg "desktop not reachable (or not set up); will retry"
+fi
+exit 0

@@ -241,7 +241,7 @@ class App:
             for f in core.write_steam_appid(rec):
                 print(f"Wrote {f.name} (lets the game run without the Steam client).")
             print(f"Added to PC Games ({'Wine' if osname == 'windows' else 'native'}).")
-        for line in core.link_saves(rec):
+        for line in core.restore_saves(rec):
             print(line)
         return True
 

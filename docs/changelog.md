@@ -456,14 +456,16 @@ Details before 2026-10-06 are in `docs/archive/`.
   nothing to copy; system-Wine launcher in its `old-launchers/gpd-launch-systemwine.sh`, started once on the
   old-style Wine to check). Heretic/Hexen (64-bit) stays on the system Wine. Docs/frontend.md updated.
 
-## 2026-10-10 — Central save store ~/Saves
-- New `scripts/saves-link` and a `"data"` list per game in `games/saves.json`: the 11 games the save tool knows were moved
-  to `~/Saves/<game>/<folder>` with a symlink back at the original place (Super Meat Boy, Stardew Valley,
-  Bastion, SteamWorld Heist, FEZ, Kingdom, Death Road to Canada, Hyper Light Drifter, Risk of Rain,
-  Heretic/Hexen, Psychonauts). `scripts/save-status --list` output identical before/after; Bastion verified by
-  playing. The installer re-attaches saves after an install (`core.link_saves`). Design and the games not yet
-  covered: docs/saves.md "Central save store". Revert one game: remove the link, move the folder back.
-- Central save store, second batch: A Short Hike, Caves of Qud, Undertale, Isaac, Strife, Commander Keen (Commander Genius
-  config/saves) and, as single-file links in their install folders, Spelunky, Sam & Max and Cave Story+. `saves-link`
-  accepts files and patterns in `"data"`. Still to verify by playing: that the install-folder games keep the links
-  (`scripts/saves-link` shows `conflict` if one was replaced).
+## 2026-10-11 — Save backup to ~/Saves (replaces the symlink store tried on 2026-10-10)
+- New `scripts/saves-backup` (backup, `--status`, `--restore`, `--unlink`), `scripts/game-wrap` (launchers back up
+  when a game ends, however it ends), user timer `saves-backup.timer` every 30 min (`dotfiles/systemd/user/`, manifest
+  links), `scripts/saves-sync-desktop` (rsync to the desktop when reachable; not set up yet: needs rsync here and a
+  restricted key line on the desktop, docs/saves.md). `games/saves.json` has a `"data"` list for 20 games.
+  The installer restores saves after an install. All launchers in `~/Games/installed/*/gpd-launch.sh` and the
+  generator template now end in `exec "$HOME/gpd/scripts/game-wrap" ...` (Commander Keen sets `GPD_GAME`).
+- Why: the first attempt (everything symlinked into `~/Saves`) broke on Wine games (file symlinks: wrong size seen
+  by the game, black thumbnails in Sam & Max; the game's delete of the old save removed the store copy).
+  `saves-backup --unlink` turned all 20 games back into real files (313 files compared byte for byte, a safety
+  archive of the store is in `~/save-backups/central-store-before-unlink-*.tar.gz`; delete it when you trust the
+  backup). Revert the wrappers: remove `"$HOME/gpd/scripts/game-wrap" ` from the launchers' last line;
+  stop the timer: `systemctl --user disable --now saves-backup.timer`.

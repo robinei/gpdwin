@@ -80,3 +80,5 @@ build	src/shelf.c	~/.local/bin/shelf	sdl3 sdl3-image sdl3-ttf sqlite3 icu-i18n i
 copy	dotfiles/commandergenius/cgenius.cfg	~/.CommanderGenius/cgenius.cfg	robin:robin:0644
 copy	system/usr/local/bin/gpd-stock-initramfs	/usr/local/bin/gpd-stock-initramfs	root:root:0755
 copy	system/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	root:root:0644
+link	dotfiles/systemd/user/saves-backup.service	~/.config/systemd/user/saves-backup.service
+link	dotfiles/systemd/user/saves-backup.timer	~/.config/systemd/user/saves-backup.timer

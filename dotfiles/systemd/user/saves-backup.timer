@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up game saves every 30 minutes
+
+[Timer]
+# Calendar time with Persistent=: a run missed while the device slept, hibernated or was off happens right
+# after it is back (the monotonic timers would not count the time asleep). No WakeSystem: it never wakes
+# the device. Saves are also backed up whenever a game ends (scripts/game-wrap).
+OnCalendar=*:0/30
+Persistent=true
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target
