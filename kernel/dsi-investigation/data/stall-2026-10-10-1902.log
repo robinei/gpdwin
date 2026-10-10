@@ -1,0 +1,228 @@
+Oct 10 19:02:27 gpdwin kernel: usb 1-3: new full-speed USB device number 11 using xhci_hcd
+Oct 10 19:02:27 gpdwin kernel: usb 1-3: New USB device found, idVendor=045e, idProduct=028e, bcdDevice= 1.00
+Oct 10 19:02:27 gpdwin kernel: usb 1-3: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+Oct 10 19:02:27 gpdwin kernel: usb 1-3: Product: Controller for Windows
+Oct 10 19:02:27 gpdwin kernel: usb 1-3: Manufacturer: ,
+Oct 10 19:02:27 gpdwin kernel: usb 1-3: SerialNumber: 00000000
+Oct 10 19:02:27 gpdwin kernel: input: Microsoft X-Box 360 pad as /devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.0/input/input29
+Oct 10 19:02:28 gpdwin kernel: ------------[ cut here ]------------
+Oct 10 19:02:28 gpdwin kernel: i915 0000:00:02.0: [drm] vblank wait timed out on crtc 1
+Oct 10 19:02:28 gpdwin kernel: WARNING: drivers/gpu/drm/drm_vblank.c:1329 at drm_crtc_wait_one_vblank+0x1ba/0x260, CPU#3: sway/486
+Oct 10 19:02:28 gpdwin kernel: Modules linked in: snd_seq_dummy snd_hrtimer snd_seq snd_seq_device ccm algif_aead des_generic libdes algif_skcipher snd_soc_sst_cht_bsw_rt5645 snd_sof_acpi_intel_byt snd_sof_acpi snd_sof_intel_atom snd_sof_xtensa_dsp md4 fusb302 snd_sof algif_hash tcpm intel_rapl_msr pi3usb30532 af_alg snd_sof_utils typec intel_powerclamp snd_intel_sst_acpi coretemp snd_intel_dspcfg thunderbolt brcmfmac_wcc max17042_battery snd_intel_sdw_acpi kvm_intel nft_ct snd_soc_acpi_intel_match nf_conntrack snd_soc_acpi_intel_sdca_quirks mei_pxp bq24190_charger mei_hdcp kvm brcmfmac snd_intel_sst_core(OE) nf_defrag_ipv6 snd_soc_sst_atom_hifi2_platform irqbypass hci_uart nf_defrag_ipv4 brcmutil snd_soc_acpi aesni_intel snd_soc_rt5645(OE) btqca btrtl gf128mul snd_soc_rl6231 nf_tables snd_soc_sdca joydev gpio_keys btbcm spi_nor intel_chtwc_int33fe aead btintel intel_cstate leds_cht_wcove pcspkr wdat_wdt i2c_cht_wc extcon_intel_cht_wc cfg80211 snd_soc_core xpad mtd mei_txe ff_memless bluetooth snd_compress mei rfkill ac97_bus
+Oct 10 19:02:28 gpdwin kernel:  processor_thermal_device_pci_legacy snd_hdmi_lpe_audio pwrseq_core snd_pcm_dmaengine processor_thermal_device snd_pcm kxcjk_1013 snd_timer processor_thermal_wt_hint industrialio_triggered_buffer snd kfifo_buf platform_temperature_control intel_hid industrialio soundcore processor_thermal_soc_slider goodix_ts sparse_keymap processor_thermal_rfim 8250_dw int3400_thermal processor_thermal_rapl intel_rapl_common processor_thermal_wt_req vfat processor_thermal_power_floor fat processor_thermal_mbox acpi_thermal_rel dptf_power int3403_thermal soc_button_array int3406_thermal intel_int0002_vgpio intel_xhci_usb_role_switch int340x_thermal_zone acpi_pad intel_soc_dts_iosf roles mousedev mac_hid ntsync pkcs8_key_parser i2c_dev mmc_block rpmb_core spi_pxa2xx_platform spi_intel_platform sdhci_acpi spi_intel sdhci dw_dmac intel_soc_pmic_bxtwc spi_pxa2xx_core mmc_core lpc_ich i915(OE) drm_buddy i2c_algo_bit video wmi ttm intel_gtt drm_display_helper cec pwm_lpss_platform pwm_lpss
+Oct 10 19:02:28 gpdwin kernel: CPU: 3 UID: 1000 PID: 486 Comm: sway Tainted: G           OE       7.2.9-arch1-1 #1 PREEMPT(full)  227f612332c55d5b5b0a0c054e4cd1f76a9a914f
+Oct 10 19:02:28 gpdwin kernel: Tainted: [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+Oct 10 19:02:28 gpdwin kernel: Hardware name: Default string Default string/Default string, BIOS 5.11 10/18/2016
+Oct 10 19:02:28 gpdwin kernel: RIP: 0010:drm_crtc_wait_one_vblank+0x1c3/0x260
+Oct 10 19:02:28 gpdwin kernel: Code: e8 52 47 03 00 48 8b 7b 08 48 8b 6f 50 48 85 ed 75 03 48 8b 2f e8 3d 47 03 00 48 8d 3d 06 8c b1 01 44 89 e1 48 89 ea 48 89 c6 <67> 48 0f b9 3a 44 89 e6 48 89 df 41 bd 92 ff ff ff e8 77 fc ff ff
+Oct 10 19:02:28 gpdwin kernel: RSP: 0018:ffffd1bd82043770 EFLAGS: 00010286
+Oct 10 19:02:28 gpdwin kernel: RAX: ffffffffc0c4eb69 RBX: ffff8cd3c6bf2000 RCX: 0000000000000001
+Oct 10 19:02:28 gpdwin kernel: RDX: ffff8cd3c1c9e320 RSI: ffffffffc0c4eb69 RDI: ffffffff9dd28610
+Oct 10 19:02:28 gpdwin kernel: RBP: ffff8cd3c1c9e320 R08: 0000000000000000 R09: 0000000000000001
+Oct 10 19:02:28 gpdwin kernel: R10: 0000000000000010 R11: 0000000000000000 R12: 0000000000000001
+Oct 10 19:02:28 gpdwin kernel: R13: 0000000000000000 R14: ffff8cd3c57621d0 R15: 000000000003d59b
+Oct 10 19:02:28 gpdwin kernel: FS:  00007f69568e0a40(0000) GS:ffff8cd49d6aa000(0000) knlGS:0000000000000000
+Oct 10 19:02:28 gpdwin kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+Oct 10 19:02:28 gpdwin kernel: CR2: 0000560ebd242008 CR3: 000000010ff50000 CR4: 00000000001026f0
+Oct 10 19:02:28 gpdwin kernel: Call Trace:
+Oct 10 19:02:28 gpdwin kernel:  <TASK>
+Oct 10 19:02:28 gpdwin kernel:  ? __pfx_autoremove_wake_function+0x10/0x10
+Oct 10 19:02:28 gpdwin kernel:  intel_enable_crtc+0x138/0x180 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:02:28 gpdwin kernel:  intel_commit_modeset_enables+0x5d/0x120 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:02:28 gpdwin kernel:  intel_atomic_commit_tail+0xfd9/0x1bc0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:02:28 gpdwin kernel:  intel_atomic_commit+0x2ab/0x2f0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:02:28 gpdwin kernel:  drm_atomic_commit+0xb1/0xe0
+Oct 10 19:02:28 gpdwin kernel:  ? __pfx___drm_printfn_info+0x10/0x10
+Oct 10 19:02:28 gpdwin kernel:  drm_mode_atomic_ioctl+0xc32/0xf10
+Oct 10 19:02:28 gpdwin kernel:  ? __pfx_drm_mode_atomic_ioctl+0x10/0x10
+Oct 10 19:02:28 gpdwin kernel:  drm_ioctl_kernel+0xae/0x100
+Oct 10 19:02:28 gpdwin kernel:  drm_ioctl+0x2d8/0x570
+Oct 10 19:02:28 gpdwin kernel:  ? __pfx_drm_mode_atomic_ioctl+0x10/0x10
+Oct 10 19:02:28 gpdwin kernel:  __x64_sys_ioctl+0xb9/0x100
+Oct 10 19:02:28 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:02:28 gpdwin kernel:  do_syscall_64+0xaa/0x660
+Oct 10 19:02:28 gpdwin kernel:  ? init_file+0x4b/0x120
+Oct 10 19:02:28 gpdwin kernel:  ? alloc_empty_file+0x8e/0x140
+Oct 10 19:02:28 gpdwin kernel:  ? file_init_path+0x62/0x120
+Oct 10 19:02:28 gpdwin kernel:  ? alloc_file_pseudo+0xe5/0x190
+Oct 10 19:02:28 gpdwin kernel:  ? anon_inode_getfile+0x77/0xf0
+Oct 10 19:02:28 gpdwin kernel:  ? __pfx_drm_syncobj_handle_to_fd_ioctl+0x10/0x10
+Oct 10 19:02:28 gpdwin kernel:  ? sync_file_alloc+0x5e/0x80
+Oct 10 19:02:28 gpdwin kernel:  ? sync_file_create+0x16/0x70
+Oct 10 19:02:28 gpdwin kernel:  ? drm_syncobj_handle_to_fd_ioctl+0x1cb/0x280
+Oct 10 19:02:28 gpdwin kernel:  ? drm_ioctl_kernel+0xae/0x100
+Oct 10 19:02:28 gpdwin kernel:  ? __check_object_size+0x43/0x200
+Oct 10 19:02:28 gpdwin kernel:  ? _copy_to_user+0x31/0x40
+Oct 10 19:02:28 gpdwin kernel:  ? drm_ioctl+0x30f/0x570
+Oct 10 19:02:28 gpdwin kernel:  ? __pfx_drm_syncobj_handle_to_fd_ioctl+0x10/0x10
+Oct 10 19:02:28 gpdwin kernel:  ? __x64_sys_ioctl+0xd4/0x100
+Oct 10 19:02:28 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:02:28 gpdwin kernel:  ? do_syscall_64+0x5f/0x660
+Oct 10 19:02:28 gpdwin kernel:  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+Oct 10 19:02:28 gpdwin kernel: RIP: 0033:0x7f695751bd9d
+Oct 10 19:02:28 gpdwin kernel: Code: 04 25 28 00 00 00 48 89 45 c8 31 c0 48 8d 45 10 c7 45 b0 10 00 00 00 48 89 45 b8 48 8d 45 d0 48 89 45 c0 b8 10 00 00 00 0f 05 <89> c2 3d 00 f0 ff ff 77 1a 48 8b 45 c8 64 48 2b 04 25 28 00 00 00
+Oct 10 19:02:28 gpdwin kernel: RSP: 002b:00007ffc1fce67f0 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+Oct 10 19:02:28 gpdwin kernel: RAX: ffffffffffffffda RBX: 000056126c599170 RCX: 00007f695751bd9d
+Oct 10 19:02:28 gpdwin kernel: RDX: 00007ffc1fce6890 RSI: 00000000c03864bc RDI: 000000000000000a
+Oct 10 19:02:28 gpdwin kernel: RBP: 00007ffc1fce6840 R08: 0000000000000003 R09: 0000000000000085
+Oct 10 19:02:28 gpdwin kernel: R10: 0000000000000ff0 R11: 0000000000000246 R12: 00007ffc1fce6890
+Oct 10 19:02:28 gpdwin kernel: R13: 00000000c03864bc R14: 000000000000000a R15: 000056126c682b70
+Oct 10 19:02:28 gpdwin kernel:  </TASK>
+Oct 10 19:02:28 gpdwin kernel: ---[ end trace 0000000000000000 ]---
+Oct 10 19:02:38 gpdwin kernel: i915 0000:00:02.0: [drm] *ERROR* [CRTC:86:pipe B] flip_done timed out
+Oct 10 19:02:52 gpdwin kernel: i915 0000:00:02.0: [drm] *ERROR* [CRTC:86:pipe B] flip_done timed out
+Oct 10 19:04:21 gpdwin kernel: i915 0000:00:02.0: [drm] *ERROR* flip_done timed out
+Oct 10 19:04:21 gpdwin kernel: i915 0000:00:02.0: [drm] *ERROR* [CRTC:86:pipe B] commit wait timed out
+Oct 10 19:04:31 gpdwin kernel: i915 0000:00:02.0: [drm] *ERROR* flip_done timed out
+Oct 10 19:04:31 gpdwin kernel: i915 0000:00:02.0: [drm] *ERROR* [CONNECTOR:133:DSI-1] commit wait timed out
+Oct 10 19:04:41 gpdwin kernel: i915 0000:00:02.0: [drm] *ERROR* flip_done timed out
+Oct 10 19:04:41 gpdwin kernel: i915 0000:00:02.0: [drm] *ERROR* [PLANE:61:primary B] commit wait timed out
+Oct 10 19:04:42 gpdwin kernel: ------------[ cut here ]------------
+Oct 10 19:04:42 gpdwin kernel: i915 0000:00:02.0: [drm] vblank wait timed out on crtc 1
+Oct 10 19:04:42 gpdwin kernel: WARNING: drivers/gpu/drm/drm_vblank.c:1329 at drm_crtc_wait_one_vblank+0x1ba/0x260, CPU#2: sway/486
+Oct 10 19:04:42 gpdwin kernel: Modules linked in: snd_seq_dummy snd_hrtimer snd_seq snd_seq_device ccm algif_aead des_generic libdes algif_skcipher snd_soc_sst_cht_bsw_rt5645 snd_sof_acpi_intel_byt snd_sof_acpi snd_sof_intel_atom snd_sof_xtensa_dsp md4 fusb302 snd_sof algif_hash tcpm intel_rapl_msr pi3usb30532 af_alg snd_sof_utils typec intel_powerclamp snd_intel_sst_acpi coretemp snd_intel_dspcfg thunderbolt brcmfmac_wcc max17042_battery snd_intel_sdw_acpi kvm_intel nft_ct snd_soc_acpi_intel_match nf_conntrack snd_soc_acpi_intel_sdca_quirks mei_pxp bq24190_charger mei_hdcp kvm brcmfmac snd_intel_sst_core(OE) nf_defrag_ipv6 snd_soc_sst_atom_hifi2_platform irqbypass hci_uart nf_defrag_ipv4 brcmutil snd_soc_acpi aesni_intel snd_soc_rt5645(OE) btqca btrtl gf128mul snd_soc_rl6231 nf_tables snd_soc_sdca joydev gpio_keys btbcm spi_nor intel_chtwc_int33fe aead btintel intel_cstate leds_cht_wcove pcspkr wdat_wdt i2c_cht_wc extcon_intel_cht_wc cfg80211 snd_soc_core xpad mtd mei_txe ff_memless bluetooth snd_compress mei rfkill ac97_bus
+Oct 10 19:04:42 gpdwin kernel:  processor_thermal_device_pci_legacy snd_hdmi_lpe_audio pwrseq_core snd_pcm_dmaengine processor_thermal_device snd_pcm kxcjk_1013 snd_timer processor_thermal_wt_hint industrialio_triggered_buffer snd kfifo_buf platform_temperature_control intel_hid industrialio soundcore processor_thermal_soc_slider goodix_ts sparse_keymap processor_thermal_rfim 8250_dw int3400_thermal processor_thermal_rapl intel_rapl_common processor_thermal_wt_req vfat processor_thermal_power_floor fat processor_thermal_mbox acpi_thermal_rel dptf_power int3403_thermal soc_button_array int3406_thermal intel_int0002_vgpio intel_xhci_usb_role_switch int340x_thermal_zone acpi_pad intel_soc_dts_iosf roles mousedev mac_hid ntsync pkcs8_key_parser i2c_dev mmc_block rpmb_core spi_pxa2xx_platform spi_intel_platform sdhci_acpi spi_intel sdhci dw_dmac intel_soc_pmic_bxtwc spi_pxa2xx_core mmc_core lpc_ich i915(OE) drm_buddy i2c_algo_bit video wmi ttm intel_gtt drm_display_helper cec pwm_lpss_platform pwm_lpss
+Oct 10 19:04:42 gpdwin kernel: CPU: 2 UID: 1000 PID: 486 Comm: sway Tainted: G        W  OE       7.2.9-arch1-1 #1 PREEMPT(full)  227f612332c55d5b5b0a0c054e4cd1f76a9a914f
+Oct 10 19:04:42 gpdwin kernel: Tainted: [W]=WARN, [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+Oct 10 19:04:42 gpdwin kernel: Hardware name: Default string Default string/Default string, BIOS 5.11 10/18/2016
+Oct 10 19:04:42 gpdwin kernel: RIP: 0010:drm_crtc_wait_one_vblank+0x1c3/0x260
+Oct 10 19:04:42 gpdwin kernel: Code: e8 52 47 03 00 48 8b 7b 08 48 8b 6f 50 48 85 ed 75 03 48 8b 2f e8 3d 47 03 00 48 8d 3d 06 8c b1 01 44 89 e1 48 89 ea 48 89 c6 <67> 48 0f b9 3a 44 89 e6 48 89 df 41 bd 92 ff ff ff e8 77 fc ff ff
+Oct 10 19:04:42 gpdwin kernel: RSP: 0018:ffffd1bd820438e0 EFLAGS: 00010286
+Oct 10 19:04:42 gpdwin kernel: RAX: ffffffffc0c4eb69 RBX: ffff8cd3c6bf2000 RCX: 0000000000000001
+Oct 10 19:04:42 gpdwin kernel: RDX: ffff8cd3c1c9e320 RSI: ffffffffc0c4eb69 RDI: ffffffff9dd28610
+Oct 10 19:04:42 gpdwin kernel: RBP: ffff8cd3c1c9e320 R08: 0000000000000003 R09: 0000000000000001
+Oct 10 19:04:42 gpdwin kernel: R10: 0000000000000010 R11: 0000000000000000 R12: 0000000000000001
+Oct 10 19:04:42 gpdwin kernel: R13: 0000000000000000 R14: ffff8cd3c57621d0 R15: 000000000003d92d
+Oct 10 19:04:42 gpdwin kernel: FS:  00007f69568e0a40(0000) GS:ffff8cd49d62a000(0000) knlGS:0000000000000000
+Oct 10 19:04:42 gpdwin kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+Oct 10 19:04:42 gpdwin kernel: CR2: 000003f97e0d7000 CR3: 000000010ff50000 CR4: 00000000001026f0
+Oct 10 19:04:42 gpdwin kernel: Call Trace:
+Oct 10 19:04:42 gpdwin kernel:  <TASK>
+Oct 10 19:04:42 gpdwin kernel:  ? __pfx_autoremove_wake_function+0x10/0x10
+Oct 10 19:04:42 gpdwin kernel:  intel_pre_plane_update+0x68c/0x6a0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:04:42 gpdwin kernel:  intel_atomic_commit_tail+0x7e1/0x1bc0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:04:42 gpdwin kernel:  intel_atomic_commit+0x2ab/0x2f0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:04:42 gpdwin kernel:  drm_atomic_commit+0xb1/0xe0
+Oct 10 19:04:42 gpdwin kernel:  ? __pfx___drm_printfn_info+0x10/0x10
+Oct 10 19:04:42 gpdwin kernel:  drm_mode_atomic_ioctl+0xc32/0xf10
+Oct 10 19:04:42 gpdwin kernel:  ? __pfx_drm_mode_atomic_ioctl+0x10/0x10
+Oct 10 19:04:42 gpdwin kernel:  drm_ioctl_kernel+0xae/0x100
+Oct 10 19:04:42 gpdwin kernel:  drm_ioctl+0x2d8/0x570
+Oct 10 19:04:42 gpdwin kernel:  ? __pfx_drm_mode_atomic_ioctl+0x10/0x10
+Oct 10 19:04:42 gpdwin kernel:  __x64_sys_ioctl+0xb9/0x100
+Oct 10 19:04:42 gpdwin kernel:  do_syscall_64+0xaa/0x660
+Oct 10 19:04:42 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:04:42 gpdwin kernel:  ? __x64_sys_ioctl+0xd4/0x100
+Oct 10 19:04:42 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:04:42 gpdwin kernel:  ? __x64_sys_epoll_wait+0x70/0x120
+Oct 10 19:04:42 gpdwin kernel:  ? switch_fpu_return+0x5e/0xf0
+Oct 10 19:04:42 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:04:42 gpdwin kernel:  ? __x64_sys_accept+0x1b/0x30
+Oct 10 19:04:42 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:04:42 gpdwin kernel:  ? __x64_sys_epoll_wait+0x70/0x120
+Oct 10 19:04:42 gpdwin kernel:  ? switch_fpu_return+0x5e/0xf0
+Oct 10 19:04:42 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:04:42 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:04:42 gpdwin kernel:  ? __hrtimer_rearm_deferred+0x62/0x140
+Oct 10 19:04:42 gpdwin kernel:  ? do_syscall_64+0x5f/0x660
+Oct 10 19:04:42 gpdwin kernel:  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+Oct 10 19:04:42 gpdwin kernel: RIP: 0033:0x7f695751bd9d
+Oct 10 19:04:42 gpdwin kernel: Code: 04 25 28 00 00 00 48 89 45 c8 31 c0 48 8d 45 10 c7 45 b0 10 00 00 00 48 89 45 b8 48 8d 45 d0 48 89 45 c0 b8 10 00 00 00 0f 05 <89> c2 3d 00 f0 ff ff 77 1a 48 8b 45 c8 64 48 2b 04 25 28 00 00 00
+Oct 10 19:04:42 gpdwin kernel: RSP: 002b:00007ffc1fce67f0 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+Oct 10 19:04:42 gpdwin kernel: RAX: ffffffffffffffda RBX: 000056126c648100 RCX: 00007f695751bd9d
+Oct 10 19:04:42 gpdwin kernel: RDX: 00007ffc1fce6890 RSI: 00000000c03864bc RDI: 000000000000000a
+Oct 10 19:04:42 gpdwin kernel: RBP: 00007ffc1fce6840 R08: 0000000000000003 R09: 0000000000000056
+Oct 10 19:04:42 gpdwin kernel: R10: 0000000000000ff0 R11: 0000000000000246 R12: 00007ffc1fce6890
+Oct 10 19:04:42 gpdwin kernel: R13: 00000000c03864bc R14: 000000000000000a R15: 000056126c5a0110
+Oct 10 19:04:42 gpdwin kernel:  </TASK>
+Oct 10 19:04:42 gpdwin kernel: ---[ end trace 0000000000000000 ]---
+Oct 10 19:08:39 gpdwin kernel: INFO: task sway:486 blocked for more than 122 seconds.
+Oct 10 19:08:39 gpdwin kernel:       Tainted: G        W  OE       7.2.9-arch1-1 #1
+Oct 10 19:08:39 gpdwin kernel: "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+Oct 10 19:08:39 gpdwin kernel: task:sway            state:D stack:0     pid:486   tgid:486   ppid:354    task_flags:0x400100 flags:0x00080000
+Oct 10 19:08:39 gpdwin kernel: Call Trace:
+Oct 10 19:08:39 gpdwin kernel:  <TASK>
+Oct 10 19:08:39 gpdwin kernel:  __schedule+0x420/0x1770
+Oct 10 19:08:39 gpdwin kernel:  ? drm_crtc_wait_one_vblank+0x1c8/0x260
+Oct 10 19:08:39 gpdwin kernel:  schedule+0x27/0xa0
+Oct 10 19:08:39 gpdwin kernel:  drm_vblank_work_flush_all+0x9c/0x120
+Oct 10 19:08:39 gpdwin kernel:  ? __pfx_autoremove_wake_function+0x10/0x10
+Oct 10 19:08:39 gpdwin kernel:  intel_atomic_commit_tail+0x9e6/0x1bc0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:08:39 gpdwin kernel:  intel_atomic_commit+0x2ab/0x2f0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:08:39 gpdwin kernel:  drm_atomic_commit+0xb1/0xe0
+Oct 10 19:08:39 gpdwin kernel:  ? __pfx___drm_printfn_info+0x10/0x10
+Oct 10 19:08:39 gpdwin kernel:  drm_mode_atomic_ioctl+0xc32/0xf10
+Oct 10 19:08:39 gpdwin kernel:  ? __pfx_drm_mode_atomic_ioctl+0x10/0x10
+Oct 10 19:08:39 gpdwin kernel:  drm_ioctl_kernel+0xae/0x100
+Oct 10 19:08:39 gpdwin kernel:  drm_ioctl+0x2d8/0x570
+Oct 10 19:08:39 gpdwin kernel:  ? __pfx_drm_mode_atomic_ioctl+0x10/0x10
+Oct 10 19:08:39 gpdwin kernel:  __x64_sys_ioctl+0xb9/0x100
+Oct 10 19:08:39 gpdwin kernel:  do_syscall_64+0xaa/0x660
+Oct 10 19:08:39 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:08:39 gpdwin kernel:  ? __x64_sys_ioctl+0xd4/0x100
+Oct 10 19:08:39 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:08:39 gpdwin kernel:  ? __x64_sys_epoll_wait+0x70/0x120
+Oct 10 19:08:39 gpdwin kernel:  ? switch_fpu_return+0x5e/0xf0
+Oct 10 19:08:39 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:08:39 gpdwin kernel:  ? __x64_sys_accept+0x1b/0x30
+Oct 10 19:08:39 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:08:39 gpdwin kernel:  ? __x64_sys_epoll_wait+0x70/0x120
+Oct 10 19:08:39 gpdwin kernel:  ? switch_fpu_return+0x5e/0xf0
+Oct 10 19:08:39 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:08:39 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:08:39 gpdwin kernel:  ? __hrtimer_rearm_deferred+0x62/0x140
+Oct 10 19:08:39 gpdwin kernel:  ? do_syscall_64+0x5f/0x660
+Oct 10 19:08:39 gpdwin kernel:  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+Oct 10 19:08:39 gpdwin kernel: RIP: 0033:0x7f695751bd9d
+Oct 10 19:08:39 gpdwin kernel: RSP: 002b:00007ffc1fce67f0 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+Oct 10 19:08:39 gpdwin kernel: RAX: ffffffffffffffda RBX: 000056126c648100 RCX: 00007f695751bd9d
+Oct 10 19:08:39 gpdwin kernel: RDX: 00007ffc1fce6890 RSI: 00000000c03864bc RDI: 000000000000000a
+Oct 10 19:08:39 gpdwin kernel: RBP: 00007ffc1fce6840 R08: 0000000000000003 R09: 0000000000000056
+Oct 10 19:08:39 gpdwin kernel: R10: 0000000000000ff0 R11: 0000000000000246 R12: 00007ffc1fce6890
+Oct 10 19:08:39 gpdwin kernel: R13: 00000000c03864bc R14: 000000000000000a R15: 000056126c5a0110
+Oct 10 19:08:39 gpdwin kernel:  </TASK>
+Oct 10 19:10:42 gpdwin kernel: INFO: task sway:486 blocked for more than 245 seconds.
+Oct 10 19:10:42 gpdwin kernel:       Tainted: G        W  OE       7.2.9-arch1-1 #1
+Oct 10 19:10:42 gpdwin kernel: "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+Oct 10 19:10:42 gpdwin kernel: task:sway            state:D stack:0     pid:486   tgid:486   ppid:354    task_flags:0x400100 flags:0x00080000
+Oct 10 19:10:42 gpdwin kernel: Call Trace:
+Oct 10 19:10:42 gpdwin kernel:  <TASK>
+Oct 10 19:10:42 gpdwin kernel:  __schedule+0x420/0x1770
+Oct 10 19:10:42 gpdwin kernel:  ? drm_crtc_wait_one_vblank+0x1c8/0x260
+Oct 10 19:10:42 gpdwin kernel:  schedule+0x27/0xa0
+Oct 10 19:10:42 gpdwin kernel:  drm_vblank_work_flush_all+0x9c/0x120
+Oct 10 19:10:42 gpdwin kernel:  ? __pfx_autoremove_wake_function+0x10/0x10
+Oct 10 19:10:42 gpdwin kernel:  intel_atomic_commit_tail+0x9e6/0x1bc0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:10:42 gpdwin kernel:  intel_atomic_commit+0x2ab/0x2f0 [i915 0afa23c67c247102c1ff855be6f7331406031134]
+Oct 10 19:10:42 gpdwin kernel:  drm_atomic_commit+0xb1/0xe0
+Oct 10 19:10:42 gpdwin kernel:  ? __pfx___drm_printfn_info+0x10/0x10
+Oct 10 19:10:42 gpdwin kernel:  drm_mode_atomic_ioctl+0xc32/0xf10
+Oct 10 19:10:42 gpdwin kernel:  ? __pfx_drm_mode_atomic_ioctl+0x10/0x10
+Oct 10 19:10:42 gpdwin kernel:  drm_ioctl_kernel+0xae/0x100
+Oct 10 19:10:42 gpdwin kernel:  drm_ioctl+0x2d8/0x570
+Oct 10 19:10:42 gpdwin kernel:  ? __pfx_drm_mode_atomic_ioctl+0x10/0x10
+Oct 10 19:10:42 gpdwin kernel:  __x64_sys_ioctl+0xb9/0x100
+Oct 10 19:10:42 gpdwin kernel:  do_syscall_64+0xaa/0x660
+Oct 10 19:10:42 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:10:42 gpdwin kernel:  ? __x64_sys_ioctl+0xd4/0x100
+Oct 10 19:10:42 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:10:42 gpdwin kernel:  ? __x64_sys_epoll_wait+0x70/0x120
+Oct 10 19:10:42 gpdwin kernel:  ? switch_fpu_return+0x5e/0xf0
+Oct 10 19:10:42 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:10:42 gpdwin kernel:  ? __x64_sys_accept+0x1b/0x30
+Oct 10 19:10:42 gpdwin kernel:  ? do_syscall_64+0xaa/0x660
+Oct 10 19:10:42 gpdwin kernel:  ? __x64_sys_epoll_wait+0x70/0x120
+Oct 10 19:10:42 gpdwin kernel:  ? switch_fpu_return+0x5e/0xf0
+Oct 10 19:10:42 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:10:42 gpdwin kernel:  ? do_syscall_64+0x252/0x660
+Oct 10 19:10:42 gpdwin kernel:  ? __hrtimer_rearm_deferred+0x62/0x140
+Oct 10 19:10:42 gpdwin kernel:  ? do_syscall_64+0x5f/0x660
+Oct 10 19:10:42 gpdwin kernel:  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+Oct 10 19:10:42 gpdwin kernel: RIP: 0033:0x7f695751bd9d
+Oct 10 19:10:42 gpdwin kernel: RSP: 002b:00007ffc1fce67f0 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+Oct 10 19:10:42 gpdwin kernel: RAX: ffffffffffffffda RBX: 000056126c648100 RCX: 00007f695751bd9d
+Oct 10 19:10:42 gpdwin kernel: RDX: 00007ffc1fce6890 RSI: 00000000c03864bc RDI: 000000000000000a
+Oct 10 19:10:42 gpdwin kernel: RBP: 00007ffc1fce6840 R08: 0000000000000003 R09: 0000000000000056
+Oct 10 19:10:42 gpdwin kernel: R10: 0000000000000ff0 R11: 0000000000000246 R12: 00007ffc1fce6890
+Oct 10 19:10:42 gpdwin kernel: R13: 00000000c03864bc R14: 000000000000000a R15: 000056126c5a0110
+Oct 10 19:10:42 gpdwin kernel:  </TASK>
