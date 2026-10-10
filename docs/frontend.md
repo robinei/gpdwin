@@ -27,8 +27,8 @@ source at the installed commit).
   settings, no power menu (the power button and Utilities cover those).
 - Input: pad read directly from evdev in a thread (not SDL's gamepad layer, which polls ~1000/s
   with a joystick open; Pegasus, which used it, sometimes crashed when the pad disconnected):
-  d-pad/stick up/down (held: repeats), d-pad left/right switch tabs, LB/RB or triggers page,
-  A launch, Y favourite. Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F. All input is
+  d-pad/left stick up/down (held: repeats), d-pad/left stick left/right switch tabs, LB/RB page
+  by 8 (held: repeats), LT/RT jump to the top/bottom (like Home/End), A launch, Y favourite. Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F. All input is
   ignored unless shelf's window has focus (xdg-shell "activated" state), since the pad is read
   below the compositor.
 - Draws only when something changed (zero CPU when idle). Its own small Wayland client (xdg-shell

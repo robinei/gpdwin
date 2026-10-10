@@ -27,8 +27,8 @@
  * is read directly from evdev in a thread (inotify for hotplug), not through SDL's gamepad layer:
  * with a joystick open SDL polls about every millisecond, and the pad disconnects whenever the
  * screen goes off.
- *   pad:  d-pad/stick up/down move, LB/RB or triggers page (held: repeat), d-pad left/right switch
- *         collection, A launch, Y favourite
+ *   pad:  d-pad/stick up/down move, LB/RB page (held: repeat), LT/RT top/bottom, d-pad/stick
+ *         left/right switch collection, A launch, Y favourite
  *   keys: arrows, Page Up/Down, Home/End, Tab/Shift+Tab, Enter launch, F favourite
  *
  * Threads (pad, image loader, game waiter) and signal handlers send messages to the main loop over a
@@ -1612,13 +1612,27 @@ out:
 
 /* ------------------------------------------------------------------ gamepad (evdev thread) */
 
-enum { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_PGUP, A_PGDN, A_LAUNCH, A_FAV, A_BACK };
+enum { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_PGUP, A_PGDN, A_HOME, A_END, A_LAUNCH, A_FAV, A_BACK };
 
 static int pad_quit_pipe[2] = { -1, -1 };
 
 static void push_pad(int action, int pressed)
 {
     post(M_PAD, action, pressed, NULL);
+}
+
+/* A stick axis as two buttons (neg, pos), with hysteresis: pressed beyond +-20000, released
+ * inside +-12000. */
+static void stick_axis(int value, int *state, int neg, int pos)
+{
+    int s = value < -20000 ? -1 : value > 20000 ? 1 : (value > -12000 && value < 12000) ? 0 : *state;
+    if (s == *state)
+        return;
+    if (*state)
+        push_pad(*state < 0 ? neg : pos, 0);
+    if (s)
+        push_pad(s < 0 ? neg : pos, 1);
+    *state = s;
 }
 
 static int open_pad(void)
@@ -1650,7 +1664,7 @@ static int pad_thread(void *unused)
     int watch = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
     inotify_add_watch(watch, "/dev/input", IN_CREATE | IN_ATTRIB);
     int pad = open_pad();
-    int hat_y = 0, hat_x = 0, stick = 0, lt = 0, rt = 0;
+    int hat_y = 0, hat_x = 0, stick_y = 0, stick_x = 0, lt = 0, rt = 0;
     for (;;) {
         struct pollfd fds[3] = {
             { .fd = pad_quit_pipe[0], .events = POLLIN },
@@ -1690,20 +1704,15 @@ static int pad_thread(void *unused)
                         if (ev.value)
                             push_pad(ev.value < 0 ? A_LEFT : A_RIGHT, 1);
                         hat_x = ev.value;
-                    } else if (ev.code == ABS_Y) { /* left stick, with hysteresis */
-                        int s = ev.value < -20000 ? -1 : ev.value > 20000 ? 1 : (ev.value > -12000 && ev.value < 12000) ? 0 : stick;
-                        if (s != stick) {
-                            if (stick)
-                                push_pad(stick < 0 ? A_UP : A_DOWN, 0);
-                            if (s)
-                                push_pad(s < 0 ? A_UP : A_DOWN, 1);
-                            stick = s;
-                        }
-                    } else if (ev.code == ABS_Z || ev.code == ABS_RZ) {
+                    } else if (ev.code == ABS_Y) { /* left stick */
+                        stick_axis(ev.value, &stick_y, A_UP, A_DOWN);
+                    } else if (ev.code == ABS_X) {
+                        stick_axis(ev.value, &stick_x, A_LEFT, A_RIGHT);
+                    } else if (ev.code == ABS_Z || ev.code == ABS_RZ) { /* triggers: top, bottom */
                         int *t = ev.code == ABS_Z ? &lt : &rt;
                         int on = ev.value > 160 ? 1 : ev.value < 64 ? 0 : *t;
                         if (on != *t) {
-                            push_pad(ev.code == ABS_Z ? A_PGUP : A_PGDN, on);
+                            push_pad(ev.code == ABS_Z ? A_HOME : A_END, on);
                             *t = on;
                         }
                     }
@@ -1712,7 +1721,7 @@ static int pad_thread(void *unused)
             if (n < 0 && errno != EAGAIN) { /* pad gone (screen off, resume): inotify brings it back */
                 close(pad);
                 pad = -1;
-                hat_x = hat_y = stick = lt = rt = 0;
+                hat_x = hat_y = stick_y = stick_x = lt = rt = 0;
             }
         }
     }
@@ -2700,6 +2709,8 @@ static void action(App *a, int act, bool repeat)
     case A_DOWN: move(a, 1); break;
     case A_PGUP: move(a, -PAGE); break;
     case A_PGDN: move(a, PAGE); break;
+    case A_HOME: if (!repeat && cur_coll(a)) move(a, -cur_coll(a)->ngames); break;
+    case A_END: if (!repeat && cur_coll(a)) move(a, cur_coll(a)->ngames); break;
     case A_LEFT: if (!repeat) switch_tab(a, -1); break;
     case A_RIGHT: if (!repeat) switch_tab(a, 1); break;
     case A_LAUNCH: if (!repeat) start_game(a); break;
@@ -2987,10 +2998,9 @@ static void key_action(App *a, uint32_t key, bool down)
     int act = key == KEY_UP ? A_UP : key == KEY_DOWN ? A_DOWN : key == KEY_PAGEUP ? A_PGUP
             : key == KEY_PAGEDOWN ? A_PGDN : key == KEY_LEFT ? A_LEFT : key == KEY_RIGHT ? A_RIGHT
             : (key == KEY_ENTER || key == KEY_KPENTER) ? A_LAUNCH : key == KEY_F ? A_FAV
+            : key == KEY_HOME ? A_HOME : key == KEY_END ? A_END
             : key == KEY_TAB ? (wl.shift ? A_LEFT : A_RIGHT) : A_NONE;
-    if (down && !a->running && cur_coll(a) && (key == KEY_HOME || key == KEY_END))
-        move(a, key == KEY_HOME ? -cur_coll(a)->ngames : cur_coll(a)->ngames);
-    else if (act)
+    if (act)
         press(a, act, down);
 }
 

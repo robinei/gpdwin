@@ -443,3 +443,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - The state file `~/.local/state/shelf/last` now holds every tab's selected game and scroll row (was: current tab
   and game only), so a restart resumes all tabs; the old two-line file is still read. A game that disappeared
   leaves the selection at its old index (the next game) instead of jumping to the top.
+- shelf pad: the left stick's left/right now switches tabs like the d-pad; LT/RT jump to the top/bottom of the list
+  (were: page like LB/RB).
