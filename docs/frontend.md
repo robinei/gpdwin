@@ -377,8 +377,12 @@ rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the in
   (held: repeats), left/right or LB/RB switch tabs, triggers page, A launch, Y favourite.
   Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F.
 - Draws only when something changed (zero CPU when idle). Software renderer by default: no Mesa in
-  the process (`SDL_RENDER_DRIVER=opengl` to compare). Library load (parse, scan, media, stats,
-  sort) takes 20 ms on the device for 43 games.
+  the process (`SDL_RENDER_DRIVER=opengl` to compare).
+- Box art is decoded and scaled in a background thread (selected game first, then the visible
+  thumbnails); the UI draws at once and art appears as it is ready. Keep images 8-bit: 16-bit
+  PNGs took ~100 ms each to convert (the Utilities icons were converted for this).
+- Startup on the device (`SHELF_TIMING=1`, offscreen): first frame at ~190 ms (SDL init ~140 ms,
+  library load ~5 ms), all visible box art at ~250 ms.
 - After a game or tool exits it rescans everything, so games added by the installer or box art
   from Fetch Box Art show up without a restart.
 - Testing without a screen: `shelf --list` prints collections, games, art and stats.
