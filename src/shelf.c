@@ -51,6 +51,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <sys/mman.h>
+#include <wayland-client.h>
+
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -59,6 +62,8 @@
 
 #define JSMN_STATIC
 #include "vendor/jsmn.h"
+#include "vendor/xdg-shell-client-protocol.h"
+#include "vendor/xdg-shell-protocol.c"
 
 #define PAD_NAME "Microsoft X-Box 360 pad"
 #define FONT_REGULAR "/usr/share/fonts/TTF/DejaVuSans.ttf"
@@ -1542,7 +1547,20 @@ typedef struct {
     int fail_fd;
 } Running;
 
-static Uint32 EV_PAD, EV_EXIT;
+/* Threads (pad, image loader, game waiter) and signal handlers talk to the main loop through this
+ * pipe; the main loop poll()s it together with the Wayland socket. */
+enum { M_PAD, M_EXIT, M_IMG, M_QUIT };
+typedef struct {
+    int type, code, value;
+    void *ptr;
+} Msg;
+static int msg_pipe[2] = { -1, -1 };
+
+static void post(int type, int code, int value, void *ptr)
+{
+    Msg m = { type, code, value, ptr };
+    if (write(msg_pipe[1], &m, sizeof m) != sizeof m) { /* main loop gone */ }
+}
 
 static int waiter(void *arg)
 {
@@ -1550,9 +1568,7 @@ static int waiter(void *arg)
     int status;
     while (waitpid(r->pid, &status, 0) < 0 && errno == EINTR)
         ;
-    SDL_Event ev = { 0 };
-    ev.type = EV_EXIT;
-    SDL_PushEvent(&ev);
+    post(M_EXIT, 0, 0, NULL);
     return 0;
 }
 
@@ -1694,11 +1710,7 @@ static int pad_quit_pipe[2] = { -1, -1 };
 
 static void push_pad(int action, int pressed)
 {
-    SDL_Event ev = { 0 };
-    ev.type = EV_PAD;
-    ev.user.code = action;
-    ev.user.data1 = (void *)(intptr_t)pressed;
-    SDL_PushEvent(&ev);
+    post(M_PAD, action, pressed, NULL);
 }
 
 static int open_pad(void)
@@ -1829,8 +1841,9 @@ typedef struct {
 } ImgEntry;
 
 typedef struct {
-    SDL_Window *win;
+    SDL_Surface *canvas; /* what the software renderer draws into; copied to a Wayland buffer */
     SDL_Renderer *ren;
+    int W, H;            /* window size */
     TTF_TextEngine *eng;
     TTF_Font *f_tab, *f_row, *f_title, *f_meta, *f_desc;
     Library lib;
@@ -1871,7 +1884,6 @@ static struct {
     bool quit;
 } loader;
 
-static Uint32 EV_IMG;
 
 static SDL_Surface *decode_image(const char *path, int max_w, int max_h)
 {
@@ -1921,10 +1933,7 @@ static int loader_thread(void *unused)
         ImgResult *res = xmalloc(sizeof *res);
         res->req = r;
         res->surf = decode_image(r.path, r.max_w, r.max_h);
-        SDL_Event ev = { 0 };
-        ev.type = EV_IMG;
-        ev.user.data1 = res;
-        SDL_PushEvent(&ev);
+        post(M_IMG, 0, 0, res);
         SDL_LockMutex(loader.lock);
         loader.busy.path = NULL; /* the result owns the string now */
     }
@@ -2193,8 +2202,7 @@ static void join(char *b, size_t n, const StrList *l)
 
 static int render(App *a)
 {
-    int W, H;
-    SDL_GetRenderOutputSize(a->ren, &W, &H);
+    int W = a->W, H = a->H;
     int need_more = 0; /* ms until something else should be drawn (0: nothing pending) */
     fill(a, P.base, 0, 0, W, H);
 
@@ -2406,6 +2414,310 @@ static void action(App *a, int act, bool repeat)
     }
 }
 
+/* ------------------------------------------------------------------ Wayland window (no SDL video:
+ * SDL's Wayland backend needs EGL/Mesa even to show a software-rendered frame) */
+
+typedef struct {
+    struct wl_buffer *buf;
+    void *data;
+    int w, h;
+    size_t size;
+    bool busy;
+} ShmBuf;
+
+static struct {
+    struct wl_display *dpy;
+    struct wl_compositor *comp;
+    struct wl_shm *shm;
+    struct xdg_wm_base *wm;
+    struct wl_seat *seat;
+    struct wl_keyboard *kbd;
+    struct wl_surface *surf;
+    struct xdg_surface *xsurf;
+    struct xdg_toplevel *top;
+    int cfg_w, cfg_h;
+    bool configured, closed, focused, shift;
+    ShmBuf bufs[2];
+} wl;
+
+static App *the_app;
+
+static void buf_release(void *data, struct wl_buffer *b)
+{
+    (void)b;
+    ((ShmBuf *)data)->busy = false;
+}
+static const struct wl_buffer_listener buf_listener = { buf_release };
+
+static bool buf_make(ShmBuf *sb, int w, int h)
+{
+    if (sb->buf) {
+        wl_buffer_destroy(sb->buf);
+        munmap(sb->data, sb->size);
+        sb->buf = NULL;
+    }
+    sb->size = (size_t)w * h * 4;
+    int fd = memfd_create("shelf", MFD_CLOEXEC);
+    if (fd < 0 || ftruncate(fd, sb->size) < 0) {
+        if (fd >= 0)
+            close(fd);
+        return false;
+    }
+    sb->data = mmap(NULL, sb->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (sb->data == MAP_FAILED) {
+        close(fd);
+        return false;
+    }
+    struct wl_shm_pool *pool = wl_shm_create_pool(wl.shm, fd, sb->size);
+    sb->buf = wl_shm_pool_create_buffer(pool, 0, w, h, w * 4, WL_SHM_FORMAT_XRGB8888);
+    wl_shm_pool_destroy(pool);
+    close(fd);
+    wl_buffer_add_listener(sb->buf, &buf_listener, sb);
+    sb->w = w, sb->h = h, sb->busy = false;
+    return true;
+}
+
+/* Copy the canvas into a free buffer and show it. Returns false if both buffers are still held by
+ * the compositor (the caller draws again after the next release). */
+static bool present(App *a)
+{
+    ShmBuf *sb = !wl.bufs[0].busy ? &wl.bufs[0] : !wl.bufs[1].busy ? &wl.bufs[1] : NULL;
+    if (!sb)
+        return false;
+    if ((sb->w != a->W || sb->h != a->H) && !buf_make(sb, a->W, a->H))
+        return false;
+    SDL_LockSurface(a->canvas);
+    for (int y = 0; y < a->H; y++)
+        memcpy((char *)sb->data + (size_t)y * a->W * 4, (char *)a->canvas->pixels + (size_t)y * a->canvas->pitch,
+               (size_t)a->W * 4);
+    SDL_UnlockSurface(a->canvas);
+    wl_surface_attach(wl.surf, sb->buf, 0, 0);
+    wl_surface_damage_buffer(wl.surf, 0, 0, a->W, a->H);
+    wl_surface_commit(wl.surf);
+    sb->busy = true;
+    wl_display_flush(wl.dpy);
+    return true;
+}
+
+static void wm_ping(void *d, struct xdg_wm_base *wm, uint32_t serial)
+{
+    (void)d;
+    xdg_wm_base_pong(wm, serial);
+}
+static const struct xdg_wm_base_listener wm_listener = { wm_ping };
+
+static void xsurf_configure(void *d, struct xdg_surface *xs, uint32_t serial)
+{
+    (void)d;
+    xdg_surface_ack_configure(xs, serial);
+    App *a = the_app;
+    a->W = wl.cfg_w > 0 ? wl.cfg_w : 1280;
+    a->H = wl.cfg_h > 0 ? wl.cfg_h : 720;
+    wl.configured = true;
+    a->dirty = true;
+}
+static const struct xdg_surface_listener xsurf_listener = { xsurf_configure };
+
+static void top_configure(void *d, struct xdg_toplevel *t, int32_t w, int32_t h, struct wl_array *states)
+{
+    (void)d, (void)t, (void)states;
+    wl.cfg_w = w, wl.cfg_h = h;
+}
+static void top_close(void *d, struct xdg_toplevel *t)
+{
+    (void)d, (void)t;
+    wl.closed = true;
+}
+static void top_bounds(void *d, struct xdg_toplevel *t, int32_t w, int32_t h) { (void)d, (void)t, (void)w, (void)h; }
+static void top_caps(void *d, struct xdg_toplevel *t, struct wl_array *c) { (void)d, (void)t, (void)c; }
+static const struct xdg_toplevel_listener top_listener = { top_configure, top_close, top_bounds, top_caps };
+
+static void key_action(App *a, uint32_t key, bool down);
+
+static void kb_keymap(void *d, struct wl_keyboard *k, uint32_t fmt, int32_t fd, uint32_t size)
+{
+    (void)d, (void)k, (void)fmt, (void)size;
+    close(fd); /* raw evdev key codes are enough */
+}
+static void kb_enter(void *d, struct wl_keyboard *k, uint32_t serial, struct wl_surface *s, struct wl_array *keys)
+{
+    (void)d, (void)k, (void)serial, (void)s, (void)keys;
+    wl.focused = true;
+}
+static void kb_leave(void *d, struct wl_keyboard *k, uint32_t serial, struct wl_surface *s)
+{
+    (void)d, (void)k, (void)serial, (void)s;
+    wl.focused = false;
+    wl.shift = false;
+    key_action(the_app, 0, false); /* stop any key repeat */
+}
+static void kb_key(void *d, struct wl_keyboard *k, uint32_t serial, uint32_t time, uint32_t key, uint32_t state)
+{
+    (void)d, (void)k, (void)serial, (void)time;
+    key_action(the_app, key, state == WL_KEYBOARD_KEY_STATE_PRESSED);
+}
+static void kb_mods(void *d, struct wl_keyboard *k, uint32_t serial, uint32_t dep, uint32_t lat, uint32_t lock,
+                    uint32_t group)
+{
+    (void)d, (void)k, (void)serial, (void)dep, (void)lat, (void)lock, (void)group;
+}
+static void kb_repeat(void *d, struct wl_keyboard *k, int32_t rate, int32_t delay) { (void)d, (void)k, (void)rate, (void)delay; }
+static const struct wl_keyboard_listener kb_listener = { kb_keymap, kb_enter, kb_leave, kb_key, kb_mods, kb_repeat };
+
+static void seat_caps(void *d, struct wl_seat *seat, uint32_t caps)
+{
+    (void)d;
+    if ((caps & WL_SEAT_CAPABILITY_KEYBOARD) && !wl.kbd) {
+        wl.kbd = wl_seat_get_keyboard(seat);
+        wl_keyboard_add_listener(wl.kbd, &kb_listener, NULL);
+    } else if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD) && wl.kbd) {
+        wl_keyboard_release(wl.kbd);
+        wl.kbd = NULL;
+    }
+}
+static void seat_name(void *d, struct wl_seat *s, const char *n) { (void)d, (void)s, (void)n; }
+static const struct wl_seat_listener seat_listener = { seat_caps, seat_name };
+
+static void reg_global(void *d, struct wl_registry *r, uint32_t name, const char *iface, uint32_t ver)
+{
+    (void)d;
+    if (!strcmp(iface, wl_compositor_interface.name))
+        wl.comp = wl_registry_bind(r, name, &wl_compositor_interface, SDL_min(ver, 4u));
+    else if (!strcmp(iface, wl_shm_interface.name))
+        wl.shm = wl_registry_bind(r, name, &wl_shm_interface, 1);
+    else if (!strcmp(iface, xdg_wm_base_interface.name))
+        wl.wm = wl_registry_bind(r, name, &xdg_wm_base_interface, 1);
+    else if (!strcmp(iface, wl_seat_interface.name) && !wl.seat) {
+        wl.seat = wl_registry_bind(r, name, &wl_seat_interface, SDL_min(ver, 5u));
+        wl_seat_add_listener(wl.seat, &seat_listener, NULL);
+    }
+}
+static void reg_remove(void *d, struct wl_registry *r, uint32_t name) { (void)d, (void)r, (void)name; }
+static const struct wl_registry_listener reg_listener = { reg_global, reg_remove };
+
+static bool wl_open(void)
+{
+    wl.dpy = wl_display_connect(NULL);
+    if (!wl.dpy)
+        return false;
+    struct wl_registry *reg = wl_display_get_registry(wl.dpy);
+    wl_registry_add_listener(reg, &reg_listener, NULL);
+    wl_display_roundtrip(wl.dpy);
+    if (!wl.comp || !wl.shm || !wl.wm)
+        return false;
+    xdg_wm_base_add_listener(wl.wm, &wm_listener, NULL);
+    wl.surf = wl_compositor_create_surface(wl.comp);
+    wl.xsurf = xdg_wm_base_get_xdg_surface(wl.wm, wl.surf);
+    xdg_surface_add_listener(wl.xsurf, &xsurf_listener, NULL);
+    wl.top = xdg_surface_get_toplevel(wl.xsurf);
+    xdg_toplevel_add_listener(wl.top, &top_listener, NULL);
+    xdg_toplevel_set_title(wl.top, "Shelf");
+    xdg_toplevel_set_app_id(wl.top, "shelf");
+    wl_surface_commit(wl.surf);
+    wl_display_roundtrip(wl.dpy);
+    return true;
+}
+
+/* The canvas the software renderer draws into. Grows (and recreates the renderer, which drops the
+ * textures) only if the window becomes larger than it. */
+static bool make_canvas(App *a, int w, int h)
+{
+    if (a->canvas && a->canvas->w >= w && a->canvas->h >= h)
+        return true;
+    if (a->eng) {
+        TTF_DestroyRendererTextEngine(a->eng);
+        a->eng = NULL;
+    }
+    cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
+    cache_clear(a->bigs, SDL_arraysize(a->bigs));
+    if (a->ren)
+        SDL_DestroyRenderer(a->ren);
+    if (a->canvas)
+        SDL_DestroySurface(a->canvas);
+    a->canvas = SDL_CreateSurface(SDL_max(w, 1280), SDL_max(h, 720), SDL_PIXELFORMAT_XRGB8888);
+    a->ren = a->canvas ? SDL_CreateSoftwareRenderer(a->canvas) : NULL;
+    a->eng = a->ren ? TTF_CreateRendererTextEngine(a->ren) : NULL;
+    return a->eng != NULL;
+}
+
+static bool is_repeating(int act)
+{
+    return act == A_UP || act == A_DOWN || act == A_PGUP || act == A_PGDN;
+}
+
+static void press(App *a, int act, bool down)
+{
+    if (a->running)
+        return; /* the game has the input */
+    if (down) {
+        action(a, act, false);
+        if (is_repeating(act)) {
+            a->held = act;
+            a->next_repeat = SDL_GetTicks() + REPEAT_DELAY_MS;
+        }
+    } else if (act == a->held) {
+        a->held = A_NONE;
+    }
+}
+
+/* Keyboard (Wayland, so only while focused): raw evdev codes. */
+static void key_action(App *a, uint32_t key, bool down)
+{
+    if (key == 0) {
+        a->held = A_NONE;
+        return;
+    }
+    if (key == KEY_LEFTSHIFT || key == KEY_RIGHTSHIFT) {
+        wl.shift = down;
+        return;
+    }
+    int act = key == KEY_UP ? A_UP : key == KEY_DOWN ? A_DOWN : key == KEY_PAGEUP ? A_PGUP
+            : key == KEY_PAGEDOWN ? A_PGDN : key == KEY_LEFT ? A_LEFT : key == KEY_RIGHT ? A_RIGHT
+            : (key == KEY_ENTER || key == KEY_KPENTER) ? A_LAUNCH : key == KEY_F ? A_FAV
+            : key == KEY_TAB ? (wl.shift ? A_LEFT : A_RIGHT) : A_NONE;
+    if (down && !a->running && cur_coll(a) && (key == KEY_HOME || key == KEY_END))
+        move(a, key == KEY_HOME ? -cur_coll(a)->ngames : cur_coll(a)->ngames);
+    else if (act)
+        press(a, act, down);
+}
+
+static void handle_msg(App *a, Msg *m, bool *quit)
+{
+    switch (m->type) {
+    case M_PAD:
+        press(a, m->code, m->value);
+        break;
+    case M_IMG:
+        cache_put(a, m->ptr);
+        a->dirty = true;
+        break;
+    case M_EXIT:
+        if (a->running)
+            game_finished(a);
+        break;
+    case M_QUIT:
+        warn("quit requested (SIGTERM/SIGINT)");
+        *quit = true;
+        break;
+    }
+}
+
+static void on_signal(int sig)
+{
+    (void)sig;
+    int e = errno;
+    post(M_QUIT, 0, 0, NULL);
+    errno = e;
+}
+
+static bool loader_idle(void)
+{
+    SDL_LockMutex(loader.lock);
+    bool idle = !loader.n && !loader.busy.path;
+    SDL_UnlockMutex(loader.lock);
+    return idle;
+}
+
 int main(int argc, char **argv)
 {
     UErrorCode st = U_ZERO_ERROR;
@@ -2421,35 +2733,30 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    SDL_SetHint(SDL_HINT_APP_ID, "shelf");
-    /* SDL3 prefers X11 when the compositor lacks the fifo protocol (sway): ask for Wayland */
-    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
-    /* Default (GPU) renderer: SDL's Wayland backend loads EGL/Mesa even for the software renderer,
-     * which would then only add a CPU copy per frame. Mesa's pages are mostly shared with sway. */
-    SDL_SetHint(SDL_HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR, "0");
     mark("main");
-    if (!SDL_Init(SDL_INIT_VIDEO) || !TTF_Init()) {
-        fprintf(stderr, "shelf: %s\n", SDL_GetError());
-        return 1;
-    }
-    EV_PAD = SDL_RegisterEvents(3);
-    EV_EXIT = EV_PAD + 1;
-    EV_IMG = EV_PAD + 2;
-    loader.lock = SDL_CreateMutex();
-    loader.cond = SDL_CreateCondition();
-    SDL_Thread *lt = SDL_CreateThread(loader_thread, "images", NULL);
-
+    /* testing: SHELF_SCREENSHOT=file.png [SHELF_KEYS=dddr...] renders 1280x720 without a window,
+     * presses the keys (d/u down/up, l/r tab), waits for the box art, saves and quits */
+    const char *shot = getenv("SHELF_SCREENSHOT");
     static App app;
     App *a = &app;
-    a->win = SDL_CreateWindow("Shelf", 1280, 720, SDL_WINDOW_RESIZABLE);
-    a->ren = a->win ? SDL_CreateRenderer(a->win, NULL) : NULL;
-    a->eng = a->ren ? TTF_CreateRendererTextEngine(a->ren) : NULL;
-    if (!a->eng) {
+    the_app = a;
+    if (pipe2(msg_pipe, O_CLOEXEC) < 0 || !TTF_Init()) {
+        fprintf(stderr, "shelf: init failed\n");
+        return 1;
+    }
+    signal(SIGTERM, on_signal);
+    signal(SIGINT, on_signal);
+    if (!shot && !wl_open()) {
+        fprintf(stderr, "shelf: cannot open a Wayland window\n");
+        return 1;
+    }
+    if (shot)
+        a->W = 1280, a->H = 720;
+    if (!make_canvas(a, a->W ? a->W : 1280, a->H ? a->H : 720)) {
         fprintf(stderr, "shelf: %s\n", SDL_GetError());
         return 1;
     }
     mark("window and renderer");
-    SDL_SetRenderVSync(a->ren, 1);
     a->f_tab = TTF_OpenFont(FONT_BOLD, 22);
     a->f_row = TTF_OpenFont(FONT_REGULAR, 22);
     a->f_title = TTF_OpenFont(FONT_BOLD, 28);
@@ -2459,7 +2766,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "shelf: fonts: %s\n", SDL_GetError());
         return 1;
     }
-
     mark("fonts");
     load_library(&a->lib);
     mark("library");
@@ -2470,115 +2776,89 @@ int main(int argc, char **argv)
     free(mc);
     free(mg);
 
-    if (pipe2(pad_quit_pipe, O_CLOEXEC) == 0) {
+    loader.lock = SDL_CreateMutex();
+    loader.cond = SDL_CreateCondition();
+    SDL_Thread *lt = SDL_CreateThread(loader_thread, "images", NULL);
+    if (!shot && pipe2(pad_quit_pipe, O_CLOEXEC) == 0) {
         SDL_Thread *t = SDL_CreateThread(pad_thread, "pad", NULL);
         if (t)
             SDL_DetachThread(t);
     }
 
     a->dirty = true;
-    int pending = 0;
-    for (bool quit = false; !quit;) {
-        SDL_Event ev;
+    int frames = 0, keyi = 0;
+    bool quit = false, all_marked = false;
+    while (!quit && !wl.closed) {
+        if (a->dirty && !a->running && (shot || wl.configured)) {
+            if (!make_canvas(a, a->W, a->H)) {
+                fprintf(stderr, "shelf: %s\n", SDL_GetError());
+                break;
+            }
+            a->dirty = false;
+            render(a);
+            if (!shot && !present(a))
+                a->dirty = true; /* retried after a buffer release */
+            if (!frames++)
+                mark("first frame");
+            if (!all_marked && frames > 1 && loader_idle()) {
+                mark("all visible images loaded");
+                all_marked = true;
+            }
+            if (shot && loader_idle()) {
+                const char *keys = getenv("SHELF_KEYS");
+                if (keys && keys[keyi]) {
+                    char c = keys[keyi++];
+                    action(a, c == 'd' ? A_DOWN : c == 'u' ? A_UP : c == 'l' ? A_LEFT : A_RIGHT, false);
+                    continue;
+                }
+                SDL_LockSurface(a->canvas);
+                SDL_Surface *view = SDL_CreateSurfaceFrom(a->W, a->H, a->canvas->format, a->canvas->pixels,
+                                                          a->canvas->pitch);
+                IMG_SavePNG(view, shot);
+                SDL_DestroySurface(view);
+                SDL_UnlockSurface(a->canvas);
+                break;
+            }
+        }
         int timeout = -1;
         Uint64 now = SDL_GetTicks();
         if (a->held && !a->running)
             timeout = a->next_repeat > now ? (int)(a->next_repeat - now) : 0;
-        if (pending && !a->running)
-            timeout = timeout < 0 ? pending : SDL_min(timeout, pending);
-        if (a->dirty && !a->running)
-            timeout = 0;
-        bool got = timeout < 0 ? SDL_WaitEvent(&ev) : SDL_WaitEventTimeout(&ev, timeout);
-        while (got) {
-            if (ev.type == SDL_EVENT_QUIT) {
-                warn("quit requested (window closed or SIGTERM/SIGINT)");
-                quit = true;
-            } else if (ev.type == EV_IMG) {
-                cache_put(a, ev.user.data1);
-                a->dirty = true;
-            } else if (ev.type == EV_EXIT) {
-                if (a->running)
-                    game_finished(a);
-            } else if (ev.type == EV_PAD) {
-                int act = ev.user.code, down = (int)(intptr_t)ev.user.data1;
-                if (a->running) {
-                    /* the game has the pad */
-                } else if (down) {
-                    action(a, act, false);
-                    if (act == A_UP || act == A_DOWN || act == A_PGUP || act == A_PGDN) {
-                        a->held = act;
-                        a->next_repeat = SDL_GetTicks() + REPEAT_DELAY_MS;
-                    }
-                } else if (act == a->held) {
-                    a->held = A_NONE;
-                }
-            } else if (ev.type == SDL_EVENT_KEY_DOWN && !a->running) {
-                SDL_Keycode k = ev.key.key;
-                bool shift = ev.key.mod & SDL_KMOD_SHIFT;
-                int act = k == SDLK_UP ? A_UP : k == SDLK_DOWN ? A_DOWN : k == SDLK_PAGEUP ? A_PGUP
-                        : k == SDLK_PAGEDOWN ? A_PGDN : k == SDLK_LEFT ? A_LEFT : k == SDLK_RIGHT ? A_RIGHT
-                        : (k == SDLK_RETURN || k == SDLK_KP_ENTER) ? A_LAUNCH : k == SDLK_F ? A_FAV : A_NONE;
-                if (k == SDLK_TAB)
-                    act = shift ? A_LEFT : A_RIGHT;
-                if (k == SDLK_HOME && cur_coll(a))
-                    move(a, -cur_coll(a)->ngames);
-                else if (k == SDLK_END && cur_coll(a))
-                    move(a, cur_coll(a)->ngames);
-                else if (act)
-                    action(a, act, ev.key.repeat && (act == A_LEFT || act == A_RIGHT || act == A_LAUNCH || act == A_FAV));
-            } else if (ev.type == SDL_EVENT_MOUSE_WHEEL && !a->running) {
-                move(a, ev.wheel.y > 0 ? -1 : 1);
-            } else if (ev.type == SDL_EVENT_WINDOW_RESIZED || ev.type == SDL_EVENT_WINDOW_EXPOSED ||
-                       ev.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
-                a->dirty = true;
+        struct pollfd fds[2] = { { .fd = msg_pipe[0], .events = POLLIN }, { .fd = -1, .events = POLLIN } };
+        if (!shot) {
+            while (wl_display_prepare_read(wl.dpy) != 0)
+                wl_display_dispatch_pending(wl.dpy);
+            wl_display_flush(wl.dpy);
+            fds[1].fd = wl_display_get_fd(wl.dpy);
+        }
+        int r = poll(fds, 2, a->dirty && !a->running && (shot || wl.configured) ? 0 : timeout);
+        if (!shot) {
+            if (r > 0 && (fds[1].revents & POLLIN))
+                wl_display_read_events(wl.dpy);
+            else
+                wl_display_cancel_read(wl.dpy);
+            if (r > 0 && (fds[1].revents & (POLLERR | POLLHUP))) {
+                warn("Wayland connection lost");
+                break;
             }
-            got = SDL_PollEvent(&ev);
+            wl_display_dispatch_pending(wl.dpy);
+        }
+        if (r > 0 && (fds[0].revents & POLLIN)) {
+            Msg m;
+            int fl = fcntl(msg_pipe[0], F_GETFL);
+            fcntl(msg_pipe[0], F_SETFL, fl | O_NONBLOCK);
+            while (read(msg_pipe[0], &m, sizeof m) == sizeof m)
+                handle_msg(a, &m, &quit);
+            fcntl(msg_pipe[0], F_SETFL, fl);
         }
         now = SDL_GetTicks();
         if (a->held && !a->running && now >= a->next_repeat) {
             action(a, a->held, true);
             a->next_repeat = now + REPEAT_RATE_MS;
         }
-        if ((a->dirty || pending) && !a->running) {
-            a->dirty = false;
-            pending = render(a);
-            static int frames;
-            if (!frames++)
-                mark("first frame");
-            static bool done;
-            if (!done) {
-                SDL_LockMutex(loader.lock);
-                done = !loader.n && !loader.busy.path && frames > 1;
-                SDL_UnlockMutex(loader.lock);
-                if (done)
-                    mark("all visible images loaded");
-            }
-            /* testing: SHELF_SCREENSHOT=file.png [SHELF_KEYS=dddr...] renders without a display
-             * (SDL_VIDEO_DRIVER=offscreen), presses the keys (d/u down/up, l/r tab), saves, quits */
-            const char *shot = getenv("SHELF_SCREENSHOT");
-            SDL_LockMutex(loader.lock);
-            bool images_idle = !loader.n && !loader.busy.path;
-            SDL_UnlockMutex(loader.lock);
-            if (shot && !pending && images_idle) {
-                static int k;
-                const char *keys = getenv("SHELF_KEYS");
-                if (keys && keys[k]) {
-                    char c = keys[k++];
-                    action(a, c == 'd' ? A_DOWN : c == 'u' ? A_UP : c == 'l' ? A_LEFT : A_RIGHT, false);
-                    a->last_move = 0;
-                    continue;
-                }
-                a->dirty = true;
-                render(a);
-                SDL_Surface *surf = SDL_RenderReadPixels(a->ren, NULL);
-                if (surf) {
-                    IMG_SavePNG(surf, shot);
-                    SDL_DestroySurface(surf);
-                }
-                quit = true;
-            }
-        }
     }
+    if (wl.closed)
+        warn("window closed");
 
     if (pad_quit_pipe[1] >= 0 && write(pad_quit_pipe[1], "q", 1) < 0) { /* thread dies with us */ }
     SDL_LockMutex(loader.lock);
@@ -2588,18 +2868,13 @@ int main(int argc, char **argv)
     if (lt)
         SDL_WaitThread(lt, NULL);
     loader_clear();
-    for (SDL_Event ev; SDL_PeepEvents(&ev, 1, SDL_GETEVENT, EV_IMG, EV_IMG) == 1;) {
-        ImgResult *res = ev.user.data1;
-        if (res->surf)
-            SDL_DestroySurface(res->surf);
-        free(res->req.path);
-        free(res);
-    }
     cache_clear(a->thumbs, SDL_arraysize(a->thumbs));
     cache_clear(a->bigs, SDL_arraysize(a->bigs));
     TTF_DestroyRendererTextEngine(a->eng);
     SDL_DestroyRenderer(a->ren);
-    SDL_DestroyWindow(a->win);
+    SDL_DestroySurface(a->canvas);
+    if (wl.dpy)
+        wl_display_disconnect(wl.dpy);
     TTF_Quit();
     SDL_Quit();
     lib_free(&a->lib);
