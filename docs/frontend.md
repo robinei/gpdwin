@@ -346,7 +346,7 @@ when it's no longer wanted.
   `~/.wine` prefix for almost everything (the default of `scripts/games`). **Old-style Wine
   (`~/Games/tools/wine32` -> `wine-oldstyle/wine-11.19-amd64`, Kron4ek build) with a true 32-bit
   prefix `~/.wine32` (`WINEARCH=win32`, only the old-style build can make one) for games that are slow on
-  the WoW64 system Wine** (so far only Sam & Max). A win32 prefix is half the size of a win64 one (310 vs
+  the WoW64 system Wine** (so far Sam & Max and Spelunky). A win32 prefix is half the size of a win64 one (310 vs
   616 MB) with the same speed (39.3 vs 38.6 fps) and Wine memory (449 vs 453 MB). **Opt-in per game:**
   `"runner": "wine32"` in its `.gpd-game.json`; `scripts/games` then writes the launcher with
   `WINEPREFIX=$HOME/.wine32 WINEARCH=win32 WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"` and
@@ -356,11 +356,17 @@ when it's no longer wanted.
   old-style Wine: new Kron4ek release -> unpack next to it, repoint the `wine32` symlink, keep the old
   directory until it works (a prefix updates itself on first use).
 
-- **Not every 32-bit game benefits (measured 2026-10-09):** Spelunky (GameMaker, D3D9) and Cave Story+ run at the
-  60 fps vsync cap on both the system WoW64 Wine and the old-style Wine, and neither prints the
-  `wow64_map_buffer` warning. Only Sam & Max (Telltale engine, big dynamic buffers locked every frame) was
-  affected. So use the old-style Wine per game where `WINEDEBUG=err+all,+fps` shows low fps together with
-  `wow64_map_buffer`, not as a rule for all 32-bit games.
+- **Which 32-bit games need the old-style Wine (measured 2026-10-09/10):** the WoW64 slowdown builds up
+  over minutes of play, so a menu or one-minute test shows nothing. Spelunky (GameMaker, D3D9): 60 fps in the
+  menu and at the start on the system Wine, then 40 -> 13 -> 5-7 fps within about two minutes of play
+  (wined3d command-stream thread and main thread each at ~90% CPU, one `wow64_map_buffer` warning, RAM fine,
+  not caused by MangoHud: it started in a copy without the overlay, and hiding the overlay did not
+  recover it). The same game on the old-style Wine with the 32-bit prefix: steady 60 fps over a 3-4
+  minute session, no warning. Spelunky now has `"runner": "wine32"`. Cave Story+ was only tested briefly
+  on 2026-10-09 (60 fps at the start on both Wines); it may need the same, test it with a long session.
+  How to test a game: put `export WINEDEBUG=err+all,+fps` and `> /tmp/play.log 2>&1` into its launcher, play
+  a real session, then read the `wglSwapBuffers @ approx N fps` lines and count `wow64_map_buffer`.
+  Per-thread CPU (which thread is saturated): `/proc/PID/task/*/stat` over a few seconds.
 
 - Performance overlay: MangoHud, our light rebuild `mangohud-light` (Arch's PKGBUILD vendored in
   `aur/pkgbuilds/mangohud-light`, pkgbuild patch drops mangoplot/mangoapp and with them

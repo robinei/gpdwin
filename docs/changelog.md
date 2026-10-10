@@ -445,3 +445,9 @@ Details before 2026-10-06 are in `docs/archive/`.
   leaves the selection at its old index (the next game) instead of jumping to the top.
 - shelf pad: the left stick's left/right now switches tabs like the d-pad; LT/RT jump to the top/bottom of the list
   (were: page like LB/RB).
+
+## 2026-10-10 — Spelunky on the old-style Wine
+- Spelunky degraded to 5-7 fps after a couple of minutes of play on the system (WoW64) Wine, steady 60 fps on the
+  old-style Wine with `~/.wine32`. Its launcher now uses the old-style Wine (`runner: wine32` in `.gpd-game.json`);
+  the system-Wine launcher stays in `old-launchers/gpd-launch-systemwine.sh` (revert: copy it back). The 2026-10-09
+  note that Spelunky does not benefit was wrong (menu-only test); docs/frontend.md corrected.
