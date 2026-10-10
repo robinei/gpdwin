@@ -451,3 +451,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   old-style Wine with `~/.wine32`. Its launcher now uses the old-style Wine (`runner: wine32` in `.gpd-game.json`);
   the system-Wine launcher stays in `old-launchers/gpd-launch-systemwine.sh` (revert: copy it back). The 2026-10-09
   note that Spelunky does not benefit was wrong (menu-only test); docs/frontend.md corrected.
+- 32-bit Windows games now default to the old-style Wine (`~/.wine32`) in `scripts/games` (PE header check,
+  `pe_is_32bit`); `"runner": "wine"` forces the system Wine. Cave Story+ moved (its saves are in the game folder,
+  nothing to copy; system-Wine launcher in its `old-launchers/gpd-launch-systemwine.sh`, started once on the
+  old-style Wine to check). Heretic/Hexen (64-bit) stays on the system Wine. Docs/frontend.md updated.
