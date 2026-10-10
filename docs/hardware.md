@@ -107,8 +107,8 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     `c8dae55a8ced` (Bay Trail DSI: picture shifted with wraparound and wrong colors at cdclk 266667, needs >= 320000;
     applied to Valleyview only, not Cherry Trail) and `f90e8c36c886` (Broxton split screen with cycled colors: DPI FIFO
     not flushed at frame end, `EOT_DISABLE` bit 9). Neither is proven for CHV; the cdclk one was tested (patch 0002) and showed no improvement.
-  - **Current state (2026-10-09): patched i915 as DKMS package `gpd-i915`** (`kernel/i915/install-dkms.sh`,
-    patches 0001+0011+0012+0013): every DPI underrun is logged (`journalctl -k | grep DSI`) and a lone
+  - **Current state (2026-10-10): patched i915 as DKMS package `gpd-i915`** (`kernel/i915/install-dkms.sh`,
+    patches 0001+0011+0012+0013+0014(off)+0015+0016): every DPI underrun is logged (`journalctl -k | grep DSI`) and a lone
     underrun (= a split) triggers an automatic resync (one dark frame instead of a lasting split); flashes
     still happen. The dkms pacman hook rebuilds it for every new kernel on the device: it downloads that
     kernel's source from kernel.org (+ Arch's i915 changes), applies the patches and compiles (**634 s on the
@@ -117,6 +117,14 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     Boot menu (hold Space at power-on): **Arch Linux** = patched; **Arch Linux (stock)** = initramfs with Arch's own modules
     (`/usr/local/bin/gpd-stock-initramfs`, rebuilt by `95-gpd-stock-initramfs.hook` after kernel/DKMS changes;
     stock i915, the audio modules still come patched from disk). Remove the patch: `kernel/i915/uninstall-dkms.sh`.
+  - **Display dead after screen-on (2026-10-10, patch 0015):** screen-on by the power button after the output had been off for
+    a while: "vblank wait timed out on crtc 1", then `flip_done timed out`; no picture, sway hung. Not the DSI link: the
+    pipe kept running, but `VLV_IER` (display interrupt enable) was 0. Stock i915 race: the CHV irq handler saves and
+    restores `VLV_IER` without the lock that the display power well enable uses, so a GT interrupt at that moment writes 0
+    back over the new mask. 0015 waits for running handlers after the enable and applies the mask again (and logs
+    "VLV_IER 0x... after display irq enable" when it had been lost). 0016: 0012's vblank FIFO sample stayed queued for the
+    missing vblank, which hung every later commit in `drm_vblank_work_flush_all()` (no timeout); now cancelled after 200 ms.
+    Only a reboot recovered it before. Details: `kernel/dsi-investigation/FINDINGS.md`.
     Note: DKMS moves the replaced stock modules to `/var/lib/dkms/<pkg>/original_module/` (restored on
     uninstall), so `pacman -Qkk linux` reports them missing; expected.
   - **Burst mode experiment (0014, in the DKMS build, off by default):** `i915.vlv_dsi_burst_pct=120` on the

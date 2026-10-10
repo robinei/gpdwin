@@ -7,7 +7,7 @@
 # Also sets up the completely stock fallback entry (arch-stock.conf). Remove: kernel/i915/uninstall-dkms.sh.
 set -e
 cd "$(dirname "$0")"
-PATCHES="0001 0011 0012 0013 0014"
+PATCHES="0001 0011 0012 0013 0014 0015 0016"
 SRC=/usr/src/gpd-i915-1.0
 sudo pacman -S --needed --noconfirm dkms linux-headers curl zstd
 sudo dkms remove gpd-i915/1.0 --all 2>/dev/null || true
@@ -32,6 +32,5 @@ sudo grep -q '^initrd /initramfs-linux-stock.img' /boot/loader/entries/arch-stoc
 # The one-shot test entry (install-test.sh) is no longer needed.
 sudo rm -f /boot/loader/entries/arch-i915test.conf /boot/initramfs-linux-i915test.img
 sudo bootctl set-default arch.conf
-sudo bootctl set-timeout 3
 bootctl list --no-pager 2>/dev/null | grep -E "title|id:" || true
 echo "Reboot to use it: arch.conf loads the patched i915; 'Arch Linux (stock)' is the fallback."

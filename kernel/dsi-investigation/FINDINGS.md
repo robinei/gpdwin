@@ -21,7 +21,7 @@ own FIFO never underruns, the panel sees a protocol-clean stream, 0009). Two out
 **The fix in use:** patch 0012 detects a lone underrun and does what the hardware does after a pair (planes +
 pipe off for one frame so the DSI side drains the FIFO, pipe on at a frame start): a brief flicker instead of
 a lasting split, 4/4 on the first test evening, plus every lone underrun since. Deployed as DKMS package
-`gpd-i915` (0001+0011+0012+0013, rebuilt per kernel on the device), default boot entry; stock fallback entry.
+`gpd-i915` (0001+0011+0012+0013+0014(off)+0015+0016, rebuilt per kernel on the device), default boot entry; stock fallback entry.
 See docs/hardware.md "Display" ("Current state").
 
 **Still unknown: why the pipe pauses** (root cause; flashes remain). Not load-related (light DevilutionX,
@@ -47,7 +47,9 @@ best next step: trace GPU/CPU/IRQ/power events around the underrun timestamps 00
 | 0011 | log every DPI underrun (diagnostic) | in use; upstreamable idea (report DSI underruns) |
 | 0012 | resync after a lone underrun | in use; works |
 | 0013 | start 0011/0012 on fastset | in use |
-| 0014 | optional burst mode (module param) | panel works, no fewer underruns; not in use |
+| 0014 | optional burst mode (module param) | panel works, no fewer underruns; in the build, off (`vlv_dsi_burst_pct=0`) |
+| 0015 | VLV_IER lost to a racing irq handler at display power well enable (stock bug) | in use since 2026-10-10; fixes the screen-on hang; upstream candidate |
+| 0016 | 0012's vblank FIFO sample cancelled after 200 ms without vblank | in use since 2026-10-10; keeps a lost vblank from hanging every commit |
 
 The sections below are the round-1 audit and the measurements in the order they were made; where they say
 otherwise, this summary wins (e.g. "the link back-pressures the pipe" below: the pipe is slaved to the DSI
@@ -82,7 +84,7 @@ Log: `data/stall-2026-10-10-1902.log`; state of the stuck device (read-only, sam
   came; `drm_vblank_work_flush_all()` in `intel_atomic_commit_tail()` waits without a timeout, so
   sway's power-off commit at 19:04 hung in D state (log 19:08 hung task) before the crtc disable,
   which would have cycled the power well and probably restored IER. 0012's ">200 ms pending" branch
-  only clears its flag; it must cancel the work.
+  only clears its flag; it must cancel the work. **Patches 0015 and 0016 (2026-10-10).**
 - The earlier 15:26 flip_done timeout after a live write may be the same race rather than the write.
 
 ## Panel numbers used everywhere

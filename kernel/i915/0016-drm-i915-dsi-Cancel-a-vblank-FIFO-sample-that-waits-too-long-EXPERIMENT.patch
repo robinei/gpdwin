@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Sat, 10 Oct 2026 19:26:11 +0200
+Subject: [PATCH] drm/i915/dsi: Cancel a vblank FIFO sample that waits too
+ long
+
+EXPERIMENT fix, on top of patch 0012.
+
+The FIFO sampler is a drm_vblank_work. When vblanks stop coming (display
+interrupts lost, see patch 0015), it stays queued, and
+drm_vblank_work_flush_all() in intel_atomic_commit_tail() waits for the
+queue to drain without a timeout: the next commit (sway turning the
+output off to recover) hung in D state for good, before the crtc disable
+that would have cycled the power well. The poller already noticed a
+sample pending for over 200 ms but only cleared its flag; cancel the
+work too, which also wakes a commit waiting in flush_all.
+---
+ drivers/gpu/drm/i915/display/vlv_dsi.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 91fc724..b64d6bd 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -1060,7 +1060,15 @@ static void vlv_dsi_underrun_work(struct work_struct *work)
+ 			ur->fifo_pending = false;
+ 	} else if (ur->fifo_pending &&
+ 		   ktime_sub(now, ur->fifo_last_sched) > 200 * NSEC_PER_MSEC) {
+-		/* cancelled by a vblank off we did not see */
++		/*
++		 * Cancelled by a vblank off we did not see, or still queued
++		 * for a vblank that does not come (lost display interrupts).
++		 * A queued work blocks drm_vblank_work_flush_all(), which every
++		 * commit waits in without a timeout, so take it off the queue.
++		 */
++		if (drm_vblank_work_cancel_sync(&ur->fifo_work))
++			drm_info(display->drm,
++				 "DSI DPI FIFO vblank sample: no vblank for 200 ms, sample cancelled\n");
+ 		ur->fifo_pending = false;
+ 	}
+ 
+-- 
+2.56.0
+

@@ -1,0 +1,118 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Sat, 10 Oct 2026 19:25:50 +0200
+Subject: [PATCH] drm/i915/vlv: Don't lose VLV_IER to a racing irq handler
+
+valleyview_irq_handler() and cherryview_irq_handler() clear VLV_IER while
+they run and write back the value they read, without display->irq.lock.
+valleyview_enable_display_irqs() (display power well enable) rewrites
+VLV_IER under that lock only. A handler running on another CPU at the
+same time, e.g. for a GT interrupt, that read VLV_IER before the
+postinstall reads 0 (display interrupts were off with the power well)
+and writes that 0 back over the new enable mask. Display interrupts then
+stay off until the next power well cycle: the pipe runs, but every vblank
+wait and flip_done times out.
+
+Seen on a GPD Win 1 (CHV, DSI panel) at screen-on after the output had
+been off long enough for the display power well to go down: "vblank wait
+timed out on crtc 1" in intel_enable_crtc(), then flip_done timeouts.
+The stuck device read VLV_IER 0, VLV_IMR 0xffcd6daf (so the postinstall
+had run), VLV_IIR 0x10 latched, pipe B running, no i915 interrupts.
+
+Wait for running handlers after enabling and apply the enable mask again;
+handlers that start later read the right value. Do the same after
+disabling, where a racing handler would restore the old mask. Log when
+the enable mask had been lost (a handler running at that very moment can
+also show 0 there, harmlessly).
+---
+ .../gpu/drm/i915/display/intel_display_irq.c  | 49 ++++++++++++++++++-
+ 1 file changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/i915/display/intel_display_irq.c b/drivers/gpu/drm/i915/display/intel_display_irq.c
+index 4a821b0..a1c41c8 100644
+--- a/drivers/gpu/drm/i915/display/intel_display_irq.c
++++ b/drivers/gpu/drm/i915/display/intel_display_irq.c
+@@ -2320,6 +2320,9 @@ static void ibx_irq_postinstall(struct intel_display *display)
+ 
+ void valleyview_enable_display_irqs(struct intel_display *display)
+ {
++	bool installed = false;
++	u32 ier;
++
+ 	spin_lock_irq(&display->irq.lock);
+ 
+ 	if (display->irq.vlv_display_irqs_enabled)
+@@ -2330,14 +2333,44 @@ void valleyview_enable_display_irqs(struct intel_display *display)
+ 	if (intel_parent_irq_enabled(display)) {
+ 		_vlv_display_irq_reset(display);
+ 		_vlv_display_irq_postinstall(display);
++		installed = true;
+ 	}
+ 
+ out:
+ 	spin_unlock_irq(&display->irq.lock);
++
++	if (!installed)
++		return;
++
++	/*
++	 * The VLV/CHV irq handlers clear VLV_IER while they run and then write
++	 * back the value they read, without display->irq.lock. A handler (say
++	 * for a GT interrupt on another CPU) that read VLV_IER before the
++	 * postinstall above read 0, since display interrupts were off with the
++	 * power well, and writes that 0 back over the enable mask: display
++	 * interrupts then stay off until the next power well cycle, every
++	 * vblank wait and flip_done times out. Wait for running handlers and
++	 * apply the enable mask again; later handlers read the right value.
++	 */
++	intel_parent_irq_synchronize(display);
++
++	spin_lock_irq(&display->irq.lock);
++	if (display->irq.vlv_display_irqs_enabled &&
++	    intel_parent_irq_enabled(display)) {
++		ier = intel_de_read(display, VLV_IER);
++		if (ier != ~display->irq.vlv_imr_mask)
++			drm_info(display->drm,
++				 "VLV_IER 0x%08x after display irq enable, restoring 0x%08x\n",
++				 ier, ~display->irq.vlv_imr_mask);
++		intel_de_write(display, VLV_IER, ~display->irq.vlv_imr_mask);
++	}
++	spin_unlock_irq(&display->irq.lock);
+ }
+ 
+ void valleyview_disable_display_irqs(struct intel_display *display)
+ {
++	bool reset = false;
++
+ 	spin_lock_irq(&display->irq.lock);
+ 
+ 	if (!display->irq.vlv_display_irqs_enabled)
+@@ -2345,10 +2378,24 @@ void valleyview_disable_display_irqs(struct intel_display *display)
+ 
+ 	display->irq.vlv_display_irqs_enabled = false;
+ 
+-	if (intel_parent_irq_enabled(display))
++	if (intel_parent_irq_enabled(display)) {
+ 		_vlv_display_irq_reset(display);
++		reset = true;
++	}
+ out:
+ 	spin_unlock_irq(&display->irq.lock);
++
++	if (!reset)
++		return;
++
++	/* The same race the other way: a running handler restores the old mask. */
++	intel_parent_irq_synchronize(display);
++
++	spin_lock_irq(&display->irq.lock);
++	if (!display->irq.vlv_display_irqs_enabled &&
++	    intel_parent_irq_enabled(display))
++		intel_de_write(display, VLV_IER, 0);
++	spin_unlock_irq(&display->irq.lock);
+ }
+ 
+ static void ilk_de_irq_postinstall(struct intel_display *display)
+-- 
+2.56.0
+

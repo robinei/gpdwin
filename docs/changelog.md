@@ -385,3 +385,12 @@ Details before 2026-10-06 are in `docs/archive/`.
   `SteamRemoteStorage()` got a mismatching interface and `FileExists` returned false. Added symlink
   `~/Games/installed/unepic/lib64/steam_interfaces.txt` -> `../steam_settings/steam_interfaces.txt`
   (outside the repo). Revert: delete the symlink. See docs/steam-library.md.
+
+## 2026-10-10 — display hang at screen-on: i915 patches 0015, 0016
+- The display died at a power-button screen-on (19:02; vblank/flip_done timeouts, sway hung, reboot needed).
+  Read-only registers of the stuck device: pipe running, `VLV_IER` = 0. Stock i915 race between the CHV irq
+  handler and the display power well enable (it saves/restores `VLV_IER` without the lock). Patch 0015 re-applies
+  the enable mask after waiting for running handlers; 0016 makes our 0012 sampler cancel a vblank work that waits
+  over 200 ms (it had hung every later commit). Added to the DKMS patch list (`kernel/i915/install-dkms.sh`, which
+  also no longer sets a 3 s boot menu timeout) and reinstalled on the device. Evidence:
+  `kernel/dsi-investigation/data/stall-2026-10-10-1902*`. Revert: drop 0015/0016 from `PATCHES`, rerun the script.
