@@ -391,6 +391,8 @@ rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the in
   PNGs took ~100 ms each to convert (the Utilities icons were converted for this).
 - Startup on the device (`SHELF_TIMING=1`): first frame on screen ~60 ms after the process starts
   (library load ~4 ms), all visible box art at ~145 ms.
+- The list fills the height exactly, from the tab bar to the bottom edge: as many rows as fit at
+  ~52 px, all stretched to the same height for the current window size.
 - Launching draws a dimmed "Starting <title>…" overlay first (like the Pegasus patch), which stays
   until the game's window covers shelf; `SHELF_KEYS=o` shows it in a screenshot.
 - After a game or tool exits it rescans everything, so games added by the installer or box art

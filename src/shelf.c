@@ -2310,10 +2310,10 @@ static int render(App *a)
     }
 
     /* list */
-    const int ROW = 52, LW = W * 46 / 100, TOP = TAB_H + 8, THUMB = 40;
-    int rows = (H - TOP - 8) / ROW;
-    if (rows < 1)
-        rows = 1;
+    /* Rows fill the height exactly, from the tab bar to the bottom edge: as many as fit at about
+     * ROW_NOMINAL px, all stretched to the same height (within a pixel of rounding). */
+    const int ROW_NOMINAL = 52, LW = W * 46 / 100, TOP = TAB_H, THUMB = 40;
+    int rows = SDL_max(1, (H - TOP + ROW_NOMINAL / 2) / ROW_NOMINAL);
     int *sel = &a->sel[a->tab], *top = &a->top[a->tab];
     if (*sel >= c->ngames)
         *sel = c->ngames - 1;
@@ -2325,28 +2325,28 @@ static int render(App *a)
         *top = SDL_max(0, c->ngames - rows);
     for (int r = 0; r < rows && *top + r < c->ngames; r++) {
         Game *g = c->games[*top + r];
-        int y = TOP + r * ROW;
+        int y = TOP + r * (H - TOP) / rows, ROWH = TOP + (r + 1) * (H - TOP) / rows - y;
         bool on = *top + r == *sel;
         if (on) {
-            fill(a, P.surface0, 0, y, LW, ROW);
-            fill(a, P.accent, 0, y, 5, ROW);
+            fill(a, P.surface0, 0, y, LW, ROWH);
+            fill(a, P.accent, 0, y, 5, ROWH);
         }
         if (g->boxfront) {
             ImgEntry *e = cache_get(a, a->thumbs, SDL_arraysize(a->thumbs), g->boxfront, THUMB);
             if (!e)
                 loader_want(g->boxfront, THUMB, THUMB + 4, IMG_THUMB);
             if (e && e->tex) {
-                SDL_FRect d = { 16 + (THUMB - e->w) / 2.0f, y + (ROW - e->h) / 2.0f, e->w, e->h };
+                SDL_FRect d = { 16 + (THUMB - e->w) / 2.0f, y + (ROWH - e->h) / 2.0f, e->w, e->h };
                 SDL_RenderTexture(a->ren, e->tex, NULL, &d);
             }
         }
-        SDL_Rect clip = { 0, y, LW - 14, ROW };
+        SDL_Rect clip = { 0, y, LW - 14, ROWH };
         SDL_SetRenderClipRect(a->ren, &clip);
         int th = TTF_GetFontHeight(a->f_row);
-        text(a, a->f_row, g->title, on ? P.text : P.subtext, 16 + THUMB + 14, y + (ROW - th) / 2.0f, 0, NULL);
+        text(a, a->f_row, g->title, on ? P.text : P.subtext, 16 + THUMB + 14, y + (ROWH - th) / 2.0f, 0, NULL);
         SDL_SetRenderClipRect(a->ren, NULL);
         if (g->favorite)
-            fill(a, P.fav, LW - 10, y + ROW / 2 - 3, 6, 6);
+            fill(a, P.fav, LW - 10, y + ROWH / 2 - 3, 6, 6);
     }
     if (c->ngames > rows) { /* scroll position */
         float bh = (float)(H - TOP) * rows / c->ngames, by = TOP + (float)(H - TOP) * *top / c->ngames;
@@ -2355,7 +2355,7 @@ static int render(App *a)
 
     /* details */
     Game *g = c->games[*sel];
-    int PX = LW + 28, PW = W - PX - 28, y = TOP + 12;
+    int PX = LW + 28, PW = W - PX - 28, y = TOP + 20;
     int IW = PW * 44 / 100, IH = (H - TOP) * 58 / 100;
     bool tool = false; /* Utilities tools: their icon stays icon-sized */
     for (int i = 0; i < g->ncolls; i++)
