@@ -56,7 +56,8 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   `~/.ssh/gpd-saves`, never in the repo); on the desktop install `rsync`, `mkdir ~/gpd-saves`, and add to
   `~/.ssh/authorized_keys` the line `restrict,command="/usr/bin/rrsync -wo /home/robin/gpd-saves" <contents of
   ~/.ssh/gpd-saves.pub>` (the key can then only write into that folder). Until then the script says what is
-  missing and exits quietly. Syncthing was considered for this (24 MB installed, a resident daemon, a sync
+  missing and exits quietly. Set up on 2026-10-11 and checked: it copies, says "nothing new" on the next run, the
+  timer runs it, and the key cannot read from the desktop (`rrsync: reading from write-only server is not allowed`). Syncthing was considered for this (24 MB installed, a resident daemon, a sync
   and not a backup: deletions and bad saves propagate) and not chosen.
 - A **second handheld** (idea): the lists are saves-only and the store layout does not depend on the device, so
   two devices could share `~/Saves`. Still missing for that: a device name in the off-device path

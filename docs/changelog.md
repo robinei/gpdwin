@@ -475,3 +475,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   the first three). The backup went from 131 to 89 files (settings and logs gone); the old copies were archived in
   `~/save-backups/store-old-layout-*.tar.gz` and removed. Two safety archives in `~/save-backups/` can be deleted when
   you trust the backup.
+- Off-device copy set up (rsync installed on both machines, restricted write-only key `~/.ssh/gpd-saves`, `~/gpd-saves` on the desktop); `scripts/saves-sync-desktop` verified end to end.
