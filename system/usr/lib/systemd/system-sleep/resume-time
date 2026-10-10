@@ -1,0 +1,5 @@
+#!/bin/sh
+# Record when the device last woke (uptime, seconds) for inputd, which ignores the power button
+# for a few seconds after a resume so the press that woke it doesn't put it back to sleep.
+[ "$1" = post ] && cut -d' ' -f1 /proc/uptime > /run/resume-time
+exit 0

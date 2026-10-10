@@ -4,9 +4,11 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 
 ## Sleep
 - `/etc/systemd/sleep.conf.d/handheld.conf`: `MemorySleepMode=s2idle`, `HibernateDelaySec=30min`.
-- Power button: a short press never sleeps: it wakes the device (from sleep) or the screen (screen
-  off on idle). Hold it ~1 s to suspend-then-hibernate (inputd, desktop.md; the hardware power-off
-  needs a much longer hold).
+- Power button (inputd, desktop.md): with the screen on, a press puts the device to sleep
+  (suspend-then-hibernate). With the screen dark it never sleeps: hold ~1 s and it comes on, whatever
+  the state: hibernated/off (the hardware needs the hold), asleep, or screen off on idle (inputd
+  only turns the screen on). Presses within 3 s of a resume are ignored, so the press that woke it
+  doesn't put it back to sleep (`/usr/lib/systemd/system-sleep/resume-time` writes `/run/resume-time`).
 - `/etc/systemd/logind.conf.d/handheld.conf`: power key ignored (`HandlePowerKey=ignore`, inputd handles it); lid switch is ignored (`HandleLidSwitch=ignore`); `inputd` disables input and runs `lid.sh` (screen off via `screen.sh`, games frozen, CPU/GPU throttled) while it is closed (desktop.md).
 - Pegasus' Suspend also does suspend-then-hibernate (dbus-send shim, see frontend.md).
 - Hibernation: 4 GB swap partition (UUID in fstab). Resume works without `resume=`: the systemd

@@ -6,6 +6,8 @@
 #   off: freeze Pegasus and everything it started (the game's whole process tree, Wine included)
 #        with SIGSTOP, pause the status bar, power the output off.
 #   on:  the reverse.
+# $XDG_RUNTIME_DIR/screen-off exists while the screen is off (inputd: the power button then only
+# wakes the screen, never sleeps).
 # Frozen pids are kept in $XDG_RUNTIME_DIR/frozen, so `on` only thaws what `off` froze and a second
 # `off` freezes nothing new. wineserver is not Pegasus' descendant (it daemonizes); it just waits
 # while its clients are stopped. Games started outside Pegasus are not frozen.
@@ -24,10 +26,12 @@ off)
         kill -STOP $pids 2>/dev/null
     fi
     pkill -STOP -x statusbar
+    touch "$XDG_RUNTIME_DIR/screen-off"
     swaymsg -q "output * power off"
     ;;
 on)
     swaymsg -q "output * power on"
+    rm -f "$XDG_RUNTIME_DIR/screen-off"
     pkill -CONT -x statusbar
     if [ -f "$f" ]; then
         kill -CONT $(cat "$f") 2>/dev/null

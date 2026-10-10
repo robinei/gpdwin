@@ -13,12 +13,16 @@
  * opening it undoes that. Brightness is left alone (level 0 doesn't turn this panel off). logind
  * ignores the lid, see docs/power.md.
  *
- * Power button (logind ignores it, HandlePowerKey=ignore): a short press only wakes the screen (a
- * zero pointer move resets swayidle, whose resume turns the screen on), so a press meant to wake a
- * device whose screen is merely off never puts it to sleep. Holding it HOLD_MS suspends
- * (suspend-then-hibernate). The key must still be down when the time is up (EVIOCGKEY), so a
- * press whose release was lost across a resume doesn't count. The hardware power-off needs a much
- * longer hold.
+ * Power button (logind ignores it, HandlePowerKey=ignore), acted on at release:
+ *   screen dark (screen.sh off: idle or lid): only wakes the screen (zero pointer move; swayidle's
+ *                resume runs screen.sh on). Never sleeps, so a press meant to "turn it on" can't
+ *                put an awake device with its screen off to sleep.
+ *   screen on:   suspend-then-hibernate.
+ *   within RESUME_GUARD s of a resume (the sleep hook resume-time writes the uptime to
+ *   RESUME_FILE): ignored, so the press that woke the device doesn't put it back to sleep.
+ * Two releases within 2 s count once (the button may show up as two input devices).
+ * So "dark screen: hold ~1 s" always turns it on: hibernated/off (the hardware needs the hold),
+ * asleep, or screen off.
  *
  * Sleeps until there is something to do: the untouched pad sends no events, and inotify on
  * /dev/input reports when the pad (re)appears (it disconnects while the screen is off and across
@@ -46,7 +50,8 @@
 #define PAD_NAME "Microsoft X-Box 360 pad"
 #define LID_NAME "Lid Switch"
 #define POKE_EVERY 30 /* seconds; the first idle step (dim) comes after 2 min */
-#define HOLD_MS 1000   /* power button held this long: suspend */
+#define RESUME_GUARD 3.0 /* seconds after a resume in which the power button is ignored */
+#define RESUME_FILE "/run/resume-time"
 #define MAX_POWER 2    /* input devices with KEY_POWER (ACPI button, gpio-keys) */
 
 extern char **environ;
@@ -103,18 +108,30 @@ static int open_power(int *fds, int max)
     return n;
 }
 
-static int key_down(int fd, int code)
+static double read_double(const char *path)
 {
-    unsigned long keys[KEY_MAX / (8 * sizeof(long)) + 1] = { 0 };
-    return ioctl(fd, EVIOCGKEY(sizeof keys), keys) >= 0 &&
-           (keys[code / (8 * sizeof(long))] >> (code % (8 * sizeof(long))) & 1);
+    double v = -1;
+    FILE *f = fopen(path, "r");
+    if (f) {
+        if (fscanf(f, "%lf", &v) != 1)
+            v = -1;
+        fclose(f);
+    }
+    return v;
 }
 
-static long long now_ms(void)
+static int just_resumed(void)
 {
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return t.tv_sec * 1000LL + t.tv_nsec / 1000000;
+    double resumed = read_double(RESUME_FILE);
+    return resumed >= 0 && read_double("/proc/uptime") - resumed < RESUME_GUARD;
+}
+
+/* screen.sh off leaves this file while the screen is off */
+static int screen_dark(void)
+{
+    char path[512];
+    snprintf(path, sizeof path, "%s/screen-off", getenv("XDG_RUNTIME_DIR") ?: "/tmp");
+    return access(path, F_OK) == 0;
 }
 
 static int open_pad(void)
@@ -236,31 +253,18 @@ int main(void)
         { .fd = (pad_fd = open_pad()), .events = POLLIN },
         { .fd = open_named(LID_NAME), .events = POLLIN },
     };
+    time_t last_power = 0;
     int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 3 + npower;
     for (int i = 0; i < npower; i++)
         fds[3 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
-    long long hold_until = 0; /* power button pressed: when a hold becomes "suspend" */
-    int hold_fd = -1;
 
     unsigned long sw[1] = { 0 };
     if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0 && (sw[0] >> SW_LID & 1))
         on_lid(1); /* started with the lid already closed */
 
     for (;;) {
-        int timeout = -1;
-        if (hold_until) {
-            long long left = hold_until - now_ms();
-            timeout = left > 0 ? (int)left : 0;
-        }
-        int ready = poll(fds, nfds, timeout);
-        if (ready < 0)
+        if (poll(fds, nfds, -1) < 0)
             continue;
-        if (ready == 0 && hold_until) { /* held HOLD_MS */
-            hold_until = 0;
-            if (key_down(hold_fd, KEY_POWER))
-                suspend();
-            continue;
-        }
 
         if (fds[0].revents) {
             char buf[4096];
@@ -301,14 +305,18 @@ int main(void)
             while (read(fds[i].fd, &ev, sizeof ev) == sizeof ev) {
                 if (ev.type != EV_KEY || ev.code != KEY_POWER)
                     continue;
-                if (ev.value == 1) {
-                    hold_until = now_ms() + HOLD_MS;
-                    hold_fd = fds[i].fd;
-                } else if (ev.value == 0 && hold_until) { /* short press: wake the screen */
-                    hold_until = 0;
-                    if (!lid_closed)
-                        swaymsg("seat seat0 cursor move 0 0");
-                }
+                if (ev.value != 0 || lid_closed || just_resumed())
+                    continue;
+                /* two devices (ACPI button, gpio-keys) may report the same press: act once */
+                struct timespec t;
+                clock_gettime(CLOCK_MONOTONIC, &t);
+                if (last_power && t.tv_sec - last_power < 2)
+                    continue;
+                last_power = t.tv_sec;
+                if (screen_dark())
+                    swaymsg("seat seat0 cursor move 0 0");
+                else
+                    suspend();
             }
         }
     }
