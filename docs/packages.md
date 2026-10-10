@@ -26,7 +26,7 @@ truth; this explains the choices.
   comment out [multilib].
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
 - Display debugging: `intel-gpu-tools` (`intel_reg read 0x18b804` etc., needs sudo; installed 2026-10-09).
-- DKMS (`dkms`, `linux-headers`): builds our two patched audio modules (`kernel/`, docs/hardware.md "Audio") for each kernel; keep both installed. Debugging tools (2026-10-09, removable): `linux-headers` (needed to build `kernel/rt5645`), `i2c-tools`, `alsa-utils`, `acpica` (iasl), `intel-gpu-tools`; remove what isn't needed.
+- DKMS (`dkms`, `linux-headers`): builds our two patched audio modules (`kernel/`, docs/hardware.md "Audio") for each kernel; keep both installed. Debugging tools (2026-10-09, removable): `linux-headers` (needed to build `kernel/rt5645`), `alsa-utils`, `acpica` (iasl), `intel-gpu-tools`; remove what isn't needed. `i2c-tools` is used by the `charger-log` sleep hook (power.md).
 - Profiling: `perf` (installed 2026-10-09 to find a Wine bottleneck; run as `sudo perf record -g -p PID`).
 - Performance overlay: `mangohud-light` and `lib32-mangohud-light` (for 32-bit games), one own
   rebuild of the repo package without mangoplot/mangoapp and their ~134 MB of
