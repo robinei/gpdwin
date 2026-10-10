@@ -47,7 +47,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   screen dark (asked from sway over IPC: an output with `"power": false`) → zero cursor move (swayidle's
   resume turns the screen on); screen on → `sudo -n systemctl suspend-then-hibernate`. Ignored while
   the lid is closed, within 3 s of a resume (`/run/resume-time`, uptime written by the sleep hook
-  `resume-time`), and for 2 s after a handled press (the button may be two input devices).
+  `resume-time`), and for 2 s after a handled press (several input devices report KEY_POWER).
 - `screen.sh off|on`: the one place for screen off/on, used by the lid (`lid.sh`) and the idle
   screen-off step (`idle-screen-off.sh`, battery only; swayidle's resume runs `screen.sh on`).
   `off`: SIGSTOP Pegasus and everything it started (the game's whole process tree, Wine included;

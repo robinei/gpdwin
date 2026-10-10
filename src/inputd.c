@@ -20,7 +20,7 @@
  *   screen on:   suspend-then-hibernate.
  *   within RESUME_GUARD s of a resume (the sleep hook resume-time writes the uptime to
  *   RESUME_FILE): ignored, so the press that woke the device doesn't put it back to sleep.
- * Two releases within 2 s count once (the button may show up as two input devices).
+ * Two releases within 2 s count once (the button may show up as several input devices).
  * So "dark screen: hold ~1 s" always turns it on: hibernated/off (the hardware needs the hold),
  * asleep, or screen off.
  *
@@ -55,7 +55,7 @@
 #define POKE_EVERY 30 /* seconds; the first idle step (dim) comes after 2 min */
 #define RESUME_GUARD 3.0 /* seconds after a resume in which the power button is ignored */
 #define RESUME_FILE "/run/resume-time"
-#define MAX_POWER 2    /* input devices with KEY_POWER (ACPI button, gpio-keys) */
+#define MAX_POWER 8    /* input devices with KEY_POWER (here: 2x ACPI Power Button, gpio-keys, Intel HID, keyboard) */
 
 extern char **environ;
 
