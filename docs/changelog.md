@@ -377,3 +377,11 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-10: shelf: "Starting <title>…" overlay while a game launches.
 - 2026-10-10: shelf remembers the current tab and game across restarts (`~/.local/state/shelf/last`).
 - 2026-10-10: shelf cleanup: the game's environment is built before fork (no setenv between fork and exec), no busy loop when both Wayland buffers are held, one image cache API, `render` split into draw functions, tools marked by `x-shelf-kind: tools` in the Utilities metadata instead of the shortname.
+
+## 2026-10-10 — Unepic remembers its settings
+- Unepic asked age, language and "A new dialog file called english has been detected" on every start and
+  ignored the controller (config never read back, `padEnabled` default 0). Cause: the gbe emulator looks for
+  `steam_interfaces.txt` next to its `.so`; ours was only in `steam_settings/`, so the game's old-style
+  `SteamRemoteStorage()` got a mismatching interface and `FileExists` returned false. Added symlink
+  `~/Games/installed/unepic/lib64/steam_interfaces.txt` -> `../steam_settings/steam_interfaces.txt`
+  (outside the repo). Revert: delete the symlink. See docs/steam-library.md.

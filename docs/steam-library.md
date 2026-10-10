@@ -21,7 +21,15 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   against a blocklist and gbe returns a junk pointer (0x64) into `strcmp`. Fix: `31 c0 c3`
   (`xor eax,eax; ret`) at file offset 0xe0b60 of `unepic64s` (original: `unepic64s.orig`); also put the
   game's interface list in `steam_settings/steam_interfaces.txt` (`tools/generate_interfaces` on the
-  `.orig` lib). Found with gdb: break on the fault, read the stack/registers, disassemble the caller.
+  `.orig` lib).
+  **The native emulator reads `steam_interfaces.txt` from the directory of the `.so` (`lib64/`), not from
+  `steam_settings/`** (shown with an LD_PRELOAD file-access log: `./lib64/steam_interfaces.txt`). Without it,
+  old-SDK games that call the legacy accessors (`SteamRemoteStorage()`) get the newest interface version
+  with a different vtable: Unepic's `FileExists` always answered "no", so it never read its saved
+  `config.cfg` back (age/language screens and the "new dialog file" question on every start, pad
+  disabled because `padEnabled` stayed at its default) while writing it fine. Fix: `lib64/steam_interfaces.txt`
+  as a symlink to `../steam_settings/steam_interfaces.txt`. Do the same for every native game with this
+  emulator (Isaac has the file only in `steam_settings/`, not yet checked). Found with gdb: break on the fault, read the stack/registers, disassemble the caller.
   Games wrapped in Valve's Steam DRM (a `.bind` ELF section, SteamStub; test with `readelf -SW BINARY |
   grep .bind`), e.g. The Binding of Isaac: Rebirth (250900): first unpack the 64-bit binary with
   github.com/rroohhh/steamstub-remover (`unpack.py`, ~150 lines, reviewed; needs pyelftools +
