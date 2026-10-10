@@ -371,3 +371,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 2026-10-10: shelf draws through its own Wayland client with SDL's software renderer (no EGL/Mesa): RSS 171 → 38 MB, first frame ~60 ms.
 - 2026-10-10: Utilities "Reboot" and "Shut Down" (`pegasus/utils/tools/{reboot,poweroff}.sh`, passwordless via sudoers 20-power).
 - 2026-10-10: no swaybg: sway 1.12 draws uncovered areas black by itself (checked with grim), so the `output * bg #000000` line went and `swaybg_command -` is set (saves a 7 MB process).
+- 2026-10-10: the keyboard's Menu key (a tap of KEY_LEFTMETA) brings up the frontend instead of the pad's Guide button (which sends nothing in mouse mode). Revert: git revert, `scripts/sync install`, restart inputd.

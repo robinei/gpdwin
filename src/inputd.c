@@ -1,9 +1,12 @@
 /*
- * inputd: the gamepad's Guide (Xbox) button brings up the frontend (Pegasus or shelf), and gamepad
- * use counts as activity.
+ * inputd: the keyboard's Menu key brings up the frontend (Pegasus or shelf), and gamepad use counts
+ * as activity.
  *
- * Guide starts Pegasus if it isn't running, or switches to its workspace. While a game started
- * from Pegasus runs (a child process of pegasus-fe), the button is left to the game.
+ * The Menu key (bottom right of the keyboard) sends KEY_LEFTMETA, sway's $mod. A tap of it (press
+ * and release with no other key in between, so Super+key shortcuts still work) starts the frontend
+ * if it isn't running, or switches to its workspace. While a game started from the frontend runs
+ * (a child process of it), the key is left to the game. The pad's Guide button is not used: it
+ * sends nothing in the pad's mouse mode (docs/hardware.md).
  *
  * sway only counts keyboard, pointer and touch as activity, so playing with the pad alone would
  * let swayidle dim the screen and suspend. Any pad event (at most every POKE_EVERY seconds)
@@ -85,7 +88,7 @@ static int open_named(const char *want)
     return found;
 }
 
-/* Open the input devices that have KEY_POWER; returns how many. */
+/* Open the input devices with KEY_POWER or KEY_LEFTMETA (the Menu key); returns how many. */
 static int open_power(int *fds, int max)
 {
     DIR *d = opendir("/dev/input");
@@ -101,8 +104,10 @@ static int open_power(int *fds, int max)
         if (fd < 0)
             continue;
         ioctl(fd, EVIOCGNAME(sizeof name - 1), name);
+#define HAS(k) (keys[(k) / (8 * sizeof(long))] >> ((k) % (8 * sizeof(long))) & 1)
         if (strcmp(name, PAD_NAME) != 0 && ioctl(fd, EVIOCGBIT(EV_KEY, sizeof keys), keys) >= 0 &&
-            (keys[KEY_POWER / (8 * sizeof(long))] >> (KEY_POWER % (8 * sizeof(long))) & 1)) {
+            (HAS(KEY_POWER) || HAS(KEY_LEFTMETA))) {
+#undef HAS
             fds[n++] = fd;
         } else {
             close(fd);
@@ -265,7 +270,7 @@ static void on_lid(int closed)
     swaymsg_sh(closed ? "~/.config/sway/lid.sh close" : "~/.config/sway/lid.sh open");
 }
 
-static void on_guide(void)
+static void on_menu(void)
 {
     int game;
     if (!pegasus(&game))
@@ -288,6 +293,7 @@ int main(void)
         { .fd = open_named(LID_NAME), .events = POLLIN },
     };
     time_t last_power = 0;
+    bool meta_tap = false;
     int press_dark = -1; /* screen state when the power button went down; -1: not down */
     int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 3 + npower;
     for (int i = 0; i < npower; i++)
@@ -315,8 +321,6 @@ int main(void)
             struct input_event ev;
             ssize_t n;
             while ((n = read(fds[1].fd, &ev, sizeof ev)) == sizeof ev) {
-                if (ev.type == EV_KEY && ev.code == BTN_MODE && ev.value == 1)
-                    on_guide();
                 if (!lid_closed && (ev.type == EV_KEY || ev.type == EV_ABS))
                     activity();
             }
@@ -339,6 +343,18 @@ int main(void)
             if (!fds[i].revents)
                 continue;
             while ((n = read(fds[i].fd, &ev, sizeof ev)) == sizeof ev) {
+                if (ev.type == EV_KEY && ev.code == KEY_LEFTMETA) { /* Menu key: act on a tap */
+                    if (ev.value == 1) {
+                        meta_tap = true;
+                    } else if (ev.value == 0 && meta_tap) {
+                        meta_tap = false;
+                        if (!lid_closed)
+                            on_menu();
+                    }
+                    continue;
+                }
+                if (ev.type == EV_KEY && ev.value == 1)
+                    meta_tap = false; /* Super+key: a shortcut, not a tap */
                 if (ev.type != EV_KEY || ev.code != KEY_POWER)
                     continue;
                 /* Screen state at the press: sway counts the press as activity and swayidle's

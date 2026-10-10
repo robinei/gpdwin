@@ -31,9 +31,11 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   (`$XDG_RUNTIME_DIR/wob.sock`).
 - `osd.sh vol-up|vol-down|mute|bri-up|bri-down`: changes the value (wpctl / brightnessctl with
   `--min-value=1`, the lowest visible level; 0 is backlight off) and writes it to wob. Idle dimming deliberately doesn't show wob.
-- `inputd` (`src/inputd.c`): the pad's Guide button (BTN_MODE). Starts Pegasus if not running,
-  focuses workspace 1 if it is, does nothing while a game launched by Pegasus (a child process)
-  runs. Pad use also counts as activity: sway ignores gamepads for idle, so any pad event (at
+- `inputd` (`src/inputd.c`): the keyboard's Menu key (bottom right; it sends KEY_LEFTMETA, sway's
+  $mod). A tap (press and release, no other key in between, so Super+key shortcuts still work)
+  starts the frontend if not running, focuses workspace 1 if it is, does nothing while a game
+  launched by it (a child process) runs. Works in both pad modes; the pad's Guide button isn't
+  used any more (it sends nothing in mouse mode). Pad use also counts as activity: sway ignores gamepads for idle, so any pad event (at
   most every 30 s) makes inputd send `seat seat0 cursor move 0 0`, which resets swayidle (tested).
   The untouched pad sends nothing and inotify on /dev/input reopens it when it reappears (screen
   off, resume), so it never polls.

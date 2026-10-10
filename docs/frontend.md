@@ -392,6 +392,6 @@ rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the in
 - Testing without a screen: `shelf --list` prints collections, games, art and stats.
   `SHELF_SCREENSHOT=x.png SHELF_KEYS=ddr shelf` renders 1280x720 without any window, presses keys
   (d/u/l/r), waits for the box art, saves a PNG and quits. `XDG_CONFIG_HOME` points it at another config dir.
-- Found by name like Pegasus: `screen.sh` (freezing), `inputd` (Guide), the sway workspace-1 rules
+- Found by name like Pegasus: `screen.sh` (freezing), `inputd` (Menu key), the sway workspace-1 rules
   and `restart-pegasus` match `pegasus-fe` or `shelf`.
 
