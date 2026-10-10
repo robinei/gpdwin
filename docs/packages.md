@@ -11,7 +11,8 @@ truth; this explains the choices.
 - Audio: `pipewire pipewire-pulse pipewire-alsa wireplumber alsa-ucm-conf` + `realtime-privileges`
   (robin in group `realtime`, so PipeWire gets RT scheduling without RTKit/polkit) (all explicit;
   pulse and ALSA apps both need their PipeWire bridge).
-- Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus.
+- Frontend: `retroarch`, assets, core-info, cores (frontend.md), `qt5-*` for Pegasus. `sdl3_image`, `sdl3_ttf` for shelf
+  (`src/shelf.c`; with `sdl3`, `sqlite` and `icu`, already installed).
 - PSP: standalone `ppsspp` (SDL build, `PPSSPPSDL`; pulls `ppsspp-assets`, `openxr`, `libzip`,
   `miniupnpc`), installed 2026-10-09. Not in Pegasus yet.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.

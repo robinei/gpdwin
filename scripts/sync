@@ -5,8 +5,10 @@ manifest.tsv lists every file the repo manages:
   link  <repo path>  <live path>                  live path is a symlink into the repo
   copy  <repo path>  <live path>  <owner:group:mode>  repo holds a copy (root-owned files,
                                                       or files programs rewrite themselves)
-  build <repo path>  <live path>                  a C source compiled to the live path
-                                                      (rebuilt when the source is newer)
+  build <repo path>  <live path>  [pkg-config packages]
+                                                  a C source compiled to the live path
+                                                      (rebuilt when the source is newer), linked
+                                                      against the space-separated packages
 
 Commands:
   sync check            report drift (missing/foreign links, copies that differ). Exit 1 on drift.
@@ -36,8 +38,9 @@ def manifest():
         f = line.split("\t")
         if f[0] == "link" and len(f) == 3:
             entries.append({"kind": "link", "repo": REPO / f[1], "live": expand(f[2])})
-        elif f[0] == "build" and len(f) == 3:
-            entries.append({"kind": "build", "repo": REPO / f[1], "live": expand(f[2])})
+        elif f[0] == "build" and len(f) in (3, 4):
+            entries.append({"kind": "build", "repo": REPO / f[1], "live": expand(f[2]),
+                            "pkgs": f[3].split() if len(f) == 4 else []})
         elif f[0] == "copy" and len(f) == 4:
             owner, group, mode = f[3].split(":")
             entries.append({"kind": "copy", "repo": REPO / f[1], "live": expand(f[2]),
@@ -164,7 +167,11 @@ def install(args):
             if build_ok(e):
                 continue
             live.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run(["cc", "-O2", "-Wall", "-Wextra", "-o", str(live), str(e["repo"])], check=True)
+            flags = []
+            if e["pkgs"]:
+                flags = subprocess.run(["pkg-config", "--cflags", "--libs"] + e["pkgs"], check=True,
+                                       capture_output=True, text=True).stdout.split()
+            subprocess.run(["cc", "-O2", "-Wall", "-Wextra", "-o", str(live), str(e["repo"])] + flags, check=True)
             print(f"built {live}")
             hints.add(f"restart {live.name} (see docs/desktop.md)")
             continue
