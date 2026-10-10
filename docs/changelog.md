@@ -396,3 +396,12 @@ Details before 2026-10-06 are in `docs/archive/`.
   `kernel/dsi-investigation/data/stall-2026-10-10-1902*`. Revert: drop 0015/0016 from `PATCHES`, rerun the script.
 - Verified on the device: screen off/on stress loop under GPU load hit the race 14 times in 300 screen-ons, all
   restored by 0015, no timeouts (`kernel/dsi-investigation/data/race-test-2026-10-10-2009.log`).
+
+## 2026-10-10 — shelf: faster images
+- Image loader: the wish list is built per frame before the thread may take from it; requests for one
+  file merge into one job (thumbnail + large art decoded once); order logos, selected art, thumbnails;
+  results still on their way aren't asked for again. Scaled results cached in `~/.cache/shelf/img/`
+  (BMP). Visible art at ~45 ms after start instead of ~110 ms. Revert: delete the dir to reset it.
+- The previous game's large art stays up for up to 150 ms while the next loads (no grey flash); tabs
+  are blank until their logo loads (no name flash). One font object per face/size (the two 18 px
+  regular ones were merged; each costs ~1.5 ms on first use).

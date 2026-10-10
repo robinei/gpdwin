@@ -388,11 +388,22 @@ rules it follows are in `docs/pegasus-format.md` (from Pegasus' source at the in
   SDL's video subsystem isn't used: its Wayland backend loads EGL/Mesa even to show a software
   frame (~145 MB of mapped libLLVM/libgallium). Result: ~38 MB RSS, 11 MB of it its own.
 - `run` hands the MangoHud preload to games only (`SHELF_GAME_LD_PRELOAD`), not to shelf.
-- Box art is decoded and scaled in a background thread (selected game first, then the visible
-  thumbnails); the UI draws at once and art appears as it is ready. Keep images 8-bit: 16-bit
-  PNGs took ~100 ms each to convert (the Utilities icons were converted for this).
-- Startup on the device (`SHELF_TIMING=1`): first frame on screen ~60 ms after the process starts
-  (library load ~4 ms), all visible box art at ~145 ms.
+- Images (box art, logos) come from a background thread. Each frame the UI rebuilds its wish list
+  (what it drew without having it) and only then lets the thread take from it, so art scrolled past
+  is dropped unloaded, and a game's thumbnail and large art are one job with one decode. Order:
+  logos, then the selected game's art, then the visible thumbnails. A tab whose logo is still
+  loading is blank (no name flashing first).
+- Scaled results are kept in `~/.cache/shelf/img/` as BMP (SDL loads those with little more than a
+  copy), named by a hash of the source path, size, mtime and the output size; a changed image gets a
+  new entry, old ones are never cleaned up (a few hundred KB here; delete the dir any time).
+- When the selected game's large art isn't loaded yet, the previous game's stays up for up to
+  150 ms (counted from the first miss, so fast scrolling doesn't keep it up), then the grey box.
+- Keep images 8-bit: 16-bit PNGs took ~100 ms each to convert (the Utilities icons were converted
+  for this).
+- Startup on the device (`SHELF_TIMING=1`, headless): first frame ~40 ms after the process starts,
+  all visible art ~45 ms (from the cache; first run ~97 ms: the 512x891 box PNG decodes in ~33 ms).
+  Most of the first frame (~13 of 15 ms) is SDL_ttf preparing each font on first use, so there is
+  one font object per face and size.
 - The list fills the height exactly, from the tab bar to the bottom edge: as many rows as fit at
   ~52 px, all stretched to the same height for the current window size.
 - Resumes where you were: tab and game in `~/.local/state/shelf/last`, written 1.5 s after
