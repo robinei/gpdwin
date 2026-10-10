@@ -52,3 +52,13 @@ game: BIOS Setup
 file: tools/bios.sh
 assets.boxFront: media/bios.png
 description: Reboot straight into the BIOS / UEFI setup. Asks for confirmation first.
+
+game: Reboot
+file: tools/reboot.sh
+assets.boxFront: media/reboot.png
+description: Restart the GPD now.
+
+game: Shut Down
+file: tools/poweroff.sh
+assets.boxFront: media/poweroff.png
+description: Turn the GPD off now. Hold the power button about a second to turn it on again.
