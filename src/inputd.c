@@ -15,9 +15,9 @@
  *
  * Power button (logind ignores it, HandlePowerKey=ignore), acted on at release, by the screen
  * state at the press (sway counts the press as activity, so the screen is back on by the release):
- *   screen dark (sway reports the output powered off: idle or lid): only wakes the screen (zero pointer move; swayidle's
- *                resume runs screen.sh on). Never sleeps, so a press meant to "turn it on" can't
- *                put an awake device with its screen off to sleep.
+ *   screen dark (sway reports the output powered off: idle or lid): only wakes the screen (zero
+ *                pointer move, which resets swayidle, and screen.sh on). Never sleeps, so a press
+ *                meant to "turn it on" can't put an awake device with its screen off to sleep.
  *   screen on:   suspend-then-hibernate.
  *   within RESUME_GUARD s of a resume (the sleep hook resume-time writes the uptime to
  *   RESUME_FILE): ignored, so the press that woke the device doesn't put it back to sleep.
@@ -354,8 +354,10 @@ int main(void)
                 if (last_power && t.tv_sec - last_power < 2)
                     continue;
                 last_power = t.tv_sec;
-                if (dark)
+                if (dark) { /* screen.sh on directly too: swayidle resumes only after its own timeout */
                     swaymsg("seat seat0 cursor move 0 0");
+                    swaymsg_sh("~/.config/sway/screen.sh on");
+                }
                 else
                     suspend();
             }
