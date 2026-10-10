@@ -5,7 +5,8 @@
 # kernel over the bq24190, and the plug-in and charger-I2C interrupts are masked. Linux sets these
 # only at probe, so:
 #   pre:  save them (as the kernel left them) and log the charger state
-#   post: log, then write back every register that differs from the saved value
+#   post: log, then write back every register that differs from the saved value; after a
+#         hibernate wake also rebind the FUSB302 driver (see below)
 # Log: journalctl -t pmic-charger. Single-byte SMBus accesses on the PMIC's bus (i2c-5).
 P=/sys/class/power_supply
 B=$P/bq24190-charger
@@ -55,6 +56,14 @@ post)
         i2cset -f -y 5 "$addr" "$reg" "$want" && fixed="$fixed $name=$have->$want"
     done < "$S"
     [ -n "$fixed" ] && log "restored:$fixed;$(state)"
+    # The firmware also resets the FUSB302 (USB-C controller, i2c-0 0x22) on hibernate wake: no
+    # DRP toggling, so it never sees a charger (tcpm stays offline, bq24190 stuck at 500 mA). Its
+    # driver has no restore callback; rebinding re-runs probe, which re-initialises the chip.
+    if [ "$2" = hibernate ] || [ "${SYSTEMD_SLEEP_ACTION:-}" = hibernate ]; then
+        d=/sys/bus/i2c/drivers/typec_fusb302
+        timeout 20 sh -c "echo i2c-fusb302 > $d/unbind; sleep 1; echo i2c-fusb302 > $d/bind"
+        log "fusb302 rebound (rc $?)"
+    fi
     ;;
 esac
 exit 0

@@ -38,7 +38,7 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   while discharging.
 - Bar: battery text yellow at ≤30%, red at ≤15%, `+` while charging.
 
-## Charging stuck at 500 mA after hibernate (fixed 2026-10-10, pending confirmation)
+## Charging stuck at 500 mA after hibernate (fixed 2026-10-10)
 - Seen once: after a hibernate wake, plugging in the PD charger (9 V / 3 A) left
   `bq24190-charger/input_current_limit` at 500000, status "Not charging", battery slowly
   discharging. Replugging didn't help; a reboot did. Kernel log at plug-in: `Can't read SS reg: -110`
@@ -54,7 +54,13 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   masked). Linux writes these only at probe (`extcon-intel-cht-wc`, `i2c-cht-wc`, the MFD), so a
   reboot fixes it.
 - Fix: `/usr/lib/systemd/system-sleep/pmic-charger` saves these registers before sleep and writes
-  back any that differ after wake (`i2cset` on i2c-5). It logs the charger state before/after and
+  back any that differ after wake (`i2cset` on i2c-5). Restoring them alone was not enough (tested 2026-10-10 15:23): the
+  firmware also resets the FUSB302 USB-C controller (i2c-0 0x22, `CONTROL2` toggle bit off), so
+  plugging in raised no interrupt (`fsc_interrupt_int_n` count 0), tcpm stayed offline and the
+  bq24190 stayed at its own 500 mA (the bar still showed `+`: the chip charges, but the battery
+  net-discharged ~630 mA). The fusb302 driver has no hibernate-restore callback; after a hibernate
+  wake the hook rebinds it (`/sys/bus/i2c/drivers/typec_fusb302/{unbind,bind}` `i2c-fusb302`), which
+  re-initialises the chip; tested: 9 V / 3 A negotiated, +1.04 A into the battery. It logs the charger state before/after and
   what it restored: `journalctl -t pmic-charger`.
 - Workaround if it recurs: `echo 3000000 | sudo tee /sys/class/power_supply/bq24190-charger/input_current_limit`,
   or reboot.
