@@ -24,9 +24,10 @@
  * to show a software frame. Box art and logos are decoded by a background thread, and kept scaled in
  * ~/.cache/shelf/img.
  *
- * Input: keyboard from Wayland (raw evdev codes, only while focused). The gamepad is read directly
- * from evdev in a thread (inotify for hotplug), not through SDL's gamepad layer: with a joystick open
- * SDL polls about every millisecond, and the pad disconnects whenever the screen goes off.
+ * Input, used only while the window has focus: keyboard from Wayland (raw evdev codes). The gamepad
+ * is read directly from evdev in a thread (inotify for hotplug), not through SDL's gamepad layer:
+ * with a joystick open SDL polls about every millisecond, and the pad disconnects whenever the
+ * screen goes off.
  *   pad:  d-pad/stick up/down move, LB/RB or triggers page (held: repeat), d-pad left/right switch
  *         collection, A launch, Y favourite
  *   keys: arrows, Page Up/Down, Home/End, Tab/Shift+Tab, Enter launch, F favourite
@@ -2824,7 +2825,8 @@ static struct {
     struct xdg_surface *xsurf;
     struct xdg_toplevel *top;
     int cfg_w, cfg_h;
-    bool configured, closed, focused, shift;
+    bool configured, closed, shift;
+    bool active; /* the window has focus (xdg "activated"); input is ignored otherwise */
     bool frame_waiting; /* a frame is drawn but both buffers are still with the compositor */
     ShmBuf bufs[2];
 } wl;
@@ -2923,8 +2925,15 @@ static const struct xdg_surface_listener xsurf_listener = { xsurf_configure };
 
 static void top_configure(void *d, struct xdg_toplevel *t, int32_t w, int32_t h, struct wl_array *states)
 {
-    (void)d, (void)t, (void)states;
+    (void)d, (void)t;
     wl.cfg_w = w, wl.cfg_h = h;
+    bool active = false;
+    uint32_t *st;
+    wl_array_for_each(st, states)
+        active |= *st == XDG_TOPLEVEL_STATE_ACTIVATED;
+    if (!active)
+        the_app->held = A_NONE; /* stop any repeat */
+    wl.active = active;
 }
 static void top_close(void *d, struct xdg_toplevel *t)
 {
@@ -2945,12 +2954,10 @@ static void kb_keymap(void *d, struct wl_keyboard *k, uint32_t fmt, int32_t fd, 
 static void kb_enter(void *d, struct wl_keyboard *k, uint32_t serial, struct wl_surface *s, struct wl_array *keys)
 {
     (void)d, (void)k, (void)serial, (void)s, (void)keys;
-    wl.focused = true;
 }
 static void kb_leave(void *d, struct wl_keyboard *k, uint32_t serial, struct wl_surface *s)
 {
     (void)d, (void)k, (void)serial, (void)s;
-    wl.focused = false;
     wl.shift = false;
     key_action(the_app, 0, false); /* stop any key repeat */
 }
@@ -3049,8 +3056,8 @@ static bool is_repeating(int act)
 
 static void press(App *a, int act, bool down)
 {
-    if (a->running)
-        return; /* the game has the input */
+    if (a->running || !(wl.active || headless))
+        return; /* the game, or whatever window has the focus, has the input */
     if (down) {
         action(a, act, false);
         if (is_repeating(act)) {

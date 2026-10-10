@@ -405,6 +405,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - The previous game's large art stays up for up to 150 ms while the next loads (no grey flash); tabs
   are blank until their logo loads (no name flash). One font object per face/size (the two 18 px
   regular ones were merged; each costs ~1.5 ms on first use).
+- shelf ignores pad and keyboard input unless its window has focus (the pad is read from evdev, so it
+  used to act on shelf while another window was in front).
 
 ## 2026-10-10 — Unepic gamepad: partly working
 - `games/shims/padshim.c` (LD_PRELOAD, `~/Games/tools/shim/padshim.so`) fixes the Xbox pad's resting triggers,
