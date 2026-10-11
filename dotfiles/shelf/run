@@ -1,7 +1,7 @@
 #!/bin/sh
 # Start shelf (src/shelf.c): from sway's autostart and inputd's Menu key.
 # MangoHud for every game shelf starts: MANGOHUD=1 (Vulkan, via the layer) and the shim preload
-# (OpenGL), hidden until Ctrl+Shift+F12. shelf hands the preload to games only
+# (OpenGL), hidden until Ctrl+Shift+=. shelf hands the preload to games only
 # (SHELF_GAME_LD_PRELOAD): in shelf itself it would load OpenGL/Mesa/LLVM (~120 MB) for nothing.
 export MANGOHUD=1
 # $LIB (literal, expanded by the dynamic linker) picks lib or lib32, so 32-bit games get lib32-mangohud.
