@@ -1,7 +1,7 @@
 #!/bin/sh
-# Run ON THE GPD (sudo): put Arch's mesa package back (saved by install.sh in /var/cache/gpd-mesa-stock).
+# Run ON THE GPD (sudo): put Arch's Mesa packages back (saved by install.sh in /var/cache/gpd-mesa-stock).
 set -e
-f=$(ls -t /var/cache/gpd-mesa-stock/mesa-*-x86_64.pkg.tar.zst | head -1)
-[ -n "$f" ] || { echo "no saved stock mesa package"; exit 1; }
-sudo pacman -U --noconfirm "$f"
-pacman -Q mesa
+set -- /var/cache/gpd-mesa-stock/*-x86_64.pkg.tar.zst
+[ -f "$1" ] || { echo "no saved stock packages"; exit 1; }
+sudo pacman -U --noconfirm "$@"
+pacman -Q mesa lib32-mesa
