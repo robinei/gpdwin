@@ -57,7 +57,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   (EVIOCGSW), the charger on every power_supply uevent and whenever uevents were lost (ENOBUFS; a
   read takes ~16 ms over I2C, so not on every pass). Shell steps (`screen.sh`, `lid.sh`,
   brightnessctl) run in order under `timeout 5`, so a stuck one can't block the lid and power
-  button. The brightness before dimming is kept in `$XDG_RUNTIME_DIR/idle-brightness` while dimmed
+  button; a step counts as applied only if it exited 0, and a failed one is retried every 5 s
+  (`screen.sh` and `lid.sh` exit non-zero when the output switch or a sysfs write failed). The brightness before dimming is kept in `$XDG_RUNTIME_DIR/idle-brightness` while dimmed
   (a restarted inputd restores it). A suspend request that leaves the device awake is repeated
   every minute.
   Power button (every input device with KEY_POWER; logind ignores the key), on release, by the
