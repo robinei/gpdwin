@@ -576,3 +576,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Test boot entry removed (`kernel/i915/uninstall-test.sh`: `arch-test.conf`, `initramfs-linux-test.img`,
   `/var/lib/gpd-test-modroot`), test modules deleted from ~. 0018/0019 stay in the repo as test-only patches (not in
   the DKMS stack). The running boot still has the test module and the trace capture until the next reboot.
+- Investigation R4 (`kernel/dsi-investigation/reports/R4-upload-path.md`, test programs `scripts/r4gl.c`, `r4drm.c`,
+  `r4egl.c`): GL on CHV is Mesa crocus (not iris); the trigger is the per-frame upload through a fresh snooped staging
+  texture + render-engine blit (SDL opengl's GL_RGBA8/GL_BGRA mismatch; sway with a busy shm texture), not the CPU WC
+  copy. Ranked fix candidates in the report, none implemented. During R4 the investigator turned the idle panel on once
+  (`swaymsg output DSI-1 power on`, 21:12) to run tests.

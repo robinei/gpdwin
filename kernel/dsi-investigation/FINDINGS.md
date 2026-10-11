@@ -31,13 +31,16 @@ under Windows: per-unit margin plus something Linux does. Ruled out by test: cdc
 burst but the rate is unchanged: pauses exceed ~1 us/line), GPU RC6/freq, CPU C-states, plane/cursor events.
 Open candidates: memory self-refresh / PM5 (cxSR), PMIC-bus traffic from battery polling, page-flip pattern;
 best next step: trace GPU/CPU/IRQ/power events around the underrun timestamps 0011 provides.
-**Conclusion 2026-10-11 (root cause trigger found):** the DSI pipe pauses ~0.5 ms after a GPU batch that follows a
-CPU write of a texture through iris's uncached (WC) tiled-copy upload path: SDL's `opengl` renderer does this every frame,
-and sway does it for shared-memory clients. SDL's `opengles2`, `vulkan` and `gpu` renderers did not trigger it (0 in
+**Conclusion 2026-10-11 (root cause trigger found):** the DSI pipe pauses ~0.5 ms after a GPU batch that uploads a
+texture from a Mesa staging buffer (Mesa **crocus**, not iris, drives CHV): a format mismatch (SDL `opengl`: `GL_RGBA8` texture,
+`GL_BGRA` data) makes Mesa copy the frame into a fresh *snooped* (CPU-cached) staging texture and blit it on the render
+engine every frame; sway takes the same path when a shm client's texture is still busy. The CPU tiled copy through a WC
+mapping (SDL `opengles2`) is the safe path (`reports/R4-upload-path.md`). SDL's `opengles2`, `vulkan` and `gpu` renderers did not trigger it (0 in
 5 min each vs ~33 for `opengl` in the reproducer); DevilutionX Hellfire with `SDL_RENDER_DRIVER=opengles2` played 7-15 min
-without an underrun (old rate ~1 per 3.5 min). Why that batch stalls the display pipe is not known (hypothesis: the cache
-flush/invalidate Mesa emits after a CPU write, or the memory traffic it causes, on a marginal unit); a Mesa or kernel
-fix would also cover sway's uploads. 0012/0017 stay as the safety net.
+without an underrun (old rate ~1 per 3.5 min). Why that batch stalls the display pipe is not known; R4's leading hypothesis:
+the render engine sampling Mesa's snooped staging surface with the cacheable internal MOCS (none of the replicas that read
+snooped memory another way triggered it). Candidate fix covering SDL and sway: crocus without snooping for staging on CHV
+(R4 section on fixes); not implemented. 0012/0017 stay as the safety net.
 **Traced 2026-10-11:** every underrun comes ~0.5 ms after DevilutionX submits its per-frame GPU work; not the Punit's
 GT frequency/RC6 handling (section "Trace around each underrun"), not memory self-refresh (0019). **Reproduced on
 demand:** the per-frame texture upload is the trigger (`scripts/burst.c`, 66 events in 10 min with upload only, 0
@@ -120,7 +123,7 @@ cluster was partly its detection delay); the second always at 1279.
   does in its first ~0.5 ms (memory bandwidth burst, GGTT/TLB activity, snooped reads of CPU-written buffers).
 
 ## Reproducer: the texture upload triggers it (2026-10-11, `scripts/burst.c`)
-`burst` renders like DevilutionX (SDL3 renderer "opengl" = Mesa iris, fullscreen, vsync, 853x480 XRGB8888 streaming
+`burst` renders like DevilutionX (SDL3 renderer "opengl" = Mesa crocus, fullscreen, vsync, 853x480 XRGB8888 streaming
 texture scaled with linear filtering); modes leave parts out. 0019 module (`vlv_cxsr=0`), trace running, 10 min each:
 
 | run | GPU/CPU work per frame | events |
@@ -133,16 +136,15 @@ texture scaled with linear filtering); modes leave parts out. 0019 module (`vlv_
 | `static -d 10` | draw a texture uploaded once | 0 (and 0 in an earlier 4.7 min) |
 
 Every traced event: underrun 0.25-0.53 ms after the program's `i915_request_add`. **The per-frame texture upload is the
-trigger**; drawing and GPU activity as such are not. iris (Mesa 26.2.4) on CHV (no LLC) puts textures in
-`SYSTEM_MEMORY_UNCACHED` (WC mmap) and `iris_texture_subdata()` writes an idle tiled texture with a CPU
-`isl_memcpy_linear_to_tiled` through that WC mapping (no GPU blit); a texture still busy on the GPU goes through
-`u_default_texture_subdata` (staging buffer + blit). In `upload` mode the texture is never busy, so the upload is ~1.6 MB
-of CPU WC writes per frame; in `full` mode some uploads take the staging path, which may explain the lower rate.
+trigger**; drawing and GPU activity as such are not. (An earlier note here reasoned from the iris source and called
+the CPU WC tiled copy the trigger; wrong driver and wrong way round: CHV uses crocus, and R4 showed that the CPU copy is
+safe and the per-frame snooped staging buffer + render-engine blit is the trigger.)
 - `upload -d 10 -u 4` (4 ms gap after the upload, `-l` timestamps on the trace clock): 13 events in 5 min, each 5-10 ms
   after the upload ended and 1-5.6 ms after the present began: **not during the CPU copy; it is the GPU batch after it.**
 - Renderers, `upload -d 10`, 5 min each: `opengles2` 0, `vulkan` (hasvk) 0, `gpu` 0, `software` 73 (SDL hands sway a
-  shm buffer and sway uploads it). Not yet verified why `opengles2` is safe with the same driver (likely a format that
-  makes Mesa upload on the GPU instead of the CPU tiled copy).
+  shm buffer and sway uploads it). Why: `reports/R4-upload-path.md` (SDL opengles2 uploads
+  `GL_RGBA` into `GL_RGBA`, formats match, crocus copies on the CPU; SDL opengl's `GL_RGBA8`/`GL_BGRA` mismatch goes
+  through a snooped staging texture and a blorp blit). R4 test programs: `scripts/r4gl.c`, `r4drm.c`, `r4egl.c`.
 - Real game: Hellfire with `SDL_RENDER_DRIVER=opengles2`, 7-15 min, 0 underruns.
 
 ## Display hang at screen-on, 2026-10-10 19:02 (separate bug, not the DSI link)
