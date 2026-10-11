@@ -1,5 +1,6 @@
 ---
 description: Routine maintenance of the GPD Win 1 - news, updates with AUR review, pacnew, drift, changelog
+model: opus
 ---
 
 Run a maintenance pass on this device. The user started this from shelf (`scripts/maintain`),
