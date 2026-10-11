@@ -70,10 +70,10 @@ The user is Robin (they/them).
   if they are in use (kernel update whose DKMS build failed: `dkms status`), reboot into patched ones
   after fixing the build. Otherwise run `scripts/audio-speaker` (no sudo; forces the speaker profile
   and default sink, `auto` undoes it) for a falsely reported headphone plug.
-- **Mesa is our own build** (`mesa/`, `pacman -Q mesa lib32-mesa` ends in `-1.x`): one crocus patch that stops
-  the display flashes/splits (docs/packages.md "Patched Mesa"). An Arch Mesa update replaces it with stock: before
-  updating Mesa, rebuild from the new PKGBUILD on the desktop (`mesa/build.sh`, `mesa/build.sh lib32`) or accept
-  stock until then. **"Display flashes/splits again" → first check `pacman -Q mesa`.**
+- **Mesa is our own build**: packages `mesa-gpd`, `vulkan-intel-gpd`, ... (+ `lib32-`), provide/conflict Arch's
+  names so repo updates don't touch them (docs/packages.md "Own Mesa", `mesa/README.md`). `scripts/aur check`
+  says REBUILD when Arch is newer: update `mesa/PKGBUILD` from Arch's, `mesa/build.sh` (+ `lib32`) on the desktop
+  (needs desktop sudo), `mesa/install.sh` on the GPD. **"Display flashes/splits again" → check `pacman -Q mesa-gpd`.**
 - Never unload/unbind the sound codec at runtime (`rmmod snd_soc_rt5645`, unbinding `i2c-10EC5645:00`):
   it hangs the unload for good (`rt5645_i2c_remove` waits for `rt5645_jack_detect_work`, `rmmod` stuck in
   D state, only a reboot clears it; seen twice, the second time after a kernel oops in that work).

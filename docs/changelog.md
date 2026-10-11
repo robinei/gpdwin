@@ -624,3 +624,9 @@ Details before 2026-10-06 are in `docs/archive/`.
   recording before the system goes down.
 - Charge limit didn't apply after a reboot (udev never processed the charger's add event at boot):
   now `/usr/local/bin/charge-limit`, run by the new `charge-limit.service` (enabled) and by the udev rule.
+- Slim Mesa 1:26.2.4-1.3 (`mesa/PKGBUILD`, `mesa/lib32/PKGBUILD`): crocus + softpipe + hasvk only, no LLVM/SPIRV-Tools/
+  lm_sensors at runtime (two-stage build: host mesa_clc with LLVM, drivers without). GL program start 94 → 62 ms
+  (32-bit 102 → 67 ms), RSS 102 → 39 MB, frame rates unchanged; `-march=silvermont` and glthread measured, no gain.
+- Packages renamed `*-gpd` (provide/conflict Arch's names, like mangohud-light): installed on the GPD replacing
+  Arch's mesa, vulkan-intel, vulkan-mesa-implicit-layers and lib32 versions (saved in /var/cache/gpd-mesa-stock;
+  revert `mesa/rollback.sh`). `scripts/aur check` reports *-gpd against the repo. Sway uses it after the next reboot.

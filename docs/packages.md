@@ -66,11 +66,14 @@ truth; this explains the choices.
   file and its manifest line, reboot, install `bluez`. Left alone: systemd's socket-activated units
   (machined, importd, sysupdate, ...; no process until used) and auto-loaded hardware modules
   (kvm, mei, thunderbolt, pcspkr).
-- **Patched Mesa** (since 2026-10-12): `mesa` 1:26.2.4-1.2 is our build (`mesa/`: Arch's PKGBUILD + one crocus
-  patch that stops the display flashes and makes texture uploads ~3x cheaper; built on the desktop with
-  `mesa/build.sh`, installed with `mesa/install.sh`; Arch's package saved in `/var/cache/gpd-mesa-stock`,
-  `mesa/rollback.sh` puts it back). `lib32-mesa`: same, `mesa/lib32/`. The next Arch Mesa release has a higher
-  version and replaces ours on update (stock behaviour again, flashes may return): rebuild from the new PKGBUILD.
+- **Own Mesa** (since 2026-10-12): `mesa-gpd`, `vulkan-intel-gpd`, `vulkan-mesa-implicit-layers-gpd` and their
+  `lib32-` versions replace Arch's `mesa`, `vulkan-intel`, ... (provide + conflict the Arch names, like
+  `mangohud-light`, so repo updates never overwrite them). `mesa/`: Arch's PKGBUILD slimmed to this device
+  (crocus + softpipe, hasvk; no LLVM at runtime) + one crocus patch (stops the display flashes, uploads ~3x cheaper);
+  GL programs start ~1/3 faster with ~60 % less memory (mesa/README.md). Built on the desktop (`mesa/build.sh`,
+  `mesa/build.sh lib32`), installed with `mesa/install.sh`; Arch's packages saved in `/var/cache/gpd-mesa-stock`,
+  `mesa/rollback.sh` puts them back. `scripts/aur check` shows "REBUILD" when Arch has a newer Mesa; a package
+  update that needs a newer Mesa than ours fails with a dependency error until we rebuild.
 
 ## AUR policy
 - Vendored: `aur/pkgbuilds/PKG/` holds each package's build files exactly as reviewed (exported

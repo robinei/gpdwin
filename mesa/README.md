@@ -20,8 +20,11 @@ Contents:
   `CROCUS_STAGING_NOSNOOP`, `CROCUS_SNOOP_UC_MOCS`), kept for reference, not built.
 - `build.sh`: builds all packages of the pkgbase on the desktop in a clean chroot (devtools, sudo).
   Uses `chroot-pacman.conf` (official Arch mirrors, own cache; the desktop is CachyOS). Takes ~25 min.
-- `install.sh PKG` (GPD, sudo): saves Arch's installed mesa package to `/var/cache/gpd-mesa-stock`, installs ours
-  (only `mesa`). `rollback.sh` (GPD, sudo): reinstalls the saved Arch package.
+- Package names: `mesa-gpd`, `vulkan-intel-gpd`, `vulkan-mesa-implicit-layers-gpd` (+ `lib32-`), each providing
+  and conflicting the Arch name, so `pacman -Syu` never replaces them; `scripts/aur check` compares them with the
+  repo versions (REBUILD when Arch is newer).
+- `install.sh PKG...` (GPD, sudo): saves Arch's installed packages to `/var/cache/gpd-mesa-stock`, installs ours
+  (`--ask=4` removes the conflicting Arch package). `rollback.sh` (GPD, sudo): reinstalls the saved Arch packages.
 
 Test results 2026-10-11 (GPD, `kernel/dsi-investigation/scripts/mesatest.sh`: burst `-m upload -d 10`, SDL opengl
 renderer, 10 min each, Mesa from /tmp via LD_LIBRARY_PATH; colour check `colorcheck.c` PASS in every run):
