@@ -117,6 +117,12 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     Boot menu (hold Space at power-on): **Arch Linux** = patched; **Arch Linux (stock)** = initramfs with Arch's own modules
     (`/usr/local/bin/gpd-stock-initramfs`, rebuilt by `95-gpd-stock-initramfs.hook` after kernel/DKMS changes;
     stock i915, the audio modules still come patched from disk). Remove the patch: `kernel/i915/uninstall-dkms.sh`.
+  - **Root-cause tracing (2026-10-11, patch 0018, test entry only):** the pauses start mostly late in the frame
+    (FINDINGS.md "Frame position of the underruns"). To see what happens just before them: boot the one-shot test entry
+    (`i915.vlv_dsi_ur_irq=1`, underruns timed by the MIPI interrupt; log lines say "(irq, N us before the poll)", and
+    "DSI MIPI interrupt armed" once), then `sudo systemd-run --unit=dsi-trace python3
+    ~/gpd/kernel/dsi-investigation/scripts/dsi-trace.py` and play (~1 h for ~30 events); stop with `sudo systemctl stop
+    dsi-trace`; copy `/var/tmp/dsi-trace` to the desktop and run `scripts/dsi-trace-analyze.py DIR`.
   - **Split that stayed 22 s (2026-10-11, patch 0017):** a lone underrun 0.6 s after a resync fell inside the 2 s
     resync rate limit and was dropped, not retried; a stall realigned it by chance. 0017 defers it to the end of the gap
     (log: "DSI resync rate limited, deferred"), so such a split lasts ~2 s at most. Log: `kernel/dsi-investigation/data/split-2026-10-11-1507.log`.

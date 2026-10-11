@@ -49,7 +49,8 @@ def key(ev, rest):
         return None  # handled separately
     if ev in ('i2c_write', 'i2c_read', 'i2c_reply', 'i2c_result', 'smbus_write', 'smbus_read',
               'smbus_reply', 'smbus_result'):
-        return ev + ' i2c-' + (field(rest, 'i2c') or '?')
+        m = re.match(r'(i2c-\d+)', rest)
+        return ev + ' ' + (m.group(1) if m else '?')
     if ev in ('sb_rd', 'sb_wr'):
         return ev + ' unit ' + (field(rest, 'unit') or '?')
     if ev in ('mbi_rd', 'mbi_wr', 'mbi_mod'):

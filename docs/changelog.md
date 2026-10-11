@@ -540,3 +540,15 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Speaker compressor settings chosen by the user with the tuner: threshold -26 dB, 9:1, no makeup, ceiling -20 dB. Tuner's ceiling range widened to -30 dB.
 - Speaker compressor retuned by the user: 1.5 ms attack was the key (catches transients), 3:1, limiter at 0 dB.
 - Speaker compressor tweaked by the user: 300 Hz, -30 dB, 4:1, +3 dB makeup, -5 dB ceiling (1.5 ms attack kept).
+
+## 2026-10-11 — DSI root-cause tracing setup (patch 0018, dsi-trace)
+- Finding: the pipe pauses behind the flashes/splits start mostly in the last quarter of the frame (113 logged events;
+  `kernel/dsi-investigation/FINDINGS.md` "Frame position of the underruns"), not periodic with the battery polling.
+- Patch 0018 (diagnostic, off unless `i915.vlv_dsi_ur_irq=1`): times each DPI FIFO underrun by the MIPI C interrupt
+  (one shot, re-armed by the poller) and offers a kprobe hook. Built on the desktop (srcversion 3A4DA309964C0EC45D8A69A),
+  **not** in the DKMS package. Installed as the one-shot test boot entry (`install-test.sh ~/i915-0018.ko.zst
+  i915.vlv_dsi_ur_irq=1`: `/boot/initramfs-linux-test.img`, `arch-test.conf`); the default entry is unchanged.
+  Revert: `kernel/i915/uninstall-test.sh`.
+- `kernel/dsi-investigation/scripts/dsi-trace.py` (GPD, root, ftrace only) saves the trace around every underrun plus
+  random control moments to `/var/tmp/dsi-trace`; `dsi-trace-analyze.py` (desktop) compares them. Dry run on the
+  stock-equivalent module: all Punit/PMIC/I2C probes attach, cleanup leaves no instances or probes.
