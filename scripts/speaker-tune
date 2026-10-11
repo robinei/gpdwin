@@ -145,20 +145,43 @@ def sway(*cmds):
     subprocess.run(["swaymsg", "; ".join(cmds)], capture_output=True)
 
 
+def tree_find(pred):
+    out = subprocess.run(["swaymsg", "-t", "get_tree"], capture_output=True, text=True).stdout
+    stack = [json.loads(out)]
+    while stack:
+        n = stack.pop()
+        if pred(n):
+            return n
+        stack += n.get("nodes", []) + n.get("floating_nodes", [])
+    return None
+
+
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "start":
-        st = {"sel": 0, "bypass": False, "values": live_values(), "msg": ""}
+        game = tree_find(lambda n: n.get("focused") and n.get("type") == "con")
+        gid = game["id"] if game else None
+        st = {"sel": 0, "bypass": False, "values": live_values(), "msg": "", "game": gid}
         store(st)
-        sway("fullscreen disable", 'mode "speaker-tune"',
+        # Out of fullscreen so the floating value window can show above it. shelf shares the workspace
+        # (tiled behind the game): give the game nearly all the width. sway ignores no_focus for the new
+        # window, and games pause without focus (DevilutionX, RetroArch), so hand focus back right away.
+        sway("fullscreen disable", "resize set width 96 ppt", 'mode "speaker-tune"',
              f"exec foot --app-id=speaker-tune -W {WIDTH}x{HEIGHT} {Path(__file__).resolve()} view")
+        for _ in range(40):
+            if tree_find(lambda n: n.get("app_id") == "speaker-tune"):
+                break
+            time.sleep(0.05)
+        if gid:
+            sway(f"[con_id={gid}] focus")
     elif cmd == "stop":
         st = load()
         if st["bypass"]:
             st["bypass"] = False
             apply(st)
         STATE.unlink(missing_ok=True)
-        sway('[app_id="speaker-tune"] kill', 'mode "default"', "fullscreen enable")
+        target = f"[con_id={st['game']}] " if st.get("game") else ""
+        sway('[app_id="speaker-tune"] kill', 'mode "default"', target + "fullscreen enable")
     elif cmd == "key" and len(sys.argv) == 3:
         key(sys.argv[2])
     elif cmd == "view":
