@@ -516,3 +516,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - MangoHud toggle moved from Super+H to Ctrl+Shift+F12: MangoHud doesn't consume keys, and RetroArch ignores
   modifiers, so Super+H also fired RetroArch's Reset (`input_reset = "h"`).
 - MangoHud toggle moved again, to Ctrl+Shift+= (Ctrl+Shift+F12 conflicted with something else).
+- Volume/brightness keys: held-key repeats are dropped while a step runs (`flock -n` in osd.sh). Each step took ~165 ms against a 40 ms repeat, so overlapping copies stuttered and finished out of order.
