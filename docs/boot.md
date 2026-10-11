@@ -61,6 +61,9 @@ after kernel start (was 16s).
   relocates libgallium + libLLVM, i.e. the pages sway's EGL setup touches (not the whole 220 MB),
   at low CPU/IO priority; nothing is ordered after it. Measured: driver load 0.50 s cold, 0.07 s
   after the prefetch (which takes ~0.7 s of mostly I/O, in the background).
+  Since the slim Mesa (2026-10-12, `mesa/`: no LLVM) it maps only libgallium (27 MB) and takes 0.12 s.
+  One boot after the switch: sway 11.26 s, shelf 12.72 s after kernel start (before: 11.24 / 12.90), i.e.
+  sway to shelf ~0.2 s shorter (single boot, within the usual spread).
 
 ## Boot experiments, 2026-10-11 (each a one-shot entry: `bootctl set-oneshot <entry>`)
 - **i915 loaded after switch-root instead of in the initrd** (initramfs without `kms` hook,
