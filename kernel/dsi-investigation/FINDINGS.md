@@ -32,7 +32,9 @@ burst but the rate is unchanged: pauses exceed ~1 us/line), GPU RC6/freq, CPU C-
 Open candidates: memory self-refresh / PM5 (cxSR), PMIC-bus traffic from battery polling, page-flip pattern;
 best next step: trace GPU/CPU/IRQ/power events around the underrun timestamps 0011 provides.
 **Traced 2026-10-11:** every underrun comes ~0.5 ms after DevilutionX submits its per-frame GPU work; not the Punit's
-GT frequency/RC6 handling (section "Trace around each underrun"); next: memory self-refresh (0019).
+GT frequency/RC6 handling (section "Trace around each underrun"), not memory self-refresh (0019). **Reproduced on
+demand:** the per-frame texture upload is the trigger (`scripts/burst.c`, 66 events in 10 min with upload only, 0
+without; section "Reproducer").
 **Where in the frame (2026-10-11, 113 underruns from the journal):** the first underrun of an event is seen mostly
 late in the frame (section "Frame position of the underruns"), and not phase-locked to the 60 s battery read: the
 trace is now set up with interrupt-timed underruns (0018) and `scripts/dsi-trace.py`.
@@ -109,6 +111,28 @@ cluster was partly its detection delay); the second always at 1279.
 - **0019 result (18:34):** self-refresh disabled (`i915_sr_status`), flashes at 18:35:10 and 18:35:21; the traced one
   again 0.47 ms after DevilutionX's request_add. Memory self-refresh is ruled out. Left: what DevilutionX's GPU work
   does in its first ~0.5 ms (memory bandwidth burst, GGTT/TLB activity, snooped reads of CPU-written buffers).
+
+## Reproducer: the texture upload triggers it (2026-10-11, `scripts/burst.c`)
+`burst` renders like DevilutionX (SDL3 renderer "opengl" = Mesa iris, fullscreen, vsync, 853x480 XRGB8888 streaming
+texture scaled with linear filtering); modes leave parts out. 0019 module (`vlv_cxsr=0`), trace running, 10 min each:
+
+| run | GPU/CPU work per frame | events |
+|---|---|---|
+| `full` (no delay) | upload + draw | 1 |
+| `full -d 10` (5 min) | upload + draw, 10 ms later in the loop | 4 |
+| `full -p 16.5` (vsync off, sweeps all frame positions) | upload + draw | 7 (start lines 617-1254 only) |
+| `upload -d 10` | upload, texture never drawn | **66** |
+| `clear -d 10` | clear + present only | 0 |
+| `static -d 10` | draw a texture uploaded once | 0 (and 0 in an earlier 4.7 min) |
+
+Every traced event: underrun 0.25-0.53 ms after the program's `i915_request_add`. **The per-frame texture upload is the
+trigger**; drawing and GPU activity as such are not. iris (Mesa 26.2.4) on CHV (no LLC) puts textures in
+`SYSTEM_MEMORY_UNCACHED` (WC mmap) and `iris_texture_subdata()` writes an idle tiled texture with a CPU
+`isl_memcpy_linear_to_tiled` through that WC mapping (no GPU blit); a texture still busy on the GPU goes through
+`u_default_texture_subdata` (staging buffer + blit). In `upload` mode the texture is never busy, so the upload is ~1.6 MB
+of CPU WC writes per frame; in `full` mode some uploads take the staging path, which may explain the lower rate.
+Open: whether the CPU write burst itself or the GPU batch right after it stalls the pipe (test `-u`: gap after the
+upload, `-l`: per-frame upload/present timestamps on the trace clock).
 
 ## Display hang at screen-on, 2026-10-10 19:02 (separate bug, not the DSI link)
 

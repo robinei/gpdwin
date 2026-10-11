@@ -562,3 +562,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   `sudo bootctl set-default arch.conf` (then optionally `kernel/i915/uninstall-test.sh`).
 - 0019 result: flashes continue with self-refresh off (2 in the first 2 min), so cxSR/PM5/DDR DVFS are ruled out.
   Default boot entry set back to `arch.conf` (normal DKMS module) at 18:37; `arch-test.conf` stays as a menu entry.
+- `kernel/dsi-investigation/scripts/burst.c`: flash reproducer (SDL3, renders like DevilutionX, modes leave parts of
+  the frame out). Result: the per-frame texture upload triggers the DSI underruns (66 in 10 min with upload only, 0 with
+  clear or draw only). Built in /tmp on the GPD, nothing installed.
