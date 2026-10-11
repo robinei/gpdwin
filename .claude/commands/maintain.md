@@ -9,7 +9,9 @@ informed in short lines; they are on a small screen with a keyboard.
 
 1. **Prepare.** `git status` in ~/gpd. If there are uncommitted changes, show them and ask
    whether to commit them first. Run `scripts/sync check`; report any drift and ask how to resolve
-   it (capture live into the repo, or install the repo version) before going on.
+   it (capture live into the repo, or install the repo version) before going on. `KEEP` lines are
+   program settings (RetroArch, PPSSPP, games): follow CLAUDE.md (diff, explain which settings each side
+   changed, propose capture / install --force / merge, apply after the user agrees).
 
 2. **Arch news.** Run `scripts/news 8`. For any item newer than the last update in
    `docs/changelog.md` that mentions manual intervention or a package installed here

@@ -85,3 +85,5 @@ copy	system/usr/local/bin/gpd-stock-initramfs	/usr/local/bin/gpd-stock-initramfs
 copy	system/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	root:root:0644
 link	dotfiles/systemd/user/saves-backup.service	~/.config/systemd/user/saves-backup.service
 link	dotfiles/systemd/user/saves-backup.timer	~/.config/systemd/user/saves-backup.timer
+keep	dotfiles/ppsspp/ppsspp.ini	~/.config/ppsspp/PSP/SYSTEM/ppsspp.ini	robin:robin:0644
+keep	dotfiles/ppsspp/controls.ini	~/.config/ppsspp/PSP/SYSTEM/controls.ini	robin:robin:0644

@@ -530,3 +530,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - `scripts/sync`: new manifest kind `keep` for files a program rewrites (RetroArch config and pad autoconfig, diablo.ini,
   cgenius.cfg). `sync install` used to overwrite them on every deploy, reverting settings saved in RetroArch; now it only
   creates them, and changes show as `KEEP changed` for `sync capture`. RetroArch keeps `config_save_on_exit = false`.
+- `scripts/sync`: keep entries now record a per-file base (sha256 of the last synced content, `~/.local/state/gpd-sync/bases.json`),
+  so check/install say which side changed (live = settings saved in the program, repo, or both). They never resolve it:
+  the session diffs, explains, proposes capture / install --force / merge and applies after the user agrees (CLAUDE.md,
+  /maintain step 1). `install --force` needs explicit paths. PPSSPP `ppsspp.ini` and `controls.ini` added as keep entries.

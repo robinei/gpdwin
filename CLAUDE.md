@@ -16,10 +16,15 @@ The user is Robin (they/them).
   - `link` entries: the live path is a symlink into the repo. Edit the file in the repo.
   - `copy` entries (root files): edit the live file and run `scripts/sync capture <path>`, or edit
     the repo copy and run `scripts/sync install <path>`.
-  - `keep` entries (files a program rewrites: RetroArch, DevilutionX, Commander Genius settings): the
-    live file is the truth. `sync install` never overwrites one that exists; `KEEP changed` in
-    `sync check` means the user changed settings: `scripts/sync capture <path>`. To change one, edit the
-    live file (program not running) and capture; `install --force <path>` only if the user agrees.
+  - `keep` entries (files a program rewrites: RetroArch, PPSSPP, DevilutionX, Commander Genius settings).
+    `sync check`/`install` report a difference with the side that changed since the last sync (live =
+    the user saved settings in the program, repo = a repo edit, or both) and never resolve it themselves.
+    Resolve with judgement and the user's confirmation: read `scripts/sync diff <path>`, tell the user in
+    plain terms what each side changed (which settings), propose live wins (`sync capture <path>`, then
+    commit), repo wins (`sync install --force <path>`), or a merge (edit the live file with the program
+    closed, keeping both sides' intended changes, then capture), and apply only after they agree.
+    Ignore pure churn (recent-file lists, window positions) in the explanation but still capture it.
+    To change a setting yourself: edit the live file with the program closed, then capture.
   - New config you create: add it to `manifest.tsv` (`scripts/sync adopt` moves+links user files).
   - `scripts/sync check` must report no drift when you finish.
 - Never store passwords or keys in the repo.

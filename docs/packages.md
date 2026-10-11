@@ -16,7 +16,7 @@ truth; this explains the choices.
 - Frontend: shelf (`src/shelf.c`): `sdl3_image`, `sdl3_ttf` (with `sdl3`, `sqlite` and `icu`, already
   installed). `retroarch`, assets, core-info, cores (frontend.md). `qt5-*` only for Pegasus, kept
   installed without integration (frontend.md).
-- PSP: standalone `ppsspp` (SDL build, `PPSSPPSDL`; pulls `ppsspp-assets`, `openxr`, `libzip`,
+- PSP: standalone `ppsspp` (settings: keep entries in manifest, `dotfiles/ppsspp/`) (SDL build, `PPSSPPSDL`; pulls `ppsspp-assets`, `openxr`, `libzip`,
   `miniupnpc`), installed 2026-10-09.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
 - Multilib (enabled 2026-10-07, `system/etc/pacman.conf`) for 32-bit-only native Linux ports
