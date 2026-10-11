@@ -596,3 +596,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Mesa 1:26.2.4-1.2 (`mesa/`, one patch: crocus does not snoop upload staging textures) built and tested from /tmp
   on the GPD: 0 flash events in 15 min of the SDL-style reproducer (stock 205 in 10 min), upload 1.14 vs 3.73 ms,
   readback unchanged, colours correct. Not installed yet.
+
+## 2026-10-12 — Patched Mesa installed
+- `mesa` 1:26.2.4-1.2 installed on the GPD with `mesa/install.sh` (Arch's 1:26.2.4-1 saved in
+  `/var/cache/gpd-mesa-stock`; revert: `mesa/rollback.sh`). Programs started since use it (colorcheck PASS,
+  version string arch1.1.2); sway picks it up at the next restart/reboot. docs/packages.md "Patched Mesa".
