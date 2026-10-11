@@ -212,6 +212,13 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
 - No firmware update path known for the Win 1 (GPD's tools are Windows-only and for later
   models). A uinput remapper could only smooth the jump at the threshold; decided to leave it.
 
+## Speaker loudness (2026-10-11)
+- The speaker is quiet even at 100%, but nothing is attenuated: PipeWire uses software volume (100% = full
+  scale), and DAC1, the SST DSP gains and `Speaker ClassD` are all at 0 dB. UCM (`SpeakerEnableSeq.conf`)
+  sets `Speaker Playback Volume` to 31 of 39 (0 dB). Raising it to 39 (+12 dB) or 35 (+6 dB) distorted
+  heavily: the speakers themselves are the limit, so it stays at 31. A PipeWire compressor/limiter
+  (louder perceived level without clipping) is the remaining option, untried.
+
 ## Audio after hibernation (2026-10-08, solved 2026-10-09)
 - After waking from hibernation the rt5645 codec reported headphones (and mic) plugged in with
   nothing in the jack, the speaker was silent and the headphones gave static. Cause and fix: below.
