@@ -1,7 +1,7 @@
 # shelf, the frontend (~/.config/shelf/run), always lives on workspace 1 and starts with sway
 assign [app_id="^shelf$"] workspace number 1
 exec ~/.config/shelf/run
-exec ~/.local/bin/inputd
+exec ~/.config/sway/inputd.sh
 
 # Workspace 1: shelf as a normal window (the bar stays visible), and whatever it starts (games,
 # Utilities tools) fullscreen on top of it. fullscreen-stack.sh restores fullscreen to the window

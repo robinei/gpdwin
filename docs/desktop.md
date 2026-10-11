@@ -21,7 +21,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   SIGCONTs it. Only changed lines are written. Measured: sway+swaybar+statusbar together
   1.7 ms CPU/s (0.17% of a core); the GPU stays in RC6.
 - `autostart`: shelf on workspace 1 (`assign` + `exec ~/.config/shelf/run`),
-  `~/.local/bin/inputd`, `for_window` rules making everything shelf starts
+  `inputd.sh` (keeps `~/.local/bin/inputd` running: restarted 1 s after it exits, until sway is
+  gone), `for_window` rules making everything shelf starts
   fullscreen (dialogs float; shelf itself is a normal window with the bar visible),
   `fullscreen-stack.sh` (whichever tiled window on workspace 1 gets focus becomes fullscreen, so
   closing a game brings the window below back fullscreen; sway allows one fullscreen window per
@@ -50,8 +51,15 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   `swaymsg input * events disabled`, the pad grabbed (EVIOCGRAB, so games don't see it either),
   `screen.sh off`, and `lid.sh close`: CPU turbo off, GPU limit to RPn (saved values in
   `$XDG_RUNTIME_DIR/lid-saved`). Opening it undoes all of that and counts as activity. Brightness
-  is not touched (level 0 does not turn the panel off). If inputd dies while closed, input stays
-  disabled: `swaymsg input '*' events enabled` (or restart inputd).
+  is not touched (level 0 does not turn the panel off). If inputd dies while closed, `inputd.sh`
+  restarts it and the new one re-applies the state; by hand: `swaymsg input '*' events enabled`.
+  Facts that can be read are read rather than remembered: the lid switch state on every pass
+  (EVIOCGSW), the charger on every power_supply uevent and whenever uevents were lost (ENOBUFS; a
+  read takes ~16 ms over I2C, so not on every pass). Shell steps (`screen.sh`, `lid.sh`,
+  brightnessctl) run in order under `timeout 5`, so a stuck one can't block the lid and power
+  button. The brightness before dimming is kept in `$XDG_RUNTIME_DIR/idle-brightness` while dimmed
+  (a restarted inputd restores it). A suspend request that leaves the device awake is repeated
+  every minute.
   Power button (every input device with KEY_POWER; logind ignores the key), on release, by the
   screen state at the press (sway counts the press as activity, so the screen may be back on by
   the release): screen dark (asked from sway over IPC: an output with `"power": false`) → counts as
@@ -72,7 +80,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
 - C programs (`src/`): manifest `build` entries; `scripts/sync install` compiles them when the
   source is newer (`sync check` reports `BUILD outdated`). Restart after a rebuild:
   `swaymsg reload` (statusbar, swaybar's child) and
-  `pkill -x inputd; swaymsg exec ~/.local/bin/inputd`.
+  `pkill -x inputd` (`inputd.sh` restarts it).
 - `turbo.sh`: see power.md. Sends SIGUSR1 to statusbar so the dimming updates at once.
 
 Restarting wob: `pkill -x wob; pkill -x tail`, then `swaymsg exec` the pipeline from `handheld`.

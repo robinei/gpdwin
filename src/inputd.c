@@ -51,8 +51,10 @@
  * pad disconnects while the screen is off and across suspend), kernel uevents (charger), the
  * Wayland socket, and a timeout for the next idle step.
  *
- * Built and installed by `scripts/sync install` (manifest "build" entry); started by sway
- * (dotfiles/sway/autostart). Without a Wayland connection (sway gone) it exits.
+ * Built and installed by `scripts/sync install` (manifest "build" entry); started by sway through
+ * dotfiles/sway/inputd.sh, which restarts it after a crash (input stays disabled if it dies with
+ * the lid closed; the restarted one repairs that). Without a Wayland connection (sway gone) it
+ * exits, and so does the loop. To restart it after an update: `pkill -x inputd`.
  */
 #define _GNU_SOURCE
 #include <dirent.h>
@@ -89,6 +91,9 @@
 #define RESUME_GUARD 3.0 /* seconds after a resume in which the power button is ignored */
 #define RESUME_FILE "/run/resume-time"
 #define CHARGER_ONLINE "/sys/class/power_supply/bq24190-charger/online"
+#define STEP_TIMEOUT "5"     /* seconds a shell step (screen.sh, lid.sh, brightnessctl) may take */
+#define SLEEP_RETRY 60       /* seconds: still awake this long after asking to suspend: ask again */
+#define BRIGHTNESS_SAVED "idle-brightness" /* in $XDG_RUNTIME_DIR: the level before dimming */
 #define MAX_POWER 8    /* input devices with KEY_POWER (here: 2x ACPI Power Button, gpio-keys, Intel HID, keyboard) */
 
 extern char **environ;
@@ -310,13 +315,14 @@ static void suspend(void)
         perror("inputd: sudo");
 }
 
-/* Run a shell command and wait for it (the idle steps must happen in order). */
+/* Run a shell command and wait for it (the steps must happen in order), at most STEP_TIMEOUT s
+ * so a stuck one (swaymsg while sway hangs) can't stop the lid and power button from working. */
 static void sh_wait(const char *command)
 {
-    char *argv[] = { "sh", "-c", (char *)command, NULL };
+    char *argv[] = { "timeout", STEP_TIMEOUT, "sh", "-c", (char *)command, NULL };
     pid_t pid;
-    if (posix_spawnp(&pid, "sh", NULL, NULL, argv, environ) != 0)
-        perror("inputd: sh");
+    if (posix_spawnp(&pid, "timeout", NULL, NULL, argv, environ) != 0)
+        perror("inputd: timeout");
     else
         waitpid(pid, NULL, 0); /* SIGCHLD is ignored: returns once it exited */
 }
@@ -340,8 +346,11 @@ static struct {
     int lid;                 /* input off, pad grabbed, CPU/GPU throttled (lid.sh) */
     int screen_off;          /* screen.sh off (screen off, shelf and the game frozen) */
     int dim;                 /* 0 normal, 1 a third, 2 1% */
-    int sleep_sent;          /* suspend requested in this idle period */
+    time_t sleep_sent;       /* when suspend was last requested in this idle period (0: not) */
 } applied;
+
+static int lid_fd = -1;
+static int charger_stale = 1; /* re-read the charger (15 ms over I2C, so not on every pass) */
 
 static time_t next_due;      /* when the next idle step is due (0: none; sway says when idle starts) */
 
@@ -363,6 +372,33 @@ static long idle_seconds(time_t now)
     return now - max_t(fact.sway_idle_since, fact.last_activity);
 }
 
+/* The brightness before dimming lives in $XDG_RUNTIME_DIR/BRIGHTNESS_SAVED (raw backlight value)
+ * while dimmed, so a restarted inputd knows it is dimmed and what to go back to. */
+static char *saved_path(void)
+{
+    static char p[256];
+    const char *rt = getenv("XDG_RUNTIME_DIR");
+    snprintf(p, sizeof p, "%s/" BRIGHTNESS_SAVED, rt ? rt : "/tmp");
+    return p;
+}
+
+static void set_dim(int from, int to)
+{
+    char cmd[512];
+    const char *f = saved_path();
+    /* leaving normal: save the current level; the dim levels are a third of the saved one (min 1%)
+     * and the lowest visible level (raw 1; 0 is backlight off) */
+    const char *save = from ? "" : "brightnessctl -m | cut -d, -f3 > \"$f\"; ";
+    if (to == 0)
+        snprintf(cmd, sizeof cmd, "f='%s'; [ -s \"$f\" ] && brightnessctl -q set \"$(cat \"$f\")\"; rm -f \"$f\"", f);
+    else if (to == 1)
+        snprintf(cmd, sizeof cmd, "f='%s'; %sv=$(cat \"$f\"); m=$(brightnessctl -m | cut -d, -f5); "
+                 "p=$(( v * 100 / m / 3 )); brightnessctl -q set \"$(( p > 1 ? p : 1 ))%%\"", f, save);
+    else
+        snprintf(cmd, sizeof cmd, "f='%s'; %sbrightnessctl -q set 1", f, save); /* lowest visible */
+    sh_wait(cmd);
+}
+
 /* The pad is grabbed while the lid is closed, so nobody else (games, sway) sees its events. */
 static void grab_pad(void)
 {
@@ -370,8 +406,23 @@ static void grab_pad(void)
         ioctl(pad_fd, EVIOCGRAB, applied.lid);
 }
 
+static void lid_fact(int closed);
+
 static void reconcile(void)
 {
+    /* facts that can be read are read, not remembered from events: the lid switch every time
+     * (cheap), the charger whenever a power_supply uevent came or uevents were lost */
+    if (charger_stale) {
+        int ac = charger_online();
+        if (ac != fact.on_ac)
+            activity(); /* plugged in or out */
+        fact.on_ac = ac;
+        charger_stale = 0;
+    }
+    unsigned long sw[1] = { 0 };
+    if (lid_fd >= 0 && ioctl(lid_fd, EVIOCGSW(sizeof sw), sw) >= 0)
+        lid_fact(sw[0] >> SW_LID & 1);
+
     time_t now = mono_now();
     long t = idle_seconds(now);
     int low_after = fact.on_ac ? LOW_AFTER_AC : LOW_AFTER_BATTERY;
@@ -394,18 +445,7 @@ static void reconcile(void)
         applied.screen_off = 0;
     }
     if (dim != applied.dim) {
-        char cmd[256];
-        /* save the brightness when leaving normal, else restore it first (a third of the
-         * original, not of the dimmed level) */
-        const char *base = applied.dim ? "brightnessctl -q -r" : "brightnessctl -q -s";
-        if (dim == 0)
-            snprintf(cmd, sizeof cmd, "brightnessctl -q -r");
-        else if (dim == 1)
-            snprintf(cmd, sizeof cmd, "%s; c=$(brightnessctl -m | cut -d, -f4 | tr -d %%); "
-                     "brightnessctl -q set \"$(( c / 3 > 1 ? c / 3 : 1 ))%%\"", base);
-        else
-            snprintf(cmd, sizeof cmd, "%s; brightnessctl -q set 1", base);
-        sh_wait(cmd);
+        set_dim(applied.dim, dim);
         applied.dim = dim;
     }
     if (lid != applied.lid && lid) {
@@ -419,11 +459,13 @@ static void reconcile(void)
         applied.screen_off = 1;
     }
 
-    /* suspend: once per idle period (a wake counts as activity and starts a new one) */
-    if (t < SLEEP_AFTER)
+    /* suspend: requested once, again every SLEEP_RETRY s while still awake (it failed); a wake
+     * counts as activity and ends the idle period. MONOTONIC stops during sleep, so a successful
+     * suspend never looks like a retry is due. */
+    if (t < SLEEP_AFTER || fact.on_ac)
         applied.sleep_sent = 0;
-    else if (!fact.on_ac && !applied.sleep_sent) {
-        applied.sleep_sent = 1;
+    else if (!applied.sleep_sent || now - applied.sleep_sent >= SLEEP_RETRY) {
+        applied.sleep_sent = now;
         suspend();
     }
 
@@ -435,6 +477,8 @@ static void reconcile(void)
             if (steps[i] > t && (!next_due || now + steps[i] - t < next_due))
                 next_due = now + steps[i] - t;
     }
+    if (applied.sleep_sent && (!next_due || applied.sleep_sent + SLEEP_RETRY < next_due))
+        next_due = applied.sleep_sent + SLEEP_RETRY;
 }
 
 /* sway's idle notification: no input for DIM_AFTER s (and no idle inhibitor), and back. */
@@ -528,15 +572,18 @@ int main(void)
     struct pollfd fds[5 + MAX_POWER] = {
         { .fd = watch, .events = POLLIN },
         { .fd = (pad_fd = open_pad()), .events = POLLIN },
-        { .fd = open_named(LID_NAME), .events = POLLIN },
+        { .fd = (lid_fd = open_named(LID_NAME)), .events = POLLIN },
         { .fd = uevent_socket(), .events = POLLIN },
         { .fd = dpy ? wl_display_get_fd(dpy) : -1, .events = POLLIN },
     };
     fact.on_ac = charger_online();
+    charger_stale = 0;
     activity();
     /* applied state unknown at start (inputd may have died with the lid closed): the first
      * reconcile applies lid and screen either way, both are safe to repeat */
     applied.lid = applied.screen_off = -1;
+    if (access(saved_path(), F_OK) == 0)
+        applied.dim = 2; /* a previous inputd was dimmed: restore from the saved level */
     double was_asleep = slept();
     time_t last_power = 0;
     int press_dark = -1; /* screen state when the power button went down; -1: not down */
@@ -544,9 +591,6 @@ int main(void)
     for (int i = 0; i < npower; i++)
         fds[5 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
 
-    unsigned long sw[1] = { 0 };
-    if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0)
-        lid_fact(sw[0] >> SW_LID & 1); /* started with the lid closed: reconcile applies it */
 
     for (;;) {
         reconcile();
@@ -580,15 +624,13 @@ int main(void)
         if (fds[3].fd >= 0 && fds[3].revents) {
             char buf[8192];
             ssize_t n;
-            int power_event = 0;
             while ((n = recv(fds[3].fd, buf, sizeof buf - 1, 0)) > 0) {
                 buf[n] = 0;
-                power_event |= strstr(buf, "/power_supply/") != NULL;
+                if (strstr(buf, "/power_supply/")) /* "change@/devices/.../power_supply/..." */
+                    charger_stale = 1;
             }
-            int ac = power_event ? charger_online() : fact.on_ac;
-            if (ac != fact.on_ac) /* plugged in or out: counts as activity */
-                activity();
-            fact.on_ac = ac;
+            if (n < 0 && errno == ENOBUFS) /* the queue overflowed: events were lost */
+                charger_stale = 1;
         }
 
         if (fds[0].revents) {
@@ -617,8 +659,7 @@ int main(void)
         if (fds[2].fd >= 0 && fds[2].revents) {
             struct input_event ev;
             while (read(fds[2].fd, &ev, sizeof ev) == sizeof ev)
-                if (ev.type == EV_SW && ev.code == SW_LID)
-                    lid_fact(ev.value);
+                ; /* reconcile reads the switch state; the event only wakes the loop */
         }
 
         for (int i = 5; i < nfds; i++) {
