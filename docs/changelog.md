@@ -620,3 +620,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   write a readonly database"), so no play stats loaded and Recent (shown only when non-empty) was
   missing until the next play was recorded. Fix: load_stats opens it read-write (no create), with a
   busy timeout. Reproduced on a copy: read-only fails, read-write recovers all rows.
+- Utilities Reboot / Shut Down now exit at once and act 2 s later (detached), so shelf finishes
+  recording before the system goes down.
