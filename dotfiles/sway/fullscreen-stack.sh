@@ -3,7 +3,8 @@
 # the bar shows). A workspace has only one fullscreen window, so a new one takes fullscreen from
 # the one below, and sway doesn't give it back when the top window closes. So whenever a tiled
 # window on workspace 1 other than shelf gets focus without being fullscreen, make it fullscreen.
-# Sleeps in read() between window events.
+# Sleeps in read() between window events. Not while scripts/speaker-tune runs (its state file
+# exists): it takes the game out of fullscreen on purpose so its value window can show.
 #
 # Old X11 games with a fixed window size (native Psychonauts) are floated by sway right after they
 # open (a "new" event as tiled, then a "floating" event), which drops the fullscreen from the
@@ -13,6 +14,7 @@
 swaymsg -r -m -t subscribe '["window"]' | while read -r event; do
     case "$event" in
     *'"change": "focus"'*'"fullscreen_mode": 0'*)
+        [ -e "$XDG_RUNTIME_DIR/speaker-tune.json" ] && continue
         case "$event" in *'"app_id": "shelf"'*) ;; *)
             swaymsg '[workspace="^1$" con_id=__focused__ tiling] fullscreen enable' >/dev/null 2>&1 ;;
         esac ;;
