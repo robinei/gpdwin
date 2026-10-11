@@ -31,6 +31,9 @@ under Windows: per-unit margin plus something Linux does. Ruled out by test: cdc
 burst but the rate is unchanged: pauses exceed ~1 us/line), GPU RC6/freq, CPU C-states, plane/cursor events.
 Open candidates: memory self-refresh / PM5 (cxSR), PMIC-bus traffic from battery polling, page-flip pattern;
 best next step: trace GPU/CPU/IRQ/power events around the underrun timestamps 0011 provides.
+**Where in the frame (2026-10-11, 113 underruns from the journal):** the first underrun of an event is seen mostly
+late in the frame (section "Frame position of the underruns"), and not phase-locked to the 60 s battery read: the
+trace is now set up with interrupt-timed underruns (0018) and `scripts/dsi-trace.py`.
 
 **Patches** (`kernel/i915/`):
 | # | what | status |
@@ -51,10 +54,34 @@ best next step: trace GPU/CPU/IRQ/power events around the underrun timestamps 00
 | 0015 | VLV_IER lost to a racing irq handler at display power well enable (stock bug) | in use since 2026-10-10; fixes the screen-on hang; upstream candidate |
 | 0016 | 0012's vblank FIFO sample cancelled after 200 ms without vblank | in use since 2026-10-10; keeps a lost vblank from hanging every commit |
 | 0017 | 0012: a rate-limited resync is deferred to the end of the 2 s gap, not dropped | in use since 2026-10-11; a split had stayed 22 s (`data/split-2026-10-11-1507.log`) |
+| 0018 | underruns timed by the MIPI C interrupt (one shot, re-armed by the poller), kprobe hook for tracing (diagnostic, `i915.vlv_dsi_ur_irq=1`) | built 2026-10-11, test boot entry; not in DKMS yet |
 
 The sections below are the round-1 audit and the measurements in the order they were made; where they say
 otherwise, this summary wins (e.g. "the link back-pressures the pipe" below: the pipe is slaved to the DSI
 timing generator, R2A).
+
+## Frame position of the underruns (2026-10-11)
+All 113 classified events in the journal (all boots kept; 64 pairs, 33 lone, 16 lone+stall; echoes of
+resyncs left out), scanline at which the poller saw the first underrun (vblank starts at 1280):
+
+| lines | 0-899 | 900-999 | 1000-1099 | 1100-1199 | 1200-1307 |
+|---|---|---|---|---|---|
+| events | 19 | 13 | 20 | 23 | 38 |
+
+Uniform would be ~9 per 100 lines. The poller looks every ~5-6 ms (~450 lines), so the event happened up to that
+much before the logged line; since a paused pipe holds its scanline, the logged line is probably near where the pipe
+stopped. Either way the pauses are not uniform in the frame: they cluster in its last quarter, before the vblank
+start where flips latch (and where the second underrun of every pair sits, line 1279). Together with fdo 105834
+(only with a page-flipping client) this makes flip/vblank-start timing on the DSI pipe the first suspect.
+Not periodic: no phase locking to 1, 60 or 120 s within any boot (Rayleigh test, p > 0.15 except one 2 s test p =
+0.006 out of 12, likely chance); gaps between events median 38 s (10 % 2.4 s, 90 % 264 s).
+**How to tell the candidates apart:** 0018 times each underrun by the MIPI C interrupt (microseconds) and
+`scripts/dsi-trace.py` saves an ftrace buffer around each one (flips and plane updates with scanline, cxSR and
+watermark changes, GPU requests, interrupts, CPU idle, I2C/PMIC bus, Punit sideband) plus random control dumps;
+`scripts/dsi-trace-analyze.py` compares the two. Decisive patterns: underrun at a fixed delay after a plane update
+arm or vblank start (flip timing), after `intel_memory_cxsr`/watermark events or none at all (Punit memory power
+management, then test cxSR off), after PMIC bus or sideband traffic (Punit busy). A config-only check of flip
+timing: sway `max_render_time` moves the commit within the frame; the underrun frame position should follow.
 
 ## Display hang at screen-on, 2026-10-10 19:02 (separate bug, not the DSI link)
 

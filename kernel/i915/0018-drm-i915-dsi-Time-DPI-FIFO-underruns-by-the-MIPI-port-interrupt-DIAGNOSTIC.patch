@@ -1,0 +1,426 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Sun, 11 Oct 2026 17:45:04 +0200
+Subject: [PATCH] drm/i915/dsi: Time DPI FIFO underruns by the MIPI port
+ interrupt (DIAGNOSTIC)
+
+DIAGNOSTIC, on top of 0011-0017, off unless i915.vlv_dsi_ur_irq=1.
+
+The 5 ms poller places an underrun only to within ~6 ms (~470 lines),
+too coarse to line it up with flips, GPU work or interrupts in a trace.
+The DSI controller raises VLV_IIR bit 19 (MIPI C) from MIPI_INTR_STAT &
+MIPI_INTR_EN, which i915 never unmasks. With the parameter set, enable
+it in VLV_IER but keep it masked in VLV_IMR outside vlv_imr_mask. The
+poller clears SPL_PKT_SENT (latched by TURN_ON, waited for only in the
+enable/disable sequence) and unmasks the interrupt only while
+MIPI_INTR_STAT reads 0. The handler masks it again (one shot: VLV_IIR
+follows the source level, so a latched bit must not retrigger it),
+records frame counter, scanline and time, clears the underrun bit, and
+calls vlv_dsi_ur_irq_event(), a kprobe hook for tracing. The poller logs
+these as "(irq, N us before the poll)". If another bit stays latched,
+the interrupt stays masked and the underruns are polled as before.
+0015's VLV_IER check includes the extra bit.
+---
+ .../gpu/drm/i915/display/intel_display_irq.c  |  56 ++++++-
+ .../gpu/drm/i915/display/intel_display_irq.h  |   2 +
+ drivers/gpu/drm/i915/display/intel_dsi.h      |   8 +
+ drivers/gpu/drm/i915/display/vlv_dsi.c        | 152 +++++++++++++++++-
+ drivers/gpu/drm/i915/display/vlv_dsi.h        |   9 ++
+ 5 files changed, 218 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/gpu/drm/i915/display/intel_display_irq.c b/drivers/gpu/drm/i915/display/intel_display_irq.c
+index a1c41c8..da7b2a7 100644
+--- a/drivers/gpu/drm/i915/display/intel_display_irq.c
++++ b/drivers/gpu/drm/i915/display/intel_display_irq.c
+@@ -30,6 +30,7 @@
+ #include "intel_pmdemand.h"
+ #include "intel_psr.h"
+ #include "intel_psr_regs.h"
++#include "vlv_dsi.h"
+ 
+ static void irq_reset(struct intel_display *display, struct intel_irq_regs regs)
+ {
+@@ -2065,6 +2066,47 @@ static u32 vlv_error_mask(void)
+ 	return VLV_ERROR_PAGE_TABLE;
+ }
+ 
++/*
++ * EXPERIMENT 0018: the MIPI C port interrupt (DPI FIFO underrun timestamps,
++ * vlv_dsi.c) is enabled in VLV_IER when wanted but stays masked in VLV_IMR,
++ * outside vlv_imr_mask: VLV_IIR follows the level of MIPI_INTR_STAT, which
++ * keeps other status bits latched, so vlv_dsi.c unmasks it only while
++ * MIPI_INTR_STAT is clear and the handler masks it again (one shot).
++ */
++static u32 vlv_mipic_ier(struct intel_display *display)
++{
++	return vlv_dsi_ur_irq_wanted() ? I915_MIPIC_INTERRUPT : 0;
++}
++
++/* Caller holds display->irq.lock. */
++void vlv_mipic_irq_arm(struct intel_display *display, bool arm)
++{
++	u32 imr = display->irq.vlv_imr_mask;
++
++	lockdep_assert_held(&display->irq.lock);
++
++	if (!vlv_mipic_ier(display) || !display->irq.vlv_display_irqs_enabled ||
++	    !intel_parent_irq_enabled(display))
++		return;
++
++	if (arm)
++		imr &= ~I915_MIPIC_INTERRUPT;
++	intel_de_write(display, VLV_IMR, imr);
++	intel_de_posting_read(display, VLV_IMR);
++}
++
++/* Caller holds display->irq.lock. */
++bool vlv_mipic_irq_armed(struct intel_display *display)
++{
++	lockdep_assert_held(&display->irq.lock);
++
++	if (!vlv_mipic_ier(display) || !display->irq.vlv_display_irqs_enabled ||
++	    !intel_parent_irq_enabled(display))
++		return false;
++
++	return !(intel_de_read(display, VLV_IMR) & I915_MIPIC_INTERRUPT);
++}
++
+ static void _vlv_display_irq_postinstall(struct intel_display *display)
+ {
+ 	u32 pipestat_mask;
+@@ -2103,7 +2145,8 @@ static void _vlv_display_irq_postinstall(struct intel_display *display)
+ 
+ 	display->irq.vlv_imr_mask = ~enable_mask;
+ 
+-	irq_init(display, VLV_IRQ_REGS, display->irq.vlv_imr_mask, enable_mask);
++	irq_init(display, VLV_IRQ_REGS, display->irq.vlv_imr_mask,
++		 enable_mask | vlv_mipic_ier(display));
+ }
+ 
+ static void vlv_display_irq_postinstall(struct intel_display *display)
+@@ -2138,6 +2181,9 @@ static void vlv_display_irq_ack(struct intel_display *display,
+ 	/* The handler acks the irq, so need to call the handler here */
+ 	if (state->iir & vlv_lpe_irq_mask(display))
+ 		intel_lpe_audio_irq_handler(display);
++
++	if (state->iir & I915_MIPIC_INTERRUPT)
++		vlv_dsi_ur_irq_ack(display);
+ }
+ 
+ static bool vlv_display_irq_handler(struct intel_display *display,
+@@ -2357,12 +2403,14 @@ out:
+ 	spin_lock_irq(&display->irq.lock);
+ 	if (display->irq.vlv_display_irqs_enabled &&
+ 	    intel_parent_irq_enabled(display)) {
++		u32 want = ~display->irq.vlv_imr_mask | vlv_mipic_ier(display);
++
+ 		ier = intel_de_read(display, VLV_IER);
+-		if (ier != ~display->irq.vlv_imr_mask)
++		if (ier != want)
+ 			drm_info(display->drm,
+ 				 "VLV_IER 0x%08x after display irq enable, restoring 0x%08x\n",
+-				 ier, ~display->irq.vlv_imr_mask);
+-		intel_de_write(display, VLV_IER, ~display->irq.vlv_imr_mask);
++				 ier, want);
++		intel_de_write(display, VLV_IER, want);
+ 	}
+ 	spin_unlock_irq(&display->irq.lock);
+ }
+diff --git a/drivers/gpu/drm/i915/display/intel_display_irq.h b/drivers/gpu/drm/i915/display/intel_display_irq.h
+index a1227ce..e259f5f 100644
+--- a/drivers/gpu/drm/i915/display/intel_display_irq.h
++++ b/drivers/gpu/drm/i915/display/intel_display_irq.h
+@@ -20,6 +20,8 @@ u32 xelpdp_pica_aux_mask(struct intel_display *display);
+ 
+ void valleyview_enable_display_irqs(struct intel_display *display);
+ void valleyview_disable_display_irqs(struct intel_display *display);
++void vlv_mipic_irq_arm(struct intel_display *display, bool arm);
++bool vlv_mipic_irq_armed(struct intel_display *display);
+ 
+ void ilk_update_display_irq(struct intel_display *display,
+ 			    u32 interrupt_mask, u32 enabled_irq_mask);
+diff --git a/drivers/gpu/drm/i915/display/intel_dsi.h b/drivers/gpu/drm/i915/display/intel_dsi.h
+index aaafa17..83d39c0 100644
+--- a/drivers/gpu/drm/i915/display/intel_dsi.h
++++ b/drivers/gpu/drm/i915/display/intel_dsi.h
+@@ -90,6 +90,14 @@ struct intel_dsi {
+ 		int deferred_trigger;
+ 		unsigned int deferred_no;
+ 		unsigned int post_underruns, post_stalls, post_samples, post_nonempty;
++		/*
++		 * 0018: underruns timed by the MIPI port interrupt, written by
++		 * the irq handler and read by the poller, both under
++		 * display->irq.lock.
++		 */
++		struct { ktime_t t; u32 frame, raw, stat; char port; } irq_ev[8];
++		unsigned int irq_ev_n, irq_ev_lost, irq_count;
++		bool irq_warned, irq_announced;
+ 	} ur;
+ 
+ 	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index 1d8eb6b..4824b2b 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -47,6 +47,7 @@
+ #include "intel_connector.h"
+ #include "intel_crtc.h"
+ #include "intel_de.h"
++#include "intel_display_irq.h"
+ #include "intel_display_regs.h"
+ #include "intel_display_types.h"
+ #include "intel_display_utils.h"
+@@ -786,6 +787,27 @@ module_param_named(vlv_dsi_resync_dwell_us, vlv_dsi_resync_dwell_us, int, 0644);
+ MODULE_PARM_DESC(vlv_dsi_resync_dwell_us,
+ 		 "VLV/CHV DSI resync method 1: time the pipe stays off after it turned off, us (default 3000)");
+ 
++/*
++ * 0018: time each underrun by the MIPI port interrupt (VLV_IIR bit 19, never
++ * used by i915) instead of the 5 ms poll, so that it can be lined up with
++ * flips, GPU work and other events in a trace: the handler records frame
++ * counter and scanline, clears the underrun bit and calls
++ * vlv_dsi_ur_irq_event() (a kprobe hook). VLV_IIR follows the level of
++ * MIPI_INTR_STAT, which keeps other bits latched (SPL_PKT_SENT from the
++ * TURN_ON/SHUTDOWN packets), so the interrupt is one shot: the poller clears
++ * SPL_PKT_SENT (only waited for in the enable/disable sequence, outside the
++ * poller's lifetime) and unmasks the interrupt only while MIPI_INTR_STAT is
++ * 0; the handler masks it again. Any other latched bit leaves it masked and
++ * the poller finds the underruns as before.
++ */
++static int vlv_dsi_ur_irq;
++module_param_named(vlv_dsi_ur_irq, vlv_dsi_ur_irq, int, 0444);
++MODULE_PARM_DESC(vlv_dsi_ur_irq,
++		 "VLV/CHV DSI: time DPI FIFO underruns by the MIPI port interrupt (diagnostic, default 0)");
++
++/* the encoder whose underruns the interrupt reports; under display->irq.lock */
++static struct intel_dsi *vlv_dsi_ur_irq_dsi;
++
+ #define UR_POLL_MS		5
+ #define UR_WINDOW_NS		(60 * NSEC_PER_MSEC)	/* pair/lone decision after the first underrun */
+ #define UR_STALL_LOOKBACK	9			/* polls (~45 ms) */
+@@ -874,6 +896,58 @@ out:
+ 	ur->fifo_pending = false;
+ }
+ 
++bool vlv_dsi_ur_irq_wanted(void)
++{
++	return vlv_dsi_ur_irq > 0;
++}
++
++/* kprobe hook for tracing: p:dsiur i915:vlv_dsi_ur_irq_event frame=$arg1:u32 ... */
++void vlv_dsi_ur_irq_event(u32 frame, u32 raw, u32 stat);
++noinline void vlv_dsi_ur_irq_event(u32 frame, u32 raw, u32 stat)
++{
++	barrier();
++}
++
++/* Hard irq context, from vlv_display_irq_ack() when VLV_IIR has the MIPI C bit. */
++void vlv_dsi_ur_irq_ack(struct intel_display *display)
++{
++	struct intel_dsi *intel_dsi;
++	struct vlv_dsi_ur *ur;
++	ktime_t now = ktime_get();
++	u32 frame, raw;
++	enum port port;
++
++	spin_lock(&display->irq.lock);
++	vlv_mipic_irq_arm(display, false);	/* one shot, the poller re-arms */
++	intel_dsi = vlv_dsi_ur_irq_dsi;
++	if (!intel_dsi)
++		goto out;
++	ur = &intel_dsi->ur;
++	ur->irq_count++;
++	frame = intel_de_read(display, PIPE_FRMCOUNT_G4X(display, ur->pipe));
++	raw = intel_de_read(display, PIPEDSL(display, ur->pipe)) & PIPEDSL_LINE_MASK;
++	for_each_dsi_port(port, intel_dsi->ports) {
++		u32 stat = intel_de_read(display, MIPI_INTR_STAT(display, port));
++
++		if (!(stat & DPI_FIFO_UNDERRUN))
++			continue;
++		intel_de_write(display, MIPI_INTR_STAT(display, port), DPI_FIFO_UNDERRUN);
++		vlv_dsi_ur_irq_event(frame, raw, stat);
++		if (ur->irq_ev_n < ARRAY_SIZE(ur->irq_ev)) {
++			ur->irq_ev[ur->irq_ev_n].t = now;
++			ur->irq_ev[ur->irq_ev_n].frame = frame;
++			ur->irq_ev[ur->irq_ev_n].raw = raw;
++			ur->irq_ev[ur->irq_ev_n].stat = stat;
++			ur->irq_ev[ur->irq_ev_n].port = port_name(port);
++			ur->irq_ev_n++;
++		} else {
++			ur->irq_ev_lost++;
++		}
++	}
++out:
++	spin_unlock(&display->irq.lock);
++}
++
+ static void vlv_dsi_request_resync(struct intel_dsi *intel_dsi, int trigger, unsigned int no)
+ {
+ 	struct intel_display *display = to_intel_display(&intel_dsi->base);
+@@ -920,25 +994,73 @@ static void vlv_dsi_underrun_work(struct work_struct *work)
+ 	u32 frame, raw;
+ 	s64 pos;
+ 	enum port port;
++	typeof(ur->irq_ev[0]) ev[ARRAY_SIZE(ur->irq_ev)];
++	unsigned int ev_n, ev_lost, i;
++	u32 poll_stat[I915_MAX_PORTS] = {}, left = 0;
++	bool irq = vlv_dsi_ur_irq_wanted(), armed = false;
+ 
+ 	if (!ur->enabled)
+ 		return;
+ 
+ 	pos = vlv_dsi_ur_position(intel_dsi, &frame, &raw);
+ 
++	/* under the irq lock: the handler clears the same bit */
++	spin_lock_irq(&display->irq.lock);
++	ev_n = ur->irq_ev_n;
++	ev_lost = ur->irq_ev_lost;
++	memcpy(ev, ur->irq_ev, sizeof(ev[0]) * ev_n);
++	ur->irq_ev_n = 0;
++	ur->irq_ev_lost = 0;
+ 	for_each_dsi_port(port, intel_dsi->ports) {
+ 		u32 stat = intel_de_read(display, MIPI_INTR_STAT(display, port));
+ 
+-		if (!(stat & DPI_FIFO_UNDERRUN))
+-			continue;
++		if (stat & DPI_FIFO_UNDERRUN) {
++			intel_de_write(display, MIPI_INTR_STAT(display, port), DPI_FIFO_UNDERRUN);
++			poll_stat[port] = stat;
++		}
++		if (irq && (stat & SPL_PKT_SENT_INTERRUPT))
++			intel_de_write(display, MIPI_INTR_STAT(display, port), SPL_PKT_SENT_INTERRUPT);
++		if (irq)
++			left |= intel_de_read(display, MIPI_INTR_STAT(display, port));
++	}
++	if (irq) {
++		armed = vlv_mipic_irq_armed(display);
++		if (!armed && !left) {
++			vlv_mipic_irq_arm(display, true);
++			armed = vlv_mipic_irq_armed(display);
++		}
++	}
++	spin_unlock_irq(&display->irq.lock);
+ 
+-		intel_de_write(display, MIPI_INTR_STAT(display, port), DPI_FIFO_UNDERRUN);
++	for (i = 0; i < ev_n; i++) {
+ 		drm_info(display->drm,
+-			 "DSI %c DPI FIFO underrun #%u: frame %u scanline %u INTR_STAT 0x%08x%s\n",
+-			 port_name(port), ++ur->underrun_count, frame, raw, stat,
++			 "DSI %c DPI FIFO underrun #%u: frame %u scanline %u INTR_STAT 0x%08x (irq, %lld us before the poll)%s\n",
++			 ev[i].port, ++ur->underrun_count, ev[i].frame, ev[i].raw, ev[i].stat,
++			 div_s64(ktime_sub(now, ev[i].t), 1000),
+ 			 ur->resync_running ? " (during resync)" : "");
+ 		underrun = true;
+ 	}
++	if (ev_lost)
++		drm_info(display->drm, "DSI DPI FIFO underrun irq: %u events not recorded\n", ev_lost);
++	for_each_dsi_port(port, intel_dsi->ports) {
++		if (!poll_stat[port])
++			continue;
++		drm_info(display->drm,
++			 "DSI %c DPI FIFO underrun #%u: frame %u scanline %u INTR_STAT 0x%08x%s%s\n",
++			 port_name(port), ++ur->underrun_count, frame, raw, poll_stat[port],
++			 irq ? " (poll)" : "",
++			 ur->resync_running ? " (during resync)" : "");
++		underrun = true;
++	}
++	if (irq && !armed && !ur->irq_warned) {
++		ur->irq_warned = true;
++		drm_info(display->drm,
++			 "DSI MIPI interrupt not armed: INTR_STAT bits 0x%08x latched; underruns are polled\n",
++			 left);
++	} else if (irq && armed && !ur->irq_announced) {
++		ur->irq_announced = true;
++		drm_info(display->drm, "DSI MIPI interrupt armed: underruns are timed by the interrupt\n");
++	}
+ 
+ 	/*
+ 	 * Pipe stall detection: hardware position (frame * vtotal + line)
+@@ -1381,6 +1503,7 @@ static void vlv_dsi_resync_work(struct work_struct *work)
+ static void vlv_dsi_ur_enable(struct intel_dsi *intel_dsi,
+ 			      const struct intel_crtc_state *crtc_state)
+ {
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
+ 	struct vlv_dsi_ur *ur = &intel_dsi->ur;
+ 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+ 	const struct drm_display_mode *mode = &crtc_state->hw.adjusted_mode;
+@@ -1405,6 +1528,12 @@ static void vlv_dsi_ur_enable(struct intel_dsi *intel_dsi,
+ 	ur->fifo_state = -1;
+ 	ur->post_pending = false;
+ 	ur->deferred = false;
++	ur->irq_warned = false;
++	spin_lock_irq(&display->irq.lock);
++	ur->irq_ev_n = 0;
++	ur->irq_ev_lost = 0;
++	vlv_dsi_ur_irq_dsi = intel_dsi;
++	spin_unlock_irq(&display->irq.lock);
+ 	ur->enable_t = ktime_get();
+ 	ur->enabled = true;
+ 	schedule_delayed_work(&ur->underrun_work, msecs_to_jiffies(20));
+@@ -1412,6 +1541,7 @@ static void vlv_dsi_ur_enable(struct intel_dsi *intel_dsi,
+ 
+ static void vlv_dsi_ur_disable(struct intel_dsi *intel_dsi)
+ {
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
+ 	struct vlv_dsi_ur *ur = &intel_dsi->ur;
+ 
+ 	/*
+@@ -1425,6 +1555,11 @@ static void vlv_dsi_ur_disable(struct intel_dsi *intel_dsi)
+ 	ur->enabled = false;
+ 	cancel_delayed_work_sync(&ur->underrun_work);
+ 	drm_vblank_work_cancel_sync(&ur->fifo_work);
++	/* before the SHUTDOWN packet latches SPL_PKT_SENT */
++	spin_lock_irq(&display->irq.lock);
++	vlv_mipic_irq_arm(display, false);
++	vlv_dsi_ur_irq_dsi = NULL;
++	spin_unlock_irq(&display->irq.lock);
+ 	/*
+ 	 * resync_work is not cancelled here: it waits for the modeset locks a
+ 	 * blocking commit holds while running this, and once it gets them it
+@@ -1435,9 +1570,16 @@ static void vlv_dsi_ur_disable(struct intel_dsi *intel_dsi)
+ static void vlv_dsi_encoder_destroy(struct drm_encoder *encoder)
+ {
+ 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(encoder));
++	struct intel_display *display = to_intel_display(&intel_dsi->base);
+ 
+ 	cancel_work_sync(&intel_dsi->ur.resync_work);
+ 	cancel_delayed_work_sync(&intel_dsi->ur.underrun_work);
++	spin_lock_irq(&display->irq.lock);
++	if (vlv_dsi_ur_irq_dsi == intel_dsi) {
++		vlv_mipic_irq_arm(display, false);
++		vlv_dsi_ur_irq_dsi = NULL;
++	}
++	spin_unlock_irq(&display->irq.lock);
+ 	intel_encoder_destroy(encoder);
+ }
+ 
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.h b/drivers/gpu/drm/i915/display/vlv_dsi.h
+index ff349b5..a020f95 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.h
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.h
+@@ -15,6 +15,8 @@ struct intel_dsi;
+ void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
+ int vlv_dsi_min_cdclk(const struct intel_crtc_state *crtc_state);
+ void vlv_dsi_init(struct intel_display *display);
++bool vlv_dsi_ur_irq_wanted(void);
++void vlv_dsi_ur_irq_ack(struct intel_display *display);
+ #else
+ static inline void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
+ {
+@@ -26,6 +28,13 @@ static inline int vlv_dsi_min_cdclk(const struct intel_crtc_state *crtc_state)
+ static inline void vlv_dsi_init(struct intel_display *display)
+ {
+ }
++static inline bool vlv_dsi_ur_irq_wanted(void)
++{
++	return false;
++}
++static inline void vlv_dsi_ur_irq_ack(struct intel_display *display)
++{
++}
+ #endif
+ 
+ #endif /* __VLV_DSI_H__ */
+-- 
+2.56.0
+
