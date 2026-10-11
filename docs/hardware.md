@@ -225,7 +225,9 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   It is a WirePlumber smart filter bound to `HiFi__Speaker__sink`: the headphones are a separate sink
   (`HiFi__Headphones__sink`), so they and Bluetooth bypass it. The volume (`@DEFAULT_AUDIO_SINK@`, still the
   speaker sink) applies after the compressor. Costs ~40 µs per audio cycle. Tune by editing the controls and
-  `systemctl --user restart pipewire`; off: delete the file (and its manifest line).
+  `systemctl --user restart pipewire`, or live with **Super+C** while a game plays (`scripts/speaker-tune`: arrows
+  select/change, b bypass, s save into the config, r revert, Esc done; the game keeps focus); off: delete the file
+  (and its manifest line).
 
 ## Audio after hibernation (2026-10-08, solved 2026-10-09)
 - After waking from hibernation the rt5645 codec reported headphones (and mic) plugged in with

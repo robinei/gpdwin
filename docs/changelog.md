@@ -535,3 +535,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   the session diffs, explains, proposes capture / install --force / merge and applies after the user agrees (CLAUDE.md,
   /maintain step 1). `install --force` needs explicit paths. PPSSPP `ppsspp.ini` and `controls.ini` added as keep entries.
 - MangoHud toggle back to Ctrl+Shift+F12: RetroArch now uses `=` for the next save-state slot (and ignores modifiers).
+- `scripts/speaker-tune` (Super+C): tune the speaker compressor live while a game plays (sway mode keeps the game focused, a no-focus window shows the values; bypass, save into the config, revert).
