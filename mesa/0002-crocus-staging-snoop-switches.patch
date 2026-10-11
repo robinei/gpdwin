@@ -1,0 +1,95 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Sun, 11 Oct 2026 22:34:12 +0200
+Subject: [PATCH 2/2] crocus: switches for staging snooping and the MOCS of
+ snooped BOs (GPD test)
+
+GPD TEST: no change unless CROCUS_STAGING_NOSNOOP=1 or
+CROCUS_SNOOP_UC_MOCS=1.
+
+On non-LLC parts crocus makes every PIPE_USAGE_STAGING BO snooped
+(I915_CACHING_CACHED), which also makes it non-reusable. On a GPD Win 1
+(CHV) the render engine blitting from such a staging texture every frame
+triggers DSI display underruns; render-engine reads of other snooped
+BOs with the external MOCS did not.
+- CROCUS_STAGING_NOSNOOP=1: staging BOs are not snooped (WC map).
+- CROCUS_SNOOP_UC_MOCS=1: snooped BOs on a non-LLC part are accessed
+  with the external (uncached) MOCS instead of the internal one.
+---
+ src/gallium/drivers/crocus/crocus_resource.c | 20 +++++++++++++++++++-
+ src/gallium/drivers/crocus/crocus_resource.h | 10 +++++++++-
+ 2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/gallium/drivers/crocus/crocus_resource.c b/src/gallium/drivers/crocus/crocus_resource.c
+index e054fca..7d58cac 100644
+--- a/src/gallium/drivers/crocus/crocus_resource.c
++++ b/src/gallium/drivers/crocus/crocus_resource.c
+@@ -45,6 +45,7 @@
+ #include "util/u_upload_mgr.h"
+ #include "util/ralloc.h"
+ #include "util/u_memory.h"
++#include "util/u_debug.h"
+ #include "crocus_batch.h"
+ #include "crocus_context.h"
+ #include "crocus_resource.h"
+@@ -62,6 +63,23 @@ enum modifier_priority {
+    MODIFIER_PRIORITY_Y_CCS,
+ };
+ 
++
++/* GPD test switches (environment), see crocus_resource.h. */
++DEBUG_GET_ONCE_BOOL_OPTION(crocus_staging_nosnoop, "CROCUS_STAGING_NOSNOOP", false)
++DEBUG_GET_ONCE_BOOL_OPTION(crocus_snoop_uc_mocs, "CROCUS_SNOOP_UC_MOCS", false)
++
++bool
++crocus_debug_staging_nosnoop(void)
++{
++   return debug_get_option_crocus_staging_nosnoop();
++}
++
++bool
++crocus_debug_snoop_uc_mocs(void)
++{
++   return debug_get_option_crocus_snoop_uc_mocs();
++}
++
+ static const uint64_t priority_to_modifier[] = {
+    [MODIFIER_PRIORITY_INVALID] = DRM_FORMAT_MOD_INVALID,
+    [MODIFIER_PRIORITY_LINEAR] = DRM_FORMAT_MOD_LINEAR,
+@@ -662,7 +680,7 @@ crocus_resource_create_with_modifiers(struct pipe_screen *pscreen,
+    const char *name = "miptree";
+ 
+    unsigned int flags = 0;
+-   if (templ->usage == PIPE_USAGE_STAGING)
++   if (templ->usage == PIPE_USAGE_STAGING && !crocus_debug_staging_nosnoop())
+       flags |= BO_ALLOC_COHERENT;
+ 
+    /* Scanout buffers need to be WC. */
+diff --git a/src/gallium/drivers/crocus/crocus_resource.h b/src/gallium/drivers/crocus/crocus_resource.h
+index 75a596d..42638cf 100644
+--- a/src/gallium/drivers/crocus/crocus_resource.h
++++ b/src/gallium/drivers/crocus/crocus_resource.h
+@@ -296,11 +296,19 @@ crocus_resource_bo(struct pipe_resource *p_res)
+    return res->bo;
+ }
+ 
++bool crocus_debug_staging_nosnoop(void);
++bool crocus_debug_snoop_uc_mocs(void);
++
+ static inline uint32_t
+ crocus_mocs(const struct crocus_bo *bo,
+             const struct isl_device *dev)
+ {
+-   return isl_mocs(dev, 0, bo && crocus_bo_is_external(bo));
++   /* GPD test switch: snooped BOs on a non-LLC part read with the external
++    * (uncached) MOCS instead of the cacheable internal one.
++    */
++   bool uc = bo && bo->cache_coherent && !dev->info->has_llc &&
++             crocus_debug_snoop_uc_mocs();
++   return isl_mocs(dev, 0, bo && (crocus_bo_is_external(bo) || uc));
+ }
+ 
+ struct crocus_format_info crocus_format_for_usage(const struct intel_device_info *,
+-- 
+2.56.0
+

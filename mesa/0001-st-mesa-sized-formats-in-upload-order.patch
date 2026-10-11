@@ -1,0 +1,120 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Sun, 11 Oct 2026 22:34:12 +0200
+Subject: [PATCH 1/2] st/mesa: store sized formats in the upload's channel
+ order (GPD test switch)
+
+GPD TEST: active only with MESA_ST_MATCH_SIZED=1.
+
+For an unsized internal format st_choose_format() already picks the
+pipe format that matches the upload format/type exactly, so that
+glTexSubImage is a plain copy. A sized format such as GL_RGBA8 always
+takes the first supported format from the table (R8G8B8A8_UNORM), so
+the common desktop-GL pattern glTexImage2D(GL_RGBA8, GL_BGRA,
+GL_UNSIGNED_BYTE) (SDL's opengl renderer, Wine) makes every upload a
+conversion: st_TexSubImage copies the data into a staging texture and
+blits it on the GPU. On a GPD Win 1 (CHV, crocus) that path costs
+~1 ms per frame on average, ~5 ms in at least 10 % of frames, and
+triggers DSI display underruns.
+
+When the data's format is a permutation of the chosen format (same
+channels, bit sizes, types, colour space, alpha), choose the matching
+format instead. Only glTexImage passes a format/type here; immutable
+textures (glTexStorage, texture views) are unaffected.
+---
+ src/mesa/state_tracker/st_format.c | 65 ++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)
+
+diff --git a/src/mesa/state_tracker/st_format.c b/src/mesa/state_tracker/st_format.c
+index 7e50e49..cc0b54e 100644
+--- a/src/mesa/state_tracker/st_format.c
++++ b/src/mesa/state_tracker/st_format.c
+@@ -49,6 +49,7 @@
+ #include "pipe/p_defines.h"
+ #include "pipe/p_screen.h"
+ #include "util/format/u_format.h"
++#include "util/u_debug.h"
+ #include "st_cb_texture.h"
+ #include "st_context.h"
+ #include "st_format.h"
+@@ -1185,6 +1186,48 @@ find_supported_format(struct pipe_screen *screen,
+  *                   specific compressed format.  And that should only happen
+  *                   when we're getting called from gl[Copy]TexImage().
+  */
++/* GPD test switch: MESA_ST_MATCH_SIZED=1 enables sized-format matching below. */
++DEBUG_GET_ONCE_BOOL_OPTION(st_match_sized, "MESA_ST_MATCH_SIZED", false)
++
++/**
++ * Whether two plain formats store the same channels with the same bit sizes
++ * and types, only in a different order (e.g. R8G8B8A8_UNORM and
++ * B8G8R8A8_UNORM), so either satisfies the same sized internal format.
++ */
++static bool
++same_channels_permuted(enum pipe_format a, enum pipe_format b)
++{
++   const struct util_format_description *da = util_format_description(a);
++   const struct util_format_description *db = util_format_description(b);
++   bool used[4] = { false };
++
++   if (!da || !db ||
++       da->layout != UTIL_FORMAT_LAYOUT_PLAIN ||
++       db->layout != UTIL_FORMAT_LAYOUT_PLAIN ||
++       da->block.bits != db->block.bits ||
++       da->nr_channels != db->nr_channels ||
++       da->colorspace != db->colorspace ||
++       util_format_is_srgb(a) != util_format_is_srgb(b) ||
++       util_format_has_alpha(a) != util_format_has_alpha(b))
++      return false;
++
++   for (unsigned i = 0; i < da->nr_channels; i++) {
++      unsigned j;
++      for (j = 0; j < db->nr_channels; j++) {
++         if (!used[j] &&
++             da->channel[i].type == db->channel[j].type &&
++             da->channel[i].size == db->channel[j].size &&
++             da->channel[i].normalized == db->channel[j].normalized &&
++             da->channel[i].pure_integer == db->channel[j].pure_integer)
++            break;
++      }
++      if (j == db->nr_channels)
++         return false;
++      used[j] = true;
++   }
++   return true;
++}
++
+ enum pipe_format
+ st_choose_format(struct st_context *st, GLenum internalFormat,
+                  GLenum format, GLenum type,
+@@ -1234,6 +1277,28 @@ st_choose_format(struct st_context *st, GLenum internalFormat,
+                                        target, sample_count,
+                                        storage_sample_count, bindings,
+                                        allow_dxt);
++
++            /* A sized internal format fixes the bits per channel, not their
++             * order: if the data comes in a permutation of the chosen format
++             * (GL_RGBA8 with GL_BGRA data), store it in that order, as is done
++             * for unsized formats above, so that uploads are a plain copy
++             * instead of a conversion through a staging texture.
++             */
++            if (debug_get_option_st_match_sized() &&
++                pf != PIPE_FORMAT_NONE && format != 0 &&
++                _mesa_is_type_unsigned(type)) {
++               enum pipe_format mpf =
++                  st_choose_matching_format(st, bindings, format, type,
++                                            swap_bytes);
++
++               if (mpf != PIPE_FORMAT_NONE && mpf != pf &&
++                   same_channels_permuted(mpf, pf) &&
++                   screen->is_format_supported(screen, mpf, target,
++                                               sample_count,
++                                               storage_sample_count,
++                                               bindings))
++                  pf = mpf;
++            }
+             goto success;
+          }
+       }
+-- 
+2.56.0
+

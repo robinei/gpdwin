@@ -581,3 +581,9 @@ Details before 2026-10-06 are in `docs/archive/`.
   texture + render-engine blit (SDL opengl's GL_RGBA8/GL_BGRA mismatch; sway with a busy shm texture), not the CPU WC
   copy. Ranked fix candidates in the report, none implemented. During R4 the investigator turned the idle panel on once
   (`swaymsg output DSI-1 power on`, 21:12) to run tests.
+
+## 2026-10-11 — Vendored Mesa (test build)
+- New `mesa/`: Arch's mesa PKGBUILD 1:26.2.4-1 (`PKGBUILD.arch`) + two patches, release 1.1, built on the desktop in
+  a clean devtools chroot (`mesa/build.sh`). Patch 0001 (st: store GL_RGBA8 as BGRA when the data is BGRA) and 0002
+  (crocus: staging snoop / MOCS) are test switches, off unless `MESA_ST_MATCH_SIZED`, `CROCUS_STAGING_NOSNOOP` or
+  `CROCUS_SNOOP_UC_MOCS` is set. Nothing installed on the GPD yet. See mesa/README.md.
