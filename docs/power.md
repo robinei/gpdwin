@@ -61,8 +61,9 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - `/usr/local/bin/charge-limit` sets 4.144 V (~80% on such cells) and makes the file wheel-writable;
   run by `charge-limit.service` at boot (enabled by hand, waits up to 60 s for the charger) and by
   `90-charge-limit.rules` when the driver (re)registers; both log to `journalctl -t charge-limit` /
-  `-u charge-limit`. The rule alone failed at the 2026-10-12 00:29 boot: udev never processed the
-  power_supply add events (no USEC_INITIALIZED on any of them), so it stayed at 4.384 V. The driver
+  `-u charge-limit`. At boot only the service applies it (checked at two boots, 2026-10-12): udev never
+  processes the power_supply add events then (no USEC_INITIALIZED on any of them), so the rule
+  alone left 4.384 V; a manual `udevadm trigger` does run it. The driver
   keeps the value and rewrites it on resume. Voltage is what stresses the cells
   (with heat), so this limits wear and swelling directly; no daemon, the chip stops by itself.
 - Charge-path: the bq24292i powers the system from the adapter; once charged the battery rests
