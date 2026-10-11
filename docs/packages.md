@@ -37,8 +37,8 @@ truth; this explains the choices.
   (battery detection) cover both; replaces multilib's `lib32-mangohud`. See frontend.md.
 - Native game libs: `sdl2_net` (Strife: Veteran Edition, 2026-10-08).
 - Build: `base-devel git` (AUR builds). `python` is explicit (scripts). `gcc` (base-devel) also builds `src/*.c`.
-- Kept on purpose (marked explicit 2026-10-11 so they stop showing up as orphans): `cmake meson python-mako qt5-tools vulkan-headers lib32-glew` (build tools/headers for AUR and source builds).
   `clang` came with zelda3-git and is build-only (~100 MB+).
+- Kept on purpose (marked explicit 2026-10-11 so they stop showing up as orphans): `cmake meson python-mako qt5-tools vulkan-headers lib32-glew` (build tools/headers for AUR and source builds).
 - Installed by the user or other work: `firefox`, `yazi`, `7zip`.
 - Network: hostname `gpdwin.lan` via the router's DNS (iwd sends the hostname: `[IPv4]
   SendHostname=true` in `/var/lib/iwd/VennensVenner.psk`, not in the repo because it holds the
