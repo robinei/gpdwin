@@ -17,6 +17,7 @@ mkdir -p /tmp/mesabench && cd /tmp/mesabench
 [ -x colorcheck ] || cc -O2 -o colorcheck "$S/colorcheck.c" -lEGL -lGL || exit 1
 [ -x readtime ] || cc -O2 -o readtime "$S/readtime.c" -lEGL -lGL || exit 1
 [ -x burst3 ] || cc -O2 -o burst3 "$S/burst.c" $(pkg-config --cflags --libs sdl3) || exit 1
+[ -x drawbench ] || cc -O2 -o drawbench "$S/drawbench.c" -lEGL -lGL || exit 1
 if pgrep -x 'devilutionx|retroarch|ppsspp|zelda3' >/dev/null || pgrep -f wine >/dev/null; then echo "a game is running"; exit 1; fi
 {
 echo "== $label $(date -Is) $(./colorcheck | head -1)"
@@ -46,5 +47,7 @@ done
 f=$(timeout 60 ./burst3 -m full -n -t 20 -r vulkan 2>/dev/null | tail -1 | awk '{print $1}')
 echo "burst -m full -n -r vulkan (hasvk, 20 s): $f frames = $((f / 20)) fps"
 ./readtime | sed -n 2,5p
+./drawbench 2000 150
+mesa_glthread=true ./drawbench 2000 150 | sed "s/^/glthread: /"
 } > $out 2>&1
 cat $out
