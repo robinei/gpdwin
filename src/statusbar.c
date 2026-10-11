@@ -303,8 +303,10 @@ static void emit(void)
         block(TEXT, LINE, "%s", st.ssid[0] ? st.ssid : "wifi");
     if (st.volume < 0)
         block(DIM, LINE, "vol ?");
+    else if (st.muted)
+        block(DIM, LINE, "vol muted");
     else
-        block(st.muted ? DIM : TEXT, LINE, "%s %d%%", st.muted ? "muted" : "vol", st.volume);
+        block(TEXT, LINE, "vol %d%%", st.volume);
     if (st.battery < 0)
         block(DIM, LINE, "bat ?");
     else if (st.plugged && strcmp(st.charge, "Full") == 0)

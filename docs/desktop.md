@@ -4,7 +4,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
 
 - `config`: stock `/etc/sway/config` plus: `$menu` = fuzzel, `Mod+Backspace` kill, `Mod+Shift+Backspace` force-kill (`force-kill.sh`: TERM, then KILL after 1 s),
   `output DSI-1 transform 90`, volume/brightness keys → `osd.sh`, brightness on `Mod+volume`
-  keys (the device has no brightness keys), turbo toggles on `Mod4+F11/F12`, panel resync on `Mod4+F10`. Includes `theme`,
+  keys (the device has no brightness keys), mute toggle on `Mod4+m` (no mute key either; the bar
+  then shows `vol muted`), turbo toggles on `Mod4+F11/F12`, panel resync on `Mod4+F10`. Includes `theme`,
   `autostart`, `handheld`.
 - `theme`: Catppuccin Mocha palette, `default_border pixel 1`, muted focus colours, no title
   bars, `gaps inner 4` with `smart_gaps`/`smart_borders` (lone windows have no border/gap),
