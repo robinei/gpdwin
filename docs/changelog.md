@@ -507,3 +507,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Boot: external display connectors (DP-1/2, HDMI-A-1/2) forced off with video=...:d (mini-HDMI not used); sway no longer probes the empty ports at startup (~0.25 s).
 - sway: built-in wlroots cursor (`seat * xcursor_theme none 24`) instead of loading Adwaita at startup (~0.16 s cold).
 - Boot: gpu-prefetch.service loads the Mesa/LLVM driver into the page cache at sysinit (nothing waits for it); sway then finds it cached (driver load 0.50 s cold -> 0.07 s).
+- Boot: the pam_systemd_home removal did not shorten the login wait (still ~1.45 s, measured); reverted to pambase's system-auth. With the connector, cursor and GPU-prefetch changes shelf now starts at 14.2 s after kernel start (was 15.6): sway 1.66 s from start to its exec lines (was 2.83).

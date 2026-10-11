@@ -41,12 +41,10 @@ after kernel start (was 16s).
 
 ## Where the time goes after the kernel (2026-10-11, from the journal, process start times and one
 ## boot with `sway -d`; seconds after kernel start)
-- getty@tty1 ~9.8, autologin session opened ~11.3: login waited ~1.4 s for `pam_systemd_home`. It
-  asks D-Bus to start systemd-homed (not used here), and at boot systemd only answers that once the
-  boot transaction has finished ("Startup finished" is logged just before). Fixed: `system-auth`
-  without the four `pam_systemd_home` lines (`system/etc/pam.d/system-auth`, manifest copy; on
-  pambase updates merge the .pacnew and keep them out). Their skip counts point forward from
-  themselves, so removing them changes no other line's jumps. Tested: sudo and ssh logins work.
+- getty@tty1 ~10.3, autologin session opened ~11.8: ~1.45 s between agetty starting and login's
+  "session opened", ending just after "Startup finished" in every boot. Not `pam_systemd_home`
+  (its failed homed activation is logged just before, but removing it from `system-auth` changed
+  nothing: tried and reverted 2026-10-11). Cause not found yet.
 - User manager ~0.4 s, then fish execs sway (~12.7).
 - sway until it runs its `exec` lines: ~2.3 s, no single stall: Mesa + LLVM load (cold from eMMC)
   0.63 s, EGL/GL renderer setup 0.48 s, config incl. fonts 0.3 s, libinput 0.23 s, cursor theme
