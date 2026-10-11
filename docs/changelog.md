@@ -610,3 +610,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - `lib32-mesa` 1:26.2.4-1.2 installed (`mesa/lib32/`, Arch's lib32-mesa PKGBUILD + the same patch, multilib chroot
   build `mesa/build.sh lib32`); Arch's package saved in `/var/cache/gpd-mesa-stock`. `mesa/install.sh` and
   `rollback.sh` now handle both packages.
+- DSI logs of the 2026-10-11 test boots saved (`kernel/dsi-investigation/data/dsi-log-2026-10-11-*.log`); open
+  items listed at the top of FINDINGS.md; CLAUDE.md notes that Mesa is our build. Rebooted 00:29: normal i915
+  DKMS module, patched Mesa in use everywhere.

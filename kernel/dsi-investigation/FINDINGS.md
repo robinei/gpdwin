@@ -43,6 +43,17 @@ snooped memory another way triggered it). Candidate fix covering SDL and sway: c
 (R4 section on fixes); not implemented. 0012/0017 stay as the safety net.
 **Mesa fix tested 2026-10-11 (mesa/README.md):** with crocus staging BOs not snooped, 0 events in 10 min (205
 without), upload 1.14 ms instead of 3.73 ms; storing GL_RGBA8+BGRA as BGRA (CPU copy) also 0 events, 2.64 ms.
+**State 2026-10-12 and open items:** patched `mesa`/`lib32-mesa` 1:26.2.4-1.2 installed (`mesa/`, docs/packages.md);
+i915 DKMS stack unchanged (0001, 0011-0017). Open:
+- Watch real use for 1-2 weeks: `journalctl -k | grep classified` (raw logs of the test boots:
+  `data/dsi-log-2026-10-11-*.log`). None: slim the i915 stack to 0001 + 0015 (drop 0011-0014, 0016, 0017);
+  some: find the remaining trigger from the timestamps.
+- Mesa updates: an Arch release replaces ours (stock behaviour); `scripts/maintain`/`update` do not warn yet.
+- Mesa patch form: the installed one keeps readback staging snooped; unscoped (no snooping for any staging
+  texture on non-LLC) measured faster for readback too (mesa/README.md) and is the better upstream candidate.
+- Upstream drafts for Robin to decide: i915 0001 and 0015, the crocus patch with the measurements.
+- Cleanup: /var/tmp/dsi-trace (~380 MB) and /tmp test files on the GPD; desktop
+  `/etc/sudoers.d/90-robin-timestamp`; the desktop build chroots in /var/lib/archbuild/gpd-*.
 **Traced 2026-10-11:** every underrun comes ~0.5 ms after DevilutionX submits its per-frame GPU work; not the Punit's
 GT frequency/RC6 handling (section "Trace around each underrun"), not memory self-refresh (0019). **Reproduced on
 demand:** the per-frame texture upload is the trigger (`scripts/burst.c`, 66 events in 10 min with upload only, 0

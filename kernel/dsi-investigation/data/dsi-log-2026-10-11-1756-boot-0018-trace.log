@@ -1,0 +1,45 @@
+2026-10-11T17:56:27+02:00 archlinux kernel: i915 0000:00:02.0: [drm] DSI underrun poller started on fastset
+2026-10-11T17:56:27+02:00 archlinux kernel: i915 0000:00:02.0: [drm] DSI MIPI interrupt armed: underruns are timed by the interrupt
+2026-10-11T17:56:27+02:00 archlinux kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #1: scanline 1300 empty 1 GEN_FIFO_STAT 0x1e060606
+2026-10-11T17:56:29+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #2: scanline 1299 empty 1 GEN_FIFO_STAT 0x1e060606
+2026-10-11T17:56:30+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #3: scanline 1296 empty 1 GEN_FIFO_STAT 0x1e060606
+2026-10-11T17:56:30+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO in vblank now EMPTY: aligned (3 consecutive; last scanline 1296 GEN_FIFO_STAT 0x1e060606; samples 3, non-empty 0, invalid 6)
+2026-10-11T17:56:30+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #4: scanline 1295 empty 1 GEN_FIFO_STAT 0x1e060606
+2026-10-11T17:56:30+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #5: scanline 1296 empty 1 GEN_FIFO_STAT 0x1e060606
+2026-10-11T17:56:31+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI DPI FIFO vblank sample #6: scanline 1296 empty 1 GEN_FIFO_STAT 0x1e060606
+2026-10-11T18:01:47+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #1: frame 20049 scanline 948 INTR_STAT 0x00100000 (irq, 729 us before the poll)
+2026-10-11T18:01:47+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #2: frame 20049 scanline 1279 INTR_STAT 0x00100000 (irq, 2044 us before the poll)
+2026-10-11T18:01:47+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #1: 1994 lines lost over 57931 us (frame 20049 scanline 1279)
+2026-10-11T18:01:47+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #1 classified: PAIR (hardware realigned): 2 underruns in 66 ms, stall yes; totals lone 0 pair 1
+2026-10-11T18:02:39+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #3: frame 23226 scanline 941 INTR_STAT 0x00100000 (irq, 700 us before the poll)
+2026-10-11T18:02:39+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #4: frame 23226 scanline 1279 INTR_STAT 0x00100000 (irq, 1774 us before the poll)
+2026-10-11T18:02:39+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #2: 1992 lines lost over 54181 us (frame 23226 scanline 1279)
+2026-10-11T18:02:40+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #3 classified: PAIR (hardware realigned): 2 underruns in 60 ms, stall yes; totals lone 0 pair 2
+2026-10-11T18:06:51+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #5: frame 38370 scanline 893 INTR_STAT 0x00100000 (irq, 4021 us before the poll)
+2026-10-11T18:06:51+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #6: frame 38370 scanline 1279 INTR_STAT 0x00100000 (irq, 4435 us before the poll)
+2026-10-11T18:06:51+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #3: 1350 lines lost over 65028 us (frame 38371 scanline 306)
+2026-10-11T18:06:51+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #5 classified: PAIR (hardware realigned): 2 underruns in 66 ms, stall yes; totals lone 0 pair 3
+2026-10-11T18:15:37+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #7: frame 70045 scanline 845 INTR_STAT 0x00100000 (poll)
+2026-10-11T18:15:37+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #8: frame 70045 scanline 1279 INTR_STAT 0x00100000 (poll)
+2026-10-11T18:15:37+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #4: 1825 lines lost over 54734 us (frame 70045 scanline 1279)
+2026-10-11T18:15:37+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #7 classified: PAIR (hardware realigned): 2 underruns in 61 ms, stall yes; totals lone 0 pair 4
+2026-10-11T18:17:01+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #9: frame 75099 scanline 886 INTR_STAT 0x00100000 (irq, 1823 us before the poll)
+2026-10-11T18:17:01+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #10: frame 75099 scanline 1279 INTR_STAT 0x00100000 (irq, 2381 us before the poll)
+2026-10-11T18:17:01+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #5: 1998 lines lost over 55061 us (frame 75099 scanline 1279)
+2026-10-11T18:17:01+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #9 classified: PAIR (hardware realigned): 2 underruns in 63 ms, stall yes; totals lone 0 pair 5
+2026-10-11T18:17:45+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #11: frame 77737 scanline 940 INTR_STAT 0x00100000 (irq, 4642 us before the poll)
+2026-10-11T18:17:45+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #12: frame 77737 scanline 1279 INTR_STAT 0x00100000 (irq, 7055 us before the poll)
+2026-10-11T18:17:45+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #6: 2375 lines lost over 58862 us (frame 77737 scanline 1279)
+2026-10-11T18:17:45+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #11 classified: PAIR (hardware realigned): 2 underruns in 61 ms, stall yes; totals lone 0 pair 6
+2026-10-11T18:18:31+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #13: frame 80515 scanline 900 INTR_STAT 0x00100000 (irq, 4704 us before the poll)
+2026-10-11T18:18:31+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #14: frame 80515 scanline 1279 INTR_STAT 0x00100000 (irq, 5525 us before the poll)
+2026-10-11T18:18:31+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #7: 2276 lines lost over 56365 us (frame 80515 scanline 1279)
+2026-10-11T18:18:31+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #13 classified: PAIR (hardware realigned): 2 underruns in 62 ms, stall yes; totals lone 0 pair 7
+2026-10-11T18:23:22+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #15: frame 98036 scanline 783 INTR_STAT 0x00100000 (irq, 570 us before the poll)
+2026-10-11T18:23:22+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #16: frame 98036 scanline 1279 INTR_STAT 0x00100000 (irq, -300 us before the poll)
+2026-10-11T18:23:22+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #8: 1820 lines lost over 56872 us (frame 98036 scanline 1279)
+2026-10-11T18:23:22+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #15 classified: PAIR (hardware realigned): 2 underruns in 62 ms, stall yes; totals lone 0 pair 8
+2026-10-11T18:29:26+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #17: frame 119974 scanline 264 INTR_STAT 0x00100000 (irq, 963 us before the poll)
+2026-10-11T18:29:26+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI C DPI FIFO underrun #18: frame 119974 scanline 1279 INTR_STAT 0x00100000 (irq, 132 us before the poll)
+2026-10-11T18:29:26+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI pipe B stall #9: 1785 lines lost over 54939 us (frame 119974 scanline 1279)
+2026-10-11T18:29:27+02:00 gpdwin kernel: i915 0000:00:02.0: [drm] DSI underrun #17 classified: PAIR (hardware realigned): 2 underruns in 60 ms, stall yes; totals lone 0 pair 9
