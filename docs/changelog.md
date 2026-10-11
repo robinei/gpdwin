@@ -517,3 +517,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   modifiers, so Super+H also fired RetroArch's Reset (`input_reset = "h"`).
 - MangoHud toggle moved again, to Ctrl+Shift+= (Ctrl+Shift+F12 conflicted with something else).
 - Volume/brightness keys: held-key repeats are dropped while a step runs (`flock -n` in osd.sh). Each step took ~165 ms against a 40 ms repeat, so overlapping copies stuttered and finished out of order.
+- Sam & Max 101 capped at 30 fps: `MANGOHUD_CONFIG="read_cfg,fps_limit=30"` in its `gpd-launch.sh` (outside the repo). Revert: delete that line.

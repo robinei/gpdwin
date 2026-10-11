@@ -334,6 +334,9 @@ when it's no longer wanted.
   /desktop=samandmax,1280x720 "$PWD/sammax101.exe"`, old-style Wine as before; sway fullscreens the
   desktop window). Options works, no speed loss. The plain launcher is
   `old-launchers/gpd-launch-fullscreen.sh`. The game has no gamepad support (mouse only).
+  Capped at 30 fps (2026-10-11): `export MANGOHUD_CONFIG="read_cfg,fps_limit=30"` in `gpd-launch.sh`
+  (MangoHud's limiter; `read_cfg` keeps the main MangoHud.conf, which MANGOHUD_CONFIG otherwise replaces).
+  The same line caps any other game shelf starts.
 
 - **WoW64 Wine vs old-style Wine (2026-10-09, measured on Sam & Max, Telltale D3D8, 32-bit):** the system
   `wine` (Arch, new WoW64 build, no 32-bit unix side) ran Wine's OpenGL D3D path at ~5 fps with two
