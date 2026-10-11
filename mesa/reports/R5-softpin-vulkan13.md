@@ -130,7 +130,23 @@ kernel ≈ 0 (steady state), userspace = `emit_reloc` (`crocus_batch.c:376-430`:
 profile below. [H] From the per-draw difference 32 vs 4 distinct textures (9.3 vs 6.5 µs) only part is relocs
 (the rest is surface-state/binding-table emission and BO bookkeeping that softpin keeps).
 
-PROFILE_PLACEHOLDER
+[M] `perf record -e cpu-clock:u` (user space only; `perf_event_paranoid = 2`) of `glb` with the 1.4 build and its
+debug symbols, whole process (GL state tracker + crocus):
+
+| symbol | 64 draws, 8 per batch | 64 draws, 1 batch |
+|---|---|---|
+| `crocus_upload_render_state` | 4.8 % | 4.9 % |
+| `isl_gfx8_surf_fill_state_s` | 3.0 % | 3.6 % |
+| `crocus_update_compiled_shaders` | 3.3 % | 3.0 % |
+| **`emit_reloc`** (reloc list append + presumed address) | 1.2 % | 2.5 % |
+| `crocus_use_bo` (validation-list entry, needed with softpin too) | 2.2 % | 1.7 % |
+| `crocus_command_reloc`/`crocus_state_reloc` | 0.1 % | 0.2 % |
+| `_crocus_batch_flush` | 1.5 % | 0.2 % |
+| `ioctl` (libc) | 1.7 % | — |
+
+So the relocation-specific user-space work is ≈ 1.3-2.7 % of the process' user time: with 381 µs utime per
+64-draw batch that is ≈ 5-10 µs per batch (≈ 30 ns per relocation, 327 of them), plus the validation list
+bookkeeping that stays with softpin. Kernel side in steady state: nothing (section 1).
 
 ### 2c. hasvk (Vulkan) `vkb.c`, headless, one command buffer with R `vkCmdCopyBuffer` over 32 buffers [M]
 
@@ -148,7 +164,11 @@ In relocation mode hasvk re-applies **all surface-state relocations in userspace
 `write_reloc` with clflush on non-LLC) and adds every reloc target to the execbuf by hash lookup
 (`anv_execbuf_add_bo` `:1316-1337`); with `HASVK_USERSPACE_RELOCS=0` the same work moves to the kernel
 (`presumed_offset = -1`, `reset_cmd_buffer_surface_offsets` `:1552-1567`): utime −54 µs, stime +55 µs. So the
-relocation-mode cost of this 64-copy submit is ≈ 55 µs of ≈ 300 µs CPU (≈ 18 %). With softpin hasvk also
+relocation-mode cost of this 64-copy submit is ≈ 55-75 µs of ≈ 300 µs CPU (≈ 18-25 %). [M] `perf` (user space,
+1.4 build with symbols, 116 µs utime per submit): `util_flush_range` 21 % + `util_flush_range_no_fence` 14 %
+(the clflush of every rewritten surface-state address on this non-LLC part), `anv_execbuf_add_bo` 17 % (one
+call per relocation target), `anv_reloc_list_apply` 13 %, `anv_queue_exec_locked` 12 %: ≈ 65 % of hasvk's
+user-space submit time is relocation-mode work. With softpin hasvk also
 chains command buffers (`anv_cmd_buffer_is_chainable` `anv_private.h:2597-2601`), uses `use_call_secondary`
 and the separate binding-table pool, and skips the surface-state reloc list entirely.
 
@@ -321,4 +341,5 @@ requirements with `vkq`-style feature dumps rather than its minimum "Vulkan 1.3"
 - `perf` kernel-side samples are not available without root (`perf_event_paranoid = 2`); kernel costs come from
   `getrusage` stime, `strace -T` (inflated by ptrace) and `eb.c` ioctl timing.
 - The Mesa 1.4 build profiled here carries new crocus upload patches (uncommitted in the repo at the time);
-  they do not touch batch submission.
+  they do not touch batch submission. The device was rebooted by the main session at ~01:53 (its `/tmp` was
+  cleared); the `perf` profiles are from the fresh boot, the other measurements from before.

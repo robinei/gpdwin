@@ -29,11 +29,14 @@
     now that packages can be built for it: e.g. `-march=silvermont`/`-mtune` builds of hot packages (Mesa,
     emulator cores, SDL), Mesa/driconf defaults that suit a non-LLC GPU, trimming libraries loaded by every
     process. Find candidates by measuring first (perf, startup traces), not by guessing.
-13. Vulkan 1.3 on hasvk: on CHV hasvk reports 1.2, because it enables softpin (and with it 1.3, e.g. buffer
-    device address) only with 48-bit GPU addresses (`src/intel/vulkan_hasvk/anv_device.c:1751`, Mesa 26.2.4) and
-    CHV has 32-bit PPGTT. Cheap first test: one Wine game with DXVK 2.x (needs 1.3) and the existing driconf
-    option `hasvk_report_vk_1_3_version=true` (claims 1.3 without buffer device address). Real 1.3: softpin in a
-    32-bit address space (allocator/heaps, the vertex-cache workaround tied to 48-bit, CTS, GPU hang hunting),
-    weeks of work, only worth it if DXVK 2.x games matter. Vulkan 1.4: not realistic on Gen8.
+13. Vulkan 1.3 on hasvk (investigated 2026-10-12, `mesa/reports/R5-softpin-vulkan13.md`): on CHV hasvk reports
+    every Vulkan 1.3 requirement except buffer device address (needs softpin, which hasvk enables only above 4 GiB
+    address space; the kernel allows softpin on CHV's 4 GiB PPGTT, measured). DXVK 2.0-2.6.x need only what hasvk
+    has + the version: the driconf/env option `hasvk_report_vk_1_3_version=true` is enough for them (non-conformant
+    by that one feature). DXVK >= 2.7 also needs descriptor indexing, pipeline libraries and 256 B push constants:
+    not possible on hasvk. A 32-bit softpin port of hasvk (real 1.3) is a PoC of days and weeks of CTS/hang hunting,
+    only worth it for a game that needs buffer device address. No DXVK installed now (Wine uses wined3d/GL).
+4b. Relocation overhead (same report): small. GL (crocus) well under 1 % of a frame; hasvk 18-25 % of its own
+    submit CPU time but still small per frame. Not worth a softpin port for speed.
 
 Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).

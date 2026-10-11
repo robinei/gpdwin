@@ -634,3 +634,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   conversion ~40 % faster too) and uploads >= 64 KiB into tiled textures with a GPU blit (matching-format uploads
   2.0 -> 0.9 ms; sway's shm-client uploads take that path). Measurements in mesa/README.md; `drawbench.c` added.
   Sway picks it up at the next reboot.
+- Investigation R5 (`mesa/reports/R5-softpin-vulkan13.md`, test programs `mesa/reports/r5/`): softpin works on CHV
+  (kernel), relocation overhead is small, hasvk lacks only buffer device address for Vulkan 1.3; DXVK <= 2.6 would
+  run with the `hasvk_report_vk_1_3_version` option. docs/ideas.md 13 updated. Nothing changed on the device.
