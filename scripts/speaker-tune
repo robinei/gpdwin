@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Tune the speaker compressor live while a game plays (Super+C; docs/hardware.md, "Speaker loudness").
+
+The game keeps keyboard focus (RetroArch pauses when it loses it): sway's "speaker-tune" mode
+(dotfiles/sway/config) catches the keys and runs `speaker-tune key K`; a small foot window that
+never takes focus runs `speaker-tune view` and shows the values. State lives in
+$XDG_RUNTIME_DIR/speaker-tune.json while tuning.
+
+  speaker-tune start        unfullscreen the game, open the view, enter the mode
+  speaker-tune stop         close the view, leave the mode, fullscreen the game again
+  speaker-tune key K        K: up down left right bypass save revert
+  speaker-tune view         the display loop (run by start)
+
+Changes apply at once (pw-cli on the filter node); `save` writes them into
+dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf (commit it afterwards), `revert`
+reloads the saved values. Bypass compares with the unprocessed sound without losing the values.
+"""
+import fcntl, json, os, re, subprocess, sys, time
+from pathlib import Path
+
+NODE = "speaker_compressor"
+CONF = Path(__file__).resolve().parent.parent / "dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf"
+STATE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "speaker-tune.json"
+
+# label, filter params (same value), config key in CONF, step, min, max, format
+PARAMS = [
+    ("Bass cut (Hz)",   ["hpL:Freq", "hpR:Freq"],           '"Freq"',                 25, 20, 600, "{:.0f}"),
+    ("Threshold (dB)",  ["comp:Threshold level (dB)"],      '"Threshold level (dB)"',  2, -40, 0, "{:.0f}"),
+    ("Ratio (1:n)",     ["comp:Ratio (1:n)"],               '"Ratio (1:n)"',         0.5, 1, 10, "{:.1f}"),
+    ("Makeup gain (dB)", ["comp:Makeup gain (dB)"],         '"Makeup gain (dB)"',      1, 0, 18, "{:.0f}"),
+    ("Ceiling (dB)",    ["lim:Limit (dB)"],                 '"Limit (dB)"',            1, -20, 0, "{:.0f}"),
+    ("Attack (ms)",     ["comp:Attack time (ms)"],          '"Attack time (ms)"',      5, 1.5, 100, "{:.0f}"),
+    ("Release (ms)",    ["comp:Release time (ms)"],         '"Release time (ms)"',    50, 50, 1500, "{:.0f}"),
+]
+# bypass: no bass cut, no compression, no makeup, limiter at full scale
+BYPASS = {"hpL:Freq": 10.0, "hpR:Freq": 10.0, "comp:Ratio (1:n)": 1.0, "comp:Makeup gain (dB)": 0.0, "lim:Limit (dB)": 0.0}
+
+
+def live_values():
+    out = subprocess.run(["pw-cli", "e", NODE, "Props"], capture_output=True, text=True).stdout
+    vals = dict(re.findall(r'String "([^"]+)"\s+Float ([-\d.]+)', out))
+    return [float(vals[p[1][0]]) for p in PARAMS]
+
+
+def saved_values():
+    text = CONF.read_text()
+    return [float(re.search(re.escape(p[2]) + r"\s*=\s*([-\d.]+)", text).group(1)) for p in PARAMS]
+
+
+def load():
+    try:
+        return json.loads(STATE.read_text())
+    except (FileNotFoundError, ValueError):
+        return {"sel": 0, "bypass": False, "values": live_values(), "msg": ""}
+
+
+def store(st):
+    tmp = STATE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(st))
+    tmp.replace(STATE)
+
+
+def apply(st):
+    if st["bypass"]:
+        pairs = list(BYPASS.items())
+    else:
+        pairs = [(name, v) for p, v in zip(PARAMS, st["values"]) for name in p[1]]
+    body = " ".join(f'"{k}" {float(v)}' for k, v in pairs)
+    subprocess.run(["pw-cli", "s", NODE, "Props", "{ params = [ " + body + " ] }"], capture_output=True)
+
+
+def save(values):
+    text = CONF.read_text()
+    for p, v in zip(PARAMS, values):
+        text = re.sub(re.escape(p[2]) + r"(\s*=\s*)[-\d.]+", lambda m: p[2] + m.group(1) + f"{float(v):.1f}", text)
+    CONF.write_text(text)
+
+
+def key(k):
+    # held keys repeat faster than a step runs: serialize the read-modify-write of the state
+    lock = open(STATE.with_suffix(".lock"), "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    st = load()
+    n = len(PARAMS)
+    if k == "up":
+        st["sel"] = (st["sel"] - 1) % n
+    elif k == "down":
+        st["sel"] = (st["sel"] + 1) % n
+    elif k in ("left", "right"):
+        _, _, _, step, lo, hi, _ = PARAMS[st["sel"]]
+        v = st["values"][st["sel"]] + (step if k == "right" else -step)
+        st["values"][st["sel"]] = round(min(hi, max(lo, v)), 2)
+        st["bypass"] = False
+        st["msg"] = ""
+        apply(st)
+    elif k == "bypass":
+        st["bypass"] = not st["bypass"]
+        apply(st)
+    elif k == "save":
+        save(st["values"])
+        st["msg"] = "saved to the config (commit it in ~/gpd)"
+    elif k == "revert":
+        st["values"], st["bypass"] = saved_values(), False
+        st["msg"] = "reverted to the saved values"
+        apply(st)
+    store(st)
+
+
+def view():
+    sys.stdout.write("\033[?25l")
+    while True:
+        st = load()
+        lines = ["Speaker compressor" + ("   [BYPASS: unprocessed]" if st["bypass"] else ""), ""]
+        for i, (p, v) in enumerate(zip(PARAMS, st["values"])):
+            mark = ">" if i == st["sel"] else " "
+            lines.append(f" {mark} {p[0]:<17} {p[6].format(v):>6}")
+        lines += ["", " up/down select   left/right change", " b bypass   s save   r revert   Esc done",
+                  " volume keys work too", "", " " + st.get("msg", "")]
+        sys.stdout.write("\033[H\033[2J" + "\n".join(lines))
+        sys.stdout.flush()
+        time.sleep(0.15)
+
+
+def sway(*cmds):
+    subprocess.run(["swaymsg", "; ".join(cmds)], capture_output=True)
+
+
+def main():
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    if cmd == "start":
+        st = {"sel": 0, "bypass": False, "values": live_values(), "msg": ""}
+        store(st)
+        sway("fullscreen disable", 'mode "speaker-tune"',
+             f"exec foot --app-id=speaker-tune -W 44x16 {Path(__file__).resolve()} view")
+    elif cmd == "stop":
+        st = load()
+        if st["bypass"]:
+            st["bypass"] = False
+            apply(st)
+        STATE.unlink(missing_ok=True)
+        sway('[app_id="speaker-tune"] kill', 'mode "default"', "fullscreen enable")
+    elif cmd == "key" and len(sys.argv) == 3:
+        key(sys.argv[2])
+    elif cmd == "view":
+        view()
+    else:
+        print(__doc__)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

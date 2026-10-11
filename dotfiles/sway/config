@@ -186,6 +186,27 @@ mode "resize" {
     bindsym Escape mode "default"
 }
 bindsym $mod+r mode "resize"
+
+# Speaker compressor tuning (scripts/speaker-tune): Super+C while a game plays. The keys go to this
+# mode, so the game keeps focus (RetroArch pauses without it); the value window never takes focus.
+for_window [app_id="speaker-tune"] floating enable, sticky enable, move position 16 16
+no_focus [app_id="speaker-tune"]
+set $tune ~/gpd/scripts/speaker-tune
+bindsym $mod+c exec $tune start
+mode "speaker-tune" {
+    bindsym Up exec $tune key up
+    bindsym Down exec $tune key down
+    bindsym Left exec $tune key left
+    bindsym Right exec $tune key right
+    bindsym b exec $tune key bypass
+    bindsym s exec $tune key save
+    bindsym r exec $tune key revert
+    bindsym --locked XF86AudioLowerVolume exec ~/.config/sway/osd.sh vol-down
+    bindsym --locked XF86AudioRaiseVolume exec ~/.config/sway/osd.sh vol-up
+    bindsym Escape exec $tune stop
+    bindsym Return exec $tune stop
+    bindsym $mod+c exec $tune stop
+}
 #
 # Utilities:
 #
