@@ -183,8 +183,8 @@ static void read_battery(void)
     st.battery = read_int(BATTERY "capacity", -1);
     st.plugged = read_int(CHARGER "online", 0) == 1;
     read_line(CHARGER "status", st.charge, sizeof st.charge);
-    /* Above the limit (90-charge-limit.rules) the charger says "Not charging" too: not stuck. Within
-     * 100 mV of it counts, the chip's own recharge threshold. */
+    /* Above the limit (charge-limit) the charger says "Not charging", or "Charging" with no current
+     * going in: neither is right. Within 100 mV of it counts, the chip's own recharge threshold. */
     int volt = read_int(BATTERY "voltage_now", 0), limit = read_int(CHARGER "constant_charge_voltage", 0);
     st.at_limit = volt > 0 && limit > 0 && volt >= limit - 100000;
 }
@@ -315,10 +315,10 @@ static void emit(void)
         block(DIM, LINE, "bat ?");
     else if (st.plugged && strcmp(st.charge, "Full") == 0)
         block(TEXT, LINE, "bat full");
+    else if (st.plugged && st.at_limit) /* before "Charging": above the limit the chip may say so with 0 A in */
+        block(TEXT, LINE, "bat %d%% max", st.battery);
     else if (st.plugged && strcmp(st.charge, "Charging") == 0)
         block(TEXT, LINE, "bat %d%%+", st.battery);
-    else if (st.plugged && st.at_limit)
-        block(TEXT, LINE, "bat %d%% max", st.battery);
     else if (st.plugged) /* connected but not charging: stuck charger */
         block(YELLOW, LINE, "bat %d%% not charging", st.battery);
     else
