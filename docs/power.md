@@ -113,7 +113,7 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
 - Wi-Fi power save is on by default (`iw dev wlan0 get power_save`).
 
 ## CPU / GPU turbo
-- `Mod4+F11` toggles CPU turbo (`/sys/devices/system/cpu/intel_pstate/no_turbo`), `Mod4+F12`
+- `Mod4+t` toggles CPU turbo (`/sys/devices/system/cpu/intel_pstate/no_turbo`), `Mod4+g`
   toggles GPU turbo (i915 max+boost 600 MHz ↔ RP1 400 MHz). Script `dotfiles/sway/turbo.sh
   cpu|gpu` reads the state back and shows it in wob (full = on; purple CPU, green GPU, styles in
   `dotfiles/wob/wob.ini`).
@@ -123,11 +123,11 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
 - Verified 2026-10-07 (actual clocks from /proc/cpuinfo, APERF/MPERF based):
   - CPU idle: unused cores at 480 MHz (hardware minimum), cores mostly in C7/C7S.
   - CPU turbo on: 1 busy core 2.4 GHz; all 4 cores 2.4 GHz (46 C after 9 s, fan off).
-  - `turbo.sh cpu` (Mod4+F11): caps all cores at 1.6 GHz under load, toggling again restores
+  - `turbo.sh cpu` (Mod4+t): caps all cores at 1.6 GHz under load, toggling again restores
     2.4 GHz. Works from scripts too (wheel can write `no_turbo`).
   - GPU idle: act 0 MHz with ~100% RC6 residency (deep idle); limits RPn 200 / RP1 400 / RP0 600.
   - GPU under load (RetroArch + crt-royale): turbo on reached 420-540 MHz; with `turbo.sh gpu`
-    (Mod4+F12, limit 400) it never exceeded the limit. RPS ramps conservatively when the load is
+    (Mod4+g, limit 400) it never exceeded the limit. RPS ramps conservatively when the load is
     partly CPU-bound; fully saturating 600 MHz wasn't shown (no GPU-only benchmark installed).
 - Test hygiene: RetroArch ignores SIGTERM; use `--max-frames` (exits by itself, uncapped) plus
   `timeout -s KILL`, and power the output on first (no frames are drawn while it is off). The

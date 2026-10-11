@@ -483,3 +483,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - shelf: scales to the window (fonts and layout were fixed pixels; only the art scaled) and draws at the screen's scale on HiDPI; details go below the art in tall windows.
 - statusbar: battery shows `full` when charged on the charger (before: plain percent, as if unplugged), `+` while charging, and `not charging` (yellow) when connected but stuck.
 - sway: Super+M toggles mute (osd.sh mute); the bar keeps showing `muted 50%`, dimmed.
+- sway: CPU/GPU turbo toggles moved from Super+F11/F12 to Super+T/G.
