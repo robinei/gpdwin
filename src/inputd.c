@@ -27,7 +27,9 @@
  * off, screen off, brightness level, throttled, suspend) and changes only what differs from what
  * it last applied, so a missed, repeated or reordered event can't leave a wrong state. At start the
  * applied lid and screen state count as unknown and are applied either way (both are safe to
- * repeat), so restarting inputd also repairs what a previous one left behind.
+ * repeat), so restarting inputd also repairs what a previous one left behind. A step counts as
+ * applied only if its command succeeded; a failed one (or one that hit the STEP_TIMEOUT) is tried
+ * again every STEP_RETRY s until it does.
  *
  * Lid switch: closed means all input off (sway's devices; the pad is grabbed), screen off
  * (screen.sh: also freezes shelf and the game) and CPU/GPU throttled (dotfiles/sway/lid.sh);
@@ -65,7 +67,6 @@
 #include <linux/input.h>
 #include <linux/netlink.h>
 #include <poll.h>
-#include <signal.h>
 #include <spawn.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -100,6 +101,7 @@
 #define CHARGER_ONLINE "/sys/class/power_supply/bq24190-charger/online"
 #define STEP_TIMEOUT "5"     /* seconds a shell step (screen.sh, lid.sh, brightnessctl) may take */
 #define SLEEP_RETRY 60       /* seconds: still awake this long after asking to suspend: ask again */
+#define STEP_RETRY 5         /* seconds: after a failed step, try again (not on every pass) */
 #define BRIGHTNESS_SAVED "idle-brightness" /* in $XDG_RUNTIME_DIR: the level before dimming */
 #define MAX_POWER 8    /* input devices with KEY_POWER (here: 2x ACPI Power Button, gpio-keys, Intel HID, keyboard) */
 
@@ -323,15 +325,34 @@ static void suspend(void)
 }
 
 /* Run a shell command and wait for it (the steps must happen in order), at most STEP_TIMEOUT s
- * so a stuck one (swaymsg while sway hangs) can't stop the lid and power button from working. */
-static void sh_wait(const char *command)
+ * so a stuck one (swaymsg while sway hangs) can't stop the lid and power button from working.
+ * Returns whether it succeeded (exit status 0); reconcile records a step as applied only then. */
+static int sh_wait(const char *command)
 {
     char *argv[] = { "timeout", STEP_TIMEOUT, "sh", "-c", (char *)command, NULL };
     pid_t pid;
-    if (posix_spawnp(&pid, "timeout", NULL, NULL, argv, environ) != 0)
+    int status;
+    if (posix_spawnp(&pid, "timeout", NULL, NULL, argv, environ) != 0) {
         perror("inputd: timeout");
-    else
-        waitpid(pid, NULL, 0); /* SIGCHLD is ignored: returns once it exited */
+        return 0;
+    }
+    while (waitpid(pid, &status, 0) < 0)
+        if (errno != EINTR)
+            return 0;
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        fprintf(stderr, "inputd: failed (%s): %s\n",
+                WIFEXITED(status) && WEXITSTATUS(status) == 124 ? "timed out" : "exit status", command);
+        return 0;
+    }
+    return 1;
+}
+
+/* Collect finished background commands (swaymsg, sudo), so they don't linger as zombies. Only
+ * reaps those: sh_wait waits for its own child itself. */
+static void reap(void)
+{
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
 }
 
 static int pad_fd = -1;
@@ -359,6 +380,7 @@ static struct {
 static int lid_fd = -1;
 static int charger_stale = 1; /* re-read the charger (16 ms over I2C, so not on every pass) */
 static double was_asleep;     /* slept() at the last pass: when it grows, the device woke */
+static time_t retry_after;    /* a step failed: don't apply again before this (0: no wait) */
 
 static time_t next_due;      /* when the next idle step is due (0: none; sway says when idle starts) */
 
@@ -390,28 +412,28 @@ static char *saved_path(void)
     return p;
 }
 
-static void set_dim(int from, int to)
+static int set_dim(int from, int to)
 {
     char cmd[512];
     const char *f = saved_path();
     /* leaving normal: save the current level; the dim levels are DIM_PERCENT of the saved one (min 1%)
      * and the lowest visible level (raw 1; 0 is backlight off) */
-    const char *save = from ? "" : "brightnessctl -m | cut -d, -f3 > \"$f\"; ";
+    const char *save = from ? "" : "b=$(brightnessctl -m) && echo \"$b\" | cut -d, -f3 > \"$f\" && ";
     if (to == 0)
-        snprintf(cmd, sizeof cmd, "f='%s'; [ -s \"$f\" ] && brightnessctl -q set \"$(cat \"$f\")\"; rm -f \"$f\"", f);
+        snprintf(cmd, sizeof cmd, "f='%s'; { [ ! -s \"$f\" ] || brightnessctl -q set \"$(cat \"$f\")\"; } && rm -f \"$f\"", f);
     else if (to == 1)
-        snprintf(cmd, sizeof cmd, "f='%s'; %sv=$(cat \"$f\"); m=$(brightnessctl -m | cut -d, -f5); "
-                 "p=$(( v * %d / m )); brightnessctl -q set \"$(( p > 1 ? p : 1 ))%%\"", f, save, DIM_PERCENT);
+        snprintf(cmd, sizeof cmd, "f='%s'; %sv=$(cat \"$f\") && m=$(brightnessctl -m | cut -d, -f5) && "
+                 "p=$(( v * %d / m )) && brightnessctl -q set \"$(( p > 1 ? p : 1 ))%%\"", f, save, DIM_PERCENT);
     else
         snprintf(cmd, sizeof cmd, "f='%s'; %sbrightnessctl -q set 1", f, save); /* lowest visible */
-    sh_wait(cmd);
+    return sh_wait(cmd);
 }
 
 /* The pad is grabbed while the lid is closed, so nobody else (games, sway) sees its events. */
 static void grab_pad(void)
 {
     if (pad_fd >= 0)
-        ioctl(pad_fd, EVIOCGRAB, applied.lid);
+        ioctl(pad_fd, EVIOCGRAB, applied.lid == 1);
 }
 
 /* The lid switch, as a fact. */
@@ -457,30 +479,42 @@ static void reconcile(void)
     int dim = fact.lid_closed ? applied.dim /* dark anyway: left as it is */
             : REACHED(low_after) ? 2 : REACHED(DIM_AFTER) ? 1 : 0;
 
-    /* apply the differences: screen on first and off last, so a waking screen is lit */
-    if (lid != applied.lid && !lid) {
-        swaymsg("input * events enabled");
-        applied.lid = 0;
-        grab_pad();
-        sh_wait("~/.config/sway/lid.sh open");
-    }
-    if (screen_off != applied.screen_off && !screen_off) {
-        sh_wait("~/.config/sway/screen.sh on");
-        applied.screen_off = 0;
-    }
-    if (dim != applied.dim) {
-        set_dim(applied.dim, dim);
-        applied.dim = dim;
-    }
-    if (lid != applied.lid && lid) {
-        swaymsg("input * events disabled");
-        applied.lid = 1;
-        grab_pad();
-        sh_wait("~/.config/sway/lid.sh close");
-    }
-    if (screen_off != applied.screen_off && screen_off) {
-        sh_wait("~/.config/sway/screen.sh off");
-        applied.screen_off = 1;
+    /* apply the differences: screen on first and off last, so a waking screen is lit. A step is
+     * recorded as applied only if it succeeded; otherwise it is tried again from STEP_RETRY s on
+     * (all steps are safe to repeat). */
+    int failed = 0;
+    if (now >= retry_after) {
+        if (lid != applied.lid && !lid) {
+            applied.lid = 0; /* ungrab the pad whatever happens: input must come back */
+            grab_pad();
+            if (!sh_wait("swaymsg -q 'input * events enabled' && ~/.config/sway/lid.sh open"))
+                applied.lid = -1, failed = 1; /* unknown: applied again */
+        }
+        if (screen_off != applied.screen_off && !screen_off) {
+            if (sh_wait("~/.config/sway/screen.sh on"))
+                applied.screen_off = 0;
+            else
+                failed = 1;
+        }
+        if (dim != applied.dim) {
+            if (set_dim(applied.dim, dim))
+                applied.dim = dim;
+            else
+                failed = 1;
+        }
+        if (lid != applied.lid && lid) {
+            applied.lid = 1;
+            grab_pad();
+            if (!sh_wait("swaymsg -q 'input * events disabled' && ~/.config/sway/lid.sh close"))
+                applied.lid = -1, failed = 1;
+        }
+        if (screen_off != applied.screen_off && screen_off) {
+            if (sh_wait("~/.config/sway/screen.sh off"))
+                applied.screen_off = 1;
+            else
+                failed = 1;
+        }
+        retry_after = failed ? now + STEP_RETRY : 0;
     }
 
     /* suspend: requested once, again every SLEEP_RETRY s while still awake (it failed); a wake
@@ -503,6 +537,8 @@ static void reconcile(void)
     }
     if (applied.sleep_sent && (!next_due || applied.sleep_sent + SLEEP_RETRY < next_due))
         next_due = applied.sleep_sent + SLEEP_RETRY;
+    if (retry_after && (!next_due || retry_after < next_due))
+        next_due = retry_after;
 }
 
 /* sway's idle notification: no input for DIM_AFTER s (and no idle inhibitor), and back. */
@@ -574,7 +610,6 @@ static void on_menu(void)
 
 int main(void)
 {
-    signal(SIGCHLD, SIG_IGN); /* reap swaymsg automatically */
 
     int watch = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
     /* IN_ATTRIB: udev sets the node's permissions just after the kernel creates it */
@@ -607,6 +642,7 @@ int main(void)
         fds[F_POWER + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
 
     for (;;) {
+        reap();
         reconcile();
         int timeout = -1;
         if (next_due)
