@@ -146,7 +146,7 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
 ## Memory / swap
 - zswap is on by default in the Arch kernel (zstd, 20% pool). zram was tried and removed; don't
   re-suggest it. `vm.swappiness`/`page-cluster` at defaults.
-- RAM at idle: ~505 MB used of 3.8 GB right after boot with shelf (2026-10-11; sway 72 MB RSS incl. the GPU driver, shelf 29, wireplumber 23, swaybar 15); Claude Code adds ~400 MB when running. Was ~760 MB with Claude Code in the Pegasus days.
+- RAM at idle: ~505 MB "used" of 3.8 GB right after boot with shelf (`free` = total - available, so the freeable file cache (~230 MB) is not in it; actually held ~280-300 MB: programs 77, kernel ~100, shmem 27, unevictable 70, the rest kernel reserves) (2026-10-11; sway 72 MB RSS incl. the GPU driver, shelf 29, wireplumber 23, swaybar 15); Claude Code adds ~400 MB when running. Was ~760 MB with Claude Code in the Pegasus days.
 
 ## CPU vulnerability mitigations: off
 `mitigations=off` on the kernel command line (decided 2026-10-07: gaming-only device, little web
