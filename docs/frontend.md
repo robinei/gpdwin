@@ -142,9 +142,11 @@ when it's no longer wanted.
 - `input_driver = wayland`, auto save/load state on, shader dir `~/.config/retroarch/shaders`
   (Arch's default `/usr/share/libretro/shaders` doesn't exist). Use GLSL shaders with the `gl`
   driver; light ones only (sharp-bilinear, lcd3x, crt-easymode, fakelottes).
-- Hotkeys: Guide is hotkey enable. Guide+L2 menu, Guide+L load state, Guide+R save state,
-  Guide+R2 (hold) fast-forward, Esc quits. The pad profile's Guide→menu line is commented out in
-  `autoconfig/udev/Microsoft X-Box 360 pad.cfg` (otherwise Guide alone opens the menu).
+- Hotkeys (user's choice, 2026-10-11): keyboard only in `retroarch.cfg`: Esc menu, Q quit, S/L save/load
+  state, -/= state slot, Backspace rewind, Tab hold / Space toggle fast-forward; most others unbound (H reset
+  too). No pad hotkeys there: the pad uses its autoconfig profile. RetroArch ignores modifiers, so a chord
+  like Ctrl+Shift+= also fires `=` (why the MangoHud toggle is Ctrl+Shift+F12). The pad profile's
+  Guide→menu line is commented out in `autoconfig/udev/Microsoft X-Box 360 pad.cfg`.
 - The full controller profile set was downloaded by the online updater into `autoconfig/udev/`.
 
 ## Native games
