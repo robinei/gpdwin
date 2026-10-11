@@ -539,3 +539,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - speaker-tune: the game keeps focus (sway ignored `no_focus`; DevilutionX went silent), workspace goes tabbed while tuning (the shelf split could not be resized), and `fullscreen-stack.sh` stands aside while the tuner runs (it re-fullscreened the game over the value window).
 - Speaker compressor settings chosen by the user with the tuner: threshold -26 dB, 9:1, no makeup, ceiling -20 dB. Tuner's ceiling range widened to -30 dB.
 - Speaker compressor retuned by the user: 1.5 ms attack was the key (catches transients), 3:1, limiter at 0 dB.
+- Speaker compressor tweaked by the user: 300 Hz, -30 dB, 4:1, +3 dB makeup, -5 dB ceiling (1.5 ms attack kept).

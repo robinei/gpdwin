@@ -218,7 +218,7 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   sets `Speaker Playback Volume` to 31 of 39 (0 dB). Raising it to 39 (+12 dB) or 35 (+6 dB) distorted
   heavily: the speakers themselves are the limit, so it stays at 31.
 - Instead, a compressor on the speaker only (`dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf`):
-  250 Hz high-pass, swh-plugins `sc4` (RMS, threshold -26 dB, 3:1, 1.5 ms attack, no makeup), limiter at 0 dB
+  300 Hz high-pass, swh-plugins `sc4` (RMS, threshold -30 dB, 4:1, 1.5 ms attack, +3 dB makeup), limiter at -5 dB
   (tuned by ear with Super+C, 2026-10-11). The fast attack was the key: it catches the sharp transients the
   speakers distort on, so the ceiling no longer has to be low (an earlier -20 dB ceiling with 9:1 was clean too,
   but much quieter).
