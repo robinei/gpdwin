@@ -485,3 +485,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - sway: Super+M toggles mute (osd.sh mute); the bar keeps showing `muted 50%`, dimmed.
 - sway: CPU/GPU turbo toggles moved from Super+F11/F12 to Super+T/G.
 - MangoHud: toggle moved from Right Shift+F12 to Super+H; sway no longer binds Super+H (focus left stays on Super+Left).
+- sway: vim-style h/j/k/l focus/move/resize bindings removed (arrow keys remain).
