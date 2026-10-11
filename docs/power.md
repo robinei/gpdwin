@@ -25,21 +25,24 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   `gpiolib_acpi.ignore_wake=INT33FF:00@35`; lid events while awake still work. Check:
   `/sys/kernel/irq/<irq>/wakeup` = disabled. Which IRQ woke the device: `/sys/power/pm_wakeup_irq`.
 
-## Idle (swayidle, `dotfiles/sway/handheld`)
-- 2 min: dim to a third of current brightness, min 1% (`dim.sh`; restored on activity).
-- 3 min: on battery, dim to 1% (`dim-low.sh battery`).
-- 5 min: screen off, on battery only (`idle-screen-off.sh`); on AC the screen stays on.
-- 10 min: dim to 1% (`dim-low.sh`; matters on AC). Resume restores the brightness saved at the
-  first level.
-- 30 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
-  `bq24190-charger/online`).
-- The charger state is checked when a timeout fires, and swayidle fires each step once per idle
-  period. So unplugging restarts the countdown (inputd, uevents): lid open, the unplug counts as
-  activity (screen back to full brightness, then dim/off/suspend from there); lid closed, inputd
-  suspends 30 min after the unplug itself (cancelled by replugging or opening the lid), since
-  activity would turn the screen on. Before (fixed 2026-10-11): lid closed on AC for 30+ min, then
-  unplugged, never slept.
-- Games and RetroArch inhibit idle. **Gamepad input does not count as activity** for sway.
+## Idle (inputd, `src/inputd.c`; swayidle until 2026-10-11)
+- 2 min: dim to a third of current brightness, min 1% (the brightness is saved; restored on
+  activity).
+- 3 min: on battery, dim to 1%. On AC: 10 min.
+- 5 min: screen off (`screen.sh off`), on battery only; on AC the screen stays on (dimmed).
+- 30 min: suspend-then-hibernate, on battery only.
+- Activity: keyboard, pointer and touch (sway tells inputd over ext-idle-notify after 2 min
+  without them, and not while an idle inhibitor is active: games and RetroArch inhibit idle),
+  gamepad use (sway doesn't count gamepads; inputd reads the pad), opening the lid, the power
+  button on a dark screen, plugging the charger in or out, waking from sleep. Activity undoes the
+  steps.
+- The steps are a function of idle time, charger and lid at every moment, not fired once: so
+  plugging in with the screen off turns it on (dimmed: AC rules), and unplugging after a long idle
+  on AC starts the battery countdown from the unplug. (With swayidle, steps fired once per idle
+  period and checked the charger only then: a lid closed on AC for 30+ min and then unplugged
+  never slept.)
+- Lid closed: idle runs from the close (or a later unplug or wake), ignores idle inhibitors (the
+  game is frozen), and only the suspend step applies; the lid has the screen.
 
 ## Battery
 - `low-battery.timer` every 2 min runs `/usr/local/bin/low-battery-hibernate`: hibernate at ≤5%
@@ -81,7 +84,7 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 |---|---|---|
 | Screen on | 594 mA | 2.56 W |
 | Backlight 0, display powered | 448 mA | 1.92 W |
-| Display powered off (`output power off`, what swayidle does) | 336 mA | 1.45 W |
+| Display powered off (`output power off`, what the idle screen-off does) | 336 mA | 1.45 W |
 
 Battery ~27 Wh (7.1 Ah) → ~10 h screen-on idle at 5% brightness, ~18 h display off. DPMS off
 is the right "screen off" despite causing ~64 i915 irq/s while off (backlight-0 draws more).

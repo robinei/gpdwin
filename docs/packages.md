@@ -6,7 +6,8 @@ truth; this explains the choices.
 - Base: `base linux linux-firmware-broadcom linux-firmware-intel intel-ucode` (only the two
   firmware sub-packages this hardware needs), `iwd`, `openssh`, `sudo`, `fish`, `vim`, `helix`,
   `wireless-regdb`, `iw`, `pacman-contrib` (checkupdates, pacdiff, paccache).
-- Desktop: `sway swaybg swayidle foot fuzzel wob brightnessctl grim ttf-dejavu btop`, seatd
+- Desktop: `sway swaybg swayidle foot fuzzel wob brightnessctl grim ttf-dejavu btop` (swayidle unused since
+  2026-10-11: inputd does idle), seatd
   (sway dependency, `seatd.service` enabled, user in group `seat`).
 - Audio: `pipewire pipewire-pulse pipewire-alsa wireplumber alsa-ucm-conf` + `realtime-privileges`
   (robin in group `realtime`, so PipeWire gets RT scheduling without RTKit/polkit) (all explicit;

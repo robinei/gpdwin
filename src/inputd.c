@@ -1,45 +1,51 @@
 /*
- * inputd: the keyboard's Menu key brings up or closes shelf (the frontend), and gamepad use counts
- * as activity.
+ * inputd: the device's input and power policy. The Menu key brings up or closes shelf (the
+ * frontend); idle dims, turns the screen off and suspends; the lid, the power button and the
+ * charger feed into that.
  *
  * The Menu key (bottom right of the keyboard, KEY_COMPOSE) starts shelf if it isn't running, closes
  * it if it has the focus, or else switches to its workspace. While a game started from shelf runs
  * (a child process of it), the key is left to the game. The pad's Guide button is not used: it
  * sends nothing in the pad's mouse mode (docs/hardware.md).
  *
- * sway only counts keyboard, pointer and touch as activity, so playing with the pad alone would
- * let swayidle dim the screen and suspend. Any pad event (at most every POKE_EVERY seconds)
- * sends sway a zero pointer move (`seat seat0 cursor move 0 0`), which resets its idle timers.
+ * Idle (docs/power.md). Idle time runs from the last activity:
+ *   2 min        brightness to a third (min 1%; the level before is saved and restored)
+ *   3 min        1% (on AC: 10 min)
+ *   5 min        screen off (screen.sh: also freezes shelf and the game), on battery only
+ *   30 min       suspend-then-hibernate, on battery only
+ * Activity: keyboard, pointer and touch (sway's ext-idle-notify: told when nothing happened for
+ * 2 min, which also honours idle inhibitors, so games that inhibit idle keep it awake), the gamepad
+ * (sway doesn't count it), opening the lid, the power button, plugging the charger in or out, and
+ * waking from sleep. Activity undoes the steps (brightness back, screen on). The charger is part of
+ * the decision at every moment, so unplugging after a long idle on AC starts the battery countdown
+ * from the unplug (it used to be checked only when a step fired, once per idle period).
  *
  * Lid switch: closing the lid disables all input (sway's devices; the pad is grabbed) and runs
  * dotfiles/sway/lid.sh close (screen off and games frozen via screen.sh, CPU/GPU throttled);
- * opening it undoes that. Brightness is left alone (level 0 doesn't turn this panel off). logind
- * ignores the lid, see docs/power.md.
+ * opening it undoes that and counts as activity. While closed, idle runs from the close (or a later
+ * unplug or wake) and ignores idle inhibitors (the game is frozen), and only the suspend step
+ * applies. Brightness is left alone (level 0 doesn't turn this panel off). logind ignores the lid,
+ * see docs/power.md.
  *
  * Power button (logind ignores it, HandlePowerKey=ignore), acted on at release, by the screen
- * state at the press (sway counts the press as activity, so the screen is back on by the release):
- *   screen dark (sway reports the output powered off: idle or lid): only wakes the screen (zero
- *                pointer move, which resets swayidle, and screen.sh on). Never sleeps, so a press
- *                meant to "turn it on" can't put an awake device with its screen off to sleep.
+ * state at the press (sway counts the press as activity, so the screen may be back on by the
+ * release):
+ *   screen dark (sway reports the output powered off: idle or lid): only wakes the screen. Never
+ *                sleeps, so a press meant to "turn it on" can't put an awake device with its
+ *                screen off to sleep.
  *   screen on:   suspend-then-hibernate.
  *   within RESUME_GUARD s of a resume (the sleep hook resume-time writes the uptime to
  *   RESUME_FILE): ignored, so the press that woke the device doesn't put it back to sleep.
  * Two releases within 2 s count once (the button may show up as several input devices).
- *
- * Charger unplugged: swayidle's suspend step (30 min) does nothing on AC and fires only once per
- * idle period, so a device left idle on AC past 30 min would never sleep after unplugging. So the
- * unplug restarts the idle countdown: with the lid open as activity (zero pointer move; the screen
- * comes back on, like a phone's); with the lid closed (where that would turn the screen on) by
- * suspending after UNPLUGGED_SLEEP s here, unless the charger comes back or the lid opens first.
  * So "dark screen: hold ~1 s" always turns it on: hibernated/off (the hardware needs the hold),
  * asleep, or screen off.
  *
- * Sleeps until there is something to do: the untouched pad sends no events, and inotify on
- * /dev/input reports when the pad (re)appears (it disconnects while the screen is off and across
- * suspend).
+ * Sleeps until there is something to do: poll() on the input devices, inotify on /dev/input (the
+ * pad disconnects while the screen is off and across suspend), kernel uevents (charger), the
+ * Wayland socket, and a timeout for the next idle step.
  *
  * Built and installed by `scripts/sync install` (manifest "build" entry); started by sway
- * (dotfiles/sway/autostart).
+ * (dotfiles/sway/autostart). Without a Wayland connection (sway gone) it exits.
  */
 #define _GNU_SOURCE
 #include <dirent.h>
@@ -58,16 +64,24 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <wayland-client.h>
+#include "vendor/ext-idle-notify-v1-client-protocol.h"
+#include "vendor/ext-idle-notify-v1-protocol.c"
 
 #define PAD_NAME "Microsoft X-Box 360 pad"
 #define LID_NAME "Lid Switch"
-#define POKE_EVERY 30 /* seconds; the first idle step (dim) comes after 2 min */
+/* Idle steps, seconds since the last activity */
+#define DIM_AFTER 120          /* a third of the brightness; also sway's idle notification */
+#define LOW_AFTER_BATTERY 180  /* 1% */
+#define LOW_AFTER_AC 600
+#define OFF_AFTER 300          /* screen off, battery only */
+#define SLEEP_AFTER 1800       /* suspend-then-hibernate, battery only */
 #define RESUME_GUARD 3.0 /* seconds after a resume in which the power button is ignored */
 #define RESUME_FILE "/run/resume-time"
 #define CHARGER_ONLINE "/sys/class/power_supply/bq24190-charger/online"
-#define UNPLUGGED_SLEEP 1800 /* seconds: lid closed and unplugged -> suspend (swayidle's on battery) */
 #define MAX_POWER 8    /* input devices with KEY_POWER (here: 2x ACPI Power Button, gpio-keys, Intel HID, keyboard) */
 
 extern char **environ;
@@ -241,18 +255,6 @@ static void swaymsg(const char *command)
         perror("inputd: swaymsg");
 }
 
-/* Tell sway the user is active (it doesn't count gamepads), at most every POKE_EVERY seconds. */
-static void activity(void)
-{
-    static time_t last;
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    if (last && now.tv_sec - last < POKE_EVERY)
-        return;
-    last = now.tv_sec;
-    swaymsg("seat seat0 cursor move 0 0");
-}
-
 static int charger_online(void)
 {
     char c = '0';
@@ -280,8 +282,17 @@ static int uevent_socket(void)
 static time_t mono_now(void)
 {
     struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t); /* stops during suspend: the countdown is awake time */
+    clock_gettime(CLOCK_MONOTONIC, &t); /* stops during suspend: idle is awake time */
     return t.tv_sec;
+}
+
+/* Seconds spent asleep since boot (BOOTTIME counts suspend, MONOTONIC doesn't). */
+static double slept(void)
+{
+    struct timespec b, m;
+    clock_gettime(CLOCK_BOOTTIME, &b);
+    clock_gettime(CLOCK_MONOTONIC, &m);
+    return (b.tv_sec - m.tv_sec) + (b.tv_nsec - m.tv_nsec) / 1e9;
 }
 
 static void suspend(void)
@@ -300,8 +311,144 @@ static void swaymsg_sh(const char *command)
         perror("inputd: sh");
 }
 
+/* Run a shell command and wait for it (the idle steps must happen in order). */
+static void sh_wait(const char *command)
+{
+    char *argv[] = { "sh", "-c", (char *)command, NULL };
+    pid_t pid;
+    if (posix_spawnp(&pid, "sh", NULL, NULL, argv, environ) != 0)
+        perror("inputd: sh");
+    else
+        waitpid(pid, NULL, 0); /* SIGCHLD is ignored: returns once it exited */
+}
+
 static int lid_closed;
 static int pad_fd = -1;
+
+/* ---- idle */
+
+static struct {
+    int on_ac;
+    time_t last_activity;    /* MONOTONIC s */
+    int sway_idle;           /* sway reported no input for DIM_AFTER s (and no inhibitor) */
+    time_t sway_idle_since;
+    time_t lid_closed_at;
+    int dim;                 /* applied: 0 normal, 1 a third, 2 1% */
+    int off;                 /* applied: screen off by idle */
+    int sleep_sent;          /* suspend requested in this idle period */
+    time_t next;             /* when the next step is due (0: none; sway tells when idle starts) */
+} idle;
+
+static void activity(void)
+{
+    idle.last_activity = mono_now();
+}
+
+static time_t max_t(time_t a, time_t b) { return a > b ? a : b; }
+
+/* Seconds idle now; -1 while active (sway hasn't reported idle and the lid is open). */
+static long idle_seconds(time_t now)
+{
+    if (lid_closed)
+        return now - max_t(idle.lid_closed_at, idle.last_activity);
+    if (!idle.sway_idle)
+        return -1;
+    return now - max_t(idle.sway_idle_since, idle.last_activity);
+}
+
+/* Bring brightness, screen and sleep in line with the idle time, and set idle.next. */
+static void idle_update(void)
+{
+    time_t now = mono_now();
+    long t = idle_seconds(now);
+    int low_after = idle.on_ac ? LOW_AFTER_AC : LOW_AFTER_BATTERY;
+    if (!lid_closed) { /* while closed the lid has the screen; brightness stays as it was */
+        int dim = t >= low_after ? 2 : t >= DIM_AFTER ? 1 : 0;
+        int off = !idle.on_ac && t >= OFF_AFTER;
+        if (idle.off && !off)
+            sh_wait("~/.config/sway/screen.sh on");
+        if (dim != idle.dim) {
+            char cmd[256];
+            /* save the brightness when leaving normal, else restore it first (a third of the
+             * original, not of the dimmed level) */
+            const char *base = idle.dim ? "brightnessctl -q -r" : "brightnessctl -q -s";
+            if (dim == 0)
+                snprintf(cmd, sizeof cmd, "brightnessctl -q -r");
+            else if (dim == 1)
+                snprintf(cmd, sizeof cmd, "%s; c=$(brightnessctl -m | cut -d, -f4 | tr -d %%); "
+                         "brightnessctl -q set \"$(( c / 3 > 1 ? c / 3 : 1 ))%%\"", base);
+            else
+                snprintf(cmd, sizeof cmd, "%s; brightnessctl -q set 1", base);
+            sh_wait(cmd);
+            idle.dim = dim;
+        }
+        if (off && !idle.off)
+            sh_wait("~/.config/sway/screen.sh off");
+        idle.off = off;
+    }
+    if (t < SLEEP_AFTER)
+        idle.sleep_sent = 0;
+    else if (!idle.on_ac && !idle.sleep_sent) {
+        idle.sleep_sent = 1;
+        suspend();
+    }
+    /* next step: the first threshold not reached yet (while idle time runs) */
+    idle.next = 0;
+    if (t >= 0) {
+        int steps[] = { DIM_AFTER, low_after, OFF_AFTER, SLEEP_AFTER };
+        for (int i = 0; i < 4; i++)
+            if (steps[i] > t && (!idle.next || now + steps[i] - t < idle.next))
+                idle.next = now + steps[i] - t;
+    }
+}
+
+/* sway's idle notification: no input for DIM_AFTER s (and no idle inhibitor), and back. */
+static void idled(void *data, struct ext_idle_notification_v1 *n)
+{
+    (void)data, (void)n;
+    idle.sway_idle = 1;
+    idle.sway_idle_since = mono_now() - DIM_AFTER;
+}
+static void resumed(void *data, struct ext_idle_notification_v1 *n)
+{
+    (void)data, (void)n;
+    idle.sway_idle = 0;
+    activity();
+}
+static const struct ext_idle_notification_v1_listener idle_listener = { idled, resumed };
+
+static struct wl_seat *wl_seat;
+static struct ext_idle_notifier_v1 *notifier;
+
+static void reg_global(void *d, struct wl_registry *r, uint32_t name, const char *iface, uint32_t ver)
+{
+    (void)d, (void)ver;
+    if (!strcmp(iface, wl_seat_interface.name) && !wl_seat)
+        wl_seat = wl_registry_bind(r, name, &wl_seat_interface, 1);
+    else if (!strcmp(iface, ext_idle_notifier_v1_interface.name))
+        notifier = wl_registry_bind(r, name, &ext_idle_notifier_v1_interface, 1);
+}
+static void reg_remove(void *d, struct wl_registry *r, uint32_t name) { (void)d, (void)r, (void)name; }
+static const struct wl_registry_listener reg_listener = { reg_global, reg_remove };
+
+/* Connect to sway and ask to be told about idle. NULL if that isn't possible. */
+static struct wl_display *idle_connect(void)
+{
+    struct wl_display *dpy = wl_display_connect(NULL);
+    if (!dpy)
+        return NULL;
+    wl_registry_add_listener(wl_display_get_registry(dpy), &reg_listener, NULL);
+    wl_display_roundtrip(dpy);
+    if (!wl_seat || !notifier) {
+        fprintf(stderr, "inputd: sway has no idle notifier\n");
+        wl_display_disconnect(dpy);
+        return NULL;
+    }
+    struct ext_idle_notification_v1 *n = ext_idle_notifier_v1_get_idle_notification(notifier, DIM_AFTER * 1000, wl_seat);
+    ext_idle_notification_v1_add_listener(n, &idle_listener, NULL);
+    wl_display_flush(dpy);
+    return dpy;
+}
 
 /* While the lid is closed the pad is grabbed, so nobody else (games, sway) sees its events. */
 static void grab_pad(void)
@@ -311,13 +458,19 @@ static void grab_pad(void)
 }
 
 /* Lid closed: all input off (sway's devices, and the pad by grabbing it); lid.sh does the rest
- * (screen, freezing, throttling). Opened: back on, and counts as activity (resets the idle timers). */
+ * (screen, freezing, throttling). Opened: back on, and counts as activity. */
 static void on_lid(int closed)
 {
     lid_closed = closed;
-    swaymsg(closed ? "input * events disabled" : "input * events enabled; seat seat0 cursor move 0 0");
+    swaymsg(closed ? "input * events disabled" : "input * events enabled");
     grab_pad();
     swaymsg_sh(closed ? "~/.config/sway/lid.sh close" : "~/.config/sway/lid.sh open");
+    if (closed)
+        idle.lid_closed_at = mono_now();
+    else {
+        activity();
+        idle.off = 0; /* lid.sh turned the screen on */
+    }
 }
 
 /* Menu key: start shelf, or switch to it, or close it if it has the focus (sway asks it to close;
@@ -347,36 +500,57 @@ int main(void)
     /* IN_ATTRIB: udev sets the node's permissions just after the kernel creates it */
     inotify_add_watch(watch, "/dev/input", IN_CREATE | IN_ATTRIB);
 
-    struct pollfd fds[4 + MAX_POWER] = {
+    struct wl_display *dpy = idle_connect();
+    if (!dpy)
+        fprintf(stderr, "inputd: no idle handling (no Wayland connection)\n");
+    struct pollfd fds[5 + MAX_POWER] = {
         { .fd = watch, .events = POLLIN },
         { .fd = (pad_fd = open_pad()), .events = POLLIN },
         { .fd = open_named(LID_NAME), .events = POLLIN },
         { .fd = uevent_socket(), .events = POLLIN },
+        { .fd = dpy ? wl_display_get_fd(dpy) : -1, .events = POLLIN },
     };
-    int on_ac = charger_online();
-    time_t unplugged_sleep_at = 0; /* lid closed and unplugged: suspend then (0: no) */
+    idle.on_ac = charger_online();
+    activity();
+    double was_asleep = slept();
     time_t last_power = 0;
     int press_dark = -1; /* screen state when the power button went down; -1: not down */
-    int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 4 + npower;
+    int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 5 + npower;
     for (int i = 0; i < npower; i++)
-        fds[4 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
+        fds[5 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
 
     unsigned long sw[1] = { 0 };
     if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0 && (sw[0] >> SW_LID & 1))
         on_lid(1); /* started with the lid already closed */
 
     for (;;) {
+        idle_update();
         int timeout = -1;
-        if (unplugged_sleep_at)
-            timeout = unplugged_sleep_at > mono_now() ? (int)(unplugged_sleep_at - mono_now()) * 1000 : 0;
-        if (poll(fds, nfds, timeout) < 0)
+        if (idle.next)
+            timeout = idle.next > mono_now() ? (int)(idle.next - mono_now()) * 1000 : 0;
+        if (dpy) {
+            while (wl_display_prepare_read(dpy) != 0)
+                wl_display_dispatch_pending(dpy);
+            wl_display_flush(dpy);
+        }
+        int r = poll(fds, nfds, timeout);
+        if (dpy) {
+            if (r > 0 && fds[4].revents & POLLIN)
+                wl_display_read_events(dpy);
+            else
+                wl_display_cancel_read(dpy);
+            if (wl_display_dispatch_pending(dpy) < 0 || (r > 0 && fds[4].revents & (POLLERR | POLLHUP))) {
+                fprintf(stderr, "inputd: Wayland connection lost, exiting\n");
+                return 1;
+            }
+        }
+        if (r < 0)
             continue;
 
-        if (unplugged_sleep_at && mono_now() >= unplugged_sleep_at) {
-            unplugged_sleep_at = 0;
-            if (lid_closed && !charger_online())
-                suspend();
-        }
+        double asleep = slept();
+        if (asleep - was_asleep > 2) /* woke from sleep */
+            activity();
+        was_asleep = asleep;
 
         if (fds[3].fd >= 0 && fds[3].revents) {
             char buf[8192];
@@ -386,16 +560,10 @@ int main(void)
                 buf[n] = 0;
                 power_event |= strstr(buf, "/power_supply/") != NULL;
             }
-            int ac = power_event ? charger_online() : on_ac;
-            if (on_ac && !ac) { /* unplugged: the idle countdown starts now */
-                if (lid_closed)
-                    unplugged_sleep_at = mono_now() + UNPLUGGED_SLEEP;
-                else
-                    swaymsg("seat seat0 cursor move 0 0");
-            }
-            if (ac)
-                unplugged_sleep_at = 0;
-            on_ac = ac;
+            int ac = power_event ? charger_online() : idle.on_ac;
+            if (ac != idle.on_ac) /* plugged in or out: counts as activity */
+                activity();
+            idle.on_ac = ac;
         }
 
         if (fds[0].revents) {
@@ -413,7 +581,7 @@ int main(void)
             ssize_t n;
             while ((n = read(fds[1].fd, &ev, sizeof ev)) == sizeof ev) {
                 if (!lid_closed && (ev.type == EV_KEY || ev.type == EV_ABS))
-                    activity();
+                    activity(); /* sway doesn't count the pad */
             }
             if (n < 0 && errno != EAGAIN) { /* ENODEV once the pad is unplugged */
                 close(fds[1].fd); /* pad went away; inotify brings it back */
@@ -424,14 +592,11 @@ int main(void)
         if (fds[2].fd >= 0 && fds[2].revents) {
             struct input_event ev;
             while (read(fds[2].fd, &ev, sizeof ev) == sizeof ev)
-                if (ev.type == EV_SW && ev.code == SW_LID) {
+                if (ev.type == EV_SW && ev.code == SW_LID)
                     on_lid(ev.value);
-                    if (!ev.value)
-                        unplugged_sleep_at = 0; /* opened: swayidle counts from here */
-                }
         }
 
-        for (int i = 4; i < nfds; i++) {
+        for (int i = 5; i < nfds; i++) {
             struct input_event ev;
             ssize_t n;
             if (!fds[i].revents)
@@ -444,8 +609,8 @@ int main(void)
                 }
                 if (ev.type != EV_KEY || ev.code != KEY_POWER)
                     continue;
-                /* Screen state at the press: sway counts the press as activity and swayidle's
-                 * resume turns the screen on before the release. */
+                /* Screen state at the press: sway counts the press as activity, so the screen
+                 * may be on again by the release. */
                 if (ev.value == 1 && press_dark < 0)
                     press_dark = screen_dark();
                 if (ev.value != 0)
@@ -460,10 +625,8 @@ int main(void)
                 if (last_power && t.tv_sec - last_power < 2)
                     continue;
                 last_power = t.tv_sec;
-                if (dark) { /* screen.sh on directly too: swayidle resumes only after its own timeout */
-                    swaymsg("seat seat0 cursor move 0 0");
-                    swaymsg_sh("~/.config/sway/screen.sh on");
-                }
+                if (dark) /* wake the screen (idle_update turns it on) */
+                    activity();
                 else
                     suspend();
             }

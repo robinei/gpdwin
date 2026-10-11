@@ -28,34 +28,36 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   workspace). New floating X11 windows
   that aren't dialogs (fixed-size old games, e.g. native Psychonauts; sway floats them) are made
   fullscreen by the same script, otherwise shelf hides them.
-- `handheld`: `seat * hide_cursor 3000`, swayidle (power.md), wob pipeline
+- `handheld`: `seat * hide_cursor 3000`, wob pipeline. Idle is inputd's (power.md); no swayidle
   (`$XDG_RUNTIME_DIR/wob.sock`).
 - `osd.sh vol-up|vol-down|mute|bri-up|bri-down`: changes the value (wpctl / brightnessctl with
   `--min-value=1`, the lowest visible level; 0 is backlight off) and writes it to wob. Idle dimming deliberately doesn't show wob.
-- `inputd` (`src/inputd.c`): the keyboard's Menu key (bottom right, KEY_COMPOSE). Starts the
-  frontend if not running, focuses workspace 1 if it is, does nothing while a game
-  launched by it (a child process) runs. Works in both pad modes; the pad's Guide button isn't
-  used any more (it sends nothing in mouse mode). Pad use also counts as activity: sway ignores gamepads for idle, so any pad event (at
-  most every 30 s) makes inputd send `seat seat0 cursor move 0 0`, which resets swayidle (tested).
+- `inputd` (`src/inputd.c`): the device's input and power policy, one poll() loop. The keyboard's
+  Menu key (bottom right, KEY_COMPOSE): starts the frontend if not running, closes it if it has
+  the focus, otherwise focuses workspace 1; nothing while a game launched by it (a child process)
+  runs. The pad's Guide button isn't used (it sends nothing in mouse mode). Idle (dim, screen off,
+  suspend; power.md) is inputd's too, replacing swayidle: sway reports keyboard/pointer/touch idle
+  over ext-idle-notify (honouring idle inhibitors), and inputd adds what sway doesn't know: pad
+  use, the lid, the charger, waking from sleep. A Wayland client for that (protocol code vendored
+  in `src/vendor/`); it exits if the connection to sway goes.
   The untouched pad sends nothing and inotify on /dev/input reopens it when it reappears (screen
   off, resume), so it never polls.
   Also watches the lid switch (`Lid Switch` input device, logind ignores the lid): closing it
   runs `swaymsg input * events disabled`, grabs the pad (EVIOCGRAB, so games don't see it either)
   and runs `lid.sh close`: `screen.sh off`, CPU turbo off, GPU limit to RPn (saved values in
-  `$XDG_RUNTIME_DIR/lid-saved`). Opening it undoes all of that and counts as activity (cursor move
-  0 0 resets swayidle). Brightness is not touched (level 0 does not turn the panel off). If inputd
+  `$XDG_RUNTIME_DIR/lid-saved`). Opening it undoes all of that and counts as activity. Brightness is not touched (level 0 does not turn the panel off). If inputd
   dies while closed, input stays disabled: `swaymsg input '*' events enabled`.
   Power button (every input device with KEY_POWER; logind ignores the key), on release, by the
-  screen state at the press (sway counts the press as activity, so by the release swayidle has
-  turned the screen back on): screen dark (asked from sway over IPC: an output with `"power": false`) → zero cursor move (resets
-  swayidle) and `screen.sh on`; screen on → `sudo -n systemctl suspend-then-hibernate`. Ignored while
+  screen state at the press (sway counts the press as activity, so the screen may be back on by
+  the release): screen dark (asked from sway over IPC: an output with `"power": false`) → counts as
+  activity (screen on, brightness back); screen on → `sudo -n systemctl suspend-then-hibernate`. Ignored while
   the lid is closed, within 3 s of a resume (`/run/resume-time`, uptime written by the sleep hook
   `resume-time`), and for 2 s after a handled press (several input devices report KEY_POWER).
 - After changing `autostart` rules or `fullscreen-stack.sh`: `swaymsg reload` (rules) and restart
   the script (`pkill -f fullscreen-stack.sh; swaymsg exec ~/.config/sway/fullscreen-stack.sh`):
   `exec` lines don't rerun on reload, and the running loop keeps its old patterns.
-- `screen.sh off|on`: the one place for screen off/on, used by the lid (`lid.sh`) and the idle
-  screen-off step (`idle-screen-off.sh`, battery only; swayidle's resume runs `screen.sh on`).
+- `screen.sh off|on`: the one place for screen off/on, used by the lid (`lid.sh`) and inputd's idle
+  screen-off step (battery only).
   `off`: SIGSTOP shelf and everything it started (the game's whole process tree, Wine included;
   wineserver is not a descendant and just waits), SIGSTOP statusbar, `output * power off`; `on`
   reverses it. Frozen pids in `$XDG_RUNTIME_DIR/frozen`; every step is safe to repeat (idle and

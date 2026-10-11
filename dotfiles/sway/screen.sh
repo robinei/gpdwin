@@ -1,8 +1,7 @@
 #!/bin/sh
 # Screen off/on: the one place for what happens when the display goes off and comes back. Used by
-# the lid (lid.sh, called by inputd) and the idle screen-off step (idle-screen-off.sh; swayidle's
-# resume runs `screen.sh on`). Both can fire for the same off period (idle, then lid closed), so
-# every step is safe to repeat.
+# the lid (lid.sh) and the idle screen-off step, both from inputd. Both can fire for the same off
+# period (idle, then lid closed), so every step is safe to repeat.
 #   off: freeze shelf and everything it started (the game's whole process tree, Wine included)
 #        with SIGSTOP, pause the status bar, power the output off.
 #   on:  the reverse.

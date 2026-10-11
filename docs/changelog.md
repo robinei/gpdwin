@@ -487,3 +487,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - MangoHud: toggle moved from Right Shift+F12 to Super+H; sway no longer binds Super+H (focus left stays on Super+Left).
 - sway: vim-style h/j/k/l focus/move/resize bindings removed (arrow keys remain).
 - inputd: unplugging the charger restarts the idle countdown (lid open: counts as activity; lid closed: suspend 30 min after the unplug). Before, a lid closed on AC for 30+ min and then unplugged never slept.
+- inputd replaces swayidle: idle dim/1%/screen off/suspend are a function of idle time, charger and lid at every moment (sway idle via ext-idle-notify, plus pad, lid, charger, wake). dim.sh, dim-low.sh, idle-screen-off.sh, idle-suspend.sh removed; no more cursor-move pokes.
