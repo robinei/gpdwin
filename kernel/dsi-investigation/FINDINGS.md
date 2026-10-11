@@ -31,6 +31,8 @@ under Windows: per-unit margin plus something Linux does. Ruled out by test: cdc
 burst but the rate is unchanged: pauses exceed ~1 us/line), GPU RC6/freq, CPU C-states, plane/cursor events.
 Open candidates: memory self-refresh / PM5 (cxSR), PMIC-bus traffic from battery polling, page-flip pattern;
 best next step: trace GPU/CPU/IRQ/power events around the underrun timestamps 0011 provides.
+**Traced 2026-10-11:** every underrun comes ~0.5 ms after DevilutionX submits its per-frame GPU work; not the Punit's
+GT frequency/RC6 handling (section "Trace around each underrun"); next: memory self-refresh (0019).
 **Where in the frame (2026-10-11, 113 underruns from the journal):** the first underrun of an event is seen mostly
 late in the frame (section "Frame position of the underruns"), and not phase-locked to the 60 s battery read: the
 trace is now set up with interrupt-timed underruns (0018) and `scripts/dsi-trace.py`.
@@ -54,7 +56,8 @@ trace is now set up with interrupt-timed underruns (0018) and `scripts/dsi-trace
 | 0015 | VLV_IER lost to a racing irq handler at display power well enable (stock bug) | in use since 2026-10-10; fixes the screen-on hang; upstream candidate |
 | 0016 | 0012's vblank FIFO sample cancelled after 200 ms without vblank | in use since 2026-10-10; keeps a lost vblank from hanging every commit |
 | 0017 | 0012: a rate-limited resync is deferred to the end of the 2 s gap, not dropped | in use since 2026-10-11; a split had stayed 22 s (`data/split-2026-10-11-1507.log`) |
-| 0018 | underruns timed by the MIPI C interrupt (one shot, re-armed by the poller), kprobe hook for tracing (diagnostic, `i915.vlv_dsi_ur_irq=1`) | built 2026-10-11, test boot entry; not in DKMS yet |
+| 0018 | underruns timed by the MIPI C interrupt (one shot, re-armed by the poller), kprobe hook for tracing (diagnostic, `i915.vlv_dsi_ur_irq=1`) | test entry 2026-10-11: works, 7 of 8 underruns irq-timed; not in DKMS |
+| 0019 | `i915.vlv_cxsr=0`: no cxSR, watermark level PM2 at most (experiment) | built 2026-10-11 (srcversion 50EBC55FDEE31BFA309627C), not tested yet |
 
 The sections below are the round-1 audit and the measurements in the order they were made; where they say
 otherwise, this summary wins (e.g. "the link back-pressures the pipe" below: the pipe is slaved to the DSI
@@ -82,6 +85,27 @@ watermark changes, GPU requests, interrupts, CPU idle, I2C/PMIC bus, Punit sideb
 arm or vblank start (flip timing), after `intel_memory_cxsr`/watermark events or none at all (Punit memory power
 management, then test cxSR off), after PMIC bus or sideband traffic (Punit busy). A config-only check of flip
 timing: sway `max_render_time` moves the commit within the frame; the underrun frame position should follow.
+
+## Trace around each underrun (2026-10-11, 0018 + dsi-trace.py, DevilutionX)
+Test entry with 0018 (`i915.vlv_dsi_ur_irq=1`, interrupt armed at boot, i915 irqs ~15/s idle: no storm). 17:57-18:24:
+8 flashes (all pairs, no lone), 7 with a trace (#7 at 18:15:37 was found by the poll, not the interrupt; no
+"not armed" message, cause unknown). Interrupt-timed first underrun at lines 783-948 (the poller's late-frame
+cluster was partly its detection delay); the second always at 1279.
+- **Every traced underrun came 0.42-0.63 ms after DevilutionX's own `i915_request_add`** (its per-frame GPU work),
+  ~5 ms after the flip (plane update arm at line ~500-530). Before random control moments a request_add within 1 ms
+  happens 18 %.
+- The GT power management is not the trigger. i915 writes the Punit GPU frequency request (`PUNIT_REG_GPU_FREQ_REQ`
+  0xd4, 0x14 = 200 MHz, 0x28 = 400 MHz) ~340 times/s: on unpark it raises the clock, then RPS steps it down, and
+  park drops it to RPn whatever the limits. In 5 of 7 the GPU was raised 200 -> 400 MHz ~0.7-0.8 ms before the
+  underrun, but 26,000 such raises in 457 s of buffer gave 3 underruns, and with the clock locked (min = max = boost
+  = 400 MHz; park still writes 200/400) one more came 10 s later, and with the GT held awake (`i915_forcewake_user`
+  open: no RC6, no park, **zero** Punit frequency writes in the trace) one came 72 s later, again 0.43 ms after
+  DevilutionX's request_add. (The 2026-10-09 "GPU frequency ruled out" test only raised the minimum to 400 MHz.)
+- Not before the underruns: I2C/PMIC bus traffic (none within seconds), cxSR/watermark changes (none: i915 does not
+  toggle cxSR while one plane is on), CPU C-state pattern (no clear difference).
+- Remaining suspects: the memory waking from self-refresh when the GPU burst starts after an idle gap (cxSR/PM5; a
+  single-plane display may self-refresh; heavy games that keep the GPU busy don't flash), or plain memory bandwidth of
+  the burst. Test: patch 0019 (`i915.vlv_cxsr=0`: no cxSR, watermark level PM2 at most).
 
 ## Display hang at screen-on, 2026-10-10 19:02 (separate bug, not the DSI link)
 

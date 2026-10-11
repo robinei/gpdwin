@@ -552,3 +552,8 @@ Details before 2026-10-06 are in `docs/archive/`.
 - `kernel/dsi-investigation/scripts/dsi-trace.py` (GPD, root, ftrace only) saves the trace around every underrun plus
   random control moments to `/var/tmp/dsi-trace`; `dsi-trace-analyze.py` (desktop) compares them. Dry run on the
   stock-equivalent module: all Punit/PMIC/I2C probes attach, cleanup leaves no instances or probes.
+- Trace results (FINDINGS.md "Trace around each underrun"): each underrun ~0.5 ms after DevilutionX's per-frame GPU
+  submission; GPU frequency lock and GT held awake were tested live by sysfs/debugfs (both reverted at 18:24; reboot
+  resets them anyway) and did not stop the flashes.
+- Patch 0019 (`i915.vlv_cxsr=0`, experiment: display never uses memory self-refresh) built (srcversion
+  50EBC55FDEE31BFA309627C), module copied to the GPD as `~/i915-0019.ko.zst`; test entry to follow.

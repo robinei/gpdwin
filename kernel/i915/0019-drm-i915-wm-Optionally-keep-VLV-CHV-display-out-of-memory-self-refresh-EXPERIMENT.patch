@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Sun, 11 Oct 2026 18:28:31 +0200
+Subject: [PATCH] drm/i915/wm: Optionally keep VLV/CHV display out of memory
+ self-refresh (EXPERIMENT)
+
+EXPERIMENT, off unless i915.vlv_cxsr=0.
+
+With patch 0018's interrupt-timed underruns and a trace, every DSI DPI
+FIFO underrun on a GPD Win 1 (CHV, DSI, DevilutionX) came 0.4-0.6 ms
+after the game submitted its per-frame GPU work, about 5 ms after the
+flip (7 of 7 on 2026-10-11). Locking the GPU frequency and keeping the
+GT out of RC6 did not stop them, so the Punit's GT power management is
+not the trigger. A light client leaves the GPU and memory idle between
+frames, when a single-plane display may run from the maxfifo with the
+memory in self-refresh (cxSR, PM5, DDR DVFS); heavy games that keep
+the GPU busy do not show the glitch.
+
+With vlv_cxsr=0, vlv_merge_wm() never enables cxSR and caps the
+watermark level at PM2, the state i915 already uses with two active
+pipes.
+---
+ drivers/gpu/drm/i915/display/i9xx_wm.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/drivers/gpu/drm/i915/display/i9xx_wm.c b/drivers/gpu/drm/i915/display/i9xx_wm.c
+index 86d1c9f..69eb9a7 100644
+--- a/drivers/gpu/drm/i915/display/i9xx_wm.c
++++ b/drivers/gpu/drm/i915/display/i9xx_wm.c
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include <linux/iopoll.h>
++#include <linux/moduleparam.h>
+ 
+ #include <drm/drm_print.h>
+ #include <drm/intel/intel_gmd_misc_regs.h>
+@@ -2025,6 +2026,18 @@ static int vlv_compute_watermarks(struct intel_atomic_state *state,
+ 	return 0;
+ }
+ 
++/*
++ * EXPERIMENT 0019: with 0, never let the display use memory self-refresh on
++ * VLV/CHV: no cxSR (maxfifo) and watermark level PM2 at most, i.e. no PM5 and
++ * no DDR DVFS either, the same state as with two active pipes. Tests whether
++ * the DSI pipe pauses (DPI FIFO underruns ~0.5 ms after a light client's GPU
++ * submission) come from the memory waking from self-refresh.
++ */
++static int vlv_cxsr = 1;
++module_param_named(vlv_cxsr, vlv_cxsr, int, 0444);
++MODULE_PARM_DESC(vlv_cxsr,
++		 "VLV/CHV: allow memory self-refresh (cxSR, PM5, DDR DVFS) for the display (experiment, default 1)");
++
+ static void vlv_merge_wm(struct intel_display *display,
+ 			 struct vlv_wm_values *wm)
+ {
+@@ -2053,6 +2066,18 @@ static void vlv_merge_wm(struct intel_display *display,
+ 	if (num_active_pipes > 1)
+ 		wm->level = VLV_WM_LEVEL_PM2;
+ 
++	if (!vlv_cxsr) {
++		static bool logged;
++
++		if (!logged && num_active_pipes) {
++			drm_info(display->drm,
++				 "vlv_cxsr=0: no cxSR, watermark level PM2 at most (no PM5, no DDR DVFS)\n");
++			logged = true;
++		}
++		wm->cxsr = false;
++		wm->level = min_t(int, wm->level, VLV_WM_LEVEL_PM2);
++	}
++
+ 	for_each_intel_crtc(display, crtc) {
+ 		const struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
+ 		enum pipe pipe = crtc->pipe;
+-- 
+2.56.0
+
