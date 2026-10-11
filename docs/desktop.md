@@ -42,11 +42,16 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   in `src/vendor/`); it exits if the connection to sway goes.
   The untouched pad sends nothing and inotify on /dev/input reopens it when it reappears (screen
   off, resume), so it never polls.
-  Also watches the lid switch (`Lid Switch` input device, logind ignores the lid): closing it
-  runs `swaymsg input * events disabled`, grabs the pad (EVIOCGRAB, so games don't see it either)
-  and runs `lid.sh close`: `screen.sh off`, CPU turbo off, GPU limit to RPn (saved values in
-  `$XDG_RUNTIME_DIR/lid-saved`). Opening it undoes all of that and counts as activity. Brightness is not touched (level 0 does not turn the panel off). If inputd
-  dies while closed, input stays disabled: `swaymsg input '*' events enabled`.
+  State, not events: events (lid, charger, pad, sway's idle, power button, wake) only update
+  facts, and one `reconcile()` derives what should be (input off, screen off, brightness, throttle,
+  suspend) and applies only the differences. At start the lid and screen state count as unknown
+  and are applied either way, so restarting inputd repairs whatever a previous one left.
+  Also watches the lid switch (`Lid Switch` input device, logind ignores the lid): closed means
+  `swaymsg input * events disabled`, the pad grabbed (EVIOCGRAB, so games don't see it either),
+  `screen.sh off`, and `lid.sh close`: CPU turbo off, GPU limit to RPn (saved values in
+  `$XDG_RUNTIME_DIR/lid-saved`). Opening it undoes all of that and counts as activity. Brightness
+  is not touched (level 0 does not turn the panel off). If inputd dies while closed, input stays
+  disabled: `swaymsg input '*' events enabled` (or restart inputd).
   Power button (every input device with KEY_POWER; logind ignores the key), on release, by the
   screen state at the press (sway counts the press as activity, so the screen may be back on by
   the release): screen dark (asked from sway over IPC: an output with `"power": false`) → counts as
@@ -56,8 +61,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
 - After changing `autostart` rules or `fullscreen-stack.sh`: `swaymsg reload` (rules) and restart
   the script (`pkill -f fullscreen-stack.sh; swaymsg exec ~/.config/sway/fullscreen-stack.sh`):
   `exec` lines don't rerun on reload, and the running loop keeps its old patterns.
-- `screen.sh off|on`: the one place for screen off/on, used by the lid (`lid.sh`) and inputd's idle
-  screen-off step (battery only).
+- `screen.sh off|on`: the one place for screen off/on, used only by inputd (lid closed, and the idle
+  screen-off step on battery).
   `off`: SIGSTOP shelf and everything it started (the game's whole process tree, Wine included;
   wineserver is not a descendant and just waits), SIGSTOP statusbar, `output * power off`; `on`
   reverses it. Frozen pids in `$XDG_RUNTIME_DIR/frozen`; every step is safe to repeat (idle and

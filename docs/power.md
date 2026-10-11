@@ -9,7 +9,7 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   the state: hibernated/off (the hardware needs the hold), asleep, or screen off on idle (inputd
   only turns the screen on). Presses within 3 s of a resume are ignored, so the press that woke it
   doesn't put it back to sleep (`/usr/lib/systemd/system-sleep/resume-time` writes `/run/resume-time`).
-- `/etc/systemd/logind.conf.d/handheld.conf`: power key ignored (`HandlePowerKey=ignore`, inputd handles it); lid switch is ignored (`HandleLidSwitch=ignore`); `inputd` disables input and runs `lid.sh` (screen off via `screen.sh`, games frozen, CPU/GPU throttled) while it is closed (desktop.md).
+- `/etc/systemd/logind.conf.d/handheld.conf`: power key ignored (`HandlePowerKey=ignore`, inputd handles it); lid switch is ignored (`HandleLidSwitch=ignore`); `inputd` disables input, turns the screen off (`screen.sh`, games frozen) and throttles CPU/GPU (`lid.sh`) while it is closed (desktop.md).
 - Hibernation: 4 GB swap partition (UUID in fstab). Resume works without `resume=`: the systemd
   initramfs finds the image via the `HibernateLocation` EFI variable. The RTC alarm does not wake
   the device from hibernation; the power button does. Resume takes ~15-30 s.

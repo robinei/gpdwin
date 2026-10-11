@@ -20,8 +20,15 @@
  * the decision at every moment, so unplugging after a long idle on AC starts the battery countdown
  * from the unplug (it used to be checked only when a step fired, once per idle period).
  *
- * Lid switch: closing the lid disables all input (sway's devices; the pad is grabbed) and runs
- * dotfiles/sway/lid.sh close (screen off and games frozen via screen.sh, CPU/GPU throttled);
+ * State, not events: events only update facts (lid closed, on AC, last activity, sway idle and
+ * since when, when the lid closed). reconcile() works out from the facts what should be (input
+ * off, screen off, brightness level, throttled, suspend) and changes only what differs from what
+ * it last applied, so a missed, repeated or reordered event can't leave a wrong state. At start the
+ * applied lid and screen state count as unknown and are applied either way (both are safe to
+ * repeat), so restarting inputd also repairs what a previous one left behind.
+ *
+ * Lid switch: closed means all input off (sway's devices; the pad is grabbed), screen off
+ * (screen.sh: also freezes shelf and the game) and CPU/GPU throttled (dotfiles/sway/lid.sh);
  * opening it undoes that and counts as activity. While closed, idle runs from the close (or a later
  * unplug or wake) and ignores idle inhibitors (the game is frozen), and only the suspend step
  * applies. Brightness is left alone (level 0 doesn't turn this panel off). logind ignores the lid,
@@ -303,14 +310,6 @@ static void suspend(void)
         perror("inputd: sudo");
 }
 
-static void swaymsg_sh(const char *command)
-{
-    char *argv[] = { "sh", "-c", (char *)command, NULL };
-    pid_t pid;
-    if (posix_spawnp(&pid, "sh", NULL, NULL, argv, environ) != 0)
-        perror("inputd: sh");
-}
-
 /* Run a shell command and wait for it (the idle steps must happen in order). */
 static void sh_wait(const char *command)
 {
@@ -322,83 +321,119 @@ static void sh_wait(const char *command)
         waitpid(pid, NULL, 0); /* SIGCHLD is ignored: returns once it exited */
 }
 
-static int lid_closed;
 static int pad_fd = -1;
 
-/* ---- idle */
+/* ---- state: facts (updated by events, nothing else) and what is applied (changed only by
+ * reconcile). reconcile() works out from the facts what should be, and changes only what differs,
+ * so the order and number of events can't leave it in a wrong state. */
 
 static struct {
+    int lid_closed;
     int on_ac;
-    time_t last_activity;    /* MONOTONIC s */
-    int sway_idle;           /* sway reported no input for DIM_AFTER s (and no inhibitor) */
+    time_t last_activity;    /* MONOTONIC s: pad, lid opened, power button, charger, wake, sway */
+    int sway_idle;           /* sway: no keyboard/pointer/touch for DIM_AFTER s, no inhibitor */
     time_t sway_idle_since;
     time_t lid_closed_at;
-    int dim;                 /* applied: 0 normal, 1 a third, 2 1% */
-    int off;                 /* applied: screen off by idle */
+} fact;
+
+static struct {
+    int lid;                 /* input off, pad grabbed, CPU/GPU throttled (lid.sh) */
+    int screen_off;          /* screen.sh off (screen off, shelf and the game frozen) */
+    int dim;                 /* 0 normal, 1 a third, 2 1% */
     int sleep_sent;          /* suspend requested in this idle period */
-    time_t next;             /* when the next step is due (0: none; sway tells when idle starts) */
-} idle;
+} applied;
+
+static time_t next_due;      /* when the next idle step is due (0: none; sway says when idle starts) */
 
 static void activity(void)
 {
-    idle.last_activity = mono_now();
+    fact.last_activity = mono_now();
 }
 
 static time_t max_t(time_t a, time_t b) { return a > b ? a : b; }
 
-/* Seconds idle now; -1 while active (sway hasn't reported idle and the lid is open). */
+/* Seconds idle now; -1 while active (sway hasn't reported idle and the lid is open). While the lid
+ * is closed, idle runs from the close and ignores inhibitors (the game is frozen). */
 static long idle_seconds(time_t now)
 {
-    if (lid_closed)
-        return now - max_t(idle.lid_closed_at, idle.last_activity);
-    if (!idle.sway_idle)
+    if (fact.lid_closed)
+        return now - max_t(fact.lid_closed_at, fact.last_activity);
+    if (!fact.sway_idle)
         return -1;
-    return now - max_t(idle.sway_idle_since, idle.last_activity);
+    return now - max_t(fact.sway_idle_since, fact.last_activity);
 }
 
-/* Bring brightness, screen and sleep in line with the idle time, and set idle.next. */
-static void idle_update(void)
+/* The pad is grabbed while the lid is closed, so nobody else (games, sway) sees its events. */
+static void grab_pad(void)
+{
+    if (pad_fd >= 0)
+        ioctl(pad_fd, EVIOCGRAB, applied.lid);
+}
+
+static void reconcile(void)
 {
     time_t now = mono_now();
     long t = idle_seconds(now);
-    int low_after = idle.on_ac ? LOW_AFTER_AC : LOW_AFTER_BATTERY;
-    if (!lid_closed) { /* while closed the lid has the screen; brightness stays as it was */
-        int dim = t >= low_after ? 2 : t >= DIM_AFTER ? 1 : 0;
-        int off = !idle.on_ac && t >= OFF_AFTER;
-        if (idle.off && !off)
-            sh_wait("~/.config/sway/screen.sh on");
-        if (dim != idle.dim) {
-            char cmd[256];
-            /* save the brightness when leaving normal, else restore it first (a third of the
-             * original, not of the dimmed level) */
-            const char *base = idle.dim ? "brightnessctl -q -r" : "brightnessctl -q -s";
-            if (dim == 0)
-                snprintf(cmd, sizeof cmd, "brightnessctl -q -r");
-            else if (dim == 1)
-                snprintf(cmd, sizeof cmd, "%s; c=$(brightnessctl -m | cut -d, -f4 | tr -d %%); "
-                         "brightnessctl -q set \"$(( c / 3 > 1 ? c / 3 : 1 ))%%\"", base);
-            else
-                snprintf(cmd, sizeof cmd, "%s; brightnessctl -q set 1", base);
-            sh_wait(cmd);
-            idle.dim = dim;
-        }
-        if (off && !idle.off)
-            sh_wait("~/.config/sway/screen.sh off");
-        idle.off = off;
+    int low_after = fact.on_ac ? LOW_AFTER_AC : LOW_AFTER_BATTERY;
+
+    /* what should be */
+    int lid = fact.lid_closed;
+    int screen_off = fact.lid_closed || (!fact.on_ac && t >= OFF_AFTER);
+    int dim = fact.lid_closed ? applied.dim /* dark anyway: left as it is */
+            : t >= low_after ? 2 : t >= DIM_AFTER ? 1 : 0;
+
+    /* apply the differences: screen on first and off last, so a waking screen is lit */
+    if (lid != applied.lid && !lid) {
+        swaymsg("input * events enabled");
+        applied.lid = 0;
+        grab_pad();
+        sh_wait("~/.config/sway/lid.sh open");
     }
+    if (screen_off != applied.screen_off && !screen_off) {
+        sh_wait("~/.config/sway/screen.sh on");
+        applied.screen_off = 0;
+    }
+    if (dim != applied.dim) {
+        char cmd[256];
+        /* save the brightness when leaving normal, else restore it first (a third of the
+         * original, not of the dimmed level) */
+        const char *base = applied.dim ? "brightnessctl -q -r" : "brightnessctl -q -s";
+        if (dim == 0)
+            snprintf(cmd, sizeof cmd, "brightnessctl -q -r");
+        else if (dim == 1)
+            snprintf(cmd, sizeof cmd, "%s; c=$(brightnessctl -m | cut -d, -f4 | tr -d %%); "
+                     "brightnessctl -q set \"$(( c / 3 > 1 ? c / 3 : 1 ))%%\"", base);
+        else
+            snprintf(cmd, sizeof cmd, "%s; brightnessctl -q set 1", base);
+        sh_wait(cmd);
+        applied.dim = dim;
+    }
+    if (lid != applied.lid && lid) {
+        swaymsg("input * events disabled");
+        applied.lid = 1;
+        grab_pad();
+        sh_wait("~/.config/sway/lid.sh close");
+    }
+    if (screen_off != applied.screen_off && screen_off) {
+        sh_wait("~/.config/sway/screen.sh off");
+        applied.screen_off = 1;
+    }
+
+    /* suspend: once per idle period (a wake counts as activity and starts a new one) */
     if (t < SLEEP_AFTER)
-        idle.sleep_sent = 0;
-    else if (!idle.on_ac && !idle.sleep_sent) {
-        idle.sleep_sent = 1;
+        applied.sleep_sent = 0;
+    else if (!fact.on_ac && !applied.sleep_sent) {
+        applied.sleep_sent = 1;
         suspend();
     }
-    /* next step: the first threshold not reached yet (while idle time runs) */
-    idle.next = 0;
+
+    /* when to look again: the first step not reached yet, while idle time runs */
+    next_due = 0;
     if (t >= 0) {
         int steps[] = { DIM_AFTER, low_after, OFF_AFTER, SLEEP_AFTER };
         for (int i = 0; i < 4; i++)
-            if (steps[i] > t && (!idle.next || now + steps[i] - t < idle.next))
-                idle.next = now + steps[i] - t;
+            if (steps[i] > t && (!next_due || now + steps[i] - t < next_due))
+                next_due = now + steps[i] - t;
     }
 }
 
@@ -406,13 +441,13 @@ static void idle_update(void)
 static void idled(void *data, struct ext_idle_notification_v1 *n)
 {
     (void)data, (void)n;
-    idle.sway_idle = 1;
-    idle.sway_idle_since = mono_now() - DIM_AFTER;
+    fact.sway_idle = 1;
+    fact.sway_idle_since = mono_now() - DIM_AFTER;
 }
 static void resumed(void *data, struct ext_idle_notification_v1 *n)
 {
     (void)data, (void)n;
-    idle.sway_idle = 0;
+    fact.sway_idle = 0;
     activity();
 }
 static const struct ext_idle_notification_v1_listener idle_listener = { idled, resumed };
@@ -450,27 +485,14 @@ static struct wl_display *idle_connect(void)
     return dpy;
 }
 
-/* While the lid is closed the pad is grabbed, so nobody else (games, sway) sees its events. */
-static void grab_pad(void)
+/* The lid switch, as a fact. */
+static void lid_fact(int closed)
 {
-    if (pad_fd >= 0)
-        ioctl(pad_fd, EVIOCGRAB, lid_closed);
-}
-
-/* Lid closed: all input off (sway's devices, and the pad by grabbing it); lid.sh does the rest
- * (screen, freezing, throttling). Opened: back on, and counts as activity. */
-static void on_lid(int closed)
-{
-    lid_closed = closed;
-    swaymsg(closed ? "input * events disabled" : "input * events enabled");
-    grab_pad();
-    swaymsg_sh(closed ? "~/.config/sway/lid.sh close" : "~/.config/sway/lid.sh open");
-    if (closed)
-        idle.lid_closed_at = mono_now();
-    else {
-        activity();
-        idle.off = 0; /* lid.sh turned the screen on */
-    }
+    if (closed && !fact.lid_closed)
+        fact.lid_closed_at = mono_now();
+    if (!closed && fact.lid_closed)
+        activity(); /* opening counts as activity */
+    fact.lid_closed = closed;
 }
 
 /* Menu key: start shelf, or switch to it, or close it if it has the focus (sway asks it to close;
@@ -510,8 +532,11 @@ int main(void)
         { .fd = uevent_socket(), .events = POLLIN },
         { .fd = dpy ? wl_display_get_fd(dpy) : -1, .events = POLLIN },
     };
-    idle.on_ac = charger_online();
+    fact.on_ac = charger_online();
     activity();
+    /* applied state unknown at start (inputd may have died with the lid closed): the first
+     * reconcile applies lid and screen either way, both are safe to repeat */
+    applied.lid = applied.screen_off = -1;
     double was_asleep = slept();
     time_t last_power = 0;
     int press_dark = -1; /* screen state when the power button went down; -1: not down */
@@ -520,14 +545,14 @@ int main(void)
         fds[5 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
 
     unsigned long sw[1] = { 0 };
-    if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0 && (sw[0] >> SW_LID & 1))
-        on_lid(1); /* started with the lid already closed */
+    if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0)
+        lid_fact(sw[0] >> SW_LID & 1); /* started with the lid closed: reconcile applies it */
 
     for (;;) {
-        idle_update();
+        reconcile();
         int timeout = -1;
-        if (idle.next)
-            timeout = idle.next > mono_now() ? (int)(idle.next - mono_now()) * 1000 : 0;
+        if (next_due)
+            timeout = next_due > mono_now() ? (int)(next_due - mono_now()) * 1000 : 0;
         if (dpy) {
             while (wl_display_prepare_read(dpy) != 0)
                 wl_display_dispatch_pending(dpy);
@@ -560,10 +585,10 @@ int main(void)
                 buf[n] = 0;
                 power_event |= strstr(buf, "/power_supply/") != NULL;
             }
-            int ac = power_event ? charger_online() : idle.on_ac;
-            if (ac != idle.on_ac) /* plugged in or out: counts as activity */
+            int ac = power_event ? charger_online() : fact.on_ac;
+            if (ac != fact.on_ac) /* plugged in or out: counts as activity */
                 activity();
-            idle.on_ac = ac;
+            fact.on_ac = ac;
         }
 
         if (fds[0].revents) {
@@ -580,7 +605,7 @@ int main(void)
             struct input_event ev;
             ssize_t n;
             while ((n = read(fds[1].fd, &ev, sizeof ev)) == sizeof ev) {
-                if (!lid_closed && (ev.type == EV_KEY || ev.type == EV_ABS))
+                if (!fact.lid_closed && (ev.type == EV_KEY || ev.type == EV_ABS))
                     activity(); /* sway doesn't count the pad */
             }
             if (n < 0 && errno != EAGAIN) { /* ENODEV once the pad is unplugged */
@@ -593,7 +618,7 @@ int main(void)
             struct input_event ev;
             while (read(fds[2].fd, &ev, sizeof ev) == sizeof ev)
                 if (ev.type == EV_SW && ev.code == SW_LID)
-                    on_lid(ev.value);
+                    lid_fact(ev.value);
         }
 
         for (int i = 5; i < nfds; i++) {
@@ -603,7 +628,7 @@ int main(void)
                 continue;
             while ((n = read(fds[i].fd, &ev, sizeof ev)) == sizeof ev) {
                 if (ev.type == EV_KEY && ev.code == KEY_COMPOSE) { /* the Menu key */
-                    if (ev.value == 1 && !lid_closed)
+                    if (ev.value == 1 && !fact.lid_closed)
                         on_menu();
                     continue;
                 }
@@ -617,7 +642,7 @@ int main(void)
                     continue;
                 int dark = press_dark >= 0 ? press_dark : screen_dark();
                 press_dark = -1;
-                if (lid_closed || just_resumed())
+                if (fact.lid_closed || just_resumed())
                     continue;
                 /* several devices may report the same press: act once */
                 struct timespec t;
@@ -625,7 +650,7 @@ int main(void)
                 if (last_power && t.tv_sec - last_power < 2)
                     continue;
                 last_power = t.tv_sec;
-                if (dark) /* wake the screen (idle_update turns it on) */
+                if (dark) /* wake the screen (reconcile turns it on) */
                     activity();
                 else
                     suspend();
