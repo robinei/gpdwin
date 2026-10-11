@@ -573,3 +573,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   the next reboot boots the normal DKMS module and ends the trace capture.
 - `pegasus/pc/hellfire.sh` reverted to the default SDL renderer (the opengles2 test is done; user's choice). Workaround if
   wanted again: `SDL_RENDER_DRIVER=opengles2` in a launcher.
+- Test boot entry removed (`kernel/i915/uninstall-test.sh`: `arch-test.conf`, `initramfs-linux-test.img`,
+  `/var/lib/gpd-test-modroot`), test modules deleted from ~. 0018/0019 stay in the repo as test-only patches (not in
+  the DKMS stack). The running boot still has the test module and the trace capture until the next reboot.
