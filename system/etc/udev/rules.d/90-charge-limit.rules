@@ -1,0 +1,3 @@
+# Charge the battery to 4.144 V (~80%) instead of 4.384 V: less voltage stress, less swelling
+# (docs/power.md, "Charge limit"). The bq24190 driver keeps the value and rewrites it on resume.
+ACTION=="add", SUBSYSTEM=="power_supply", KERNEL=="bq24190-charger", ATTR{constant_charge_voltage}="4144000"

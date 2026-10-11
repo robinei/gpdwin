@@ -601,3 +601,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - `mesa` 1:26.2.4-1.2 installed on the GPD with `mesa/install.sh` (Arch's 1:26.2.4-1 saved in
   `/var/cache/gpd-mesa-stock`; revert: `mesa/rollback.sh`). Programs started since use it (colorcheck PASS,
   version string arch1.1.2); sway picks it up at the next restart/reboot. docs/packages.md "Patched Mesa".
+
+## 2026-10-12 — Battery charge limit
+- `/etc/udev/rules.d/90-charge-limit.rules`: charge to 4.144 V (~80%) instead of 4.384 V, against
+  wear and swelling. Revert: delete the rule (and its manifest line), reboot. docs/power.md "Charge limit".

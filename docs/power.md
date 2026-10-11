@@ -54,6 +54,18 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   charger doesn't charge (see below). The cable comes from `bq24190-charger/online`, the state
   from its `status` (which says "Full", not "Charging", once topped up).
 
+## Charge limit (2026-10-12)
+- The pack is a high-voltage Li-ion (MAX17047 `voltage_max` 4.4 V); the bq24292i charged it to
+  4.384 V (`constant_charge_voltage`, max 4400000). 279 cycles then, capacity still at/above design.
+- `/etc/udev/rules.d/90-charge-limit.rules` sets 4.144 V (~80% on such cells) when the charger
+  driver loads; the driver keeps it and rewrites it on resume. Voltage is what stresses the cells
+  (with heat), so this limits wear and swelling directly; no daemon, the chip stops by itself.
+- Charge-path: the bq24292i powers the system from the adapter; once charged the battery rests
+  (measured 1.5 mA `current_now` at full on the 9 V PD charger), it is not cycled while plugged in.
+- The capacity % may stop below 100 once the gauge relearns; `status` still turns "Full", so the bar
+  shows `bat full`. Full charge for a trip: `echo 4384000 | sudo tee /sys/class/power_supply/bq24190-charger/constant_charge_voltage`
+  (back to the limit at the next boot).
+
 ## Charging stuck at 500 mA after hibernate (fixed 2026-10-10)
 - Seen once: after a hibernate wake, plugging in the PD charger (9 V / 3 A) left
   `bq24190-charger/input_current_limit` at 500000, status "Not charging", battery slowly
