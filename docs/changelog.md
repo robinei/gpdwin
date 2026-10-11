@@ -501,3 +501,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - AUR: all current. commander-genius-git is pinned (bee4fcb), upstream is 3 commits ahead; not bumped.
 - Checks: no drift, firewall loaded, audio paths intact, gpd-i915/gpd-audio loaded from `updates/dkms`
   on 7.2.9, no failed units.
+- Orphans `cmake lib32-glew meson python-mako qt5-tools vulkan-headers` marked explicit
+  (`sudo pacman -D --asexplicit ...`) to keep them. Revert: `pacman -D --asdeps <pkg>`.
