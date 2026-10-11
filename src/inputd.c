@@ -290,7 +290,9 @@ static void on_menu(void)
         swaymsg("workspace number 1; exec ~/.config/shelf/run");
     else if (game)
         return;
-    else if (sway_ipc(0, "[app_id=\"^shelf$\" con_id=__focused__] kill", r, sizeof r) &&
+    /* workspace=__focused__ too: on an empty workspace no window has the focus, and sway then
+     * ignores con_id=__focused__ (it would close shelf on workspace 1) */
+    else if (sway_ipc(0, "[app_id=\"^shelf$\" workspace=__focused__ con_id=__focused__] kill", r, sizeof r) &&
              (strstr(r, "\"success\": true") || strstr(r, "\"success\":true")))
         return; /* it had the focus: closing */
     else
