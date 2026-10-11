@@ -12,20 +12,21 @@ cd "$(dirname "$0")"
 HERE=$PWD
 V=7.2.9
 B=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain
+fetch() { curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o "$1" "$2"; } # kernel.org rate-limits (503)
 if [ "${1:-}" = --repin ]; then
     NEW=${2:?usage: prepare.sh --repin VERSION}
     for list in rt5645/sources.sha256 intel-sst/sources.sha256; do
         tmp=$(mktemp -d)
         while read -r sum path; do
-            curl -fsSL -o "$tmp/f" "$B/${path#./}?h=v$NEW"
+            fetch "$tmp/f" "$B/${path#./}?h=v$NEW" || { rm -rf "$tmp" "$list.new"; exit 1; }
             echo "$(sha256sum "$tmp/f" | cut -d' ' -f1)  $path"
-        done < "$list" > "$list.new"
+        done < "$list" > "$list.new" || exit 1
         rm -rf "$tmp"
         mv "$list.new" "$list"
     done
-    sed -i "s/^V=.*/V=$NEW/" "$0"
+    sed -i "s/^V=.*/V=$NEW/" "$HERE/prepare.sh"
     echo "pinned to $NEW (see git diff kernel/); building the tree"
-    exec "$0"
+    exec "$HERE/prepare.sh"
 fi
 T=dkms-tree/gpd-audio-1.0
 rm -rf dkms-tree
@@ -33,7 +34,7 @@ mkdir -p "$T"
 for list in rt5645/sources.sha256 intel-sst/sources.sha256; do
     while read -r sum path; do
         mkdir -p "$T/$(dirname "$path")"
-        curl -fsSL -o "$T/$path" "$B/${path#./}?h=v$V"
+        fetch "$T/$path" "$B/${path#./}?h=v$V"
     done < "$list"
     (cd "$T" && sha256sum -c "$HERE/$list")
 done
