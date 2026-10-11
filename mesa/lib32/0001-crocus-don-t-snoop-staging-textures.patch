@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Mon, 12 Oct 2026 01:38:59 +0200
+Subject: [PATCH 1/2] crocus: don't snoop staging textures on non-LLC parts
+
+crocus makes every PIPE_USAGE_STAGING texture BO snooped
+(I915_CACHING_CACHED) on parts without LLC, which also makes it
+non-reusable. Measured on a GPD Win 1 (Cherry Trail, Gen8 LP) with
+853x480 BGRA, median per call:
+
+- upload through a staging texture (glTexSubImage2D GL_BGRA into a
+  GL_RGBA8 texture, SDL's opengl renderer, Wine): 3.73 ms snooped,
+  1.14 ms not snooped (>5 ms in 20 % of frames vs never);
+- readback through a staging texture (glReadPixels / glGetTexImage with
+  GL_BGRA): 5.2-5.7 ms snooped, 3.0-4.3 ms not snooped (crocus maps the
+  non-coherent BO cached and invalidates before the CPU reads);
+- readback without a staging texture: unchanged.
+
+On that device the snooped GPU reads of upload staging textures also
+make the MIPI DSI display pipe stall (DPI FIFO underruns, the picture
+flashes or splits): 205 underruns in 10 minutes of an SDL-style upload
+test with snooped staging, 0 without.
+
+Don't request snooping for staging textures. On LLC parts the flag was
+a no-op.
+---
+ src/gallium/drivers/crocus/crocus_resource.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/gallium/drivers/crocus/crocus_resource.c b/src/gallium/drivers/crocus/crocus_resource.c
+index e054fca..c531f41 100644
+--- a/src/gallium/drivers/crocus/crocus_resource.c
++++ b/src/gallium/drivers/crocus/crocus_resource.c
+@@ -662,8 +662,11 @@ crocus_resource_create_with_modifiers(struct pipe_screen *pscreen,
+    const char *name = "miptree";
+ 
+    unsigned int flags = 0;
+-   if (templ->usage == PIPE_USAGE_STAGING)
+-      flags |= BO_ALLOC_COHERENT;
++   /* Staging textures are not snooped (BO_ALLOC_COHERENT) on non-LLC parts:
++    * for uploads the GPU's snooped reads are slow and the BO cannot be
++    * reused (a fresh one with a clflush every upload), and for readback a
++    * cached CPU map with an invalidate is faster than a snooped BO too.
++    */
+ 
+    /* Scanout buffers need to be WC. */
+    if (templ->bind & PIPE_BIND_SCANOUT)
+-- 
+2.56.0
+

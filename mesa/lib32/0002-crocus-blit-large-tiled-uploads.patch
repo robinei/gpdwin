@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Mon, 12 Oct 2026 01:38:59 +0200
+Subject: [PATCH 2/2] crocus: upload large tiled textures with a GPU blit on
+ non-LLC parts
+
+When a write-only transfer of a tiled texture doesn't stall, crocus
+maps the texture and tiles the data with the CPU (tiled memcpy) through
+an uncached mapping on non-LLC parts. For larger uploads the copy into a
+linear staging texture plus a blorp blit is cheaper: on a GPD Win 1
+(Cherry Trail), 853x480 BGRA uploaded every frame with matching formats
+(SDL's opengles2 renderer; wlroots uploading shm client buffers takes
+the same path): 2.01 ms -> 0.89 ms per upload, 417 -> 734 fps in an
+upload-bound test.
+
+Use the staging path for write-only uploads of at least 64 KiB into
+tiled textures on non-LLC parts; small updates keep the CPU path.
+---
+ src/gallium/drivers/crocus/crocus_resource.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/src/gallium/drivers/crocus/crocus_resource.c b/src/gallium/drivers/crocus/crocus_resource.c
+index c531f41..824274b 100644
+--- a/src/gallium/drivers/crocus/crocus_resource.c
++++ b/src/gallium/drivers/crocus/crocus_resource.c
+@@ -1628,6 +1628,18 @@ crocus_transfer_map(struct pipe_context *ctx,
+    if (fmtl->txc == ISL_TXC_ASTC)
+       no_gpu = true;
+ 
++   /* On non-LLC parts the CPU writes a tiled texture through an uncached
++    * mapping, with the tiling done by the CPU. For larger write-only uploads
++    * a linear staging texture written once and a GPU blit is cheaper (on
++    * Cherry Trail, 853x480 BGRA: 0.9 ms instead of 2.0 ms per upload).
++    */
++   if (!screen->devinfo.has_llc && resource->target != PIPE_BUFFER &&
++       surf->tiling != ISL_TILING_LINEAR &&
++       (usage & PIPE_MAP_WRITE) && !(usage & PIPE_MAP_READ) &&
++       (uint64_t)box->width * box->height * box->depth *
++          util_format_get_blocksize(res->base.b.format) >= 64 * 1024)
++      map_would_stall = true;
++
+    if (map_would_stall && !no_gpu) {
+       /* If we need a synchronous mapping and the resource is busy, or needs
+        * resolving, we copy to/from a linear temporary buffer using the GPU.
+-- 
+2.56.0
+
