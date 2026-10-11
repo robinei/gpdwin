@@ -587,3 +587,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   a clean devtools chroot (`mesa/build.sh`). Patch 0001 (st: store GL_RGBA8 as BGRA when the data is BGRA) and 0002
   (crocus: staging snoop / MOCS) are test switches, off unless `MESA_ST_MATCH_SIZED`, `CROCUS_STAGING_NOSNOOP` or
   `CROCUS_SNOOP_UC_MOCS` is set. Nothing installed on the GPD yet. See mesa/README.md.
+- Desktop (not managed by this repo): `/etc/sudoers.d/90-robin-timestamp` = `Defaults:robin timestamp_type=global,
+  timestamp_timeout=240`, set by the user so Claude's non-TTY commands can use the sudo cache for the Mesa chroot
+  builds. Revert: `sudo rm /etc/sudoers.d/90-robin-timestamp`.
