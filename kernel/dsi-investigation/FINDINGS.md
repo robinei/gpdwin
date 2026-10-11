@@ -57,7 +57,7 @@ trace is now set up with interrupt-timed underruns (0018) and `scripts/dsi-trace
 | 0016 | 0012's vblank FIFO sample cancelled after 200 ms without vblank | in use since 2026-10-10; keeps a lost vblank from hanging every commit |
 | 0017 | 0012: a rate-limited resync is deferred to the end of the 2 s gap, not dropped | in use since 2026-10-11; a split had stayed 22 s (`data/split-2026-10-11-1507.log`) |
 | 0018 | underruns timed by the MIPI C interrupt (one shot, re-armed by the poller), kprobe hook for tracing (diagnostic, `i915.vlv_dsi_ur_irq=1`) | test entry 2026-10-11: works, 7 of 8 underruns irq-timed; not in DKMS |
-| 0019 | `i915.vlv_cxsr=0`: no cxSR, watermark level PM2 at most (experiment) | built 2026-10-11 (srcversion 50EBC55FDEE31BFA309627C), not tested yet |
+| 0019 | `i915.vlv_cxsr=0`: no cxSR, watermark level PM2 at most (experiment) | 2026-10-11 18:34 (`i915_sr_status` disabled): 2 flashes in the first 2 min, same pattern: **self-refresh/PM5/DDR DVFS are not the cause** |
 
 The sections below are the round-1 audit and the measurements in the order they were made; where they say
 otherwise, this summary wins (e.g. "the link back-pressures the pipe" below: the pipe is slaved to the DSI
@@ -106,6 +106,9 @@ cluster was partly its detection delay); the second always at 1279.
 - Remaining suspects: the memory waking from self-refresh when the GPU burst starts after an idle gap (cxSR/PM5; a
   single-plane display may self-refresh; heavy games that keep the GPU busy don't flash), or plain memory bandwidth of
   the burst. Test: patch 0019 (`i915.vlv_cxsr=0`: no cxSR, watermark level PM2 at most).
+- **0019 result (18:34):** self-refresh disabled (`i915_sr_status`), flashes at 18:35:10 and 18:35:21; the traced one
+  again 0.47 ms after DevilutionX's request_add. Memory self-refresh is ruled out. Left: what DevilutionX's GPU work
+  does in its first ~0.5 ms (memory bandwidth burst, GGTT/TLB activity, snooped reads of CPU-written buffers).
 
 ## Display hang at screen-on, 2026-10-10 19:02 (separate bug, not the DSI link)
 

@@ -560,3 +560,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - 0019 test entry (`arch-test.conf`: `i915.vlv_dsi_ur_irq=1 i915.vlv_cxsr=0`) made the **default** boot entry at the
   user's request (the boot menu has no timeout, so a one-shot is easy to lose). Revert after the test:
   `sudo bootctl set-default arch.conf` (then optionally `kernel/i915/uninstall-test.sh`).
+- 0019 result: flashes continue with self-refresh off (2 in the first 2 min), so cxSR/PM5/DDR DVFS are ruled out.
+  Default boot entry set back to `arch.conf` (normal DKMS module) at 18:37; `arch-test.conf` stays as a menu entry.
