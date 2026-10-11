@@ -23,10 +23,11 @@
  * to show a software frame. Box art and logos are decoded by a background thread, and kept scaled in
  * ~/.cache/shelf/img.
  *
- * Input: keyboard (only while the window has focus), mouse and touch from Wayland. The gamepad
- * is read directly from evdev in a thread (inotify for hotplug), not through SDL's gamepad layer:
- * with a joystick open SDL polls about every millisecond, and the pad disconnects whenever the
- * screen goes off; it too is ignored while the window doesn't have the focus.
+ * Input: keyboard (only while the window has focus), mouse and touch from Wayland. Gamepads (any
+ * with the Xbox layout, up to four) are read directly from evdev in a thread (inotify for hotplug),
+ * not through SDL's gamepad layer: with a joystick open SDL polls about every millisecond, and the
+ * GPD's pad disconnects whenever the screen goes off; they too are ignored while the window doesn't
+ * have the focus.
  *   pad:  d-pad/stick up/down move, LB/RB page (held: repeat), LT/RT top/bottom, d-pad/stick
  *         left/right switch collection, A launch, Y favourite
  *   keys: arrows, Page Up/Down, Home/End, Tab/Shift+Tab, Enter launch, F favourite
@@ -78,7 +79,6 @@
 #include "vendor/xdg-shell-client-protocol.h"
 #include "vendor/xdg-shell-protocol.c"
 
-#define PAD_NAME "Microsoft X-Box 360 pad"
 #define FONT_REGULAR "/usr/share/fonts/TTF/DejaVuSans.ttf"
 #define FONT_BOLD "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"
 #define RECENT_MAX 20
@@ -1638,27 +1638,111 @@ static void stick_axis(int value, int *state, int neg, int pos)
     *state = s;
 }
 
-static int open_pad(void)
+#define MAX_PADS 4
+#define TEST_BIT(bits, n) ((bits)[(n) / 8] >> ((n) % 8) & 1)
+
+typedef struct {
+    int fd, dev;              /* dev: the eventN number, so a pad isn't opened twice */
+    struct input_absinfo abs[ABS_CNT]; /* ranges (only the axes used) */
+    bool gas_brake;           /* triggers on ABS_BRAKE/ABS_GAS (Z/RZ may then be the right stick) */
+    int hat_x, hat_y, stick_x, stick_y, lt, rt;
+} Pad;
+
+/* A pad with the Xbox layout: face buttons (BTN_SOUTH...) and a stick. That is what the kernel's
+ * drivers for Xbox, PlayStation and Switch pads report (xpad, hid-microsoft, hid-playstation...).
+ * A generic HID pad (like the GPD in DInput mode) numbers its buttons instead, so its BTN_SOUTH is
+ * just "button 1"; BTN_C (button 3), which no Xbox-layout driver sets, tells those apart. */
+static bool is_pad(int fd)
+{
+    unsigned char keys[KEY_CNT / 8 + 1] = { 0 }, abs[ABS_CNT / 8 + 1] = { 0 };
+    return ioctl(fd, EVIOCGBIT(EV_KEY, sizeof keys), keys) >= 0 && ioctl(fd, EVIOCGBIT(EV_ABS, sizeof abs), abs) >= 0
+        && TEST_BIT(keys, BTN_SOUTH) && TEST_BIT(keys, BTN_EAST) && !TEST_BIT(keys, BTN_C)
+        && TEST_BIT(abs, ABS_X) && TEST_BIT(abs, ABS_Y);
+}
+
+/* Open the pads not open yet. Returns how many are open. */
+static int open_pads(Pad *pads, int n)
 {
     DIR *d = opendir("/dev/input");
     struct dirent *e;
-    int found = -1;
-    while (d && found < 0 && (e = readdir(d))) {
-        char path[300], name[256] = "";
-        if (strncmp(e->d_name, "event", 5) != 0)
+    while (d && n < MAX_PADS && (e = readdir(d))) {
+        int dev;
+        if (sscanf(e->d_name, "event%d", &dev) != 1)
             continue;
+        bool have = false;
+        for (int i = 0; i < n; i++)
+            have |= pads[i].dev == dev;
+        char path[300];
         snprintf(path, sizeof path, "/dev/input/%s", e->d_name);
-        int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+        int fd = have ? -1 : open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         if (fd < 0)
             continue;
-        if (ioctl(fd, EVIOCGNAME(sizeof name - 1), name) >= 0 && strcmp(name, PAD_NAME) == 0)
-            found = fd;
-        else
+        if (!is_pad(fd)) {
             close(fd);
+            continue;
+        }
+        Pad *p = &pads[n++];
+        *p = (Pad){ .fd = fd, .dev = dev };
+        int axes[] = { ABS_X, ABS_Y, ABS_Z, ABS_RZ, ABS_GAS, ABS_BRAKE };
+        for (int i = 0; i < 6; i++)
+            ioctl(fd, EVIOCGABS(axes[i]), &p->abs[axes[i]]);
+        p->gas_brake = p->abs[ABS_GAS].maximum > p->abs[ABS_GAS].minimum;
     }
     if (d)
         closedir(d);
-    return found;
+    return n;
+}
+
+/* An axis value as -1 .. 1 across its range (sticks) or 0 .. 1 (triggers, whose minimum is 0). */
+static float axis_frac(const Pad *p, int code, int value)
+{
+    const struct input_absinfo *ai = &p->abs[code];
+    if (ai->maximum <= ai->minimum)
+        return 0;
+    float f = (float)(value - ai->minimum) / (ai->maximum - ai->minimum);
+    return ai->minimum < 0 || code == ABS_X || code == ABS_Y ? f * 2 - 1 : f;
+}
+
+/* A hat (d-pad) axis as two buttons (neg, pos). */
+static void hat_axis(int value, int *state, int neg, int pos)
+{
+    if (value == *state)
+        return;
+    if (*state)
+        push_pad(*state < 0 ? neg : pos, 0);
+    if (value)
+        push_pad(value < 0 ? neg : pos, 1);
+    *state = value;
+}
+
+static void pad_event(Pad *p, const struct input_event *ev)
+{
+    if (ev->type == EV_KEY && ev->value != 2) {
+        int a = ev->code == BTN_SOUTH ? A_LAUNCH : ev->code == BTN_NORTH ? A_FAV : ev->code == BTN_EAST ? A_BACK
+              : ev->code == BTN_TL ? A_PGUP : ev->code == BTN_TR ? A_PGDN
+              : ev->code == BTN_TL2 ? A_HOME : ev->code == BTN_TR2 ? A_END : A_NONE; /* digital triggers */
+        if (a)
+            push_pad(a, ev->value);
+    } else if (ev->type == EV_ABS) {
+        int c = ev->code;
+        if (c == ABS_HAT0Y)
+            hat_axis(SDL_clamp(ev->value, -1, 1), &p->hat_y, A_UP, A_DOWN);
+        else if (c == ABS_HAT0X)
+            hat_axis(SDL_clamp(ev->value, -1, 1), &p->hat_x, A_LEFT, A_RIGHT);
+        else if (c == ABS_Y || c == ABS_X) /* left stick */
+            stick_axis(axis_frac(p, c, ev->value) * 32767, c == ABS_Y ? &p->stick_y : &p->stick_x,
+                       c == ABS_Y ? A_UP : A_LEFT, c == ABS_Y ? A_DOWN : A_RIGHT);
+        else if (p->gas_brake ? c == ABS_BRAKE || c == ABS_GAS : c == ABS_Z || c == ABS_RZ) { /* triggers: top, bottom */
+            bool left = c == ABS_Z || c == ABS_BRAKE;
+            int *t = left ? &p->lt : &p->rt;
+            float f = axis_frac(p, c, ev->value);
+            int on = f > 0.63f ? 1 : f < 0.25f ? 0 : *t;
+            if (on != *t) {
+                push_pad(left ? A_HOME : A_END, on);
+                *t = on;
+            }
+        }
+    }
 }
 
 static int pad_thread(void *unused)
@@ -1666,15 +1750,16 @@ static int pad_thread(void *unused)
     (void)unused;
     int watch = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
     inotify_add_watch(watch, "/dev/input", IN_CREATE | IN_ATTRIB);
-    int pad = open_pad();
-    int hat_y = 0, hat_x = 0, stick_y = 0, stick_x = 0, lt = 0, rt = 0;
+    Pad pads[MAX_PADS];
+    int npads = open_pads(pads, 0);
     for (;;) {
-        struct pollfd fds[3] = {
+        struct pollfd fds[2 + MAX_PADS] = {
             { .fd = pad_quit_pipe[0], .events = POLLIN },
             { .fd = watch, .events = POLLIN },
-            { .fd = pad, .events = POLLIN },
         };
-        if (poll(fds, 3, -1) < 0)
+        for (int i = 0; i < npads; i++)
+            fds[2 + i] = (struct pollfd){ .fd = pads[i].fd, .events = POLLIN };
+        if (poll(fds, 2 + npads, -1) < 0)
             continue;
         if (fds[0].revents)
             break;
@@ -1682,54 +1767,25 @@ static int pad_thread(void *unused)
             char buf[4096];
             while (read(watch, buf, sizeof buf) > 0)
                 ;
-            if (pad < 0)
-                pad = open_pad();
+            npads = open_pads(pads, npads);
         }
-        if (pad >= 0 && fds[2].revents) {
+        for (int i = 0; i < npads; i++) {
+            if (!fds[2 + i].revents)
+                continue;
             struct input_event ev;
             ssize_t n;
-            while ((n = read(pad, &ev, sizeof ev)) == sizeof ev) {
-                if (ev.type == EV_KEY && ev.value != 2) {
-                    int a = ev.code == BTN_A ? A_LAUNCH : ev.code == BTN_Y ? A_FAV : ev.code == BTN_B ? A_BACK
-                          : ev.code == BTN_TL ? A_PGUP : ev.code == BTN_TR ? A_PGDN : A_NONE;
-                    if (a)
-                        push_pad(a, ev.value);
-                } else if (ev.type == EV_ABS) {
-                    if (ev.code == ABS_HAT0Y && ev.value != hat_y) {
-                        if (hat_y)
-                            push_pad(hat_y < 0 ? A_UP : A_DOWN, 0);
-                        if (ev.value)
-                            push_pad(ev.value < 0 ? A_UP : A_DOWN, 1);
-                        hat_y = ev.value;
-                    } else if (ev.code == ABS_HAT0X && ev.value != hat_x) {
-                        if (hat_x)
-                            push_pad(hat_x < 0 ? A_LEFT : A_RIGHT, 0);
-                        if (ev.value)
-                            push_pad(ev.value < 0 ? A_LEFT : A_RIGHT, 1);
-                        hat_x = ev.value;
-                    } else if (ev.code == ABS_Y) { /* left stick */
-                        stick_axis(ev.value, &stick_y, A_UP, A_DOWN);
-                    } else if (ev.code == ABS_X) {
-                        stick_axis(ev.value, &stick_x, A_LEFT, A_RIGHT);
-                    } else if (ev.code == ABS_Z || ev.code == ABS_RZ) { /* triggers: top, bottom */
-                        int *t = ev.code == ABS_Z ? &lt : &rt;
-                        int on = ev.value > 160 ? 1 : ev.value < 64 ? 0 : *t;
-                        if (on != *t) {
-                            push_pad(ev.code == ABS_Z ? A_HOME : A_END, on);
-                            *t = on;
-                        }
-                    }
-                }
-            }
-            if (n < 0 && errno != EAGAIN) { /* pad gone (screen off, resume): inotify brings it back */
-                close(pad);
-                pad = -1;
-                hat_x = hat_y = stick_y = stick_x = lt = rt = 0;
+            while ((n = read(pads[i].fd, &ev, sizeof ev)) == sizeof ev)
+                pad_event(&pads[i], &ev);
+            if (n < 0 && errno != EAGAIN) { /* pad gone (unplugged, screen off, resume): inotify brings it back */
+                close(pads[i].fd);
+                pads[i] = pads[--npads];
+                fds[2 + i] = fds[2 + npads]; /* so the moved pad's revents is still seen */
+                i--;
             }
         }
     }
-    if (pad >= 0)
-        close(pad);
+    for (int i = 0; i < npads; i++)
+        close(pads[i].fd);
     close(watch);
     return 0;
 }
@@ -2144,10 +2200,15 @@ static void cache_clear(App *a)
     }
 }
 
+/* Everything is laid out for 1280x720 and scaled to the window (render sets ui_scale): S(px) is a
+ * length at that size. A HiDPI screen gives a window that many times more pixels, so it's sharp. */
+static float ui_scale = 1;
+#define S(px) ((int)((px) * ui_scale + 0.5f))
+
 /* Collection logos: ~/.local/share/shelf/logos/<shortname>.svg (shelf/logos/ in the repo), loaded
  * by the image thread like box art and fitted into LOGO_W x LOGO_H. */
-#define LOGO_W 140
-#define LOGO_H 34
+#define LOGO_W S(140)
+#define LOGO_H S(34)
 static char *logo_path(const char *shortname)
 {
     const char *dh = getenv("XDG_DATA_HOME");
@@ -2187,11 +2248,11 @@ static int text_width(TTF_Font *f, const char *s)
     return w;
 }
 
-/* Layout (px). The list rows stretch to fill the height exactly (see draw_list). */
-#define TAB_H 64       /* tab bar height */
-#define TAB_PAD 20     /* space left and right of a tab's logo/symbol/name */
-#define ROW_NOMINAL 52 /* list row height before stretching */
-#define THUMB 40       /* list thumbnail box */
+/* Layout (px at 1280x720). The list rows stretch to fill the height exactly (see draw_list). */
+#define TAB_H S(64)       /* tab bar height */
+#define TAB_PAD S(20)     /* space left and right of a tab's logo/symbol/name */
+#define ROW_NOMINAL S(52) /* list row height before stretching */
+#define THUMB S(40)       /* list thumbnail box */
 #define HOLD_MS 150    /* how long the previous large art may stand in for the selected game's */
 #define PAGE 8         /* rows per page up/down */
 #define DOUBLE_CLICK_MS 400
@@ -2529,34 +2590,34 @@ static void draw_list(App *a, Collection *c, int LW, int H)
         bool on = *top + r == *sel;
         if (on) {
             fill(a, P.row_on, 0, y, LW, rh);
-            fill(a, P.accent, 0, y, 5, rh);
+            fill(a, P.accent, 0, y, S(5), rh);
         }
         if (g->boxfront) {
             ImgEntry *e = cache_get(a, IMG_THUMB, g->boxfront, THUMB);
             if (!e)
-                loader_want(g->boxfront, THUMB, THUMB + 4, IMG_THUMB);
+                loader_want(g->boxfront, THUMB, THUMB + S(4), IMG_THUMB);
             else if (e->tex)
                 SDL_RenderTexture(a->ren, e->tex, NULL,
-                                  &(SDL_FRect){ 16 + (THUMB - e->w) / 2.0f, y + (rh - e->h) / 2.0f, e->w, e->h });
+                                  &(SDL_FRect){ S(16) + (THUMB - e->w) / 2.0f, y + (rh - e->h) / 2.0f, e->w, e->h });
         }
-        SDL_SetRenderClipRect(a->ren, &(SDL_Rect){ 0, y, LW - 14, rh });
-        text(a, a->f_row, g->title, on ? P.text : P.subtext, 16 + THUMB + 14, y + (rh - th) / 2.0f, 0);
+        SDL_SetRenderClipRect(a->ren, &(SDL_Rect){ 0, y, LW - S(14), rh });
+        text(a, a->f_row, g->title, on ? P.text : P.subtext, S(16) + THUMB + S(14), y + (rh - th) / 2.0f, 0);
         SDL_SetRenderClipRect(a->ren, NULL);
         if (g->favorite)
-            fill(a, P.fav, LW - 10, y + rh / 2 - 3, 6, 6);
+            fill(a, P.fav, LW - S(10), y + rh / 2 - S(3), S(6), S(6));
     }
     if (c->ngames > rows) { /* scroll position */
         float h = (float)(H - TAB_H) * rows / c->ngames, y = TAB_H + (float)(H - TAB_H) * *top / c->ngames;
-        fill(a, P.box, LW - 3, y, 3, h);
+        fill(a, P.box, LW - S(3), y, S(3), h);
     }
 }
 
 /* The selected game: box art (icon-sized for tools), title, details, play time, description. */
 static void draw_details(App *a, Game *g, int LW, int W, int H)
 {
-    int PX = LW + 28, PW = W - PX - 28, y = TAB_H + 20;
+    int PX = LW + S(28), PW = W - PX - S(28), y = TAB_H + S(20);
     bool tool = is_tool(g);
-    int IW = tool ? 128 : PW * 44 / 100, IH = tool ? 128 : (H - TAB_H) * 58 / 100;
+    int IW = tool ? S(128) : PW * 44 / 100, IH = tool ? S(128) : (H - TAB_H) * 58 / 100;
     int img_h = 0;
     if (g->boxfront) {
         ImgEntry *e = cache_get(a, IMG_BIG, g->boxfront, IW);
@@ -2595,8 +2656,12 @@ static void draw_details(App *a, Game *g, int LW, int W, int H)
         a->big_holding = false;
         a->hold_until = 0;
     }
-    int tx = g->boxfront ? PX + IW + 24 : PX, tw = PX + PW - tx, ty = y;
-    ty += text(a, a->f_title, g->title, P.text, tx, ty, tw) + 10;
+    int tx = g->boxfront ? PX + IW + S(24) : PX, tw = PX + PW - tx, ty = y;
+    if (tw < S(240)) { /* too narrow beside the art (a tall window): below it */
+        tx = PX, tw = PW, ty = y + img_h + S(16);
+        img_h = 0;
+    }
+    ty += text(a, a->f_title, g->title, P.text, tx, ty, tw) + S(10);
     char line[512], part[256];
     line[0] = 0;
     join(part, sizeof part, &g->developers);
@@ -2608,10 +2673,10 @@ static void draw_details(App *a, Game *g, int LW, int W, int H)
         snprintf(line + strlen(line), sizeof line - strlen(line), "%s1-%d players", *line ? "  ·  " : "",
                  g->players);
     if (*line)
-        ty += text(a, a->f_small, line, P.subtext, tx, ty, tw) + 6;
+        ty += text(a, a->f_small, line, P.subtext, tx, ty, tw) + S(6);
     join(part, sizeof part, &g->genres);
     if (*part)
-        ty += text(a, a->f_small, part, P.subtext, tx, ty, tw) + 6;
+        ty += text(a, a->f_small, part, P.subtext, tx, ty, tw) + S(6);
     if (g->play_count) {
         char d1[64], d2[64];
         format_duration(d1, sizeof d1, g->play_time);
@@ -2620,13 +2685,13 @@ static void draw_details(App *a, Game *g, int LW, int W, int H)
     } else {
         snprintf(line, sizeof line, "Not played yet");
     }
-    ty += text(a, a->f_small, line, P.overlay, tx, ty, tw) + 6;
+    ty += text(a, a->f_small, line, P.overlay, tx, ty, tw) + S(6);
     if (g->favorite)
-        ty += text(a, a->f_small, "Favourite", P.fav, tx, ty, tw) + 6;
+        ty += text(a, a->f_small, "Favourite", P.fav, tx, ty, tw) + S(6);
     const char *desc = g->description ? g->description : g->summary;
-    int dy = SDL_max(y + img_h, ty) + 20;
-    if (desc && H - dy - 12 > 20) {
-        SDL_SetRenderClipRect(a->ren, &(SDL_Rect){ PX, dy, PW, H - dy - 12 });
+    int dy = SDL_max(y + img_h, ty) + S(20);
+    if (desc && H - dy - S(12) > S(20)) {
+        SDL_SetRenderClipRect(a->ren, &(SDL_Rect){ PX, dy, PW, H - dy - S(12) });
         text(a, a->f_small, desc, P.subtext, PX, dy, PW);
         SDL_SetRenderClipRect(a->ren, NULL);
     }
@@ -2651,10 +2716,25 @@ static void draw_overlay(App *a, int W, int H)
     free(msg);
 }
 
+/* Font sizes (pt at 1280x720), scaled. */
+static void set_font_sizes(App *a)
+{
+    TTF_SetFontSize(a->f_tab, S(22));
+    TTF_SetFontSize(a->f_icon, S(32));
+    TTF_SetFontSize(a->f_row, S(22));
+    TTF_SetFontSize(a->f_title, S(28));
+    TTF_SetFontSize(a->f_small, S(18));
+}
+
 /* Draw the whole frame into the canvas (present() shows it). Also rebuilds the image wish list. */
 static void render(App *a)
 {
     int W = a->W, H = a->H, LW = W * 46 / 100;
+    float scale = SDL_clamp(SDL_min(W / 1280.0f, H / 720.0f), 0.6f, 4.0f);
+    if (scale != ui_scale) {
+        ui_scale = scale;
+        set_font_sizes(a);
+    }
     loader_clear(); /* rebuilt below: what this frame still lacks */
     a->list_rows = 0;
     fill(a, P.bg, 0, 0, W, H);
@@ -2664,7 +2744,7 @@ static void render(App *a)
         draw_list(a, c, LW, H);
         draw_details(a, c->games[a->sel[a->tab]], LW, W, H);
     } else {
-        text(a, a->f_title, "No games found", P.subtext, 40, TAB_H + 40, 0);
+        text(a, a->f_title, "No games found", P.subtext, S(40), TAB_H + S(40), 0);
     }
     if (a->starting)
         draw_overlay(a, W, H);
@@ -2830,6 +2910,7 @@ static struct {
     struct wl_pointer *ptr;
     struct wl_touch *touch;
     double ptr_x, ptr_y;
+    int scale; /* buffer scale (the screen's, rounded up): window pixels per surface unit */
     struct wl_surface *surf;
     struct xdg_surface *xsurf;
     struct xdg_toplevel *top;
@@ -2895,6 +2976,7 @@ static bool present(App *a)
         memcpy((char *)sb->data + (size_t)y * a->W * 4, (char *)a->canvas->pixels + (size_t)y * a->canvas->pitch,
                (size_t)a->W * 4);
     SDL_UnlockSurface(a->canvas);
+    wl_surface_set_buffer_scale(wl.surf, wl.scale);
     wl_surface_attach(wl.surf, sb->buf, 0, 0);
     wl_surface_damage_buffer(wl.surf, 0, 0, a->W, a->H);
     wl_surface_commit(wl.surf);
@@ -2913,6 +2995,26 @@ static void show_now(App *a)
         wl_display_roundtrip(wl.dpy); /* make sure the compositor has it before we fork */
 }
 
+/* The screen's scale (wl_compositor 6+; older: 1). The window keeps its size on screen and gets
+ * that many times more pixels. */
+static void surf_enter(void *d, struct wl_surface *s, struct wl_output *o) { (void)d, (void)s, (void)o; }
+static void surf_leave(void *d, struct wl_surface *s, struct wl_output *o) { (void)d, (void)s, (void)o; }
+static void surf_scale(void *d, struct wl_surface *s, int32_t factor)
+{
+    (void)d, (void)s;
+    if (factor < 1 || factor == wl.scale)
+        return;
+    App *a = the_app;
+    a->W = a->W / wl.scale * factor, a->H = a->H / wl.scale * factor;
+    wl.scale = factor;
+    a->dirty = true;
+}
+static void surf_transform(void *d, struct wl_surface *s, uint32_t t) { (void)d, (void)s, (void)t; }
+static const struct wl_surface_listener surf_listener = {
+    .enter = surf_enter, .leave = surf_leave, .preferred_buffer_scale = surf_scale,
+    .preferred_buffer_transform = surf_transform,
+};
+
 static void wm_ping(void *d, struct xdg_wm_base *wm, uint32_t serial)
 {
     (void)d;
@@ -2925,8 +3027,8 @@ static void xsurf_configure(void *d, struct xdg_surface *xs, uint32_t serial)
     (void)d;
     xdg_surface_ack_configure(xs, serial);
     App *a = the_app;
-    a->W = wl.cfg_w > 0 ? wl.cfg_w : 1280;
-    a->H = wl.cfg_h > 0 ? wl.cfg_h : 720;
+    a->W = (wl.cfg_w > 0 ? wl.cfg_w : 1280) * wl.scale;
+    a->H = (wl.cfg_h > 0 ? wl.cfg_h : 720) * wl.scale;
     wl.configured = true;
     a->dirty = true;
 }
@@ -2986,7 +3088,7 @@ static const struct wl_keyboard_listener kb_listener = { kb_keymap, kb_enter, kb
 static void ptr_enter(void *d, struct wl_pointer *p, uint32_t serial, struct wl_surface *s, wl_fixed_t x, wl_fixed_t y)
 {
     (void)d, (void)p, (void)serial, (void)s;
-    wl.ptr_x = wl_fixed_to_double(x), wl.ptr_y = wl_fixed_to_double(y);
+    wl.ptr_x = wl_fixed_to_double(x) * wl.scale, wl.ptr_y = wl_fixed_to_double(y) * wl.scale;
 }
 static void ptr_leave(void *d, struct wl_pointer *p, uint32_t serial, struct wl_surface *s)
 {
@@ -2995,7 +3097,7 @@ static void ptr_leave(void *d, struct wl_pointer *p, uint32_t serial, struct wl_
 static void ptr_motion(void *d, struct wl_pointer *p, uint32_t time, wl_fixed_t x, wl_fixed_t y)
 {
     (void)d, (void)p, (void)time;
-    wl.ptr_x = wl_fixed_to_double(x), wl.ptr_y = wl_fixed_to_double(y);
+    wl.ptr_x = wl_fixed_to_double(x) * wl.scale, wl.ptr_y = wl_fixed_to_double(y) * wl.scale;
 }
 static void ptr_button(void *d, struct wl_pointer *p, uint32_t serial, uint32_t time, uint32_t button, uint32_t state)
 {
@@ -3022,7 +3124,7 @@ static void touch_down(void *d, struct wl_touch *t, uint32_t serial, uint32_t ti
                        wl_fixed_t x, wl_fixed_t y)
 {
     (void)d, (void)t, (void)serial, (void)time, (void)s, (void)id;
-    click(the_app, wl_fixed_to_double(x), wl_fixed_to_double(y));
+    click(the_app, wl_fixed_to_double(x) * wl.scale, wl_fixed_to_double(y) * wl.scale);
 }
 static void touch_up(void *d, struct wl_touch *t, uint32_t serial, uint32_t time, int32_t id) { (void)d, (void)t, (void)serial, (void)time, (void)id; }
 static void touch_motion(void *d, struct wl_touch *t, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y) { (void)d, (void)t, (void)time, (void)id, (void)x, (void)y; }
@@ -3064,7 +3166,7 @@ static void reg_global(void *d, struct wl_registry *r, uint32_t name, const char
 {
     (void)d;
     if (!strcmp(iface, wl_compositor_interface.name))
-        wl.comp = wl_registry_bind(r, name, &wl_compositor_interface, SDL_min(ver, 4u));
+        wl.comp = wl_registry_bind(r, name, &wl_compositor_interface, SDL_min(ver, 6u));
     else if (!strcmp(iface, wl_shm_interface.name))
         wl.shm = wl_registry_bind(r, name, &wl_shm_interface, 1);
     else if (!strcmp(iface, xdg_wm_base_interface.name))
@@ -3088,7 +3190,9 @@ static bool wl_open(void)
     if (!wl.comp || !wl.shm || !wl.wm)
         return false;
     xdg_wm_base_add_listener(wl.wm, &wm_listener, NULL);
+    wl.scale = 1;
     wl.surf = wl_compositor_create_surface(wl.comp);
+    wl_surface_add_listener(wl.surf, &surf_listener, NULL);
     wl.xsurf = xdg_wm_base_get_xdg_surface(wl.wm, wl.surf);
     xdg_surface_add_listener(wl.xsurf, &xsurf_listener, NULL);
     wl.top = xdg_surface_get_toplevel(wl.xsurf);

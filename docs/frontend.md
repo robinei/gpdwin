@@ -25,12 +25,19 @@ source at the installed commit).
   "Favourites" first), a list with small box art on the left, large box art and details (developer,
   year, players, genre, play time, last played, description) on the right. No animations, no
   settings, no power menu (the power button and Utilities cover those).
-- Input: pad read directly from evdev in a thread (not SDL's gamepad layer, which polls ~1000/s
+- Input: pads (any with the Xbox layout: face buttons BTN_SOUTH..., a stick, and no BTN_C, which
+  only generic numbered pads have, like the GPD's DInput mode; up to four at once, hotplugged; axis
+  ranges read from each pad; triggers on Z/RZ or BRAKE/GAS, or digital) read directly from evdev in a thread (not SDL's gamepad layer, which polls ~1000/s
   with a joystick open; Pegasus, which used it, sometimes crashed when the pad disconnected):
   d-pad/left stick up/down (held: repeats), d-pad/left stick left/right switch tabs, LB/RB page
   by 8 (held: repeats), LT/RT jump to the top/bottom (like Home/End), A launch, Y favourite. Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F. Pad and
   keyboard are ignored unless shelf's window has focus (xdg-shell "activated" state), since the pad
   is read below the compositor.
+- Size: laid out for 1280x720 and scaled to the window (the smaller of width/1280 and height/720,
+  0.6-4x): fonts, bars, rows, thumbnails, logos, margins. On a HiDPI screen it draws at the screen's
+  scale (wl_surface preferred_buffer_scale), so it stays sharp. When the details beside the box art
+  would be narrower than 240 px (tall windows), they go below it. 1280x720 renders pixel-identical
+  to before.
 - Mouse and touchscreen: click/tap a tab or game to select it, double-click/tap a game (within
   400 ms) to launch it. Wheel: vertical scrolls the list (the selection moves only to stay on
   screen), horizontal switches tabs. Test keys: `w`/`W`, `h`/`H` wheel, `@x,y;` click.

@@ -479,3 +479,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - inputd: Menu on an empty workspace closed shelf (sway ignores `con_id=__focused__` when no window has the focus, so it matched shelf on workspace 1); the criteria now also need `workspace=__focused__`.
 - swaybar: the focused workspace uses surface0, the same as shelf's selected tab.
 - shelf: mouse and touch: click a tab or game to select it, double-click a game to launch; vertical wheel scrolls the list (selection follows only to stay visible), horizontal wheel switches tabs.
+- shelf: any Xbox-layout pad works (was: only the name "Microsoft X-Box 360 pad"), up to four at once, with each pad's axis ranges and BRAKE/GAS or digital triggers. The GPD's DInput mode is still not supported (generic numbered buttons).
+- shelf: scales to the window (fonts and layout were fixed pixels; only the art scaled) and draws at the screen's scale on HiDPI; details go below the art in tall windows.
