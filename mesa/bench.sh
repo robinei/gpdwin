@@ -8,7 +8,9 @@ out=/tmp/bench-$label.txt
 export WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000
 if [ -n "$prefix" ]; then
     export LD_LIBRARY_PATH=$prefix/usr/lib __EGL_VENDOR_LIBRARY_FILENAMES=$prefix/usr/share/glvnd/egl_vendor.d/50_mesa.json
-    export VK_DRIVER_FILES=$prefix/usr/share/vulkan/icd.d/intel_hasvk_icd.json LIBGL_DRIVERS_PATH=$prefix/usr/lib/dri
+    mkdir -p /tmp/mesabench
+    sed "s|/usr/lib/|$prefix/usr/lib/|" $prefix/usr/share/vulkan/icd.d/intel_hasvk_icd.json > /tmp/mesabench/hasvk_icd.json
+    export VK_DRIVER_FILES=/tmp/mesabench/hasvk_icd.json LIBGL_DRIVERS_PATH=$prefix/usr/lib/dri
 fi
 S=$(cd "$(dirname "$0")/../kernel/dsi-investigation/scripts" && pwd)
 mkdir -p /tmp/mesabench && cd /tmp/mesabench
@@ -18,6 +20,7 @@ mkdir -p /tmp/mesabench && cd /tmp/mesabench
 if pgrep -x 'devilutionx|retroarch|ppsspp|zelda3' >/dev/null || pgrep -f wine >/dev/null; then echo "a game is running"; exit 1; fi
 {
 echo "== $label $(date -Is) $(./colorcheck | head -1)"
+echo "vulkan driver: ${VK_DRIVER_FILES:-system}"
 python3 - <<'PY'
 import subprocess, time, os, statistics
 def runs(n, env=None):
