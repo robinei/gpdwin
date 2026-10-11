@@ -62,8 +62,12 @@ EVENTS = [
 
 
 def w(path, val, append=False):
-    with open(path, 'a' if append else 'w') as f:
-        f.write(val + '\n')
+    # os.open: Python's append mode seeks to the end, which tracefs refuses (EINVAL)
+    fd = os.open(path, os.O_WRONLY | (os.O_APPEND if append else os.O_TRUNC))
+    try:
+        os.write(fd, (val + '\n').encode())
+    finally:
+        os.close(fd)
 
 
 def log(*a):
@@ -208,6 +212,7 @@ def main():
                     last_dump = mono()
                 next_ctl = mono() + random.expovariate(1 / CONTROL_S)
     finally:
+        os.close(pipe)
         if zstd:
             zstd.wait()
         teardown()
