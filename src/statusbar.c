@@ -3,6 +3,9 @@
  *
  *   cpu 2.4G | gpu 400M | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
  *
+ * Battery: "bat 80%" on battery (yellow <=30%, red <=15%), "bat 80%+" charging, "bat full" when
+ * charged with the charger connected, "bat 80% not charging" (yellow) when connected but stuck.
+ *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
  * when it spent most of the last second in RC6 (its frequency register keeps the last value).
@@ -73,7 +76,8 @@ static struct {
     int volume;                 /* percent, -1 = unknown */
     int muted;
     int battery;                /* percent, -1 = unknown */
-    int charging;
+    int plugged;                /* charger connected */
+    char charge[32];            /* the charger's status: "Charging", "Full", "Not charging"... */
 } st = { .signal = -1, .volume = -1, .battery = -1 };
 
 /* ---- small file helpers ---- */
@@ -170,12 +174,13 @@ static void read_ram(void)
     st.ram_total = total / 1048576.0;
 }
 
+/* The cable is read from the charger's "online": its status says "Full" rather than "Charging"
+ * once the battery is topped up, and "Not charging" when it is stuck (docs/power.md). */
 static void read_battery(void)
 {
-    char status[32];
     st.battery = read_int(BATTERY "capacity", -1);
-    read_line(CHARGER "status", status, sizeof status);
-    st.charging = strcmp(status, "Charging") == 0;
+    st.plugged = read_int(CHARGER "online", 0) == 1;
+    read_line(CHARGER "status", st.charge, sizeof st.charge);
 }
 
 /* Signal level in dBm from /proc/net/wireless, mapped -90..-30 dBm -> 0..100% */
@@ -302,9 +307,14 @@ static void emit(void)
         block(st.muted ? DIM : TEXT, LINE, "%s %d%%", st.muted ? "muted" : "vol", st.volume);
     if (st.battery < 0)
         block(DIM, LINE, "bat ?");
+    else if (st.plugged && strcmp(st.charge, "Full") == 0)
+        block(TEXT, LINE, "bat full");
+    else if (st.plugged && strcmp(st.charge, "Charging") == 0)
+        block(TEXT, LINE, "bat %d%%+", st.battery);
+    else if (st.plugged) /* connected but not charging: stuck charger */
+        block(YELLOW, LINE, "bat %d%% not charging", st.battery);
     else
-        block(st.charging ? TEXT : st.battery <= 15 ? RED : st.battery <= 30 ? YELLOW : TEXT, LINE,
-              "bat %d%%%s", st.battery, st.charging ? "+" : "");
+        block(st.battery <= 15 ? RED : st.battery <= 30 ? YELLOW : TEXT, LINE, "bat %d%%", st.battery);
     block(TEXT, LAST, "%s", clock);
     len += snprintf(out + len, sizeof out - len, "],\n");
 

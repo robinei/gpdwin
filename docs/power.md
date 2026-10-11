@@ -39,7 +39,10 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 ## Battery
 - `low-battery.timer` every 2 min runs `/usr/local/bin/low-battery-hibernate`: hibernate at ≤5%
   while discharging.
-- Bar: battery text yellow at ≤30%, red at ≤15%, `+` while charging.
+- Bar: `bat 80%` on battery (yellow at ≤30%, red at ≤15%), `bat 80%+` charging, `bat full`
+  charged with the charger connected, `bat 80% not charging` (yellow) when connected but the
+  charger doesn't charge (see below). The cable comes from `bq24190-charger/online`, the state
+  from its `status` (which says "Full", not "Charging", once topped up).
 
 ## Charging stuck at 500 mA after hibernate (fixed 2026-10-10)
 - Seen once: after a hibernate wake, plugging in the PD charger (9 V / 3 A) left
