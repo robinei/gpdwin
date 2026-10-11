@@ -13,6 +13,9 @@ Contents:
 - `unused/`: the test-switch patches of the 1.1 test build (fix 2 `MESA_ST_MATCH_SIZED`, fix 1a/1b
   `CROCUS_STAGING_NOSNOOP`, `CROCUS_SNOOP_UC_MOCS`), kept for reference, not built.
 - `build.sh`: builds all packages of the pkgbase on the desktop in a clean chroot (devtools, sudo).
+  Uses `chroot-pacman.conf` (official Arch mirrors, own cache; the desktop is CachyOS). Takes ~25 min.
+- `install.sh PKG` (GPD, sudo): saves Arch's installed mesa package to `/var/cache/gpd-mesa-stock`, installs ours
+  (only `mesa`). `rollback.sh` (GPD, sudo): reinstalls the saved Arch package.
 
 Test results 2026-10-11 (GPD, `kernel/dsi-investigation/scripts/mesatest.sh`: burst `-m upload -d 10`, SDL opengl
 renderer, 10 min each, Mesa from /tmp via LD_LIBRARY_PATH; colour check `colorcheck.c` PASS in every run):
