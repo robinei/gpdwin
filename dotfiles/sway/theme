@@ -41,7 +41,7 @@ bar {
         statusline $text
         separator  $surface1
         #                  border     bg         text
-        focused_workspace  $surface1  $surface1  $text
+        focused_workspace  $surface0  $surface0  $text   # = shelf's selected tab
         active_workspace   $surface0  $surface0  $text
         inactive_workspace #000000   #000000   $overlay
         urgent_workspace   $red       $red       $crust

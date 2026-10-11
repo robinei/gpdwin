@@ -477,3 +477,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   you trust the backup.
 - Off-device copy set up (rsync installed on both machines, restricted write-only key `~/.ssh/gpd-saves`, `~/gpd-saves` on the desktop); `scripts/saves-sync-desktop` verified end to end.
 - inputd: Menu on an empty workspace closed shelf (sway ignores `con_id=__focused__` when no window has the focus, so it matched shelf on workspace 1); the criteria now also need `workspace=__focused__`.
+- swaybar: the focused workspace uses surface0, the same as shelf's selected tab.
