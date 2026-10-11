@@ -274,9 +274,12 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   `/usr/lib/modules/<kernel>/updates/` (depmod prefers it: search order `updates extramodules
   built-in`). The dkms pacman hook rebuilds it on every kernel update, so no manual step; if a build
   fails the stock modules stay (sound works, the hibernate bug is back). Then reboot (never
-  load/unload the sound modules live). `kernel/uninstall.sh` reverts. The sources stay the 7.2.9 ones
-  the patches were written for, compiled against whichever kernel is installed; a kernel API change
-  can break the build (fail-safe), then the pins/patches need updating. Best long-term: upstream.
+  load/unload the sound modules live). `kernel/uninstall.sh` reverts. The sources are pinned (`V=` in
+  `kernel/prepare.sh`) and compiled against whichever kernel is installed, so after a kernel update
+  they are still the old kernel's driver code: `/maintain` re-pins them on every kernel update
+  (`kernel/prepare.sh --repin <version>`, then `kernel/install.sh`). The patches must apply exactly
+  (`--fuzz=0`), here and in the i915 DKMS build; one that only fits loosely fails instead of landing
+  in the wrong place. Best long-term: upstream.
 - Reproduce and trace: `sudo systemctl hibernate`, power on, compare `scripts/audio-snapshot`
   dirs. Tracing: `/sys/kernel/tracing/events/regmap/{regmap_reg_write,regcache_sync,regmap_cache_only}`
   with filter `name == "i2c-10EC5645:00"` and `events/power/device_pm_callback_{start,end}` with

@@ -39,7 +39,7 @@ if [ "$1" != none ]; then
         n=$(basename "$p" | cut -c1-4)
         [ $# -eq 0 ] || echo " $* " | grep -q " $n " || continue
         echo "applying $(basename "$p")"
-        patch -p1 -d build/src -s < "$p"
+        patch -p1 -d build/src -s --fuzz=0 < "$p"   # exact fit only, like the DKMS build
         applied="$applied $(basename "$p")"
     done
 fi

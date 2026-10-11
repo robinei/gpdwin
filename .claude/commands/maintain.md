@@ -17,22 +17,36 @@ informed in short lines; they are on a small screen with a keyboard.
 3. **Repo packages.** `checkupdates` to list pending updates; summarize (note kernel, mesa,
    systemd, sway, pipewire, firmware). Then `sudo -n pacman -Syu --noconfirm`. Read the output for
    warnings, failed hooks and `.pacnew` notices. If the kernel or `linux-firmware-*` changed,
-   tell the user a reboot is needed (don't reboot yourself). If the kernel changed: our patched audio modules (`kernel/`, DKMS package `gpd-audio`,
-   docs/hardware.md "Audio") are rebuilt for the new kernel by the dkms pacman hook. Read the pacman
-   output for DKMS build errors and run `dkms status` (should list `gpd-audio/1.0, <new kernel>,
-   x86_64: installed`). If the build failed the stock modules are used (sound works, the hibernate
-   bug is back): update the pins in `kernel/*/sources.sha256` and check that the patches still apply
-   (`kernel/prepare.sh`). Check whether the patches have been merged upstream first (then drop them).
+   tell the user a reboot is needed (don't reboot yourself).
    **Before `pacman -Syu`, if `checkupdates` lists `linux`:** warn the user and ask (AskUserQuestion)
    whether to update the kernel now. The patched display driver (DKMS `gpd-i915`, docs/hardware.md
    "Display") is rebuilt on the device during the update: ~10-15 min of full CPU load (download
    ~150 MB + compile), not while a game is running. If they decline, run
    `sudo -n pacman -Syu --noconfirm --ignore linux,linux-headers` instead and note the held kernel.
-   After a kernel update check `dkms status gpd-i915` (installed for the new kernel?) and
-   `modinfo -n i915` (must be under `updates/`). If the build failed (patch no longer applies, compile
-   error, download), the stock i915 is used: read `/var/lib/dkms/gpd-i915/1.0/build/make.log`, update
-   the patches in `kernel/i915/` (rebuild and test on the desktop with `build.sh`), reinstall with
-   `kernel/i915/install-dkms.sh`, and check whether upstream merged anything (then drop it).
+   **If the kernel changed, bring both kernel patch sets onto the new kernel** (every time, not only
+   when a build fails; check first whether upstream merged a patch, then drop it):
+   - Display (`gpd-i915`): the DKMS build fetches the new kernel's i915 source and applies our
+     patches with `--fuzz=0`, so a patch either fits exactly or the build fails. Check
+     `dkms status gpd-i915` (installed for the new kernel?) and the pacman output of the dkms hook:
+     it shows each `gpd-i915: applying NNNN` with patch's "Hunk ... succeeded at N (offset M
+     lines)" notes (fine, but say so) or the failure; compile errors are in
+     `/var/lib/dkms/gpd-i915/1.0/<kernel>/x86_64/log/make.log`. If it failed: the stock i915 is used (split pictures possible
+     again); redo the patches in `kernel/i915/` against the new source (test-build on the desktop
+     with `build.sh`, which also refuses fuzz), reinstall with `kernel/i915/install-dkms.sh`.
+   - Audio (`gpd-audio`): its sources are pinned (`kernel/prepare.sh`, `V=`), so a successful
+     DKMS build still means the old kernel's driver code. Re-pin: `kernel/prepare.sh --repin
+     <new version>` (downloads the new rt5645 and atom SST files, rewrites both `sources.sha256`
+     and `V=`, applies our two patches with `--fuzz=0`). If a patch no longer applies, redo it by
+     hand against the new file and regenerate it (`diff -u`, `a/`/`b/` paths). Review
+     `git diff kernel/` (upstream changes to the pinned files are worth a look), then
+     `kernel/install.sh` and commit.
+   - After the user has rebooted (ask them to; next maintenance run at the latest): `dkms status`
+     lists both packages installed for the running kernel; `modinfo -n i915 snd_soc_rt5645
+     snd_intel_sst_core` all under `updates/`; `journalctl -b -k -p err` has nothing new from i915
+     or SST. Audio after hibernate (the reason for the audio patches): ask the user to hibernate
+     once (`sudo systemctl hibernate`), power on, and play a sound; compare with docs/hardware.md
+     "Audio after hibernation" if it is silent. Display: ask whether the picture is fine after
+     a few screen off/on cycles.
 
 4. **AUR packages.** `scripts/aur check`. Our build files are vendored in `aur/pkgbuilds/PKG/`
    and our changes live in `aur/patches/PKG/` (`pkgbuild/*.patch` for build files, `*.patch` for

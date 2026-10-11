@@ -1,7 +1,9 @@
 #!/bin/sh
 # DKMS PRE_BUILD for gpd-i915 (runs as root in the DKMS build directory): fetch the i915 source of
 # the kernel being built for, apply Arch's i915 changes for that release and our patches (patches/).
-# Any failure stops the build, DKMS installs nothing and the stock i915 stays in use.
+# Any failure stops the build, DKMS installs nothing and the stock i915 stays in use. Our patches
+# must apply exactly (--fuzz=0): one that only fits loosely fails rather than landing in the wrong
+# place; offsets (same context, moved lines) are fine and are printed for the build log.
 #   prepare-source.sh 7.2.9-arch1-1
 set -eu
 KV=$1
@@ -36,5 +38,5 @@ zstd -dcq "$CACHE/$AP" | awk '/^diff --git/{p = ($3 ~ /^a\/drivers\/gpu\/drm\/i9
 [ -s arch-i915.patch ] && patch -p1 -d src -s --forward < arch-i915.patch
 for p in patches/*.patch; do
     echo "gpd-i915: applying $(basename "$p")"
-    patch -p1 -d src -s --forward < "$p"
+    patch -p1 -d src --forward --fuzz=0 < "$p"
 done

@@ -31,6 +31,21 @@ else
     sudo pacman -Syu
 fi
 
+# Kernel changed: show whether our patched modules were rebuilt for it (they are not re-pinned or
+# re-checked here; /maintain does that, see .claude/commands/maintain.md)
+if [[ "$(grep '^linux ' <<<"$before")" != "$(pacman -Q linux)" ]]; then
+    new=$(pacman -Q linux | cut -d' ' -f2 | sed 's/\.arch/-arch/')
+    echo; echo "== Kernel updated to $new: our patched modules (docs/hardware.md \"Display\", \"Audio\")"
+    dkms status
+    for pkg in gpd-i915 gpd-audio; do
+        dkms status "$pkg" | grep -q "$new.*installed" ||
+            echo "!! $pkg was NOT built for $new: the stock driver will be used after the reboot."
+    done
+    echo "The audio patches still use the old kernel's driver sources until re-pinned: run /maintain"
+    echo "(Claude) to bring both patch sets onto the new kernel. Reboot to use the new kernel."
+    pause
+fi
+
 echo; echo "== AUR packages"
 scripts/aur check
 for pkg in $(pacman -Qmq); do
