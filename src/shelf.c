@@ -23,13 +23,16 @@
  * to show a software frame. Box art and logos are decoded by a background thread, and kept scaled in
  * ~/.cache/shelf/img.
  *
- * Input, used only while the window has focus: keyboard from Wayland (raw evdev codes). The gamepad
+ * Input: keyboard (only while the window has focus), mouse and touch from Wayland. The gamepad
  * is read directly from evdev in a thread (inotify for hotplug), not through SDL's gamepad layer:
  * with a joystick open SDL polls about every millisecond, and the pad disconnects whenever the
- * screen goes off.
+ * screen goes off; it too is ignored while the window doesn't have the focus.
  *   pad:  d-pad/stick up/down move, LB/RB page (held: repeat), LT/RT top/bottom, d-pad/stick
  *         left/right switch collection, A launch, Y favourite
  *   keys: arrows, Page Up/Down, Home/End, Tab/Shift+Tab, Enter launch, F favourite
+ *   mouse/touch: click a tab or game to select it, double-click a game to launch it; wheel:
+ *         vertical scrolls (the selection follows only to stay on screen), horizontal switches
+ *         collection
  *
  * Threads (pad, image loader, game waiter) and signal handlers send messages to the main loop over a
  * pipe, which it poll()s together with the Wayland socket.
@@ -1785,6 +1788,10 @@ typedef struct {
     bool dirty;
     const char *starting; /* title shown as "Starting ..." while a launch is on its way */
     Uint64 save_due;      /* when to save the position (after moving stops); 0: saved */
+    int *tab_x, ntab_x;   /* where each tab starts on screen, [ntab_x] where the last ends (draw_tabs) */
+    int list_w, list_rows; /* the list as last drawn, for clicks (rows 0: no list) */
+    int click_tab, click_game; /* the last click on a game, for double clicks */
+    Uint64 click_at;
 } App;
 
 /* ---- image loader thread: decodes and scales box art and logos off the UI thread; the UI makes
@@ -2187,6 +2194,8 @@ static int text_width(TTF_Font *f, const char *s)
 #define THUMB 40       /* list thumbnail box */
 #define HOLD_MS 150    /* how long the previous large art may stand in for the selected game's */
 #define PAGE 8         /* rows per page up/down */
+#define DOUBLE_CLICK_MS 400
+#define WHEEL_STEP 15.0 /* scroll distance per step (one wheel notch) */
 #define SYM_RECENT "◷"
 #define SYM_FAVS "★"
 #define SYM_TOOLS "⚙"
@@ -2467,7 +2476,9 @@ static void draw_tabs(App *a, int W)
         x += tw[i];
     }
     x = sel_end > W ? W - sel_end : 0;
+    a->tab_x = xrealloc(a->tab_x, (a->ntabs + 1) * sizeof *a->tab_x);
     for (int i = 0; i < a->ntabs; i++) {
+        a->tab_x[i] = x;
         SDL_Color col = i == a->tab ? P.text : P.overlay;
         if (i == a->tab)
             fill(a, P.tab_on, x, 0, tw[i], TAB_H);
@@ -2482,10 +2493,18 @@ static void draw_tabs(App *a, int W)
         }
         x += tw[i];
     }
+    a->tab_x[a->ntabs] = x;
+    a->ntab_x = a->ntabs;
     free(tw);
     free(logo);
     free(sym);
     free(pending);
+}
+
+/* Where list row r starts (row rows: the bottom edge). */
+static int row_y(int r, int rows, int H)
+{
+    return TAB_H + r * (H - TAB_H) / rows;
 }
 
 /* The game list, from the tab bar to the bottom edge: as many rows as fit at about ROW_NOMINAL,
@@ -2493,6 +2512,7 @@ static void draw_tabs(App *a, int W)
 static void draw_list(App *a, Collection *c, int LW, int H)
 {
     int rows = SDL_max(1, (H - TAB_H + ROW_NOMINAL / 2) / ROW_NOMINAL);
+    a->list_w = LW, a->list_rows = rows;
     int *sel = &a->sel[a->tab], *top = &a->top[a->tab];
     if (*sel >= c->ngames)
         *sel = c->ngames - 1;
@@ -2505,7 +2525,7 @@ static void draw_list(App *a, Collection *c, int LW, int H)
     int th = TTF_GetFontHeight(a->f_row);
     for (int r = 0; r < rows && *top + r < c->ngames; r++) {
         Game *g = c->games[*top + r];
-        int y = TAB_H + r * (H - TAB_H) / rows, rh = TAB_H + (r + 1) * (H - TAB_H) / rows - y;
+        int y = row_y(r, rows, H), rh = row_y(r + 1, rows, H) - y;
         bool on = *top + r == *sel;
         if (on) {
             fill(a, P.row_on, 0, y, LW, rh);
@@ -2636,6 +2656,7 @@ static void render(App *a)
 {
     int W = a->W, H = a->H, LW = W * 46 / 100;
     loader_clear(); /* rebuilt below: what this frame still lacks */
+    a->list_rows = 0;
     fill(a, P.bg, 0, 0, W, H);
     draw_tabs(a, W);
     Collection *c = cur_coll(a);
@@ -2718,6 +2739,76 @@ static void action(App *a, int act, bool repeat)
     }
 }
 
+/* Mouse click or touch at (x, y): a tab selects it, a game selects it, and a second click on the
+ * same game within DOUBLE_CLICK_MS launches it. */
+static void click(App *a, int x, int y)
+{
+    if (a->running || a->starting)
+        return;
+    if (y < TAB_H) {
+        for (int i = 0; i < a->ntab_x && i < a->ntabs; i++)
+            if (x >= a->tab_x[i] && x < a->tab_x[i + 1] && i != a->tab) {
+                a->tab = i;
+                a->dirty = true;
+                moved(a);
+            }
+        a->click_game = -1;
+        return;
+    }
+    Collection *c = cur_coll(a);
+    if (!c || !a->list_rows || x >= a->list_w)
+        return;
+    int r = 0;
+    while (r < a->list_rows - 1 && y >= row_y(r + 1, a->list_rows, a->H))
+        r++;
+    int g = a->top[a->tab] + r;
+    if (g >= c->ngames)
+        return;
+    Uint64 now = SDL_GetTicks();
+    bool twice = g == a->sel[a->tab] && g == a->click_game && a->tab == a->click_tab
+              && now - a->click_at < DOUBLE_CLICK_MS;
+    a->sel[a->tab] = g;
+    a->dirty = true;
+    moved(a);
+    a->click_tab = a->tab, a->click_game = twice ? -1 : g, a->click_at = now;
+    if (twice)
+        start_game(a);
+}
+
+/* Scroll the list by d rows; the selection stays where it is unless it would leave the screen,
+ * then it moves along at the edge. */
+static void scroll(App *a, int d)
+{
+    Collection *c = cur_coll(a);
+    if (!c || !a->list_rows)
+        return;
+    int *top = &a->top[a->tab], *sel = &a->sel[a->tab];
+    int t = SDL_clamp(*top + d, 0, SDL_max(0, c->ngames - a->list_rows));
+    if (t == *top)
+        return;
+    *top = t;
+    *sel = SDL_clamp(*sel, t, SDL_min(c->ngames, t + a->list_rows) - 1);
+    a->dirty = true;
+    moved(a);
+}
+
+/* Scroll wheel (or touchpad): vertical scrolls the list, horizontal switches tabs, a step per
+ * WHEEL_STEP of scrolling. */
+static void wheel(App *a, bool horizontal, double d)
+{
+    static double acc[2];
+    double *s = &acc[horizontal];
+    if (a->running || a->starting)
+        return;
+    if ((*s > 0 && d < 0) || (*s < 0 && d > 0))
+        *s = 0; /* changed direction */
+    *s += d;
+    for (; *s >= WHEEL_STEP; *s -= WHEEL_STEP)
+        horizontal ? switch_tab(a, 1) : scroll(a, 1);
+    for (; *s <= -WHEEL_STEP; *s += WHEEL_STEP)
+        horizontal ? switch_tab(a, -1) : scroll(a, -1);
+}
+
 /* ------------------------------------------------------------------ Wayland window (no SDL video:
  * SDL's Wayland backend needs EGL/Mesa even to show a software-rendered frame) */
 
@@ -2736,6 +2827,9 @@ static struct {
     struct xdg_wm_base *wm;
     struct wl_seat *seat;
     struct wl_keyboard *kbd;
+    struct wl_pointer *ptr;
+    struct wl_touch *touch;
+    double ptr_x, ptr_y;
     struct wl_surface *surf;
     struct xdg_surface *xsurf;
     struct xdg_toplevel *top;
@@ -2889,9 +2983,72 @@ static void kb_mods(void *d, struct wl_keyboard *k, uint32_t serial, uint32_t de
 static void kb_repeat(void *d, struct wl_keyboard *k, int32_t rate, int32_t delay) { (void)d, (void)k, (void)rate, (void)delay; }
 static const struct wl_keyboard_listener kb_listener = { kb_keymap, kb_enter, kb_leave, kb_key, kb_mods, kb_repeat };
 
+static void ptr_enter(void *d, struct wl_pointer *p, uint32_t serial, struct wl_surface *s, wl_fixed_t x, wl_fixed_t y)
+{
+    (void)d, (void)p, (void)serial, (void)s;
+    wl.ptr_x = wl_fixed_to_double(x), wl.ptr_y = wl_fixed_to_double(y);
+}
+static void ptr_leave(void *d, struct wl_pointer *p, uint32_t serial, struct wl_surface *s)
+{
+    (void)d, (void)p, (void)serial, (void)s;
+}
+static void ptr_motion(void *d, struct wl_pointer *p, uint32_t time, wl_fixed_t x, wl_fixed_t y)
+{
+    (void)d, (void)p, (void)time;
+    wl.ptr_x = wl_fixed_to_double(x), wl.ptr_y = wl_fixed_to_double(y);
+}
+static void ptr_button(void *d, struct wl_pointer *p, uint32_t serial, uint32_t time, uint32_t button, uint32_t state)
+{
+    (void)d, (void)p, (void)serial, (void)time;
+    if (button == BTN_LEFT && state == WL_POINTER_BUTTON_STATE_PRESSED)
+        click(the_app, wl.ptr_x, wl.ptr_y);
+}
+static void ptr_axis(void *d, struct wl_pointer *p, uint32_t time, uint32_t axis, wl_fixed_t value)
+{
+    (void)d, (void)p, (void)time;
+    wheel(the_app, axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL, wl_fixed_to_double(value));
+}
+static void ptr_frame(void *d, struct wl_pointer *p) { (void)d, (void)p; }
+static void ptr_axis_source(void *d, struct wl_pointer *p, uint32_t src) { (void)d, (void)p, (void)src; }
+static void ptr_axis_stop(void *d, struct wl_pointer *p, uint32_t time, uint32_t axis) { (void)d, (void)p, (void)time, (void)axis; }
+static void ptr_axis_discrete(void *d, struct wl_pointer *p, uint32_t axis, int32_t n) { (void)d, (void)p, (void)axis, (void)n; }
+static const struct wl_pointer_listener ptr_listener = {
+    .enter = ptr_enter, .leave = ptr_leave, .motion = ptr_motion, .button = ptr_button, .axis = ptr_axis,
+    .frame = ptr_frame, .axis_source = ptr_axis_source, .axis_stop = ptr_axis_stop, .axis_discrete = ptr_axis_discrete,
+};
+
+/* Touch: a tap is a click (where the finger goes down). */
+static void touch_down(void *d, struct wl_touch *t, uint32_t serial, uint32_t time, struct wl_surface *s, int32_t id,
+                       wl_fixed_t x, wl_fixed_t y)
+{
+    (void)d, (void)t, (void)serial, (void)time, (void)s, (void)id;
+    click(the_app, wl_fixed_to_double(x), wl_fixed_to_double(y));
+}
+static void touch_up(void *d, struct wl_touch *t, uint32_t serial, uint32_t time, int32_t id) { (void)d, (void)t, (void)serial, (void)time, (void)id; }
+static void touch_motion(void *d, struct wl_touch *t, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y) { (void)d, (void)t, (void)time, (void)id, (void)x, (void)y; }
+static void touch_frame(void *d, struct wl_touch *t) { (void)d, (void)t; }
+static void touch_cancel(void *d, struct wl_touch *t) { (void)d, (void)t; }
+static const struct wl_touch_listener touch_listener = {
+    .down = touch_down, .up = touch_up, .motion = touch_motion, .frame = touch_frame, .cancel = touch_cancel,
+};
+
 static void seat_caps(void *d, struct wl_seat *seat, uint32_t caps)
 {
     (void)d;
+    if ((caps & WL_SEAT_CAPABILITY_POINTER) && !wl.ptr) {
+        wl.ptr = wl_seat_get_pointer(seat);
+        wl_pointer_add_listener(wl.ptr, &ptr_listener, NULL);
+    } else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && wl.ptr) {
+        wl_pointer_release(wl.ptr);
+        wl.ptr = NULL;
+    }
+    if ((caps & WL_SEAT_CAPABILITY_TOUCH) && !wl.touch) {
+        wl.touch = wl_seat_get_touch(seat);
+        wl_touch_add_listener(wl.touch, &touch_listener, NULL);
+    } else if (!(caps & WL_SEAT_CAPABILITY_TOUCH) && wl.touch) {
+        wl_touch_release(wl.touch);
+        wl.touch = NULL;
+    }
     if ((caps & WL_SEAT_CAPABILITY_KEYBOARD) && !wl.kbd) {
         wl.kbd = wl_seat_get_keyboard(seat);
         wl_keyboard_add_listener(wl.kbd, &kb_listener, NULL);
@@ -3043,7 +3200,8 @@ static bool loader_idle(void)
 }
 
 /* Testing without a window (SHELF_SCREENSHOT=file.png, SHELF_KEYS=...): once the box art is in,
- * press the next key (d/u down/up, l/r tab, o launch overlay, R rescan), or save the frame.
+ * press the next key (d/u down/up, l/r tab, o launch overlay, R rescan, w/W wheel down/up, h/H
+ * wheel right/left, @x,y; click), or save the frame.
  * Returns true when the screenshot is saved. */
 static bool screenshot_step(App *a, const char *shot)
 {
@@ -3055,6 +3213,14 @@ static bool screenshot_step(App *a, const char *shot)
         char c = keys[next++];
         if (c == 'o')
             a->starting = cur_game(a) ? cur_game(a)->title : "?";
+        else if (c == 'w' || c == 'W' || c == 'h' || c == 'H')
+            wheel(a, c == 'h' || c == 'H', c == 'w' || c == 'h' ? WHEEL_STEP : -WHEEL_STEP);
+        else if (c == '@') { /* @x,y; click there */
+            char *e;
+            int x = strtol(keys + next, &e, 10), y = strtol(e + 1, &e, 10);
+            next = e + 1 - keys;
+            click(a, x, y);
+        }
         else if (c == 'R')
             reload(a);
         else
@@ -3108,7 +3274,7 @@ int main(int argc, char **argv)
      * presses the keys (see screenshot_step), waits for the box art, saves and quits */
     const char *shot = getenv("SHELF_SCREENSHOT");
     headless = shot != NULL;
-    static App app;
+    static App app = { .click_game = -1 };
     App *a = &app;
     the_app = a;
     if (pipe2(msg_pipe, O_CLOEXEC) < 0 || !TTF_Init()) {
