@@ -537,3 +537,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - MangoHud toggle back to Ctrl+Shift+F12: RetroArch now uses `=` for the next save-state slot (and ignores modifiers).
 - `scripts/speaker-tune` (Super+C): tune the speaker compressor live while a game plays (sway mode keeps the game focused, a no-focus window shows the values; bypass, save into the config, revert).
 - speaker-tune: the game keeps focus (sway ignored `no_focus`; DevilutionX went silent), workspace goes tabbed while tuning (the shelf split could not be resized), and `fullscreen-stack.sh` stands aside while the tuner runs (it re-fullscreened the game over the value window).
+- Speaker compressor settings chosen by the user with the tuner: threshold -26 dB, 9:1, no makeup, ceiling -20 dB. Tuner's ceiling range widened to -30 dB.

@@ -29,7 +29,7 @@ PARAMS = [
     ("Threshold (dB)",  ["comp:Threshold level (dB)"],      '"Threshold level (dB)"',  2, -40, 0, "{:.0f}"),
     ("Ratio (1:n)",     ["comp:Ratio (1:n)"],               '"Ratio (1:n)"',         0.5, 1, 10, "{:.1f}"),
     ("Makeup gain (dB)", ["comp:Makeup gain (dB)"],         '"Makeup gain (dB)"',      1, 0, 18, "{:.0f}"),
-    ("Ceiling (dB)",    ["lim:Limit (dB)"],                 '"Limit (dB)"',            1, -20, 0, "{:.0f}"),
+    ("Ceiling (dB)",    ["lim:Limit (dB)"],                 '"Limit (dB)"',            1, -30, 0, "{:.0f}"),
     ("Attack (ms)",     ["comp:Attack time (ms)"],          '"Attack time (ms)"',      5, 1.5, 100, "{:.0f}"),
     ("Release (ms)",    ["comp:Release time (ms)"],         '"Release time (ms)"',    50, 50, 1500, "{:.0f}"),
 ]

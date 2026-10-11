@@ -218,7 +218,8 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
   sets `Speaker Playback Volume` to 31 of 39 (0 dB). Raising it to 39 (+12 dB) or 35 (+6 dB) distorted
   heavily: the speakers themselves are the limit, so it stays at 31.
 - Instead, a compressor on the speaker only (`dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf`):
-  250 Hz high-pass, swh-plugins `sc4` (RMS, threshold -20 dB, 3:1, +6 dB makeup), look-ahead limiter at -1 dB.
+  250 Hz high-pass, swh-plugins `sc4` (RMS, threshold -26 dB, 9:1, no makeup), look-ahead limiter at -20 dB
+  (tuned by ear with Super+C, 2026-10-11: heavy compression into a low ceiling, clean at max volume).
   Stronger settings (+12 dB, 150 Hz) made DevilutionX's bass-heavy, hissy audio distort; even plain full scale
   distorts on loud treble, so the top of the volume range is the speakers' limit (lowering the ceiling to -10 dB
   didn't fully fix it).
