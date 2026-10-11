@@ -526,3 +526,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   unless the hardware realigned meanwhile. Added to `PATCHES` in `kernel/i915/install-dkms.sh`, reinstalled.
   Log: `kernel/dsi-investigation/data/split-2026-10-11-1507.log`. Revert: drop 0017 from `PATCHES`, rerun the script.
 - Speaker-only compressor (PipeWire filter-chain, smart filter on the speaker sink): high-pass + sc4 + limiter for a louder perceived level without clipping. Headphones/Bluetooth bypass it. Installed `swh-plugins`.
+- Speaker compressor tuned by ear: 250 Hz high-pass, RMS, -20 dB, 3:1, +6 dB (was 150 Hz, -24 dB, 4:1, +12 dB: DevilutionX distorted).
+- `scripts/sync`: new manifest kind `keep` for files a program rewrites (RetroArch config and pad autoconfig, diablo.ini,
+  cgenius.cfg). `sync install` used to overwrite them on every deploy, reverting settings saved in RetroArch; now it only
+  creates them, and changes show as `KEEP changed` for `sync capture`. RetroArch keeps `config_save_on_exit = false`.

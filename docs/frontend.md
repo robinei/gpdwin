@@ -128,8 +128,9 @@ when it's no longer wanted.
   compared here (sway paces frames at ~60 even with vsync off), so CPU time is the measure. Beetle PSX
   (`libretro-beetle-psx`) was uninstalled after this; SwanStation was only tested.
 - Config `~/.config/retroarch/retroarch.cfg` (repo copy in `dotfiles/retroarch/`):
-  `config_save_on_exit = false` (save from the menu explicitly, then `scripts/sync capture
-  retroarch.cfg`).
+  `config_save_on_exit = false` (save from the menu explicitly). The manifest entry is `keep` (since
+  2026-10-11): `scripts/sync install` never overwrites the saved settings (it used to, on every deploy),
+  and `scripts/sync capture retroarch.cfg` takes them into the repo.
 - Frame pacing (was ~25% dropped frames, 40 fps): `video_driver = gl`, vsync on,
   `video_max_swapchain_images = 2`, `video_fullscreen_x/y = 1280/720`, `audio_driver = pipewire`,
   `audio_latency = 128`, `audio_rate_control_delta = 0.020`, `audio_out_rate = 48000` (no

@@ -32,9 +32,9 @@ link	pegasus/utils	~/Games/utils
 link	scripts/fetch-boxart.py	~/Games/fetch-boxart.py
 
 # --- user files that programs rewrite (copied) ---
-copy	dotfiles/retroarch/retroarch.cfg	~/.config/retroarch/retroarch.cfg	robin:robin:0644
-copy	dotfiles/retroarch/autoconfig/Microsoft X-Box 360 pad.cfg	~/.config/retroarch/autoconfig/udev/Microsoft X-Box 360 pad.cfg	robin:robin:0644
-copy	dotfiles/devilutionx/diablo.ini	~/.local/share/diasurgical/devilution/diablo.ini	robin:robin:0644
+keep	dotfiles/retroarch/retroarch.cfg	~/.config/retroarch/retroarch.cfg	robin:robin:0644
+keep	dotfiles/retroarch/autoconfig/Microsoft X-Box 360 pad.cfg	~/.config/retroarch/autoconfig/udev/Microsoft X-Box 360 pad.cfg	robin:robin:0644
+keep	dotfiles/devilutionx/diablo.ini	~/.local/share/diasurgical/devilution/diablo.ini	robin:robin:0644
 copy	pegasus/snes/metadata.pegasus.txt	~/Games/snes/metadata.pegasus.txt	robin:robin:0644
 copy	pegasus/psp/metadata.pegasus.txt	~/Games/psp/metadata.pegasus.txt	robin:robin:0644
 copy	pegasus/ps1/metadata.pegasus.txt	~/Games/ps1/metadata.pegasus.txt	robin:robin:0644
@@ -80,7 +80,7 @@ build	src/statusbar.c	~/.local/bin/statusbar
 build	src/inputd.c	~/.local/bin/inputd	wayland-client
 link	shelf/logos	~/.local/share/shelf/logos
 build	src/shelf.c	~/.local/bin/shelf	sdl3 sdl3-image sdl3-ttf sqlite3 icu-i18n icu-uc wayland-client
-copy	dotfiles/commandergenius/cgenius.cfg	~/.CommanderGenius/cgenius.cfg	robin:robin:0644
+keep	dotfiles/commandergenius/cgenius.cfg	~/.CommanderGenius/cgenius.cfg	robin:robin:0644
 copy	system/usr/local/bin/gpd-stock-initramfs	/usr/local/bin/gpd-stock-initramfs	root:root:0755
 copy	system/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	root:root:0644
 link	dotfiles/systemd/user/saves-backup.service	~/.config/systemd/user/saves-backup.service

@@ -14,8 +14,12 @@ The user is Robin (they/them).
   (remote `origin` = github.com:robinei/gpdwin, deploy key `~/.ssh/id_ed25519`).
 - Files listed in `manifest.tsv` are managed:
   - `link` entries: the live path is a symlink into the repo. Edit the file in the repo.
-  - `copy` entries (root files, and files programs rewrite): edit the live file and run
-    `scripts/sync capture <path>`, or edit the repo copy and run `scripts/sync install <path>`.
+  - `copy` entries (root files): edit the live file and run `scripts/sync capture <path>`, or edit
+    the repo copy and run `scripts/sync install <path>`.
+  - `keep` entries (files a program rewrites: RetroArch, DevilutionX, Commander Genius settings): the
+    live file is the truth. `sync install` never overwrites one that exists; `KEEP changed` in
+    `sync check` means the user changed settings: `scripts/sync capture <path>`. To change one, edit the
+    live file (program not running) and capture; `install --force <path>` only if the user agrees.
   - New config you create: add it to `manifest.tsv` (`scripts/sync adopt` moves+links user files).
   - `scripts/sync check` must report no drift when you finish.
 - Never store passwords or keys in the repo.

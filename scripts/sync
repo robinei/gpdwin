@@ -3,8 +3,13 @@
 
 manifest.tsv lists every file the repo manages:
   link  <repo path>  <live path>                  live path is a symlink into the repo
-  copy  <repo path>  <live path>  <owner:group:mode>  repo holds a copy (root-owned files,
-                                                      or files programs rewrite themselves)
+  copy  <repo path>  <live path>  <owner:group:mode>  repo holds a copy (root-owned files)
+  keep  <repo path>  <live path>  <owner:group:mode>  like copy, for files a program rewrites itself
+                                                      (settings saved from its menu): install only
+                                                      creates it; once it exists, a difference is
+                                                      the program's newer state, so `sync capture`
+                                                      takes it into the repo and `install` leaves it
+                                                      alone unless given --force
   build <repo path>  <live path>  [pkg-config packages]
                                                   a C source compiled to the live path
                                                       (rebuilt when the source is newer), linked
@@ -14,7 +19,9 @@ Commands:
   sync check            report drift (missing/foreign links, copies that differ). Exit 1 on drift.
   sync diff [PATH..]    show unified diffs for drifted copies
   sync capture [PATH..] copy live -> repo for copy entries (all, or those matching PATH)
-  sync install [PATH..] repo -> live: create links, install copies (sudo for root files)
+  sync install [--force] [PATH..]
+                        repo -> live: create links, install copies (sudo for root files); keep
+                        entries only when missing, or with --force
   sync adopt            first-time setup: move live files into the repo and link them
 
 Root files are read and written with `sudo -n`, so run `sudo -v` in a terminal first.
@@ -41,9 +48,9 @@ def manifest():
         elif f[0] == "build" and len(f) in (3, 4):
             entries.append({"kind": "build", "repo": REPO / f[1], "live": expand(f[2]),
                             "pkgs": f[3].split() if len(f) == 4 else []})
-        elif f[0] == "copy" and len(f) == 4:
+        elif f[0] in ("copy", "keep") and len(f) == 4:
             owner, group, mode = f[3].split(":")
-            entries.append({"kind": "copy", "repo": REPO / f[1], "live": expand(f[2]),
+            entries.append({"kind": "copy", "keep": f[0] == "keep", "repo": REPO / f[1], "live": expand(f[2]),
                             "owner": owner, "group": group, "mode": mode})
         else:
             sys.exit(f"manifest.tsv:{n}: bad line: {line!r}")
@@ -114,7 +121,11 @@ def check(args):
             if live is None:
                 print(f"COPY missing      {e['live']}"); drift += 1
             elif live != e["repo"].read_bytes():
-                print(f"COPY differs      {e['live']}"); drift += 1
+                if e["keep"]:
+                    print(f"KEEP changed      {e['live']} (by its program: `sync capture`)")
+                else:
+                    print(f"COPY differs      {e['live']}")
+                drift += 1
     print("no drift" if not drift else f"{drift} item(s) drifted (`sync diff`, then `sync capture` or `sync install`)")
     if skipped:
         print(f"{skipped} root-only file(s) not checked: run `sudo -v` first")
@@ -149,6 +160,8 @@ def capture(args):
 
 
 def install(args):
+    force = "--force" in args
+    args = [a for a in args if a != "--force"]
     hints = set()
     for e in selected(manifest(), args):
         live = e["live"]
@@ -176,7 +189,11 @@ def install(args):
             hints.add(f"restart {live.name} (see docs/desktop.md)")
             continue
         data = e["repo"].read_bytes()
-        if read_live(e) == data:
+        live_data = read_live(e)
+        if live_data == data:
+            continue
+        if e["keep"] and live_data is not None and not force:
+            print(f"kept {live} (changed by its program: `sync capture` it, or `sync install --force` to overwrite)")
             continue
         if "sudoers" in str(live):
             r = subprocess.run(["visudo", "-cf", str(e["repo"])], capture_output=True, text=True)
