@@ -50,7 +50,8 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - `low-battery.timer` every 2 min runs `/usr/local/bin/low-battery-hibernate`: hibernate at ≤5%
   while discharging.
 - Bar: `bat 80%` on battery (yellow at ≤30%, red at ≤15%), `bat 80%+` charging, `bat full`
-  charged with the charger connected, `bat 80% not charging` (yellow) when connected but the
+  charged with the charger connected, `bat 85% max` when held at the charge limit (battery
+  within 100 mV of it; see "Charge limit"), `bat 80% not charging` (yellow) when connected but the
   charger doesn't charge (see below). The cable comes from `bq24190-charger/online`, the state
   from its `status` (which says "Full", not "Charging", once topped up).
 
@@ -62,8 +63,9 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   (with heat), so this limits wear and swelling directly; no daemon, the chip stops by itself.
 - Charge-path: the bq24292i powers the system from the adapter; once charged the battery rests
   (measured 1.5 mA `current_now` at full on the 9 V PD charger), it is not cycled while plugged in.
-- The capacity % may stop below 100 once the gauge relearns; `status` still turns "Full", so the bar
-  shows `bat full`. Full charge for a trip: `echo 4384000 | sudo tee /sys/class/power_supply/bq24190-charger/constant_charge_voltage`
+- Above the limit (just after lowering it) the battery runs the system until it is down to the limit
+  (measured -0.6 A at 4.30 V), and the charger says "Not charging": the bar shows `bat N% max` then.
+  Once at the limit the charger tops up and says "Full" (`bat full`). Full charge for a trip: `echo 4384000 | sudo tee /sys/class/power_supply/bq24190-charger/constant_charge_voltage`
   (back to the limit at the next boot).
 
 ## Charging stuck at 500 mA after hibernate (fixed 2026-10-10)

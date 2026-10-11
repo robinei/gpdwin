@@ -604,4 +604,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 
 ## 2026-10-12 — Battery charge limit
 - `/etc/udev/rules.d/90-charge-limit.rules`: charge to 4.144 V (~80%) instead of 4.384 V, against
-  wear and swelling. Revert: delete the rule (and its manifest line), reboot. docs/power.md "Charge limit".
+  wear and swelling. The bar shows `bat N% max` (not the yellow "not charging") at the limit. Revert: delete the rule (and its manifest line), reboot. docs/power.md "Charge limit".
