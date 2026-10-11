@@ -11,7 +11,7 @@ ConditionPathExists=/usr/lib/libEGL_mesa.so.0
 Type=exec
 ExecStart=/usr/bin/true
 Environment=LD_PRELOAD=/usr/lib/libEGL_mesa.so.0
-User=nobody
+DynamicUser=yes
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
