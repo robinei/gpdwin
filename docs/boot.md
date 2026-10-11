@@ -50,7 +50,7 @@ after kernel start (was 16s).
 - User manager ~0.4 s, then fish execs sway (~12.7).
 - sway until it runs its `exec` lines: ~2.3 s, no single stall: Mesa + LLVM load (cold from eMMC)
   0.63 s, EGL/GL renderer setup 0.48 s, config incl. fonts 0.3 s, libinput 0.23 s, cursor theme
-  0.2 s, probing the external display ports 0.25 s (now forced off on the kernel command line), modeset
+  0.2 s (now wlroots' built-in cursor, nothing to load), probing the external display ports 0.25 s (now forced off on the kernel command line), modeset
   0.08 s. Then shelf ~0.07 s later.
   Possible but not done: reading the Mesa/LLVM libraries ahead during boot (cold dlopen 0.4 s).
 
