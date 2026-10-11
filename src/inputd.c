@@ -8,9 +8,10 @@
  * (a child process of it), the key is left to the game. The pad's Guide button is not used: it
  * sends nothing in the pad's mouse mode (docs/hardware.md).
  *
- * Idle (docs/power.md). Idle time runs from the last activity:
+ * Idle (docs/power.md; the times are the "Idle policy" defines below). Idle time runs from the
+ * last activity:
  *   2 min        brightness to a third (min 1%; the level before is saved and restored)
- *   3 min        1% (on AC: 10 min)
+ *   3 min        lowest visible level (on AC: 10 min)
  *   5 min        screen off (screen.sh: also freezes shelf and the game), on battery only
  *   30 min       suspend-then-hibernate, on battery only
  * Activity: keyboard, pointer and touch (sway's ext-idle-notify: told when nothing happened for
@@ -80,14 +81,19 @@
 #include "vendor/ext-idle-notify-v1-client-protocol.h"
 #include "vendor/ext-idle-notify-v1-protocol.c"
 
+/* ---- Idle policy: seconds of idle before each step, on battery and on AC (0: never). After a
+ * change: `scripts/sync install` and `pkill -x inputd` (dotfiles/sway/inputd.sh restarts it). */
+#define DIM_AFTER 120            /* both: brightness to DIM_PERCENT; also when sway reports idle */
+#define DIM_PERCENT 33           /* of the level before dimming (at least 1%) */
+#define LOW_AFTER_BATTERY 180    /* lowest visible level (raw 1; 0 is backlight off) */
+#define LOW_AFTER_AC 600
+#define OFF_AFTER_BATTERY 300    /* screen off (screen.sh: also freezes shelf and the game) */
+#define OFF_AFTER_AC 0
+#define SLEEP_AFTER_BATTERY 1800 /* suspend-then-hibernate (with the lid closed: from the close) */
+#define SLEEP_AFTER_AC 0
+
 #define PAD_NAME "Microsoft X-Box 360 pad"
 #define LID_NAME "Lid Switch"
-/* Idle steps, seconds since the last activity */
-#define DIM_AFTER 120          /* a third of the brightness; also sway's idle notification */
-#define LOW_AFTER_BATTERY 180  /* 1% */
-#define LOW_AFTER_AC 600
-#define OFF_AFTER 300          /* screen off, battery only */
-#define SLEEP_AFTER 1800       /* suspend-then-hibernate, battery only */
 #define RESUME_GUARD 3.0 /* seconds after a resume in which the power button is ignored */
 #define RESUME_FILE "/run/resume-time"
 #define CHARGER_ONLINE "/sys/class/power_supply/bq24190-charger/online"
@@ -386,14 +392,14 @@ static void set_dim(int from, int to)
 {
     char cmd[512];
     const char *f = saved_path();
-    /* leaving normal: save the current level; the dim levels are a third of the saved one (min 1%)
+    /* leaving normal: save the current level; the dim levels are DIM_PERCENT of the saved one (min 1%)
      * and the lowest visible level (raw 1; 0 is backlight off) */
     const char *save = from ? "" : "brightnessctl -m | cut -d, -f3 > \"$f\"; ";
     if (to == 0)
         snprintf(cmd, sizeof cmd, "f='%s'; [ -s \"$f\" ] && brightnessctl -q set \"$(cat \"$f\")\"; rm -f \"$f\"", f);
     else if (to == 1)
         snprintf(cmd, sizeof cmd, "f='%s'; %sv=$(cat \"$f\"); m=$(brightnessctl -m | cut -d, -f5); "
-                 "p=$(( v * 100 / m / 3 )); brightnessctl -q set \"$(( p > 1 ? p : 1 ))%%\"", f, save);
+                 "p=$(( v * %d / m )); brightnessctl -q set \"$(( p > 1 ? p : 1 ))%%\"", f, save, DIM_PERCENT);
     else
         snprintf(cmd, sizeof cmd, "f='%s'; %sbrightnessctl -q set 1", f, save); /* lowest visible */
     sh_wait(cmd);
@@ -426,12 +432,15 @@ static void reconcile(void)
     time_t now = mono_now();
     long t = idle_seconds(now);
     int low_after = fact.on_ac ? LOW_AFTER_AC : LOW_AFTER_BATTERY;
+    int off_after = fact.on_ac ? OFF_AFTER_AC : OFF_AFTER_BATTERY;
+    int sleep_after = fact.on_ac ? SLEEP_AFTER_AC : SLEEP_AFTER_BATTERY;
+#define REACHED(after) ((after) > 0 && t >= (after))
 
     /* what should be */
     int lid = fact.lid_closed;
-    int screen_off = fact.lid_closed || (!fact.on_ac && t >= OFF_AFTER);
+    int screen_off = fact.lid_closed || REACHED(off_after);
     int dim = fact.lid_closed ? applied.dim /* dark anyway: left as it is */
-            : t >= low_after ? 2 : t >= DIM_AFTER ? 1 : 0;
+            : REACHED(low_after) ? 2 : REACHED(DIM_AFTER) ? 1 : 0;
 
     /* apply the differences: screen on first and off last, so a waking screen is lit */
     if (lid != applied.lid && !lid) {
@@ -462,7 +471,7 @@ static void reconcile(void)
     /* suspend: requested once, again every SLEEP_RETRY s while still awake (it failed); a wake
      * counts as activity and ends the idle period. MONOTONIC stops during sleep, so a successful
      * suspend never looks like a retry is due. */
-    if (t < SLEEP_AFTER || fact.on_ac)
+    if (!REACHED(sleep_after))
         applied.sleep_sent = 0;
     else if (!applied.sleep_sent || now - applied.sleep_sent >= SLEEP_RETRY) {
         applied.sleep_sent = now;
@@ -472,9 +481,9 @@ static void reconcile(void)
     /* when to look again: the first step not reached yet, while idle time runs */
     next_due = 0;
     if (t >= 0) {
-        int steps[] = { DIM_AFTER, low_after, OFF_AFTER, SLEEP_AFTER };
+        int steps[] = { DIM_AFTER, low_after, off_after, sleep_after };
         for (int i = 0; i < 4; i++)
-            if (steps[i] > t && (!next_due || now + steps[i] - t < next_due))
+            if (steps[i] > 0 && steps[i] > t && (!next_due || now + steps[i] - t < next_due))
                 next_due = now + steps[i] - t;
     }
     if (applied.sleep_sent && (!next_due || applied.sleep_sent + SLEEP_RETRY < next_due))

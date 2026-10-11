@@ -26,6 +26,8 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   `/sys/kernel/irq/<irq>/wakeup` = disabled. Which IRQ woke the device: `/sys/power/pm_wakeup_irq`.
 
 ## Idle (inputd, `src/inputd.c`; swayidle until 2026-10-11)
+- The times are the "Idle policy" `#define`s at the top of `src/inputd.c` (battery and AC value per
+  step, 0 = never; dim level `DIM_PERCENT`). After a change: `scripts/sync install`, `pkill -x inputd`.
 - 2 min: dim to a third of current brightness, min 1% (the brightness is saved; restored on
   activity).
 - 3 min: on battery, dim to 1%. On AC: 10 min.
