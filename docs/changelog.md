@@ -607,3 +607,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   wear and swelling. The bar shows `bat N% max` (not the yellow "not charging") at the limit. Revert: delete the rule (and its manifest line), reboot. docs/power.md "Charge limit".
 - Utilities > Full Charge: toggles the limit off/on without a password (udev rule makes
   `constant_charge_voltage` wheel-writable; wob style `charge`); statusbar rereads the battery on SIGUSR1.
+- `lib32-mesa` 1:26.2.4-1.2 installed (`mesa/lib32/`, Arch's lib32-mesa PKGBUILD + the same patch, multilib chroot
+  build `mesa/build.sh lib32`); Arch's package saved in `/var/cache/gpd-mesa-stock`. `mesa/install.sh` and
+  `rollback.sh` now handle both packages.
