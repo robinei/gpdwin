@@ -393,7 +393,7 @@ when it's no longer wanted.
   on). Loaded into every game shelf starts: `dotfiles/shelf/run` exports `MANGOHUD=1`
   (Vulkan layer) and shelf preloads `libMangoHud_shim.so` into games (OpenGL, incl. Wine/wined3d; 32-bit Windows
   games too, since WoW64 Wine calls OpenGL from 64-bit code). Hidden at start (`no_display`),
-  Ctrl+Shift+= shows it (sway doesn't bind it; the game still sees the keys, so it must be a chord games
+  Ctrl+Shift+F12 shows it (sway doesn't bind it; the game still sees the keys, so it must be a chord games
   don't use: Super+H reset RetroArch, which ignores modifiers). Config `dotfiles/MangoHud/MangoHud.conf`:
   FPS, CPU and GPU clock.
 - Psychonauts (Wine, 2026-10-07, replaced by the native build): CPU-bound, ~11 FPS in heavy

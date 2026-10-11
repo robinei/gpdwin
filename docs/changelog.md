@@ -534,3 +534,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   so check/install say which side changed (live = settings saved in the program, repo, or both). They never resolve it:
   the session diffs, explains, proposes capture / install --force / merge and applies after the user agrees (CLAUDE.md,
   /maintain step 1). `install --force` needs explicit paths. PPSSPP `ppsspp.ini` and `controls.ini` added as keep entries.
+- MangoHud toggle back to Ctrl+Shift+F12: RetroArch now uses `=` for the next save-state slot (and ignores modifiers).
