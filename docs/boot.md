@@ -35,6 +35,20 @@ The override saves ~2.7s on the login path (iwd no longer in getty's critical ch
 drop in that row is probably noise; firmware varies ~0.8s between boots. Sway now starts ~13s
 after kernel start (was 16s).
 
+## Where the time goes after the kernel (2026-10-11, from the journal, process start times and one
+## boot with `sway -d`; seconds after kernel start)
+- getty@tty1 ~9.8, autologin session opened ~11.3: login waited ~1.4 s for `pam_systemd_home`. It
+  asks D-Bus to start systemd-homed (not used here), and at boot systemd only answers that once the
+  boot transaction has finished ("Startup finished" is logged just before). Fixed: `system-auth`
+  without the four `pam_systemd_home` lines (`system/etc/pam.d/system-auth`, manifest copy; on
+  pambase updates merge the .pacnew and keep them out). Their skip counts point forward from
+  themselves, so removing them changes no other line's jumps. Tested: sudo and ssh logins work.
+- User manager ~0.4 s, then fish execs sway (~12.7).
+- sway until it runs its `exec` lines: ~2.3 s, no single stall: Mesa + LLVM load (cold from eMMC)
+  0.63 s, EGL/GL renderer setup 0.48 s, config incl. fonts 0.3 s, libinput 0.23 s, cursor theme
+  0.2 s, probing the external display ports 0.25 s, modeset 0.08 s. Then shelf ~0.07 s later.
+  Possible but not done: reading the Mesa/LLVM libraries ahead during boot (cold dlopen 0.4 s).
+
 ## Logins don't wait for the network
 - Full override `/etc/systemd/system/systemd-user-sessions.service`: the stock unit without
   `network.target` in `After=`. Must be a full override: an empty `After=` in a drop-in does not
