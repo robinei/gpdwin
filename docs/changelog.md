@@ -511,3 +511,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Boot: getty@tty1 Type=simple (was Type=idle, which held autologin ~1.3 s until every other boot job had finished; found with a timestamping --login-program wrapper).
 - Boot measured after all changes: shelf at 12.9 s after kernel start (15.6 s this morning), sway at 11.2 s; ~22 s from power button to shelf.
 - Unused things off: systemd-userdbd (disabled), Bluetooth modules blacklisted (/etc/modprobe.d/no-bluetooth.conf; delete to undo).
+- Boot experiments recorded (docs/boot.md): i915 after switch-root (eMMC waits on i915, but net gain only 0.24 s plus a sway/i915 race: not adopted); switch-root 2.1 s gap ruled out generators, systemd load, i915, console rotation (cause unknown); BIOS Quick Boot already on.

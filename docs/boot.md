@@ -62,6 +62,26 @@ after kernel start (was 16s).
   at low CPU/IO priority; nothing is ordered after it. Measured: driver load 0.50 s cold, 0.07 s
   after the prefetch (which takes ~0.7 s of mostly I/O, in the background).
 
+## Boot experiments, 2026-10-11 (each a one-shot entry: `bootctl set-oneshot <entry>`)
+- **i915 loaded after switch-root instead of in the initrd** (initramfs without `kms` hook,
+  `MODULES=(pwm-lpss-platform)`): the eMMC controller probes only after i915 has initialised (in every
+  boot: SDHCI ~0.03 s after i915's "Found cherryview"), so without i915 the root device is ready
+  ~1.1 s earlier and the initramfs is 14.7 MB instead of 21 (loader -0.2 s). But i915's ~1.7 s then
+  runs during userspace on the same 4 slow cores: userspace +1.45 s, shelf only 0.24 s earlier. And
+  sway started just 0.17 s after i915 was ready; earlier it would have found only simpledrm (no GPU).
+  Making that safe needs login to wait for the panel (e.g. on the intel_backlight device unit) plus
+  a hibernate retest, which leaves next to nothing. Not adopted. Backlight was fine (pwm-lpss still
+  loads first in the initrd).
+- **2.1 s silent gap at switch-root** (from `systemctl switch-root` ~5.6 s to PID 1 sending SIGTERM to
+  the initrd's processes ~7.8 s; with `systemd.log_target=kmsg` for real timestamps). Even with
+  `systemd.log_level=debug` nothing is logged in it, and the lines after it arrive in one burst. Not
+  the generators (0.46 s cold, run in parallel), not loading systemd itself (0.06 s cold), not i915
+  (same gap without it), not the console takeover or `fbcon=rotate:1` (same gap without rotation; no
+  takeover happens). Cause unknown; next step would be kernel tracing (ftrace/perf) of PID 1.
+- The initramfs's 6.9 MB "early CPIO" is not microcode (68 KB, this CPU only): mkinitcpio stores
+  already-compressed files (i915.ko.zst, its 3.8 MB of firmware for newer GPUs) uncompressed there.
+- BIOS: Quick Boot is already on; the firmware's ~6.8 s is final.
+
 ## Logins don't wait for the network
 - Full override `/etc/systemd/system/systemd-user-sessions.service`: the stock unit without
   `network.target` in `After=`. Must be a full override: an empty `After=` in a drop-in does not
