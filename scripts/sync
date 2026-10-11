@@ -171,7 +171,7 @@ def check(args):
                 else:
                     print(f"COPY differs      {e['live']}")
                 drift += 1
-    print("no drift" if not drift else f"{drift} item(s) drifted (`sync diff`, then `sync install` (reconciles keep entries) or `sync capture`)")
+    print("no drift" if not drift else f"{drift} item(s) drifted (`sync diff`, then `sync capture` or `sync install`; KEEP: decide with the user, CLAUDE.md)")
     if skipped:
         print(f"{skipped} root-only file(s) not checked: run `sudo -v` first")
     return 1 if drift else 0
