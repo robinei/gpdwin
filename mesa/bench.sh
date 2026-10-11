@@ -1,6 +1,6 @@
 #!/bin/bash
-# Run ON THE GPD (no root): Mesa benchmark for comparing builds. Uses the test programs from
-# kernel/dsi-investigation/scripts built in /tmp (colorcheck, readtime, burst3). Takes over the screen ~2.5 min.
+# Run ON THE GPD (no root): Mesa benchmark for comparing builds. Builds the test programs from
+# kernel/dsi-investigation/scripts into /tmp/mesabench (colorcheck, readtime, burst). Takes over the screen ~2.5 min.
 #   mesa/bench.sh LABEL [MESA_PREFIX]   MESA_PREFIX: an unpacked package (e.g. /tmp/mesa-slim) instead of the system Mesa
 # Output: /tmp/bench-LABEL.txt
 label=$1 prefix=$2
@@ -10,7 +10,11 @@ if [ -n "$prefix" ]; then
     export LD_LIBRARY_PATH=$prefix/usr/lib __EGL_VENDOR_LIBRARY_FILENAMES=$prefix/usr/share/glvnd/egl_vendor.d/50_mesa.json
     export VK_DRIVER_FILES=$prefix/usr/share/vulkan/icd.d/intel_hasvk_icd.json LIBGL_DRIVERS_PATH=$prefix/usr/lib/dri
 fi
-cd /tmp
+S=$(cd "$(dirname "$0")/../kernel/dsi-investigation/scripts" && pwd)
+mkdir -p /tmp/mesabench && cd /tmp/mesabench
+[ -x colorcheck ] || cc -O2 -o colorcheck "$S/colorcheck.c" -lEGL -lGL || exit 1
+[ -x readtime ] || cc -O2 -o readtime "$S/readtime.c" -lEGL -lGL || exit 1
+[ -x burst3 ] || cc -O2 -o burst3 "$S/burst.c" $(pkg-config --cflags --libs sdl3) || exit 1
 if pgrep -x 'devilutionx|retroarch|ppsspp|zelda3' >/dev/null || pgrep -f wine >/dev/null; then echo "a game is running"; exit 1; fi
 {
 echo "== $label $(date -Is) $(./colorcheck | head -1)"
