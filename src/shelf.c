@@ -1176,7 +1176,11 @@ static void load_stats(Library *L, const char *cfg)
 {
     char *path = fmt("%s/stats.db", cfg);
     sqlite3 *db;
-    if (exists(path) && sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, NULL) == SQLITE_OK) {
+    /* Read-write (never create): a write killed midway (Utilities > Reboot kills shelf while it records
+     * the tool's play) leaves a hot journal that only a writable connection can roll back; read-only,
+     * every query failed with "attempt to write a readonly database" and Recent vanished. */
+    if (exists(path) && sqlite3_open_v2(path, &db, SQLITE_OPEN_READWRITE, NULL) == SQLITE_OK) {
+        sqlite3_busy_timeout(db, 2000);
         sqlite3_stmt *st;
         if (sqlite3_prepare_v2(db,
                                "SELECT paths.path, plays.start_time, plays.duration FROM plays "

@@ -613,3 +613,10 @@ Details before 2026-10-06 are in `docs/archive/`.
 - DSI logs of the 2026-10-11 test boots saved (`kernel/dsi-investigation/data/dsi-log-2026-10-11-*.log`); open
   items listed at the top of FINDINGS.md; CLAUDE.md notes that Mesa is our build. Rebooted 00:29: normal i915
   DKMS module, patched Mesa in use everywhere.
+
+## 2026-10-12 — shelf: Recent tab vanished once
+- Cause: Utilities > Reboot killed shelf while it recorded the tool's play, leaving a hot SQLite
+  journal next to stats.db; shelf opened stats.db read-only, which can't roll it back ("attempt to
+  write a readonly database"), so no play stats loaded and Recent (shown only when non-empty) was
+  missing until the next play was recorded. Fix: load_stats opens it read-write (no create), with a
+  busy timeout. Reproduced on a copy: read-only fails, read-write recovers all rows.
