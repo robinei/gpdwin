@@ -6,8 +6,8 @@ The game keeps keyboard focus (RetroArch pauses when it loses it): sway's "speak
 never takes focus runs `speaker-tune view` and shows the values. State lives in
 $XDG_RUNTIME_DIR/speaker-tune.json while tuning.
 
-  speaker-tune start        unfullscreen the game, open the view, enter the mode
-  speaker-tune stop         close the view, leave the mode, fullscreen the game again
+  speaker-tune start        unfullscreen the game (tabbed layout), open the view, enter the mode
+  speaker-tune stop         close the view, leave the mode, restore layout and fullscreen
   speaker-tune key K        K: up down left right bypass save revert
   speaker-tune view         the display loop (run by start)
 
@@ -164,9 +164,10 @@ def main():
         st = {"sel": 0, "bypass": False, "values": live_values(), "msg": "", "game": gid}
         store(st)
         # Out of fullscreen so the floating value window can show above it. shelf shares the workspace
-        # (tiled behind the game): give the game nearly all the width. sway ignores no_focus for the new
-        # window, and games pause without focus (DevilutionX, RetroArch), so hand focus back right away.
-        sway("fullscreen disable", "resize set width 96 ppt", 'mode "speaker-tune"',
+        # (tiled behind the game, and sway won't resize that split): tabbed layout gives the focused game
+        # the whole workspace. fullscreen-stack.sh stands aside while STATE exists. sway ignores no_focus
+        # for the new window, and games pause without focus (DevilutionX, RetroArch): hand it back.
+        sway("fullscreen disable", "layout tabbed", 'mode "speaker-tune"',
              f"exec foot --app-id=speaker-tune -W {WIDTH}x{HEIGHT} {Path(__file__).resolve()} view")
         for _ in range(40):
             if tree_find(lambda n: n.get("app_id") == "speaker-tune"):
@@ -181,7 +182,7 @@ def main():
             apply(st)
         STATE.unlink(missing_ok=True)
         target = f"[con_id={st['game']}] " if st.get("game") else ""
-        sway('[app_id="speaker-tune"] kill', 'mode "default"', target + "fullscreen enable")
+        sway('[app_id="speaker-tune"] kill', 'mode "default"', target + "layout splith", target + "fullscreen enable")
     elif cmd == "key" and len(sys.argv) == 3:
         key(sys.argv[2])
     elif cmd == "view":
