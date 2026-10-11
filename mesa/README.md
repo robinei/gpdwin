@@ -36,3 +36,8 @@ Readback (`kernel/dsi-investigation/scripts/readtime.c`, 853x480, median of 100)
 maps them cached and invalidates before the CPU reads; the BO is reused). So the scoping in the 1.2 patch is not
 needed for performance: an unscoped "no snooping for staging textures on non-LLC" would be simpler and faster in
 both directions (option for the final version / upstream).
+
+Final 1.2 test (2026-10-11 23:56-00:11, `kernel/dsi-investigation/scripts/finaltest.sh`, Mesa from /tmp): colour
+check PASS; burst upload-only 10 min **0 events**, upload mean 1.14 ms, never > 5 ms (stock: 205 events, 3.73 ms,
+20 % > 5 ms); burst upload+draw 5 min 0 events. Readback unchanged (alternating runs, glReadPixels GL_BGRA median
+system 5.66 / 4.83 ms vs 1.2 4.94 / 4.72 ms; GL_RGBA 4.5 ms both).

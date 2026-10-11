@@ -593,3 +593,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Mesa test (overnight, no install; GPD Mesa from /tmp for the test programs only): staging not snooped (fix 1a)
   0 flash events in 10 min vs 205, upload 1.14 vs 3.73 ms; fix 2 0 events, 2.64 ms; fix 1b 3 events. Results in
   mesa/README.md; test script `kernel/dsi-investigation/scripts/mesatest.sh`.
+- Mesa 1:26.2.4-1.2 (`mesa/`, one patch: crocus does not snoop upload staging textures) built and tested from /tmp
+  on the GPD: 0 flash events in 15 min of the SDL-style reproducer (stock 205 in 10 min), upload 1.14 vs 3.73 ms,
+  readback unchanged, colours correct. Not installed yet.
