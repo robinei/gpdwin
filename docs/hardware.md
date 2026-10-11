@@ -142,11 +142,11 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     hiccups). One-shot test with a desktop build: `kernel/i915/install-test.sh ~/i915-burst.ko.zst i915.vlv_dsi_burst_pct=120`. **Tested 2026-10-09 22:53-23:07: the panel works in burst mode (VIDEO_MODE_FORMAT 0x1f, link 440 Mbit/s/lane, 60.15 Hz, picture fine), but the underrun rate did not drop: 9 flashes + 1 lone (resynced) in ~12 min of DevilutionX (~0.8/min; non-burst ~0.5/min). No benefit: the pipe pauses are longer than the ~1 us per line burst slack.** Log: `data/trace-2026-10-09/burst-0014.log`.
   - **i915 patch tests** (`kernel/i915/`; history of the experiments. `install-test.sh` now builds its test initramfs from
     an alternate module tree, so it works next to DKMS): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
-    `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-i915test.img` + entry
-    `arch-i915test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a
+    `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-test.img` + entry
+    `arch-test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a
     black screen is fixed by a hard reset. Check after boot: `cat /sys/module/i915/srcversion`, cdclk in
     `/sys/kernel/debug/dri/1/i915_cdclk_info`. Boot is a fastset (GOP state kept): a patch only takes effect after the
-    first driver modeset, so do one panel reset (Mod4+F10) after boot before testing, with stock too. Keep it: `sudo bootctl set-default arch-i915test.conf`; remove:
+    first driver modeset, so do one panel reset (Mod4+F10) after boot before testing, with stock too. Keep it: `sudo bootctl set-default arch-test.conf`; remove:
     `uninstall-test.sh`. A kernel update makes the test entry useless (module is for 7.2.9-arch1-1 only); remove it.
     Test: play the scenes that glitch (DevilutionX, Zelda 3, Sam & Max) with
     `sudo python3 kernel/dsi-investigation/data/watch-readonly-logger.py LOG STOPFILE`; compare time to the first
