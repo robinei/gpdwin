@@ -137,7 +137,13 @@ def oldest_ts():
 
 
 def out_mb():
-    return sum(os.path.getsize(f) for f in glob.glob(OUT + '/*')) / 1e6
+    total = 0
+    for f in glob.glob(OUT + '/*'):
+        try:
+            total += os.path.getsize(f)
+        except FileNotFoundError:  # zstd --rm removed the .txt meanwhile
+            pass
+    return total / 1e6
 
 
 zstd = None
