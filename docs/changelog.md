@@ -568,3 +568,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Renderer comparison with the reproducer (upload only, 5 min each): SDL `opengles2` 0, `vulkan` 0, `gpu` 0,
   `software` 73 (sway uploads the shm buffer), `opengl` ~33. `pegasus/pc/hellfire.sh` now sets
   `SDL_RENDER_DRIVER=opengles2` to test that with the real game (revert: drop the variable). `diablo.sh` unchanged.
+- Hellfire with `SDL_RENDER_DRIVER=opengles2`: 0 underruns in 7-15 min of play (20:27-20:42); the user considers it
+  fixed for that game. Conclusion in FINDINGS.md. The 0018/0019 test entry is no longer the default (since 18:37);
+  the next reboot boots the normal DKMS module and ends the trace capture.
