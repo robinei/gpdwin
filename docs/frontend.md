@@ -154,6 +154,8 @@ when it's no longer wanted.
   `~/.local/share/diasurgical/devilution/`. `diablo.ini`: `Sample Rate=48000` (22050 caused
   audio stutter through resampling).
   `Frame Rate Control=1` is Vertical Sync (v1.5.5: 0 None, 1 Vertical Sync = SDL2 default, 2 Limit FPS).
+  `hellfire.sh` sets `SDL_RENDER_DRIVER=opengles2` (test since 2026-10-11): SDL's default `opengl` renderer's per-frame
+  texture upload triggers the display flashes (docs/hardware.md "Display"); `diablo.sh` still uses the default.
 - Zelda 3 (`zelda3-git`, AUR, snesrev/zelda3 built with the user's US v1.0 ROM, sha256 checked).
   `/opt/zelda3-git/zelda3.ini` (original `zelda3.ini.orig` there): `ExtendedAspectRatio =
   extend_y, 16:9` (426x240, exact 3x), Fullscreen, Autosave, ItemSwitchLR, TurnWhileDashing,

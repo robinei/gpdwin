@@ -565,3 +565,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - `kernel/dsi-investigation/scripts/burst.c`: flash reproducer (SDL3, renders like DevilutionX, modes leave parts of
   the frame out). Result: the per-frame texture upload triggers the DSI underruns (66 in 10 min with upload only, 0 with
   clear or draw only). Built in /tmp on the GPD, nothing installed.
+- Renderer comparison with the reproducer (upload only, 5 min each): SDL `opengles2` 0, `vulkan` 0, `gpu` 0,
+  `software` 73 (sway uploads the shm buffer), `opengl` ~33. `pegasus/pc/hellfire.sh` now sets
+  `SDL_RENDER_DRIVER=opengles2` to test that with the real game (revert: drop the variable). `diablo.sh` unchanged.
