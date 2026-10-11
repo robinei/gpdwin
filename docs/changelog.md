@@ -590,3 +590,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Desktop (not managed by this repo): `/etc/sudoers.d/90-robin-timestamp` = `Defaults:robin timestamp_type=global,
   timestamp_timeout=240`, set by the user so Claude's non-TTY commands can use the sudo cache for the Mesa chroot
   builds. Revert: `sudo rm /etc/sudoers.d/90-robin-timestamp`.
+- Mesa test (overnight, no install; GPD Mesa from /tmp for the test programs only): staging not snooped (fix 1a)
+  0 flash events in 10 min vs 205, upload 1.14 vs 3.73 ms; fix 2 0 events, 2.64 ms; fix 1b 3 events. Results in
+  mesa/README.md; test script `kernel/dsi-investigation/scripts/mesatest.sh`.

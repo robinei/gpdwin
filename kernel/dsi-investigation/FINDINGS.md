@@ -41,6 +41,8 @@ without an underrun (old rate ~1 per 3.5 min). Why that batch stalls the display
 the render engine sampling Mesa's snooped staging surface with the cacheable internal MOCS (none of the replicas that read
 snooped memory another way triggered it). Candidate fix covering SDL and sway: crocus without snooping for staging on CHV
 (R4 section on fixes); not implemented. 0012/0017 stay as the safety net.
+**Mesa fix tested 2026-10-11 (mesa/README.md):** with crocus staging BOs not snooped, 0 events in 10 min (205
+without), upload 1.14 ms instead of 3.73 ms; storing GL_RGBA8+BGRA as BGRA (CPU copy) also 0 events, 2.64 ms.
 **Traced 2026-10-11:** every underrun comes ~0.5 ms after DevilutionX submits its per-frame GPU work; not the Punit's
 GT frequency/RC6 handling (section "Trace around each underrun"), not memory self-refresh (0019). **Reproduced on
 demand:** the per-frame texture upload is the trigger (`scripts/burst.c`, 66 events in 10 min with upload only, 0

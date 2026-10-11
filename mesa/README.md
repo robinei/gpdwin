@@ -14,5 +14,19 @@ Contents:
   With no variable set, this Mesa behaves like Arch's.
 - `build.sh`: builds all packages of the pkgbase on the desktop in a clean chroot (devtools, sudo).
 
-Status 2026-10-11: test build; switches decide which fixes become the default. Not installed on the GPD.
+Test results 2026-10-11 (GPD, `kernel/dsi-investigation/scripts/mesatest.sh`: burst `-m upload -d 10`, SDL opengl
+renderer, 10 min each, Mesa from /tmp via LD_LIBRARY_PATH; colour check `colorcheck.c` PASS in every run):
+
+| switches | flash events | upload mean | uploads > 5 ms |
+|---|---|---|---|
+| none (= Arch behaviour) | 205 | 3.73 ms | 20.3 % |
+| MESA_ST_MATCH_SIZED=1 (fix 2) | 0 | 2.64 ms | 0 % |
+| CROCUS_STAGING_NOSNOOP=1 (fix 1a) | 0 | **1.14 ms** | 0 % |
+| CROCUS_SNOOP_UC_MOCS=1 (fix 1b) | 3 | 3.42 ms | 9.3 % |
+| fix 2 + fix 1a | 0 | 2.73 ms | 0 % |
+
+Conclusion: the snooped staging BO is the trigger; not snooping it removes the flashes and makes the upload 3x
+cheaper (the BO becomes reusable: no per-frame create/clflush). Fix 2 is safe but makes the CPU do the tiled copy
+(slower than fix 1a). Plan: fix 1a by default on non-LLC, scoped to upload staging (CPU readback staging stays
+snooped); fix 2 not by default. Not installed on the GPD yet.
 `lib32-mesa` (Wine's 32-bit games) is not done yet.
