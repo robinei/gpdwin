@@ -41,10 +41,11 @@ after kernel start (was 16s).
 
 ## Where the time goes after the kernel (2026-10-11, from the journal, process start times and one
 ## boot with `sway -d`; seconds after kernel start)
-- getty@tty1 ~10.3, autologin session opened ~11.8: ~1.45 s between agetty starting and login's
-  "session opened", ending just after "Startup finished" in every boot. Not `pam_systemd_home`
-  (its failed homed activation is logged just before, but removing it from `system-auth` changed
-  nothing: tried and reverted 2026-10-11). Cause not found yet.
+- getty@tty1 ~10.7, autologin session opened ~12.1: getty@.service is `Type=idle`, so systemd
+  starts agetty only once all other boot jobs are done ("Startup finished" at 11.91, agetty ran
+  `login` at 11.96, timestamped by a temporary `--login-program` wrapper; login itself 0.17 s).
+  Fixed: `Type=simple` in the autologin drop-in. Not `pam_systemd_home` (its failed homed
+  activation is logged just before, but removing it changed nothing: tried and reverted).
 - User manager ~0.4 s, then fish execs sway (~12.7).
 - sway until it runs its `exec` lines: ~2.3 s, no single stall: Mesa + LLVM load (cold from eMMC)
   0.63 s, EGL/GL renderer setup 0.48 s, config incl. fonts 0.3 s, libinput 0.23 s, cursor theme
