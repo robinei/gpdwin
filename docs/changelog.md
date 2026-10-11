@@ -510,3 +510,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Boot: the pam_systemd_home removal did not shorten the login wait (still ~1.45 s, measured); reverted to pambase's system-auth. With the connector, cursor and GPU-prefetch changes shelf now starts at 14.2 s after kernel start (was 15.6): sway 1.66 s from start to its exec lines (was 2.83).
 - Boot: getty@tty1 Type=simple (was Type=idle, which held autologin ~1.3 s until every other boot job had finished; found with a timestamping --login-program wrapper).
 - Boot measured after all changes: shelf at 12.9 s after kernel start (15.6 s this morning), sway at 11.2 s; ~22 s from power button to shelf.
+- Unused things off: systemd-userdbd (disabled), Bluetooth modules blacklisted (/etc/modprobe.d/no-bluetooth.conf; delete to undo).

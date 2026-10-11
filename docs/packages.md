@@ -58,6 +58,13 @@ truth; this explains the choices.
   `/usr/local/bin/wifi-reset` (sudoers `23-wifi-reset`) logs what `iw` scan sees, then stops iwd,
   reloads brcmfmac and starts iwd. Its log (`journalctl -t wifi-reset`) tells the two causes apart.
 - Timers: `fstrim.timer` (eMMC supports discard), `paccache.timer` (`-k2`), `low-battery.timer`.
+- Turned off as unused (2026-10-11): `systemd-userdbd.socket`/`.service` (disabled by hand:
+  `systemctl disable --now systemd-userdbd.socket`; a running daemon, ~6 MB, for homed-style user
+  records; plain user lookups don't need it), and Bluetooth (kernel modules blacklisted in
+  `/etc/modprobe.d/no-bluetooth.conf`, manifest; BlueZ isn't installed). To use Bluetooth: delete that
+  file and its manifest line, reboot, install `bluez`. Left alone: systemd's socket-activated units
+  (machined, importd, sysupdate, ...; no process until used) and auto-loaded hardware modules
+  (kvm, mei, thunderbolt, pcspkr).
 
 ## AUR policy
 - Vendored: `aur/pkgbuilds/PKG/` holds each package's build files exactly as reviewed (exported
