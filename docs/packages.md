@@ -11,7 +11,8 @@ truth; this explains the choices.
   (sway dependency, `seatd.service` enabled, user in group `seat`).
 - Audio: `pipewire pipewire-pulse pipewire-alsa wireplumber alsa-ucm-conf` + `realtime-privileges`
   (robin in group `realtime`, so PipeWire gets RT scheduling without RTKit/polkit) (all explicit;
-  pulse and ALSA apps both need their PipeWire bridge).
+  pulse and ALSA apps both need their PipeWire bridge). `swh-plugins` (LADSPA, 2 MB) for the speaker
+  compressor (hardware.md, installed 2026-10-11).
 - Frontend: shelf (`src/shelf.c`): `sdl3_image`, `sdl3_ttf` (with `sdl3`, `sqlite` and `icu`, already
   installed). `retroarch`, assets, core-info, cores (frontend.md). `qt5-*` only for Pegasus, kept
   installed without integration (frontend.md).

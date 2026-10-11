@@ -525,3 +525,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   dropped the resync instead of retrying (a stall realigned it by chance). Patch 0017 runs it when the gap is over
   unless the hardware realigned meanwhile. Added to `PATCHES` in `kernel/i915/install-dkms.sh`, reinstalled.
   Log: `kernel/dsi-investigation/data/split-2026-10-11-1507.log`. Revert: drop 0017 from `PATCHES`, rerun the script.
+- Speaker-only compressor (PipeWire filter-chain, smart filter on the speaker sink): high-pass + sc4 + limiter for a louder perceived level without clipping. Headphones/Bluetooth bypass it. Installed `swh-plugins`.
