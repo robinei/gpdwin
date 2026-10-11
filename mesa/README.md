@@ -6,7 +6,13 @@ renderer uploads ~1 ms slower per frame on average and ~5 ms slower in at least 
 
 Contents:
 - `PKGBUILD.arch`: Arch's PKGBUILD at tag `1-26.2.4-1` (https://gitlab.archlinux.org/archlinux/packaging/packages/mesa),
-  `keys/`: its PGP keys. `PKGBUILD`: the same with `pkgrel=1.1` and our patches added (diff the two).
+  `keys/`: its PGP keys. `PKGBUILD`: **slim GPD build** (release 1.3): only crocus + softpipe (OpenGL/GLES, EGL, GLX,
+  GBM) and hasvk (Vulkan), packages `mesa`, `vulkan-intel`, `vulkan-mesa-implicit-layers` (what the GPD has
+  installed). No LLVM/SPIRV-Tools/lm_sensors at runtime: crocus and hasvk need OpenCL C kernels compiled at build
+  time, so build() first builds the host tools `mesa_clc`/`vtn_bindgen2` with LLVM (stage 1, plain meson), then the
+  drivers with `-D mesa-clc=system -D llvm=disabled`. `lib32/`: the same for `lib32-mesa` (Arch's lib32 PKGBUILD in
+  `lib32/PKGBUILD.arch`). When Arch updates: diff the new Arch PKGBUILD against `PKGBUILD.arch` and carry over what
+  matters (version, sums, options), then build.
 - `0001-crocus-don-t-snoop-upload-staging-textures.patch` (release 1.2): on non-LLC parts, staging textures that
   are only upload sources (sampler-view binding, or a write-only map in `crocus_map_copy_region`) are not snooped;
   readback staging stays as before.
@@ -44,3 +50,22 @@ Final 1.2 test (2026-10-11 23:56-00:11, `kernel/dsi-investigation/scripts/finalt
 check PASS; burst upload-only 10 min **0 events**, upload mean 1.14 ms, never > 5 ms (stock: 205 events, 3.73 ms,
 20 % > 5 ms); burst upload+draw 5 min 0 events. Readback unchanged (alternating runs, glReadPixels GL_BGRA median
 system 5.66 / 4.83 ms vs 1.2 4.94 / 4.72 ms; GL_RGBA 4.5 ms both).
+
+## Slim build (1.3) measurements, 2026-10-12 (`mesa/bench.sh`, GPD, Mesa from /tmp)
+
+| | full 1.2 (Arch build + patch) | slim 1.3 generic | slim 1.3 `-march=silvermont` |
+|---|---|---|---|
+| package `mesa` | 14.2 MB | 5.5 MB | |
+| `libgallium` | 55 MB + libLLVM 172 MB + SPIRV-Tools | 27 MB, no LLVM/SPIRV | |
+| GL program start→exit (colorcheck), warm / no shader cache | 94 / 105 ms | **62 / 71 ms** | 62 / 69 ms |
+| 32-bit GL program start→exit (colorcheck32) | 102 ms | **67 ms** | |
+| running GL program RSS / PSS | 102 / 82 MB | **39 / 34 MB** | 39 / 34 MB |
+| mapped libraries | 50 | 38 | 38 |
+| burst no vsync fps: upload / upload+draw / draw / Vulkan | 680 / 550 / 718 / 195 | 713 / 561 / 692 / 206 | 695 / 558 / 733 / 195 |
+| readback glReadPixels/glGetTexImage | 4.9-5.3 ms | 5.2-6.0 ms | 4.6-6.0 ms (run-to-run spread ~1 ms) |
+| build time (desktop) | ~25 min | ~3 min | |
+
+`-march=silvermont` gave no measurable gain, so `_march`/`_mtune` stay Arch's generic values. `mesa_glthread=true`
+(off by default for crocus) gave no measurable gain either (upload 707→758, full 555→545, static 689→691 fps;
+draw-heavy variants were GPU fill-rate bound); not enabled. Functional checks with the slim build: colorcheck PASS
+(64/32-bit, also softpipe via LIBGL_ALWAYS_SOFTWARE), GLX via Xwayland (SDL x11), Vulkan (SDL vulkan renderer).
