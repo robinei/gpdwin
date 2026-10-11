@@ -13,9 +13,12 @@ Contents:
   drivers with `-D mesa-clc=system -D llvm=disabled`. `lib32/`: the same for `lib32-mesa` (Arch's lib32 PKGBUILD in
   `lib32/PKGBUILD.arch`). When Arch updates: diff the new Arch PKGBUILD against `PKGBUILD.arch` and carry over what
   matters (version, sums, options), then build.
-- `0001-crocus-don-t-snoop-upload-staging-textures.patch` (release 1.2): on non-LLC parts, staging textures that
-  are only upload sources (sampler-view binding, or a write-only map in `crocus_map_copy_region`) are not snooped;
-  readback staging stays as before.
+- `0001-crocus-don-t-snoop-staging-textures.patch` (since 1.4; 1.2/1.3 had a scoped version, now in `unused/`):
+  no snooping for staging textures on non-LLC parts. Uploads through staging 3.73 -> 1.14 ms, readback with
+  conversion ~5.4 -> ~3.3 ms, and it stops the DSI display flashes.
+- `0002-crocus-blit-large-tiled-uploads.patch` (since 1.4): write-only uploads >= 64 KiB into tiled textures on
+  non-LLC parts use a linear staging texture + GPU blit instead of the CPU tiled copy through an uncached map:
+  matching-format uploads (SDL opengles2, wlroots shm clients) 2.01 -> 0.91 ms (853x480).
 - `unused/`: the test-switch patches of the 1.1 test build (fix 2 `MESA_ST_MATCH_SIZED`, fix 1a/1b
   `CROCUS_STAGING_NOSNOOP`, `CROCUS_SNOOP_UC_MOCS`), kept for reference, not built.
 - `build.sh`: builds all packages of the pkgbase on the desktop in a clean chroot (devtools, sudo).
@@ -72,3 +75,13 @@ system 5.66 / 4.83 ms vs 1.2 4.94 / 4.72 ms; GL_RGBA 4.5 ms both).
 (off by default for crocus) gave no measurable gain either (upload 707→758, full 555→545, static 689→691 fps;
 draw-heavy variants were GPU fill-rate bound); not enabled. Functional checks with the slim build: colorcheck PASS
 (64/32-bit, also softpipe via LIBGL_ALWAYS_SOFTWARE), GLX via Xwayland (SDL x11), Vulkan (SDL vulkan renderer).
+
+## 1.4 (2026-10-12): candidates measured (test build with switches, `mesa/bench.sh`-style runs on the GPD)
+- Uploads with matching formats (SDL opengles2, `burst -m upload -n`): CPU tiled copy 2.01 ms / 417 fps, GPU blit
+  0.89 ms / 734 fps (threshold 64 KiB or 0: same). Upload+draw unchanged (texture busy: staging already).
+- Readback (readtime, two alternating runs): snooped staging glReadPixels GL_BGRA 5.17 / 5.61 ms, unsnooped
+  3.44 / 2.97 ms; glGetTexImage GL_BGRA 5.69 / 6.51 -> 4.32 / 3.62 ms; GL_RGBA (no staging) unchanged.
+- Vertex/constant streaming: not snooped already (crocus_resource_create_for_buffer passes no flags), no change.
+- Draw-call overhead (`drawbench 2000`): 2.9 ms/frame = ~690k draws/s; glthread 3.0 ms (no gain).
+- Final 1.4 from /tmp: colorcheck PASS (64/32-bit); opengles2 upload 0.91 ms / 699 fps, opengl 0.82 ms / 757 fps;
+  0 flash events in 5 min of the SDL-style upload test; readback GL_BGRA 3.55 / 4.35 ms. Installed 2026-10-12.

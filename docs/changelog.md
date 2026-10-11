@@ -630,3 +630,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Packages renamed `*-gpd` (provide/conflict Arch's names, like mangohud-light): installed on the GPD replacing
   Arch's mesa, vulkan-intel, vulkan-mesa-implicit-layers and lib32 versions (saved in /var/cache/gpd-mesa-stock;
   revert `mesa/rollback.sh`). `scripts/aur check` reports *-gpd against the repo. Sway uses it after the next reboot.
+- Mesa 1:26.2.4-1.4 (`*-gpd`, 64/32-bit) installed: crocus no longer snoops any staging texture (readback with
+  conversion ~40 % faster too) and uploads >= 64 KiB into tiled textures with a GPU blit (matching-format uploads
+  2.0 -> 0.9 ms; sway's shm-client uploads take that path). Measurements in mesa/README.md; `drawbench.c` added.
+  Sway picks it up at the next reboot.
