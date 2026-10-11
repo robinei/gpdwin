@@ -678,16 +678,9 @@ int main(void)
                 charger_stale = 1;
         }
 
-        if (fds[F_INOTIFY].revents) {
-            char buf[4096];
-            while (read(watch, buf, sizeof buf) > 0)
-                ;
-            if (fds[F_PAD].fd < 0) {
-                fds[F_PAD].fd = pad_fd = open_pad();
-                grab_pad();
-            }
-        }
-
+        /* the pad first, then /dev/input: a pad reset (USB reset after a wake) removes its node and
+         * creates one with the same name at once, and both can arrive in one wake; the other order
+         * would see the new node while the old one is still open and then never look again */
         if (fds[F_PAD].fd >= 0 && fds[F_PAD].revents) {
             struct input_event ev;
             ssize_t n;
@@ -695,10 +688,20 @@ int main(void)
                 if (!fact.lid_closed && (ev.type == EV_KEY || ev.type == EV_ABS))
                     activity(); /* sway doesn't count the pad */
             }
-            if (n < 0 && errno != EAGAIN) { /* ENODEV once the pad is unplugged */
-                close(fds[F_PAD].fd); /* pad went away; inotify brings it back */
+            if (n < 0 && errno != EAGAIN) { /* ENODEV: unplugged, screen off, resume, reset */
+                close(fds[F_PAD].fd);
                 fds[F_PAD].fd = pad_fd = -1;
             }
+        }
+
+        if (fds[F_INOTIFY].revents) {
+            char buf[4096];
+            while (read(watch, buf, sizeof buf) > 0)
+                ;
+        }
+        if (fds[F_PAD].fd < 0 && (fds[F_INOTIFY].revents || fds[F_PAD].revents)) {
+            fds[F_PAD].fd = pad_fd = open_pad(); /* back already, or when inotify reports it */
+            grab_pad();
         }
 
         if (fds[F_LID].fd >= 0 && fds[F_LID].revents) {

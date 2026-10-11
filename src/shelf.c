@@ -1763,12 +1763,11 @@ static int pad_thread(void *unused)
             continue;
         if (fds[0].revents)
             break;
-        if (fds[1].revents) {
-            char buf[4096];
-            while (read(watch, buf, sizeof buf) > 0)
-                ;
-            npads = open_pads(pads, npads);
-        }
+        /* pads first, then /dev/input: a pad reset (USB reset after a wake) removes its node and
+         * creates one with the same name at once, and both can arrive in one wake. Looking at
+         * /dev/input first would find the new node while the old one is still open (same eventN,
+         * so skipped), then drop the old one and never look again. */
+        bool rescan = false;
         for (int i = 0; i < npads; i++) {
             if (!fds[2 + i].revents)
                 continue;
@@ -1776,13 +1775,22 @@ static int pad_thread(void *unused)
             ssize_t n;
             while ((n = read(pads[i].fd, &ev, sizeof ev)) == sizeof ev)
                 pad_event(&pads[i], &ev);
-            if (n < 0 && errno != EAGAIN) { /* pad gone (unplugged, screen off, resume): inotify brings it back */
+            if (n < 0 && errno != EAGAIN) { /* pad gone (unplugged, screen off, resume, reset) */
                 close(pads[i].fd);
                 pads[i] = pads[--npads];
                 fds[2 + i] = fds[2 + npads]; /* so the moved pad's revents is still seen */
                 i--;
+                rescan = true; /* it may already be back */
             }
         }
+        if (fds[1].revents) {
+            char buf[4096];
+            while (read(watch, buf, sizeof buf) > 0)
+                ;
+            rescan = true;
+        }
+        if (rescan)
+            npads = open_pads(pads, npads);
     }
     for (int i = 0; i < npads; i++)
         close(pads[i].fd);
