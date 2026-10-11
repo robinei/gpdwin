@@ -35,7 +35,7 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
   HID power button`, `supply ... not found, using dummy regulator`, `hpet`, `esrt`, `TDX`.
 - brcmfmac: `no txcap_blob available`, `brcmf_p2p_send_action_frame: Unknown Frame`.
 - After hibernate: `usb ...: WARN: invalid context state for evaluate context command`.
-- Bluetooth: `BCM: firmware Patch file not found`.
+- Bluetooth: `BCM: firmware Patch file not found`. (gone since 2026-10-11: Bluetooth modules blacklisted, docs/packages.md)
 
 ## Display
 - Only mode: 720x1280 @ 60.253 Hz, rotated to 1280x720. ~267 ppi, sway scale 1.
