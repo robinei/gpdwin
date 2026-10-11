@@ -58,8 +58,12 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 ## Charge limit (2026-10-12)
 - The pack is a high-voltage Li-ion (MAX17047 `voltage_max` 4.4 V); the bq24292i charged it to
   4.384 V (`constant_charge_voltage`, max 4400000). 279 cycles then, capacity still at/above design.
-- `/etc/udev/rules.d/90-charge-limit.rules` sets 4.144 V (~80% on such cells) when the charger
-  driver loads; the driver keeps it and rewrites it on resume. Voltage is what stresses the cells
+- `/usr/local/bin/charge-limit` sets 4.144 V (~80% on such cells) and makes the file wheel-writable;
+  run by `charge-limit.service` at boot (enabled by hand, waits up to 60 s for the charger) and by
+  `90-charge-limit.rules` when the driver (re)registers; both log to `journalctl -t charge-limit` /
+  `-u charge-limit`. The rule alone failed at the 2026-10-12 00:29 boot: udev never processed the
+  power_supply add events (no USEC_INITIALIZED on any of them), so it stayed at 4.384 V. The driver
+  keeps the value and rewrites it on resume. Voltage is what stresses the cells
   (with heat), so this limits wear and swelling directly; no daemon, the chip stops by itself.
 - Charge-path: the bq24292i powers the system from the adapter; once charged the battery rests
   (measured 1.5 mA `current_now` at full on the 9 V PD charger), it is not cycled while plugged in.
@@ -67,7 +71,7 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   (measured -0.6 A at 4.30 V), and the charger says "Not charging": the bar shows `bat N% max` then.
   Once at the limit the charger tops up and says "Full" (`bat full`). 
 - Full charge for a trip: shelf Utilities > Full Charge (`pegasus/utils/tools/charge.sh`) toggles
-  4.144 V ↔ 4.384 V, no password (the udev rule makes the file writable by wheel), shows it in wob
+  4.144 V ↔ 4.384 V, no password (charge-limit makes the file writable by wheel), shows it in wob
   (yellow bar at 80 = limited, full = 100%). Back to the limit at the next boot.
 
 ## Charging stuck at 500 mA after hibernate (fixed 2026-10-10)

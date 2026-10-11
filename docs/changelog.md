@@ -622,3 +622,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   busy timeout. Reproduced on a copy: read-only fails, read-write recovers all rows.
 - Utilities Reboot / Shut Down now exit at once and act 1 s later (detached), so shelf finishes
   recording before the system goes down.
+- Charge limit didn't apply after a reboot (udev never processed the charger's add event at boot):
+  now `/usr/local/bin/charge-limit`, run by the new `charge-limit.service` (enabled) and by the udev rule.
