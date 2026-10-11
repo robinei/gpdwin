@@ -29,5 +29,11 @@
     now that packages can be built for it: e.g. `-march=silvermont`/`-mtune` builds of hot packages (Mesa,
     emulator cores, SDL), Mesa/driconf defaults that suit a non-LLC GPU, trimming libraries loaded by every
     process. Find candidates by measuring first (perf, startup traces), not by guessing.
+13. Vulkan 1.3 on hasvk: on CHV hasvk reports 1.2, because it enables softpin (and with it 1.3, e.g. buffer
+    device address) only with 48-bit GPU addresses (`src/intel/vulkan_hasvk/anv_device.c:1751`, Mesa 26.2.4) and
+    CHV has 32-bit PPGTT. Cheap first test: one Wine game with DXVK 2.x (needs 1.3) and the existing driconf
+    option `hasvk_report_vk_1_3_version=true` (claims 1.3 without buffer device address). Real 1.3: softpin in a
+    32-bit address space (allocator/heaps, the vertex-cache workaround tied to 48-bit, CTS, GPU hang hunting),
+    weeks of work, only worth it if DXVK 2.x games matter. Vulkan 1.4: not realistic on Gen8.
 
 Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).
