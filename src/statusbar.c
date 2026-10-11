@@ -19,7 +19,7 @@
  *   every 60 s         battery (9 ms: I2C to the fuel gauge and the charger)
  *   kernel uevents     charger plugged in/out, battery events -> battery at once
  *   rtnetlink          WiFi link up/down -> link state and network name at once
- *   SIGUSR1            volume or turbo changed (sent by osd.sh and turbo.sh) -> at once
+ *   SIGUSR1            volume, turbo or charge limit changed (osd.sh, turbo.sh, charge.sh) -> at once
  *   SIGSTOP/SIGCONT    sent by the idle scripts while the screen is off: nothing runs then;
  *                      SIGCONT re-reads everything
  * A line is written only when the text changed, so swaybar redraws only on real changes.
@@ -432,6 +432,7 @@ int main(void)
             } else {
                 read_volume();
                 read_turbo();
+                read_battery();
             }
         }
         if (fds[2].revents && drain(fds[2].fd))

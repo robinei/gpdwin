@@ -50,6 +50,11 @@ file: tools/retroarch.sh
 assets.boxFront: media/retroarch.png
 description: RetroArch settings, shaders and online updater.
 
+game: Full Charge
+file: tools/charge.sh
+assets.boxFront: media/charge.png
+description: Toggle the battery charge limit: normally the GPD charges to about 80% (easier on the battery, less swelling); select this to charge to 100% for a trip, select again to go back. The bar below the screen shows which (80 or full). Back to 80% at the next boot.
+
 game: BIOS Setup
 file: tools/bios.sh
 assets.boxFront: media/bios.png

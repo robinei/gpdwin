@@ -65,8 +65,10 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   (measured 1.5 mA `current_now` at full on the 9 V PD charger), it is not cycled while plugged in.
 - Above the limit (just after lowering it) the battery runs the system until it is down to the limit
   (measured -0.6 A at 4.30 V), and the charger says "Not charging": the bar shows `bat N% max` then.
-  Once at the limit the charger tops up and says "Full" (`bat full`). Full charge for a trip: `echo 4384000 | sudo tee /sys/class/power_supply/bq24190-charger/constant_charge_voltage`
-  (back to the limit at the next boot).
+  Once at the limit the charger tops up and says "Full" (`bat full`). 
+- Full charge for a trip: shelf Utilities > Full Charge (`pegasus/utils/tools/charge.sh`) toggles
+  4.144 V ↔ 4.384 V, no password (the udev rule makes the file writable by wheel), shows it in wob
+  (yellow bar at 80 = limited, full = 100%). Back to the limit at the next boot.
 
 ## Charging stuck at 500 mA after hibernate (fixed 2026-10-10)
 - Seen once: after a hibernate wake, plugging in the PD charger (9 V / 3 A) left
