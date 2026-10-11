@@ -15,11 +15,12 @@ Changes apply at once (pw-cli on the filter node); `save` writes them into
 dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf (commit it afterwards), `revert`
 reloads the saved values. Bypass compares with the unprocessed sound without losing the values.
 """
-import fcntl, json, os, re, subprocess, sys, time
+import fcntl, json, os, re, subprocess, sys, textwrap, time
 from pathlib import Path
 
 NODE = "speaker_compressor"
 CONF = Path(__file__).resolve().parent.parent / "dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf"
+WIDTH, HEIGHT = 50, 23    # view window, in characters
 STATE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "speaker-tune.json"
 
 # label, filter params (same value), config key in CONF, step, min, max, format
@@ -31,6 +32,23 @@ PARAMS = [
     ("Ceiling (dB)",    ["lim:Limit (dB)"],                 '"Limit (dB)"',            1, -20, 0, "{:.0f}"),
     ("Attack (ms)",     ["comp:Attack time (ms)"],          '"Attack time (ms)"',      5, 1.5, 100, "{:.0f}"),
     ("Release (ms)",    ["comp:Release time (ms)"],         '"Release time (ms)"',    50, 50, 1500, "{:.0f}"),
+]
+# shown under the list for the selected setting: what it does and what to expect
+HELP = [
+    "Removes bass below this frequency. The tiny speakers can't play it; it only rattles them and "
+    "uses up loudness. Higher: cleaner and louder, but thinner. Lower: fuller, more distortion.",
+    "Level where compression starts. Sounds louder than this are turned down. Lower: more of the "
+    "sound is compressed (more even, can sound flat). Higher: only the loudest parts are touched.",
+    "How hard sound above the threshold is turned down: 3 means 3 dB louder in, 1 dB out. 1 = off. "
+    "Higher: more even and dense, can pump or sound squashed.",
+    "Raises everything after compression: this is what makes it louder, quiet parts most. Higher: "
+    "louder, but more hiss and distortion at high volume. 0: no extra loudness.",
+    "Hard cap on the output level (0 = full scale). Lower it if loud parts distort at max volume. "
+    "Too low: everything gets squashed against it and loses punch.",
+    "How fast compression reacts to a loud sound. Shorter: catches sudden peaks, but can dull or "
+    "crackle them. Longer: punchier hits, peaks slip through to the ceiling.",
+    "How fast it lets go after a loud sound. Shorter: livelier but can 'pump' (level wobbles). "
+    "Longer: smoother, but quiet sounds right after loud ones stay quiet a moment.",
 ]
 # bypass: no bass cut, no compression, no makeup, limiter at full scale
 BYPASS = {"hpL:Freq": 10.0, "hpR:Freq": 10.0, "comp:Ratio (1:n)": 1.0, "comp:Makeup gain (dB)": 0.0, "lim:Limit (dB)": 0.0}
@@ -114,8 +132,10 @@ def view():
         for i, (p, v) in enumerate(zip(PARAMS, st["values"])):
             mark = ">" if i == st["sel"] else " "
             lines.append(f" {mark} {p[0]:<17} {p[6].format(v):>6}")
+        lines.append("")
+        lines += [" " + l for l in textwrap.wrap(HELP[st["sel"]], WIDTH - 2)]
         lines += ["", " up/down select   left/right change", " b bypass   s save   r revert   Esc done",
-                  " volume keys work too", "", " " + st.get("msg", "")]
+                  " volume keys work too", " " + st.get("msg", "")]
         sys.stdout.write("\033[H\033[2J" + "\n".join(lines))
         sys.stdout.flush()
         time.sleep(0.15)
@@ -131,7 +151,7 @@ def main():
         st = {"sel": 0, "bypass": False, "values": live_values(), "msg": ""}
         store(st)
         sway("fullscreen disable", 'mode "speaker-tune"',
-             f"exec foot --app-id=speaker-tune -W 44x16 {Path(__file__).resolve()} view")
+             f"exec foot --app-id=speaker-tune -W {WIDTH}x{HEIGHT} {Path(__file__).resolve()} view")
     elif cmd == "stop":
         st = load()
         if st["bypass"]:
