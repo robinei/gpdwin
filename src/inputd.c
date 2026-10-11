@@ -19,10 +19,11 @@
  * (sway doesn't count it), opening the lid, the power button, plugging the charger in or out, and
  * waking from sleep. Activity undoes the steps (brightness back, screen on). The charger is part of
  * the decision at every moment, so unplugging after a long idle on AC starts the battery countdown
- * from the unplug (it used to be checked only when a step fired, once per idle period).
+ * from the unplug.
  *
  * State, not events: events only update facts (lid closed, on AC, last activity, sway idle and
- * since when, when the lid closed). reconcile() works out from the facts what should be (input
+ * since when, when the lid closed), and facts that can be read (lid switch, charger) are read rather
+ * than remembered. reconcile() works out from the facts what should be (input
  * off, screen off, brightness level, throttled, suspend) and changes only what differs from what
  * it last applied, so a missed, repeated or reordered event can't leave a wrong state. At start the
  * applied lid and screen state count as unknown and are applied either way (both are safe to
@@ -62,15 +63,15 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/input.h>
+#include <linux/netlink.h>
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <linux/netlink.h>
 #include <sys/inotify.h>
-#include <stdint.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -335,9 +336,9 @@ static void sh_wait(const char *command)
 
 static int pad_fd = -1;
 
-/* ---- state: facts (updated by events, nothing else) and what is applied (changed only by
- * reconcile). reconcile() works out from the facts what should be, and changes only what differs,
- * so the order and number of events can't leave it in a wrong state. */
+/* ---- state: facts (set by events, or read by reconcile where they can be read) and what is
+ * applied (changed only by reconcile). reconcile() works out from the facts what should be, and
+ * changes only what differs, so the order and number of events can't leave it in a wrong state. */
 
 static struct {
     int lid_closed;
@@ -351,12 +352,13 @@ static struct {
 static struct {
     int lid;                 /* input off, pad grabbed, CPU/GPU throttled (lid.sh) */
     int screen_off;          /* screen.sh off (screen off, shelf and the game frozen) */
-    int dim;                 /* 0 normal, 1 a third, 2 1% */
+    int dim;                 /* 0 normal, 1 DIM_PERCENT, 2 lowest visible level */
     time_t sleep_sent;       /* when suspend was last requested in this idle period (0: not) */
 } applied;
 
 static int lid_fd = -1;
-static int charger_stale = 1; /* re-read the charger (15 ms over I2C, so not on every pass) */
+static int charger_stale = 1; /* re-read the charger (16 ms over I2C, so not on every pass) */
+static double was_asleep;     /* slept() at the last pass: when it grows, the device woke */
 
 static time_t next_due;      /* when the next idle step is due (0: none; sway says when idle starts) */
 
@@ -412,12 +414,25 @@ static void grab_pad(void)
         ioctl(pad_fd, EVIOCGRAB, applied.lid);
 }
 
-static void lid_fact(int closed);
+/* The lid switch, as a fact. */
+static void lid_fact(int closed)
+{
+    if (closed && !fact.lid_closed)
+        fact.lid_closed_at = mono_now();
+    if (!closed && fact.lid_closed)
+        activity(); /* opening counts as activity */
+    fact.lid_closed = closed;
+}
 
 static void reconcile(void)
 {
     /* facts that can be read are read, not remembered from events: the lid switch every time
-     * (cheap), the charger whenever a power_supply uevent came or uevents were lost */
+     * (cheap), the charger whenever a power_supply uevent came or uevents were lost, and whether
+     * the device slept since the last pass (waking counts as activity) */
+    double asleep = slept();
+    if (asleep - was_asleep > 2)
+        activity();
+    was_asleep = asleep;
     if (charger_stale) {
         int ac = charger_online();
         if (ac != fact.on_ac)
@@ -538,16 +553,6 @@ static struct wl_display *idle_connect(void)
     return dpy;
 }
 
-/* The lid switch, as a fact. */
-static void lid_fact(int closed)
-{
-    if (closed && !fact.lid_closed)
-        fact.lid_closed_at = mono_now();
-    if (!closed && fact.lid_closed)
-        activity(); /* opening counts as activity */
-    fact.lid_closed = closed;
-}
-
 /* Menu key: start shelf, or switch to it, or close it if it has the focus (sway asks it to close;
  * it saves its place and exits, and run doesn't restart it). Nothing while a game runs. */
 static void on_menu(void)
@@ -578,12 +583,13 @@ int main(void)
     struct wl_display *dpy = idle_connect();
     if (!dpy)
         fprintf(stderr, "inputd: no idle handling (no Wayland connection)\n");
-    struct pollfd fds[5 + MAX_POWER] = {
-        { .fd = watch, .events = POLLIN },
-        { .fd = (pad_fd = open_pad()), .events = POLLIN },
-        { .fd = (lid_fd = open_named(LID_NAME)), .events = POLLIN },
-        { .fd = uevent_socket(), .events = POLLIN },
-        { .fd = dpy ? wl_display_get_fd(dpy) : -1, .events = POLLIN },
+    enum { F_INOTIFY, F_PAD, F_LID, F_UEVENT, F_WAYLAND, F_POWER }; /* F_POWER...: power/Menu keys */
+    struct pollfd fds[F_POWER + MAX_POWER] = {
+        [F_INOTIFY] = { .fd = watch, .events = POLLIN },
+        [F_PAD] = { .fd = (pad_fd = open_pad()), .events = POLLIN },
+        [F_LID] = { .fd = (lid_fd = open_named(LID_NAME)), .events = POLLIN },
+        [F_UEVENT] = { .fd = uevent_socket(), .events = POLLIN },
+        [F_WAYLAND] = { .fd = dpy ? wl_display_get_fd(dpy) : -1, .events = POLLIN },
     };
     fact.on_ac = charger_online();
     charger_stale = 0;
@@ -593,13 +599,12 @@ int main(void)
     applied.lid = applied.screen_off = -1;
     if (access(saved_path(), F_OK) == 0)
         applied.dim = 2; /* a previous inputd was dimmed: restore from the saved level */
-    double was_asleep = slept();
+    was_asleep = slept();
     time_t last_power = 0;
     int press_dark = -1; /* screen state when the power button went down; -1: not down */
-    int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 5 + npower;
+    int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = F_POWER + npower;
     for (int i = 0; i < npower; i++)
-        fds[5 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
-
+        fds[F_POWER + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
 
     for (;;) {
         reconcile();
@@ -613,11 +618,11 @@ int main(void)
         }
         int r = poll(fds, nfds, timeout);
         if (dpy) {
-            if (r > 0 && fds[4].revents & POLLIN)
+            if (r > 0 && fds[F_WAYLAND].revents & POLLIN)
                 wl_display_read_events(dpy);
             else
                 wl_display_cancel_read(dpy);
-            if (wl_display_dispatch_pending(dpy) < 0 || (r > 0 && fds[4].revents & (POLLERR | POLLHUP))) {
+            if (wl_display_dispatch_pending(dpy) < 0 || (r > 0 && fds[F_WAYLAND].revents & (POLLERR | POLLHUP))) {
                 fprintf(stderr, "inputd: Wayland connection lost, exiting\n");
                 return 1;
             }
@@ -625,15 +630,10 @@ int main(void)
         if (r < 0)
             continue;
 
-        double asleep = slept();
-        if (asleep - was_asleep > 2) /* woke from sleep */
-            activity();
-        was_asleep = asleep;
-
-        if (fds[3].fd >= 0 && fds[3].revents) {
+        if (fds[F_UEVENT].fd >= 0 && fds[F_UEVENT].revents) {
             char buf[8192];
             ssize_t n;
-            while ((n = recv(fds[3].fd, buf, sizeof buf - 1, 0)) > 0) {
+            while ((n = recv(fds[F_UEVENT].fd, buf, sizeof buf - 1, 0)) > 0) {
                 buf[n] = 0;
                 if (strstr(buf, "/power_supply/")) /* "change@/devices/.../power_supply/..." */
                     charger_stale = 1;
@@ -642,36 +642,36 @@ int main(void)
                 charger_stale = 1;
         }
 
-        if (fds[0].revents) {
+        if (fds[F_INOTIFY].revents) {
             char buf[4096];
             while (read(watch, buf, sizeof buf) > 0)
                 ;
-            if (fds[1].fd < 0) {
-                fds[1].fd = pad_fd = open_pad();
+            if (fds[F_PAD].fd < 0) {
+                fds[F_PAD].fd = pad_fd = open_pad();
                 grab_pad();
             }
         }
 
-        if (fds[1].fd >= 0 && fds[1].revents) {
+        if (fds[F_PAD].fd >= 0 && fds[F_PAD].revents) {
             struct input_event ev;
             ssize_t n;
-            while ((n = read(fds[1].fd, &ev, sizeof ev)) == sizeof ev) {
+            while ((n = read(fds[F_PAD].fd, &ev, sizeof ev)) == sizeof ev) {
                 if (!fact.lid_closed && (ev.type == EV_KEY || ev.type == EV_ABS))
                     activity(); /* sway doesn't count the pad */
             }
             if (n < 0 && errno != EAGAIN) { /* ENODEV once the pad is unplugged */
-                close(fds[1].fd); /* pad went away; inotify brings it back */
-                fds[1].fd = pad_fd = -1;
+                close(fds[F_PAD].fd); /* pad went away; inotify brings it back */
+                fds[F_PAD].fd = pad_fd = -1;
             }
         }
 
-        if (fds[2].fd >= 0 && fds[2].revents) {
+        if (fds[F_LID].fd >= 0 && fds[F_LID].revents) {
             struct input_event ev;
-            while (read(fds[2].fd, &ev, sizeof ev) == sizeof ev)
+            while (read(fds[F_LID].fd, &ev, sizeof ev) == sizeof ev)
                 ; /* reconcile reads the switch state; the event only wakes the loop */
         }
 
-        for (int i = 5; i < nfds; i++) {
+        for (int i = F_POWER; i < nfds; i++) {
             struct input_event ev;
             ssize_t n;
             if (!fds[i].revents)
@@ -695,11 +695,9 @@ int main(void)
                 if (fact.lid_closed || just_resumed())
                     continue;
                 /* several devices may report the same press: act once */
-                struct timespec t;
-                clock_gettime(CLOCK_MONOTONIC, &t);
-                if (last_power && t.tv_sec - last_power < 2)
+                if (last_power && mono_now() - last_power < 2)
                     continue;
-                last_power = t.tv_sec;
+                last_power = mono_now();
                 if (dark) /* wake the screen (reconcile turns it on) */
                     activity();
                 else
