@@ -504,3 +504,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Orphans `cmake lib32-glew meson python-mako qt5-tools vulkan-headers` marked explicit
   (`sudo pacman -D --asexplicit ...`) to keep them. Revert: `pacman -D --asdeps <pkg>`.
 - Boot: autologin no longer waits ~1.4 s for pam_systemd_home (homed unused): system-auth without it, in manifest. Measured where the remaining time after the kernel goes (docs/boot.md).
+- Boot: external display connectors (DP-1/2, HDMI-A-1/2) forced off with video=...:d (mini-HDMI not used); sway no longer probes the empty ports at startup (~0.25 s).
