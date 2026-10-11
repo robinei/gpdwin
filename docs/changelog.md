@@ -493,3 +493,11 @@ Details before 2026-10-06 are in `docs/archive/`.
 - inputd: a step counts as applied only if its command succeeded; failed or timed-out steps are retried every 5 s. screen.sh and lid.sh exit non-zero on failure (lid.sh saves to lid-saved.new until all writes succeeded, so a retry keeps the original values). Background commands are reaped explicitly (SIGCHLD no longer ignored, so exit codes are visible).
 - shelf, inputd: a pad reset (USB reset after a wake: node removed and recreated with the same name in one go) left the pad closed for good: /dev/input was looked at before the pad's read error. Now pad removals first, then a rescan whenever a pad went away.
 - Kernel patches on kernel updates: /maintain now brings both patch sets onto every new kernel (not only after a failed build): i915 (DKMS fetches the new source; patches now with --fuzz=0, also in build.sh), audio re-pinned with the new `kernel/prepare.sh --repin VERSION` (--fuzz=0 too), then checks after the reboot (modules from updates/, audio after hibernate). scripts/update reports the DKMS result after a kernel update. All current patches apply exactly to 7.2.9.
+
+## 2026-10-11 — maintenance
+- `pacman -Syu`: 10 packages (aom, at-spi2-core, gstreamer 1.28.8 set, libevdev 1.14.0,
+  oniguruma, python 3.14.8). No kernel/firmware change, no reboot needed, no .pacnew.
+- Arch news: mkinitcpio 42 TPM2/LUKS item does not apply (no encrypted devices).
+- AUR: all current. commander-genius-git is pinned (bee4fcb), upstream is 3 commits ahead; not bumped.
+- Checks: no drift, firewall loaded, audio paths intact, gpd-i915/gpd-audio loaded from `updates/dkms`
+  on 7.2.9, no failed units.
