@@ -33,8 +33,8 @@ source at the installed commit).
   by 8 (held: repeats), LT/RT jump to the top/bottom (like Home/End), A launch, Y favourite. Keyboard: arrows, Page Up/Down, Home/End, Tab, Enter, F. Pad and
   keyboard are ignored unless shelf's window has focus (xdg-shell "activated" state), since the pad
   is read below the compositor.
-- Size: laid out for 1280x720 and scaled to the window (the smaller of width/1280 and height/720,
-  0.6-4x): fonts, bars, rows, thumbnails, logos, margins. On a HiDPI screen it draws at the screen's
+- Size: laid out for 1280x720 and scaled to the window (the smaller of width/1280 and height/680,
+  0.6-4x; 680 so a 720p screen with a panel, the GPD under swaybar at 1280x696, is 1x): fonts, bars, rows, thumbnails, logos, margins. On a HiDPI screen it draws at the screen's
   scale (wl_surface preferred_buffer_scale), so it stays sharp. When the details beside the box art
   would be narrower than 240 px (tall windows), they go below it. 1280x720 renders pixel-identical
   to before.

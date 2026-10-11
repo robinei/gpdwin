@@ -2200,8 +2200,8 @@ static void cache_clear(App *a)
     }
 }
 
-/* Everything is laid out for 1280x720 and scaled to the window (render sets ui_scale): S(px) is a
- * length at that size. A HiDPI screen gives a window that many times more pixels, so it's sharp. */
+/* Everything is laid out for 1280x720 and scaled to the window (render sets ui_scale; a 720p screen
+ * with a panel, like the GPD under swaybar, is still 1): S(px) is a length at that size. A HiDPI screen gives a window that many times more pixels, so it's sharp. */
 static float ui_scale = 1;
 #define S(px) ((int)((px) * ui_scale + 0.5f))
 
@@ -2730,7 +2730,7 @@ static void set_font_sizes(App *a)
 static void render(App *a)
 {
     int W = a->W, H = a->H, LW = W * 46 / 100;
-    float scale = SDL_clamp(SDL_min(W / 1280.0f, H / 720.0f), 0.6f, 4.0f);
+    float scale = SDL_clamp(SDL_min(W / 1280.0f, H / 680.0f), 0.6f, 4.0f); /* 720p minus a panel: 1 */
     if (scale != ui_scale) {
         ui_scale = scale;
         set_font_sizes(a);
