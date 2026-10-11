@@ -519,3 +519,9 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Volume/brightness keys: held-key repeats are dropped while a step runs (`flock -n` in osd.sh). Each step took ~165 ms against a 40 ms repeat, so overlapping copies stuttered and finished out of order.
 - Sam & Max 101 capped at 30 fps: `MANGOHUD_CONFIG="read_cfg,fps_limit=30"` in its `gpd-launch.sh` (outside the repo). Revert: delete that line.
 - Psychonauts (native) capped at 30 fps the same way (its `gpd-launch.sh`).
+
+## 2026-10-11 — i915 patch 0017: deferred resync
+- A split stayed 22 s: a lone underrun came 0.6 s after an automatic resync, inside the 2 s rate limit, and 0012
+  dropped the resync instead of retrying (a stall realigned it by chance). Patch 0017 runs it when the gap is over
+  unless the hardware realigned meanwhile. Added to `PATCHES` in `kernel/i915/install-dkms.sh`, reinstalled.
+  Log: `kernel/dsi-investigation/data/split-2026-10-11-1507.log`. Revert: drop 0017 from `PATCHES`, rerun the script.

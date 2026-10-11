@@ -1,0 +1,95 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin <robinei@gmail.com>
+Date: Sun, 11 Oct 2026 15:09:18 +0200
+Subject: [PATCH] drm/i915/dsi: Defer a rate-limited resync instead of dropping
+ it
+
+EXPERIMENT fix, on top of patch 0012.
+
+A lone underrun 0.6 s after a resync (inside the 2 s minimum gap) was
+only logged as "rate limited": nothing retried it and the split picture
+stayed for 22 s until a stall realigned the FIFO by chance (2026-10-11
+15:07:12-15:07:34). Remember the request and run it as soon as the gap
+is over, unless the hardware realigns first (a pair or a lone underrun
+with a stall) or a modeset restarts the poller.
+---
+ drivers/gpu/drm/i915/display/intel_dsi.h |  3 +++
+ drivers/gpu/drm/i915/display/vlv_dsi.c   | 22 ++++++++++++++++++++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/drm/i915/display/intel_dsi.h b/drivers/gpu/drm/i915/display/intel_dsi.h
+index 3a829e2..aaafa17 100644
+--- a/drivers/gpu/drm/i915/display/intel_dsi.h
++++ b/drivers/gpu/drm/i915/display/intel_dsi.h
+@@ -86,6 +86,9 @@ struct intel_dsi {
+ 		int resync_trigger;
+ 		unsigned int resync_trigger_no, resync_count, resync_fail;
+ 		ktime_t last_resync_t;
++		bool deferred;			/* rate-limited resync, runs when the gap is over */
++		int deferred_trigger;
++		unsigned int deferred_no;
+ 		unsigned int post_underruns, post_stalls, post_samples, post_nonempty;
+ 	} ur;
+ 
+diff --git a/drivers/gpu/drm/i915/display/vlv_dsi.c b/drivers/gpu/drm/i915/display/vlv_dsi.c
+index b64d6bd..1d8eb6b 100644
+--- a/drivers/gpu/drm/i915/display/vlv_dsi.c
++++ b/drivers/gpu/drm/i915/display/vlv_dsi.c
+@@ -888,10 +888,20 @@ static void vlv_dsi_request_resync(struct intel_dsi *intel_dsi, int trigger, uns
+ 		return;
+ 	}
+ 	if (ur->resync_count && ktime_sub(now, ur->last_resync_t) < UR_RESYNC_MIN_GAP_NS) {
+-		drm_info(display->drm, "DSI resync rate limited (%s #%u)\n",
+-			 ur_trigger_name[trigger], no);
++		/*
++		 * Don't drop it: a split stays until something realigns the
++		 * FIFO (seen: 22 s). Run it when the gap is over, unless the
++		 * hardware realigns first (pair, stall) or a modeset comes.
++		 */
++		if (!ur->deferred)
++			drm_info(display->drm, "DSI resync rate limited, deferred (%s #%u)\n",
++				 ur_trigger_name[trigger], no);
++		ur->deferred = true;
++		ur->deferred_trigger = trigger;
++		ur->deferred_no = no;
+ 		return;
+ 	}
++	ur->deferred = false;
+ 	ur->resync_trigger = trigger;
+ 	ur->resync_trigger_no = no;
+ 	ur->resync_pending = true;
+@@ -1001,9 +1011,11 @@ static void vlv_dsi_underrun_work(struct work_struct *work)
+ 		} else if (ur->pend_count >= 2) {
+ 			kind = "PAIR (hardware realigned)";
+ 			ur->pair_count++;
++			ur->deferred = false;
+ 		} else if (stall) {
+ 			kind = "lone + stall (treated as realigned)";
+ 			ur->pair_count++;
++			ur->deferred = false;
+ 		} else {
+ 			kind = "LONE (misaligned)";
+ 			ur->lone_count++;
+@@ -1018,6 +1030,11 @@ static void vlv_dsi_underrun_work(struct work_struct *work)
+ 		ur->pend = false;
+ 	}
+ 
++	/* deferred resync, once the rate limit gap is over (and no underrun is being classified) */
++	if (ur->deferred && !ur->pend && !ur->resync_pending && !ur->resync_running &&
++	    ktime_sub(now, ur->last_resync_t) >= UR_RESYNC_MIN_GAP_NS)
++		vlv_dsi_request_resync(intel_dsi, ur->deferred_trigger, ur->deferred_no);
++
+ 	/* DPI FIFO in vblank detector: evaluate new samples */
+ 	if (ur->fifo_new) {
+ 		ur->fifo_new = false;
+@@ -1387,6 +1404,7 @@ static void vlv_dsi_ur_enable(struct intel_dsi *intel_dsi,
+ 	ur->fifo_hist_n = 0;
+ 	ur->fifo_state = -1;
+ 	ur->post_pending = false;
++	ur->deferred = false;
+ 	ur->enable_t = ktime_get();
+ 	ur->enabled = true;
+ 	schedule_delayed_work(&ur->underrun_work, msecs_to_jiffies(20));
+-- 
+2.56.0
+
