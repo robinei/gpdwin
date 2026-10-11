@@ -6,9 +6,9 @@
 
 pkgbase=mesa
 pkgname=(
-  mesa
-  vulkan-intel
-  vulkan-mesa-implicit-layers
+  mesa-gpd
+  vulkan-intel-gpd
+  vulkan-mesa-implicit-layers-gpd
 )
 pkgver=26.2.4
 _pkgver=${pkgver/[a-z]/-&}
@@ -151,7 +151,9 @@ _pick() {
   done
 }
 
-package_mesa() {
+package_mesa-gpd() {
+  # GPD rebuild under its own name (like mangohud-light): Arch updates of mesa do not replace it;
+  # scripts/aur check reports when Arch has a newer version.
   depends=(
     expat
     glibc
@@ -170,10 +172,11 @@ package_mesa() {
   )
   optdepends=("opengl-man-pages: for the OpenGL API man pages")
   provides=(
+    "mesa=$epoch:$pkgver-$pkgrel"
     "mesa-libgl=$epoch:$pkgver-$pkgrel"
     opengl-driver
   )
-  conflicts=('mesa-libgl<17.0.1-2')
+  conflicts=(mesa 'mesa-libgl<17.0.1-2')
   replaces=('mesa-libgl<17.0.1-2')
 
   meson install -C build --destdir "$pkgdir" --no-rebuild
@@ -197,7 +200,9 @@ package_mesa() {
   install -Dm644 mesa-$_pkgver/docs/license.rst -t "$pkgdir/usr/share/licenses/$pkgname"
 }
 
-package_vulkan-intel() {
+package_vulkan-intel-gpd() {
+  # GPD rebuild under its own name (like mangohud-light): Arch updates of vulkan-intel do not replace it;
+  # scripts/aur check reports when Arch has a newer version.
   pkgdesc="Open-source Vulkan driver for Intel GPUs (GPD Win 1 build: hasvk only)"
   depends=(
     expat
@@ -217,14 +222,17 @@ package_vulkan-intel() {
     zlib
     zstd
   )
-  provides=(vulkan-driver)
+  provides=("vulkan-intel=$epoch:$pkgver-$pkgrel" vulkan-driver)
+  conflicts=(vulkan-intel)
 
   mv vkintel/* "$pkgdir"
 
   install -Dm644 mesa-$_pkgver/docs/license.rst -t "$pkgdir/usr/share/licenses/$pkgname"
 }
 
-package_vulkan-mesa-implicit-layers() {
+package_vulkan-mesa-implicit-layers-gpd() {
+  # GPD rebuild under its own name (like mangohud-light): Arch updates of vulkan-mesa-implicit-layers do not replace it;
+  # scripts/aur check reports when Arch has a newer version.
   pkgdesc="Mesa's implicit Vulkan layers"
   depends=(
     glibc
@@ -232,7 +240,8 @@ package_vulkan-mesa-implicit-layers() {
     libxcb
     wayland
   )
-  conflicts=(vulkan-mesa-device-select)
+  provides=("vulkan-mesa-implicit-layers=$epoch:$pkgver-$pkgrel")
+  conflicts=(vulkan-mesa-implicit-layers vulkan-mesa-device-select)
   replaces=(vulkan-mesa-device-select)
 
   mv vkdevice/* "$pkgdir"
