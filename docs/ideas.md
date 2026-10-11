@@ -19,8 +19,6 @@
 10. Measure s2idle battery drain (unplugged, known sleep time; method in power.md); then
     consider a shorter HibernateDelaySec or the BIOS C-state limit.
 
-Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).
-
 11. Device-only Mesa (after the upload fix is settled; `mesa/`): gallium `crocus` + `softpipe`, Vulkan
     `intel_hasvk`, no rusticl/OpenCL, video codecs, docs or other vendors' drivers. The stock `libgallium`
     (55 MB) links `libLLVM` (172 MB) into every GL process (sway, frontend, games) only for drivers this device
@@ -31,3 +29,5 @@ Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already
     now that packages can be built for it: e.g. `-march=silvermont`/`-mtune` builds of hot packages (Mesa,
     emulator cores, SDL), Mesa/driconf defaults that suit a non-LLC GPU, trimming libraries loaded by every
     process. Find candidates by measuring first (perf, startup traces), not by guessing.
+
+Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).
