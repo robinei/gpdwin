@@ -14,7 +14,8 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   initramfs finds the image via the `HibernateLocation` EFI variable. The RTC alarm does not wake
   the device from hibernation; the power button does. Resume takes ~15-30 s.
 - Suspend needed the xHCI wakeup fix (hardware.md).
-- Lid closed = awake but frozen (~1.5 W) until the 30 min idle suspend, then suspend-then-hibernate
+- Lid closed = awake but frozen (~1.5 W) until the 30 min idle suspend (or 30 min after unplugging,
+  if closed on AC), then suspend-then-hibernate
   (hibernate after another 30 min, ~0 W). Deliberate tradeoff (Robin, 2026-10-10): opening the lid
   within 30 min resumes instantly; a closed lid costs ~0.75 Wh (~3%) before it sleeps. Overnight
   2026-10-09/10: 84% → ~81% including that and ~30 min of morning use.
@@ -32,8 +33,12 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   first level.
 - 30 min: suspend-then-hibernate, on battery only (`idle-suspend.sh` checks
   `bq24190-charger/online`).
-- The charger state is checked when the timeout fires: unplugging while already dimmed doesn't
-  turn the screen off until the next idle period.
+- The charger state is checked when a timeout fires, and swayidle fires each step once per idle
+  period. So unplugging restarts the countdown (inputd, uevents): lid open, the unplug counts as
+  activity (screen back to full brightness, then dim/off/suspend from there); lid closed, inputd
+  suspends 30 min after the unplug itself (cancelled by replugging or opening the lid), since
+  activity would turn the screen on. Before (fixed 2026-10-11): lid closed on AC for 30+ min, then
+  unplugged, never slept.
 - Games and RetroArch inhibit idle. **Gamepad input does not count as activity** for sway.
 
 ## Battery

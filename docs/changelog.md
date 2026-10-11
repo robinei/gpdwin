@@ -486,3 +486,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - sway: CPU/GPU turbo toggles moved from Super+F11/F12 to Super+T/G.
 - MangoHud: toggle moved from Right Shift+F12 to Super+H; sway no longer binds Super+H (focus left stays on Super+Left).
 - sway: vim-style h/j/k/l focus/move/resize bindings removed (arrow keys remain).
+- inputd: unplugging the charger restarts the idle countdown (lid open: counts as activity; lid closed: suspend 30 min after the unplug). Before, a lid closed on AC for 30+ min and then unplugged never slept.

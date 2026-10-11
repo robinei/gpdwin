@@ -25,6 +25,12 @@
  *   within RESUME_GUARD s of a resume (the sleep hook resume-time writes the uptime to
  *   RESUME_FILE): ignored, so the press that woke the device doesn't put it back to sleep.
  * Two releases within 2 s count once (the button may show up as several input devices).
+ *
+ * Charger unplugged: swayidle's suspend step (30 min) does nothing on AC and fires only once per
+ * idle period, so a device left idle on AC past 30 min would never sleep after unplugging. So the
+ * unplug restarts the idle countdown: with the lid open as activity (zero pointer move; the screen
+ * comes back on, like a phone's); with the lid closed (where that would turn the screen on) by
+ * suspending after UNPLUGGED_SLEEP s here, unless the charger comes back or the lid opens first.
  * So "dark screen: hold ~1 s" always turns it on: hibernated/off (the hardware needs the hold),
  * asleep, or screen off.
  *
@@ -46,6 +52,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <linux/netlink.h>
 #include <sys/inotify.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
@@ -59,6 +66,8 @@
 #define POKE_EVERY 30 /* seconds; the first idle step (dim) comes after 2 min */
 #define RESUME_GUARD 3.0 /* seconds after a resume in which the power button is ignored */
 #define RESUME_FILE "/run/resume-time"
+#define CHARGER_ONLINE "/sys/class/power_supply/bq24190-charger/online"
+#define UNPLUGGED_SLEEP 1800 /* seconds: lid closed and unplugged -> suspend (swayidle's on battery) */
 #define MAX_POWER 8    /* input devices with KEY_POWER (here: 2x ACPI Power Button, gpio-keys, Intel HID, keyboard) */
 
 extern char **environ;
@@ -244,6 +253,37 @@ static void activity(void)
     swaymsg("seat seat0 cursor move 0 0");
 }
 
+static int charger_online(void)
+{
+    char c = '0';
+    int fd = open(CHARGER_ONLINE, O_RDONLY | O_CLOEXEC);
+    if (fd >= 0) {
+        if (read(fd, &c, 1) != 1)
+            c = '0';
+        close(fd);
+    }
+    return c == '1';
+}
+
+/* Kernel uevents (power_supply: charger plugged in/out). */
+static int uevent_socket(void)
+{
+    struct sockaddr_nl addr = { .nl_family = AF_NETLINK, .nl_groups = 1 };
+    int fd = socket(AF_NETLINK, SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC, NETLINK_KOBJECT_UEVENT);
+    if (fd >= 0 && bind(fd, (struct sockaddr *)&addr, sizeof addr) < 0) {
+        close(fd);
+        fd = -1;
+    }
+    return fd;
+}
+
+static time_t mono_now(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t); /* stops during suspend: the countdown is awake time */
+    return t.tv_sec;
+}
+
 static void suspend(void)
 {
     char *argv[] = { "sudo", "-n", "systemctl", "suspend-then-hibernate", NULL };
@@ -307,24 +347,56 @@ int main(void)
     /* IN_ATTRIB: udev sets the node's permissions just after the kernel creates it */
     inotify_add_watch(watch, "/dev/input", IN_CREATE | IN_ATTRIB);
 
-    struct pollfd fds[3 + MAX_POWER] = {
+    struct pollfd fds[4 + MAX_POWER] = {
         { .fd = watch, .events = POLLIN },
         { .fd = (pad_fd = open_pad()), .events = POLLIN },
         { .fd = open_named(LID_NAME), .events = POLLIN },
+        { .fd = uevent_socket(), .events = POLLIN },
     };
+    int on_ac = charger_online();
+    time_t unplugged_sleep_at = 0; /* lid closed and unplugged: suspend then (0: no) */
     time_t last_power = 0;
     int press_dark = -1; /* screen state when the power button went down; -1: not down */
-    int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 3 + npower;
+    int power[MAX_POWER], npower = open_power(power, MAX_POWER), nfds = 4 + npower;
     for (int i = 0; i < npower; i++)
-        fds[3 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
+        fds[4 + i] = (struct pollfd){ .fd = power[i], .events = POLLIN };
 
     unsigned long sw[1] = { 0 };
     if (fds[2].fd >= 0 && ioctl(fds[2].fd, EVIOCGSW(sizeof sw), sw) >= 0 && (sw[0] >> SW_LID & 1))
         on_lid(1); /* started with the lid already closed */
 
     for (;;) {
-        if (poll(fds, nfds, -1) < 0)
+        int timeout = -1;
+        if (unplugged_sleep_at)
+            timeout = unplugged_sleep_at > mono_now() ? (int)(unplugged_sleep_at - mono_now()) * 1000 : 0;
+        if (poll(fds, nfds, timeout) < 0)
             continue;
+
+        if (unplugged_sleep_at && mono_now() >= unplugged_sleep_at) {
+            unplugged_sleep_at = 0;
+            if (lid_closed && !charger_online())
+                suspend();
+        }
+
+        if (fds[3].fd >= 0 && fds[3].revents) {
+            char buf[8192];
+            ssize_t n;
+            int power_event = 0;
+            while ((n = recv(fds[3].fd, buf, sizeof buf - 1, 0)) > 0) {
+                buf[n] = 0;
+                power_event |= strstr(buf, "/power_supply/") != NULL;
+            }
+            int ac = power_event ? charger_online() : on_ac;
+            if (on_ac && !ac) { /* unplugged: the idle countdown starts now */
+                if (lid_closed)
+                    unplugged_sleep_at = mono_now() + UNPLUGGED_SLEEP;
+                else
+                    swaymsg("seat seat0 cursor move 0 0");
+            }
+            if (ac)
+                unplugged_sleep_at = 0;
+            on_ac = ac;
+        }
 
         if (fds[0].revents) {
             char buf[4096];
@@ -352,11 +424,14 @@ int main(void)
         if (fds[2].fd >= 0 && fds[2].revents) {
             struct input_event ev;
             while (read(fds[2].fd, &ev, sizeof ev) == sizeof ev)
-                if (ev.type == EV_SW && ev.code == SW_LID)
+                if (ev.type == EV_SW && ev.code == SW_LID) {
                     on_lid(ev.value);
+                    if (!ev.value)
+                        unplugged_sleep_at = 0; /* opened: swayidle counts from here */
+                }
         }
 
-        for (int i = 3; i < nfds; i++) {
+        for (int i = 4; i < nfds; i++) {
             struct input_event ev;
             ssize_t n;
             if (!fds[i].revents)
