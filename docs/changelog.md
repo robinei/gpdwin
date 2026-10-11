@@ -571,3 +571,5 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Hellfire with `SDL_RENDER_DRIVER=opengles2`: 0 underruns in 7-15 min of play (20:27-20:42); the user considers it
   fixed for that game. Conclusion in FINDINGS.md. The 0018/0019 test entry is no longer the default (since 18:37);
   the next reboot boots the normal DKMS module and ends the trace capture.
+- `pegasus/pc/hellfire.sh` reverted to the default SDL renderer (the opengles2 test is done; user's choice). Workaround if
+  wanted again: `SDL_RENDER_DRIVER=opengles2` in a launcher.

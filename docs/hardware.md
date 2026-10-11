@@ -120,8 +120,9 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
   - **Trigger found (2026-10-11):** the flashes come ~0.5 ms after a GPU batch that follows a CPU upload of a texture
     (SDL `opengl` renderer, Mesa iris CPU tiled copy into an uncached texture; also sway uploading shared-memory
     client buffers). Reproducer `kernel/dsi-investigation/scripts/burst.c`: 66 events/10 min with upload only, 0 with
-    SDL's `opengles2`, `vulkan` or `gpu` renderer. Not GPU frequency/RC6, not memory self-refresh (0019). DevilutionX
-    Hellfire now runs with `SDL_RENDER_DRIVER=opengles2` (pegasus/pc/hellfire.sh) as the real-game test.
+    SDL's `opengles2`, `vulkan` or `gpu` renderer. Not GPU frequency/RC6, not memory self-refresh (0019). Hellfire with
+    `SDL_RENDER_DRIVER=opengles2` played 7-15 min without an underrun (test only, launcher reverted; workaround for SDL
+    games: set that variable). Why the opengl path triggers it: under investigation (Mesa side).
   - **Root-cause tracing (2026-10-11, patch 0018, test entry only):** the pauses start mostly late in the frame
     (FINDINGS.md "Frame position of the underruns"). To see what happens just before them: boot the one-shot test entry
     (`i915.vlv_dsi_ur_irq=1`, underruns timed by the MIPI interrupt; log lines say "(irq, N us before the poll)", and
