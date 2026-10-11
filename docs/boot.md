@@ -34,6 +34,11 @@
 | First boot after install | 9.7s | 2.0s | 2.6s | 4.9s | 8.1s | 27.4s | |
 | Baseline (before tweaks) | 7.1s | 2.0s | 2.6s | 5.0s | 7.7s | 24.4s | 7.68s |
 | After user-sessions override | 7.9s | 1.9s | 2.5s | 3.5s | 6.1s | 21.9s | 4.94s |
+| After getty Type=simple, ports off, GPU prefetch, built-in cursor (2026-10-11) | 6.8s | 2.1s | 2.4s | 3.4s | 5.6s | 20.3s | 4.53s |
+
+Seconds after kernel start, 2026-10-11 (one boot each): autologin session 11.93 -> 10.34, sway
+12.66 -> 11.24, shelf 15.56 -> 12.90. Power button to shelf ~22 s (was ~25), of which firmware and
+loader ~8.9 s.
 
 The override saves ~2.7s on the login path (iwd no longer in getty's critical chain). The initrd
 drop in that row is probably noise; firmware varies ~0.8s between boots. Sway now starts ~13s
