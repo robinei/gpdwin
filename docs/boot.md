@@ -52,7 +52,11 @@ after kernel start (was 16s).
   0.63 s, EGL/GL renderer setup 0.48 s, config incl. fonts 0.3 s, libinput 0.23 s, cursor theme
   0.2 s (now wlroots' built-in cursor, nothing to load), probing the external display ports 0.25 s (now forced off on the kernel command line), modeset
   0.08 s. Then shelf ~0.07 s later.
-  Possible but not done: reading the Mesa/LLVM libraries ahead during boot (cold dlopen 0.4 s).
+  The GPU driver is read ahead by `gpu-prefetch.service` (enabled by hand: `systemctl enable
+  gpu-prefetch.service`): at sysinit, `LD_PRELOAD=/usr/lib/libEGL_mesa.so.0 /usr/bin/true` maps and
+  relocates libgallium + libLLVM, i.e. the pages sway's EGL setup touches (not the whole 220 MB),
+  at low CPU/IO priority; nothing is ordered after it. Measured: driver load 0.50 s cold, 0.07 s
+  after the prefetch (which takes ~0.7 s of mostly I/O, in the background).
 
 ## Logins don't wait for the network
 - Full override `/etc/systemd/system/systemd-user-sessions.service`: the stock unit without

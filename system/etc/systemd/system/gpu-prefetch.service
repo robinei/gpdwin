@@ -1,0 +1,20 @@
+# Read the GPU driver (Mesa's libgallium and the LLVM it links, ~0.5 s cold from the eMMC) into the
+# page cache early in boot, so sway finds it there (docs/boot.md). The dynamic loader maps and
+# relocates exactly what sway's EGL setup will touch, then runs `true`. Nothing waits for this:
+# no Before=, nothing is ordered after it, and it runs at low CPU/IO priority.
+[Unit]
+Description=Prefetch the GPU driver for sway
+DefaultDependencies=no
+ConditionPathExists=/usr/lib/libEGL_mesa.so.0
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/true
+Environment=LD_PRELOAD=/usr/lib/libEGL_mesa.so.0
+User=nobody
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=sysinit.target
