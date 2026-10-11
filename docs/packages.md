@@ -5,7 +5,7 @@ truth; this explains the choices.
 
 - Base: `base linux linux-firmware-broadcom linux-firmware-intel intel-ucode` (only the two
   firmware sub-packages this hardware needs), `iwd`, `openssh`, `sudo`, `fish`, `vim`, `helix`,
-  `wireless-regdb`, `iw`, `pacman-contrib` (checkupdates, pacdiff, paccache).
+  `wireless-regdb`, `iw`, `pacman-contrib` (checkupdates, pacdiff, paccache), `bc`, `strace` (debugging; installed 2026-10-11).
 - Desktop: `sway swaybg swayidle foot fuzzel wob brightnessctl grim ttf-dejavu btop` (swayidle unused since
   2026-10-11: inputd does idle), seatd
   (sway dependency, `seatd.service` enabled, user in group `seat`).
