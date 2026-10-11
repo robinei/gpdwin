@@ -389,7 +389,7 @@ when it's no longer wanted.
   on). Loaded into every game shelf starts: `dotfiles/shelf/run` exports `MANGOHUD=1`
   (Vulkan layer) and shelf preloads `libMangoHud_shim.so` into games (OpenGL, incl. Wine/wined3d; 32-bit Windows
   games too, since WoW64 Wine calls OpenGL from 64-bit code). Hidden at start (`no_display`),
-  Right Shift+F12 shows it. Config `dotfiles/MangoHud/MangoHud.conf`:
+  Super+H shows it (sway doesn't bind Super+H, so the game gets it). Config `dotfiles/MangoHud/MangoHud.conf`:
   FPS, CPU and GPU clock.
 - Psychonauts (Wine, 2026-10-07, replaced by the native build): CPU-bound, ~11 FPS in heavy
   scenes (main thread maxed at 2.4 GHz, wined3d_cs ~85%); mesa_glthread barely helped.
