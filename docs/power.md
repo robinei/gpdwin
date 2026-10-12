@@ -160,6 +160,9 @@ the fusb302 the sink PDOs 5 V fixed + 5-12 V variable at 3 A (written for the GP
 this charger design; the Pocket ships with a 12 V PD charger). The device ran at 9 V PD and 12 V PD on
 2026-10-12. Whether the Win 1's VBUS side tolerates that long-term is unknown; it may be unrelated to the fault.
 Until that's known: plain 5 V chargers only.
+USB power meter in the cable: ~20 W while on and charging (2 W SoC/screen + ~4 W charging + the ~14 W fault),
+2 W while off (charging the battery while off). So the extra load exists only while the device is on: a rail
+the board switches on with the system, not the always-on charger/battery side.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
