@@ -5,6 +5,10 @@ launch: "{file.path}"
 # shelf: tools (gear tab, icon-sized art, not in Recent); Pegasus ignores x- keys
 x-shelf-kind: tools
 
+game: Dark Souls Test
+file: tools/darksouls-test.sh
+description: Temporary: Dark Souls diagnostic runs (DXVK 2.7.1 or 2.4.1, patched or normal driver) with DXVK logs, a memory overlay and memory samples, for the DXVK 2.7.1 crash on save load.
+
 game: Games
 file: tools/games.sh
 assets.boxFront: media/games.png

@@ -759,3 +759,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Dark Souls crashed on DXVK 2.7.1 when loading a save (NULL+0x20 in `DxvkBuffer::DxvkBuffer`, from
   `CreateVertexBuffer`); reverted to DXVK 2.4.1 and the system driver (the old launcher). The 2.7.1 launcher is kept as
   `dxvk-test/gpd-launch-2.7.1.sh`. docs/steam-library.md.
+- Utilities > "Dark Souls Test" (temporary): menu for diagnostic Dark Souls runs (2.7.1 / 2.4.1, patched / normal
+  driver) through the R9 kit, which now also shows DXVK's memory overlay and samples the process' address space and GPU
+  memory every 2 s (`~/vk13-test/logs/ds-*.mem`). Revert: remove the entry from `pegasus/utils/metadata.pegasus.txt`
+  and `pegasus/utils/tools/darksouls-test.sh`.

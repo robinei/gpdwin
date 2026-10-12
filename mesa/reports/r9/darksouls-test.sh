@@ -14,7 +14,7 @@
 # game-wrap applies the power settings and backs the saves up as usual. Neither the launcher nor the game is
 # edited; for vk13-27 DATA/d3d9.dll is swapped for the run and restored on any exit (trap on EXIT/INT/TERM/HUP),
 # the restore is verified by sha256. ASYNC=0 in the environment turns DXVK_GPD_ASYNC_READBACK off (A/B of the
-# readback workaround). Logs: ~/vk13-test/logs/ds-VARIANT-TIME.log (wine stderr) and .../ds-VARIANT-TIME/ (DXVK log).
+# readback workaround). HUD=0 hides the DXVK memory overlay. Logs: ~/vk13-test/logs/ds-VARIANT-TIME.log (wine stderr) and .../ds-VARIANT-TIME/ (DXVK log).
 # Bail out: quit the game (Esc menu), or from another terminal: pkill -x DARKSOULS.exe   (the script restores
 # the DLL and exits; `pkill -f darksouls-test` also works). A GPU hang shows as a frozen picture: wait 10 s for
 # the reset, then quit; journalctl -k | grep -i "gpu hang" counts them (printed at the end).
@@ -64,6 +64,8 @@ if [ "${ASYNC:-1}" = 1 ]; then export DXVK_GPD_ASYNC_READBACK=1; else unset DXVK
 stamp=$(date +%H%M%S)
 logdir="$T/logs/ds-$variant-$stamp"; log="$T/logs/ds-$variant-$stamp.log"; mkdir -p "$logdir"
 export DXVK_LOG_LEVEL=info DXVK_LOG_PATH="$logdir"
+# On-screen DXVK memory overlay (device memory allocated/used per heap) next to MangoHud; HUD=0 turns it off.
+[ "${HUD:-1}" = 1 ] && export DXVK_HUD=memory,allocations
 settings=$(grep -F "$GAME/gpd-launch.sh" "$HOME/.config/pegasus-frontend/shelf-game-settings.txt" | cut -f2)
 for kv in $settings; do
   case $kv in
@@ -115,8 +117,28 @@ if [ $dry = 1 ]; then
   sleep "$dry_sleep" & child=$!; wait "$child"; child=""
 else
   "$HOME/gpd/scripts/game-wrap" "$HOME/Games/tools/wine32/bin/wine" "./DARKSOULS.exe" >"$log" 2>&1 &
-  child=$!; wait "$child"; rc=$?; child=""
+  child=$!
+  # Memory sampler (every 2 s while the game runs): the 32-bit process' address space and RSS (VmSize near
+  # 3-4 GiB = address space exhausted) and the GPU memory its DRM fds hold (fdinfo drm-total/resident), so a crash
+  # in an allocation can be told apart: process address space, GPU memory, or neither.
+  mem="$T/logs/ds-$variant-$stamp.mem"
+  ( echo "time VmSize_kB VmRSS_kB GPU memory of its DRM clients (fdinfo)" >"$mem"
+    while kill -0 "$child" 2>/dev/null; do
+      pid=$(pgrep -x DARKSOULS.exe | head -1)
+      if [ -n "$pid" ]; then
+        vm=$(awk '/^VmSize|^VmRSS/{printf "%s ", $2}' /proc/$pid/status 2>/dev/null)
+        drm=$(cat /proc/$pid/fdinfo/* 2>/dev/null | awk '/^drm-client-id:/{c[$2]=1; cur=$2}
+          /^drm-(total|resident)-system0:/ && !seen[cur,$1]++ {u=$3; v=$2*(u=="KiB"?1/1024:u=="MiB"?1:u=="GiB"?1024:1/1048576); m[$1]+=v}
+          END{printf "gpu_total_MiB %.0f gpu_resident_MiB %.0f", m["drm-total-system0:"], m["drm-resident-system0:"]}')
+        echo "$(date +%T) $vm$drm" >>"$mem"
+      fi
+      sleep 2
+    done ) &
+  sampler=$!
+  wait "$child"; rc=$?; child=""
+  kill "$sampler" 2>/dev/null
   "$HOME/Games/tools/wine32/bin/wineserver" -k 2>/dev/null
   echo "game ended rc=$rc"
-  grep -h -E "GPD|Skipping|Device does not|Vulkan 1\.|Found device|D3D9: VK_|error" "$logdir"/*.log 2>/dev/null | head -15
+  grep -h -E "GPD|Skipping|Device does not|Vulkan 1\.|Found device|D3D9: VK_|error|err:|failed|Heap" "$logdir"/*.log 2>/dev/null | grep -v "GPD wait" | head -25
+  echo "memory samples: $mem (last 3):"; tail -3 "$mem"
 fi
