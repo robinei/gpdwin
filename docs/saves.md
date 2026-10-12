@@ -9,6 +9,7 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 |---|---|---|---|
 | Super Meat Boy (40800) | `~/.local/share/SuperMeatBoy/UserData/` (Linux) | `steamapps/common/Super Meat Boy/UserData/` (Windows/Proton; cloud root 1) | Progress: `savegame.dat` (same format). Settings: `reg0.dat` (Linux) vs `Reg0.dat` (Windows): different contents, not copied. |
 | Bastion (107100) | `~/.local/share/Bastion/` (Linux, FNA) | `userdata/<id>/107100/remote/` (Windows/Proton; cloud root 0) | Files are `<profile>.{sav,keyctrls,mousectrls}`; Linux uses the profile name from `activeProfile` (`Profile1.sav`), Steam Cloud stores lowercase (`profile1.sav`). Same .NET code, same format. |
+| Dark Souls PTDE (211420) | `~/.wine32/drive_c/users/robin/Documents/NBGI/DarkSouls/DRAKS0005.sl2` (old-style Wine) | Proton prefix `compatdata/211420/.../Documents/NBGI/DarkSouls/` (unverified: not installed on the desktop) | Cloud `%WinMyDocuments%NBGI/DarkSouls/DRAKS0005.sl2`; the cloud also holds the old GFWL-era `nbgi/darksouls/<user>/draks0005.sl2` + `.bak` (2013, not synced). One file holds all characters. |
 
 ## Save backup (`~/Saves`, `scripts/saves-backup`, since 2026-10-11)
 - Goal: prefixes, install folders and `~/.local/share/<game>` can be deleted and recreated without losing

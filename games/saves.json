@@ -392,6 +392,22 @@
     "~/Games/installed/cave-story/Profile.dat",
     "~/Games/installed/cave-story/Save.dat"
    ]
+  },
+  {
+   "name": "DARK SOULS: Prepare To Die Edition",
+   "appid": "211420",
+   "unverified_desktop": true,
+   "files": [
+    {
+     "gpd": "~/.wine32/drive_c/users/robin/Documents/NBGI/DarkSouls/DRAKS0005.sl2",
+     "desktop": "{steam}/steamapps/compatdata/211420/pfx/drive_c/users/steamuser/Documents/NBGI/DarkSouls/DRAKS0005.sl2",
+     "cloud": "%WinMyDocuments%NBGI/DarkSouls/DRAKS0005.sl2"
+    }
+   ],
+   "data": [
+    "~/.wine32/drive_c/users/robin/Documents/NBGI/DarkSouls"
+   ],
+   "data_manual": true
   }
  ]
 }

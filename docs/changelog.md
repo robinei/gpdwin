@@ -703,3 +703,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Game installer: per-game setup as a Claude session (`/setup-game`, `.claude/commands/setup-game.md`: everything
   learned on Dark Souls), offered after a download and in an installed game's menu; generated Windows launchers
   get `GPD_TDP_W=8 GPD_GPU_PIN=1`. `dxvk/build.sh` now builds x32 and x64 (`~/Games/tools/dxvk/gpd/` on the GPD).
+- Saves: Dark Souls PTDE added to games/saves.json (Game Saves tool + ~/Saves backup; desktop path unverified).
