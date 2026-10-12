@@ -378,4 +378,33 @@ gpd-dxvk chroot (`/var/lib/archbuild/gpd-dxvk/root/build-271gpd`, `-Denable_d3d8
 stripped): `~/vk13-test/dxvk271gpd/{x32,x64}/d3d9.dll` on the GPD (x32 sha256 d78f8a5f…). Measured effect: 9.3.
 
 ### 9.3 32-bit results
-RESULTS32_PLACEHOLDER
+Setup: `r9/dxvk32test.sh` (32-bit Wine 11.19 old-style from `~/Games/tools/wine32`, prefix `~/.wine32`, DLL next to the
+exe with `d3d9=n`, claim env vars set, `DISPLAY=:0` so Wine has a window driver; the GPD's screen stayed off) with
+`r5/d3d9tex32.exe` (2400 frames, readback of the last frame) and `r9/d3d9rb32.exe` (Dark Souls pattern: K=20 textured
+quads + 16x16 R32F luminance target → `GetRenderTargetData` → READONLY lock every frame, colour/texture check every 100
+frames, 600 frames); `r9/run32matrix.sh` runs the matrix DLL x driver. Drivers: `stock` = installed lib32 hasvk 1.7
+(relocations), `vk13reloc` = patched lib32 build with `HASVK_USE_RELOCATIONS=1`, `vk13` = patched lib32 build (softpin).
+The patched lib32 driver loads in 32-bit Wine with the 32-bit softpin layout (DXVK logs `Memory Heap[0]: 2752 MiB`).
+
+Results at the time of writing (the matrix was still running; the complete table is in
+`~/vk13-test/logs/matrix32-*.txt` on the GPD, `grep -E '^###|d3d9rb:|textured|No adapters|!!!'`):
+
+| DLL (x32) | driver | d3d9tex32 2400 frames | d3d9rb32 600 frames |
+|---|---|---|---|
+| 2.4.1-gpd (the game's) | stock | correct, 0 hangs | (pending) |
+| 2.6.2 | stock | **correct, 0 hangs** (R5 saw textures lost after ~300 frames with this DLL on driver 1.3/1.4; today's 1.7 has the HiZ patch, and this run is headless) | - |
+| 2.7.1-gpd | stock | n/a: `No adapters found` (no 1.3/BDA on the stock driver) | n/a |
+| 2.4.1-gpd | vk13reloc | correct, 0 hangs | (pending) |
+| 2.6.2 | vk13reloc | correct, 0 hangs | - |
+| 2.7.1-gpd | vk13reloc | n/a: `No adapters found` (relocation mode has no BDA, by design) | n/a |
+| 2.4.1-gpd | vk13 (softpin) | (pending; the 300-frame sanity run was correct) | **sanity run 200 frames: async=0 5.92 ms/frame, readback lock 4.84 ms/frame; async=1 4.15 ms/frame, lock 0.13 ms/frame, luminance read a frame late (mean 0.990), 0 bad checks, 0 hangs** |
+| 2.6.2 | vk13 | (pending) | - |
+| 2.7.1-gpd | vk13 | (pending) | (pending) |
+
+So far: **no GPU hang and no lost textures in any 32-bit run** (kernel log checked after each line, `grep -Eci`), and the
+async-readback effect reproduces in 32-bit on the patched driver (the per-frame lock drops from ~4.8 ms to 0.1 ms; the
+wait log shows the 16x16 R32F lock, `a=16 b=16 c=114`, waiting 3-15 ms without it). The vk13-27 variant of the Dark Souls
+kit stays **disabled** (marker `~/vk13-test/vk13-27-ok` not created) until the `2.7.1-gpd on vk13` d3d9tex32/d3d9rb32
+lines have passed; whoever reads the finished matrix first: if those two lines show correct pixels, 0 bad checks and
+0 hangs, `touch ~/vk13-test/vk13-27-ok`.
+

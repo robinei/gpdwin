@@ -2,7 +2,7 @@
  * Every frame: draw K textured quads + one untextured quad into the back buffer (GPU work), render one textured
  * quad into a 16x16 R32F render target, GetRenderTargetData it into a SYSTEMMEM surface and LockRect(READONLY)
  * it at once (the eye-adaptation luminance readback that stalls the CPU on the GPU in Dark Souls), Present.
- * Every CHECK frames the back buffer is read back and the textured/untextured pixels are verified (the R5
+ * Every CHECK frames the colour target (an own render target, not the back buffer) is read back and the textured/untextured pixels are verified (the R5
  * "textures lost after a few hundred frames" symptom of 32-bit DXVK 2.6.x), and the 16x16 value is checked.
  * Prints ms/frame, the time spent in the readback lock, and the number of bad checks (exit code 1 if any).
  * Build (desktop): zig cc -target x86-windows-gnu -O1 -o d3d9rb32.exe d3d9rb.c -ld3d9 -lgdi32 -luser32
@@ -81,7 +81,9 @@ int main(int argc, char **argv)
     hr = IDirect3DDevice9_CreateRenderTarget(dev, 16, 16, D3DFMT_R32F, D3DMULTISAMPLE_NONE, 0, FALSE, &lum, NULL);
     if (FAILED(hr)) { printf("CreateRenderTarget R32F failed %08lx\n", hr); return 2; }
     IDirect3DDevice9_CreateOffscreenPlainSurface(dev, 16, 16, D3DFMT_R32F, D3DPOOL_SYSTEMMEM, &lumsys, NULL);
-    IDirect3DDevice9_GetBackBuffer(dev, 0, 0, D3DBACKBUFFER_TYPE_MONO, &bb);
+    /* own colour target instead of the back buffer: headless Wine (no display driver) has no usable swapchain */
+    hr = IDirect3DDevice9_CreateRenderTarget(dev, W, H, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, FALSE, &bb, NULL);
+    if (FAILED(hr)) { printf("CreateRenderTarget X8R8G8B8 failed %08lx\n", hr); return 2; }
     IDirect3DDevice9_CreateOffscreenPlainSurface(dev, W, H, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, &bbsys, NULL);
 
     struct tv tq[4] = { { 40, 40, 0, 1, 0, 0 }, { 300, 40, 0, 1, 1, 0 }, { 40, 320, 0, 1, 0, 1 }, { 300, 320, 0, 1, 1, 1 } };

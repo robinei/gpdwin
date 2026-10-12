@@ -17,7 +17,7 @@ cat > icd/vk13lib32.json <<J
 { "ICD": { "api_version": "1.3.354", "library_arch": "32", "library_path": "/home/robin/vk13-test/lib32/libvulkan_intel_hasvk.so" }, "file_format_version": "1.0.1" }
 J
 cp -f "$dll" run32/d3d9.dll && cp -f "$exe" run32/
-export WINEPREFIX="$HOME/.wine32" WINEARCH=win32 WINEDEBUG=-all
+export WINEPREFIX="$HOME/.wine32" WINEARCH=win32 WINEDEBUG=-all DISPLAY=${DISPLAY:-:0}
 export WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d;d3d9=n"
 export hasvk_report_vk_1_3_version=true hasvk_report_descriptor_indexing=true
 export DXVK_LOG_LEVEL=warn DXVK_LOG_PATH="$HOME/vk13-test/logs"
