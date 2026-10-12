@@ -8,7 +8,7 @@
  * "bat 80% not charging" (yellow) when connected but stuck.
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
- * "tdp" is the package power limit (RAPL PL1), dimmed at the firmware's 6 W, bright while a game raised it
+ * "tdp" is the package power limit (RAPL PL1), white at the firmware's 6 W, yellow while a game raised it
  * (scripts/game-wrap GPD_TDP_W, docs/power.md). The actual draw needs root (energy_uj), so it isn't shown.
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
  * when it spent most of the last second in RC6 (its frequency register keeps the last value).
@@ -307,7 +307,7 @@ static void emit(void)
     else
         block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu idle");
     if (st.tdp_uw > 0)
-        block(st.tdp_uw > PL1_DEFAULT ? TEXT : DIM, LINE, "tdp %dW", (st.tdp_uw + 500000) / 1000000);
+        block(st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, "tdp %dW", (st.tdp_uw + 500000) / 1000000);
     block(TEXT, LINE, "ram %.1f/%.1fG", st.ram_used, st.ram_total);
     if (!st.wifi_up)
         block(DIM, LINE, "wifi off");
