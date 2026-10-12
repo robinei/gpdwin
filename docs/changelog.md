@@ -698,3 +698,4 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Dark Souls: DSfix frame cap back to 30 (unlockFPS stays on: flexible limiter, no 15/20 fps rounding).
 - game-wrap: opt-in `GPD_TDP_W` / `GPD_GPU_PIN` for any launcher, defaults restored however the game ends (guard process); Dark Souls uses it.
 - statusbar: `tdp 6W` block (package power limit; white at the firmware's 6 W, yellow when a game raised it); game-wrap signals the bar when it changes it.
+- MangoHud: `cpu_power` (package draw from RAPL, also on AC); `energy_uj` made readable by wheel (turbo.conf). Dark Souls: DXVK's own fps counter off (MangoHud works).
