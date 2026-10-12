@@ -653,3 +653,8 @@ Details before 2026-10-06 are in `docs/archive/`.
   (journal since 2026-10-06, incl. the 2026-10-10 300-cycle run). Under analysis (R8); no stress test until then.
 - GPD sudo: cached credentials now last 2 h (`/etc/sudoers.d/10-global-timestamp`: `timestamp_timeout=120`, was the
   5 min default), at the user's request. Revert: drop the option and `scripts/sync install` the file.
+- Analysis R8 (`kernel/dsi-investigation/reports/R8-pmic-i2c-wedge.md`) of the 07:51 PMIC I2C wedge: on this device the
+  kernel never takes the P-Unit PMIC-bus semaphore (ACPI has no `_SEM` for `\_SB.PCI0.I2C7`), so kernel PMIC transfers
+  (panel power steps, charger, LEDs) run unarbitrated against the P-Unit's own PMIC traffic; most likely a pre-existing
+  collision exposed by the stress test (screen cycles + GPU idle/active churn). No mechanism found for i915 0015 or Mesa 1.5.
+  Candidate fix: SSDT overlay with `_SEM=1`. Experiments not run yet.
