@@ -647,3 +647,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Mesa 1:26.2.4-1.5 installed (`*-gpd`, 64/32-bit): + crocus patches 0003-0005 and the trimmed driconf (mesa/README.md).
   Sway picks it up at the next reboot. Revert to 1.4: rebuild from the previous commit, or `mesa/rollback.sh` for Arch's.
 - i915 DKMS rebuilt on the GPD with the reworked 0015 (srcversion 051DA60BA67259721D07E17, 552 s); active after reboot.
+- Incident 2026-10-12 07:51: screen-on stress test (screen-race-test.sh + gpuload) right after the reboot into the
+  reworked i915 0015 + Mesa 1.5: after ~4 cycles the PMIC I2C bus (i2c_designware 808622C1:05) timed out on every
+  access (`mipi_exec_pmic failed, -110`, charger unreadable), panel black until a reboot. Never seen before
+  (journal since 2026-10-06, incl. the 2026-10-10 300-cycle run). Under analysis (R8); no stress test until then.
