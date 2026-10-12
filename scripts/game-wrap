@@ -4,7 +4,25 @@
 # the game), backs up its saves to ~/Saves (scripts/saves-backup). Only a SIGKILL of this wrapper skips the
 # backup; the user timer (dotfiles/systemd/user/saves-backup.timer) covers that. The game is the folder under
 # ~/Games/installed that the launcher cd'ed into.
+#
+# Opt-in performance settings for the duration of the game (docs/power.md "Package power limit"), set in the
+# launcher before the exec:
+#   GPD_TDP_W=8    package power limit (RAPL PL1) in watts; the firmware's is 6.016 W
+#   GPD_GPU_PIN=1  GPU minimum clock = its current maximum (600 MHz, or 400 with GPU turbo off: Super+G)
+# Both need the sysfs files writable by wheel (/etc/tmpfiles.d/turbo.conf). A detached guard puts the defaults back
+# (PL1 6.016 W, GPU minimum = RPn) as soon as this wrapper is gone, however it ends, even by SIGKILL; a reboot
+# resets them too.
 slug=$GPD_GAME            # a launcher that does not cd into its install folder sets GPD_GAME=<folder name>
+PL1=/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw
+PL1_DEFAULT=6016000
+GT=$(ls -d /sys/class/drm/card*/gt/gt0 2>/dev/null | head -1)
+restore_cmd="echo $PL1_DEFAULT > $PL1; [ -n '$GT' ] && cat '$GT/rps_RPn_freq_mhz' > '$GT/rps_min_freq_mhz'"
+if [ -n "$GPD_TDP_W" ] || [ "$GPD_GPU_PIN" = 1 ]; then
+    # guard first, so the defaults come back even if this wrapper is killed right after raising them
+    setsid -f sh -c "tail --pid=$$ -f /dev/null; $restore_cmd" >/dev/null 2>&1 </dev/null
+    [ -n "$GPD_TDP_W" ] && echo $((GPD_TDP_W * 1000000)) > "$PL1" 2>/dev/null
+    [ "$GPD_GPU_PIN" = 1 ] && [ -n "$GT" ] && cat "$GT/rps_max_freq_mhz" > "$GT/rps_min_freq_mhz" 2>/dev/null
+fi
 [ -n "$slug" ] || case "$PWD/" in
     "$HOME"/Games/installed/*/) slug=${PWD#"$HOME"/Games/installed/}; slug=${slug%%/*} ;;
 esac
@@ -16,5 +34,7 @@ while :; do
     kill -0 "$child" 2>/dev/null || break
 done
 trap '' TERM INT HUP
+# defaults back as soon as the game is gone (the guard covers the wrapper being killed)
+if [ -n "$GPD_TDP_W" ] || [ "$GPD_GPU_PIN" = 1 ]; then sh -c "$restore_cmd" 2>/dev/null; fi
 [ -n "$slug" ] && timeout 120 "$HOME/gpd/scripts/saves-backup" --quiet "$slug" || true
 exit $rc
