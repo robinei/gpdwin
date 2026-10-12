@@ -15,6 +15,10 @@
 # turbo states go back to what they were before the game (Super+T/G toggles), PL1 to 6.016 W and the GPU minimum
 # to RPn; a detached guard does that as soon as this wrapper is gone, however it ends, even by SIGKILL; a reboot
 # resets everything too.
+# shelf starts games with performance settings through game-wrap too (also emulator games, which have no
+# launcher of their own); a PC launcher's own game-wrap inside that one only runs the game.
+[ -n "$GPD_WRAPPED" ] && exec "$@"
+export GPD_WRAPPED=1
 slug=$GPD_GAME            # a launcher that does not cd into its install folder sets GPD_GAME=<folder name>
 NO_TURBO=/sys/devices/system/cpu/intel_pstate/no_turbo
 PL1=/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw

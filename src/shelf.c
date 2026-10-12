@@ -1596,15 +1596,23 @@ static bool launch(Running *r, Game *g)
         sl_free(&toks);
         return false;
     }
-    char **argv = xmalloc((toks.n + 1) * sizeof *argv);
+    /* Performance settings other than the fps cap are applied by scripts/game-wrap, which PC games' launchers
+     * call themselves; emulator games have no launcher, so shelf puts game-wrap in front (a nested game-wrap
+     * only runs the game). */
+    bool wrap = g->perf[PERF_CPU] || g->perf[PERF_GPU] || g->perf[PERF_TDP] || g->perf[PERF_PIN];
+    char **argv = xmalloc((toks.n + 2) * sizeof *argv);
+    int ai = 0;
+    if (wrap)
+        argv[ai++] = fmt("%s/gpd/scripts/game-wrap", getenv("HOME") ? getenv("HOME") : "");
     for (int i = 0; i < toks.n; i++)
-        argv[i] = expand_vars(toks.v[i], file);
-    argv[toks.n] = NULL;
+        argv[ai++] = expand_vars(toks.v[i], file);
+    argv[ai] = NULL;
     const char *base = g->basedir ? g->basedir : "/";
-    if (strchr(argv[0], '/')) {
-        char *a = abs_path(base, argv[0]);
-        free(argv[0]);
-        argv[0] = a;
+    char **cmd = argv + (wrap ? 1 : 0); /* the game's own command */
+    if (strchr(cmd[0], '/')) {
+        char *a = abs_path(base, cmd[0]);
+        free(cmd[0]);
+        cmd[0] = a;
     }
     char *wd;
     if (g->workdir && *g->workdir) {
@@ -1612,7 +1620,7 @@ static bool launch(Running *r, Game *g)
         wd = abs_path(base, w);
         free(w);
     } else {
-        wd = dir_of(strchr(argv[0], '/') ? argv[0] : file);
+        wd = dir_of(strchr(cmd[0], '/') ? cmd[0] : file);
     }
     /* The game's environment: ours, plus the MangoHud preload that `run` keeps for games only (in
      * shelf it would load Mesa). Built before fork: shelf has threads, so between fork and exec
@@ -1690,7 +1698,7 @@ static bool launch(Running *r, Game *g)
         if (t)
             SDL_DetachThread(t);
     }
-    for (int i = 0; i < toks.n; i++)
+    for (int i = 0; i < ai; i++)
         free(argv[i]);
     free(argv);
     free(wd);
