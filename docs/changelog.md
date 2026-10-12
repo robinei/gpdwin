@@ -716,3 +716,10 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Psychonauts (Wine/DXVK launcher and its wined3d variant): 30 fps cap through MangoHud (`MANGOHUD_CONFIG=read_cfg,fps_limit=30`).
 - turbo-perms.service: re-applies turbo.conf once intel_rapl's files exist (boot race left PL1/energy_uj root-only: 8 W silently not applied, MangoHud 0 W).
 - Psychonauts: no raised power limit and no GPU clock pin (runs fine at 6 W with its 30 fps cap).
+
+## 2026-10-12 — Per-game performance settings in shelf
+- shelf: on the selected game T CPU turbo, G GPU turbo, W power limit (6/7/8 W), P GPU clock pin, L fps cap
+  (MangoHud 30/60); shown in the details panel; only changed values stored in
+  `~/.config/pegasus-frontend/shelf-game-settings.txt`; passed to scripts/game-wrap at launch, which now also
+  handles CPU/GPU turbo and restores the previous turbo states. Launchers and the installer no longer set
+  GPD_TDP_W / GPD_GPU_PIN / MANGOHUD fps caps; Dark Souls (8 W, pin) and Psychonauts (30 fps) moved to shelf.

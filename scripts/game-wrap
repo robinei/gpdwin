@@ -6,7 +6,7 @@
 # ~/Games/installed that the launcher cd'ed into.
 #
 # Performance settings for the duration of the game (docs/power.md "Package power limit"). shelf sets them per
-# game (keys C G T P L, src/shelf.c "Performance"); a launcher may also export them before the exec:
+# game (keys T G W P L, src/shelf.c "Performance"); a launcher may also export them before the exec:
 #   GPD_CPU_TURBO=on|off  CPU turbo (intel_pstate no_turbo)
 #   GPD_GPU_TURBO=on|off  GPU maximum/boost clock RP0 (600 MHz) or RP1 (400 MHz)
 #   GPD_TDP_W=7|8         package power limit (RAPL PL1) in watts; the firmware's is 6.016 W

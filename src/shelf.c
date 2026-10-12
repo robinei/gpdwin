@@ -11,7 +11,7 @@
  *                                                      written with Pegasus' exact SQL
  *   ~/.config/pegasus-frontend/favorites.txt           favourites (read; rewritten in Pegasus' format)
  *   ~/.config/pegasus-frontend/shelf-game-settings.txt shelf's own: per-game performance settings, only
- *                                                      the ones changed with C G T P L (see "Performance")
+ *                                                      the ones changed with T G W P L (see "Performance")
  * Paths are cleaned lexically and never symlink-resolved, like Pegasus, so stats and favourites match.
  * shelf's own: ~/.local/state/shelf/last (where you were), ~/.local/share/shelf/logos/ (tab logos).
  *
@@ -25,7 +25,8 @@
  * to show a software frame. Box art and logos are decoded by a background thread, and kept scaled in
  * ~/.cache/shelf/img.
  *
- * Performance (per game, keys C G T P L on the selected game; shown in the details): CPU turbo
+ * Performance (per game, keys on the selected game, shown in the details): T CPU turbo and G GPU turbo
+ * (like sway's Super+T/G), W power limit, P GPU clock pin, L fps cap. CPU turbo
  * (default/on/off), GPU turbo (default/on = 600 MHz/off = 400 MHz), power limit (default 6 W/7 W/8 W),
  * GPU clock pin (off/on), fps cap through MangoHud (off/30/60). Only changed values are stored; at launch
  * they go to the game as GPD_CPU_TURBO, GPD_GPU_TURBO, GPD_TDP_W, GPD_GPU_PIN and MANGOHUD_CONFIG, which
@@ -1320,7 +1321,7 @@ static void save_perf(Library *L, const char *cfg)
 {
     size_t cap = 256, n = 0;
     char *b = xmalloc(cap);
-    const char *head = "# shelf: per-game performance settings (keys C G T P L), only the changed ones\n";
+    const char *head = "# shelf: per-game performance settings (keys T G W P L), only the changed ones\n";
     strcpy(b, head);
     n = strlen(head);
     for (int i = 0; i < L->ngames; i++) {
@@ -2835,7 +2836,7 @@ static void draw_details(App *a, Game *g, int LW, int W, int H)
         if (*perf)
             ty += text(a, a->f_small, perf, P.accent, tx, ty, tw) + S(6);
         else
-            ty += text(a, a->f_small, "Default performance (C G T P L to change)", P.overlay, tx, ty, tw) + S(6);
+            ty += text(a, a->f_small, "Default performance (T G W P L to change)", P.overlay, tx, ty, tw) + S(6);
     }
     const char *desc = g->description ? g->description : g->summary;
     int dy = SDL_max(y + img_h, ty) + S(20);
@@ -2952,7 +2953,7 @@ static void toggle_favorite(App *a)
     a->dirty = true;
 }
 
-/* C G T P L: step the selected game's setting to its next value and store it */
+/* T G W P L: step the selected game's setting to its next value and store it */
 static void cycle_perf(App *a, int k)
 {
     Game *g = cur_game(a);
@@ -3430,7 +3431,7 @@ static void key_action(App *a, uint32_t key, bool down)
             : key == KEY_PAGEDOWN ? A_PGDN : key == KEY_LEFT ? A_LEFT : key == KEY_RIGHT ? A_RIGHT
             : (key == KEY_ENTER || key == KEY_KPENTER) ? A_LAUNCH : key == KEY_F ? A_FAV
             : key == KEY_HOME ? A_HOME : key == KEY_END ? A_END
-            : key == KEY_C ? A_PERF_CPU : key == KEY_G ? A_PERF_GPU : key == KEY_T ? A_PERF_TDP
+            : key == KEY_T ? A_PERF_CPU : key == KEY_G ? A_PERF_GPU : key == KEY_W ? A_PERF_TDP
             : key == KEY_P ? A_PERF_PIN : key == KEY_L ? A_PERF_FPS
             : key == KEY_TAB ? (wl.shift ? A_LEFT : A_RIGHT) : A_NONE;
     if (act)

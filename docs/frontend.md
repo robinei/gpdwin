@@ -194,8 +194,13 @@ when it's no longer wanted.
   game's menu has "Set up with Claude". It runs `scripts/maintain "/setup-game <folder>"` (sudo once, one session
   at a time) with the playbook `.claude/commands/setup-game.md`: DRM (Steamless, gbe), renderer (Direct3D 9 →
   our DXVK build from `~/Games/tools/dxvk/gpd/x32|x64`, `dxvk/`), measuring and fixing the real limiter
-  (vsync rounding, GPU stalls via the DXVK wait log, power), recording in steam-library.md. Generated Windows
-  launchers carry `GPD_TDP_W=8 GPD_GPU_PIN=1` (game-wrap, docs/power.md).
+  (vsync rounding, GPU stalls via the DXVK wait log, power), recording in steam-library.md.
+- Per-game performance in shelf (2026-10-12): on the selected game, T CPU turbo and G GPU turbo (default/on/off,
+  like Super+T/G), W power limit (default 6 W/7 W/8 W), P GPU clock pin (off/on), L fps cap through MangoHud
+  (off/30/60). The details panel shows the changed ones. Only changed values are stored, per game file path, in
+  `~/.config/pegasus-frontend/shelf-game-settings.txt`; at launch shelf passes them as GPD_CPU_TURBO,
+  GPD_GPU_TURBO, GPD_TDP_W, GPD_GPU_PIN and MANGOHUD_CONFIG, and scripts/game-wrap applies them for the game's
+  lifetime and restores the previous state (docs/power.md). Launchers no longer set these.
 - `~/Games/installed/metadata.pegasus.txt` is regenerated from the records with
   `collection: PC Games` / `shortname: pc`, so these games merge into PC Games
   (verified). `~/Games/installed` is in `game_dirs.txt`. Launchers are not overwritten on

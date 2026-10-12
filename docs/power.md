@@ -111,9 +111,9 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - Firmware: PL1 6.0 W (1 s), PL2 20 W (10 s) (`/sys/class/powercap/intel-rapl:0/constraint_*`). CPU and GPU share it:
   in a GPU-heavy game the package sits at 6 W, and both clock down (GPU ~460 MHz, CPU down to 1.76 GHz) at only
   62-71 C. 8 W raised Dark Souls 24 -> 28 fps, temperatures 77-80 C (docs/steam-library.md). PL1 and the GPU
-  minimum clock are wheel-writable (`/etc/tmpfiles.d/turbo.conf`). Per game, opt in in the launcher before the
-  `exec .../game-wrap`: `export GPD_TDP_W=8 GPD_GPU_PIN=1`. game-wrap raises them for the game's lifetime and puts
-  PL1 6.016 W and the GPU minimum (RPn) back when it ends; a detached guard (`tail --pid`) does it even if
+  minimum clock are wheel-writable (`/etc/tmpfiles.d/turbo.conf`). Per game in shelf (W power limit, P pin, T/G
+  CPU/GPU turbo, L fps cap; docs/frontend.md), which passes GPD_TDP_W, GPD_GPU_PIN, GPD_CPU_TURBO, GPD_GPU_TURBO. game-wrap sets them for the game's lifetime and puts
+  PL1 6.016 W, the GPU minimum (RPn) and the previous turbo states back when it ends; a detached guard (`tail --pid`) does it even if
   game-wrap is SIGKILLed (tested: normal exit, game segfault, wrapper SIGKILL). Used by Dark Souls.
 - Boot race (fixed 2026-10-12): tmpfiles applies turbo.conf at ~8 s, intel_rapl creates the powercap files at
   ~13 s, so PL1 and energy_uj kept their root-only modes (GPD_TDP_W silently ineffective, MangoHud 0 W).

@@ -262,10 +262,8 @@ cd "$(dirname "$0")/{workdir}" || exit 1
 
 
 WINE32 = Path.home() / "Games/tools/wine32"          # old-style (non-WoW64) Wine, see docs/frontend.md
-# Windows games: package power limit 8 W and GPU minimum clock at its maximum while the game runs
-# (scripts/game-wrap restores both however it ends; docs/power.md "Package power limit"). The per-game tuning
-# (DXVK, DRM, frame limiters, ...) is a Claude session: `scripts/maintain "/setup-game <folder>"`.
-POWER_ENV = "export GPD_TDP_W=8 GPD_GPU_PIN=1\n"
+# Performance (CPU/GPU turbo, power limit, GPU clock pin, fps cap) is set per game in shelf (keys T G W P L),
+# not in launchers; the per-game tuning (DXVK, DRM, ...) is a Claude session: `scripts/maintain "/setup-game <folder>"`.
 
 
 def pe_is_32bit(path):
@@ -303,10 +301,10 @@ def write_launcher(rec, force=False):
     if rec["os"] == "windows" and want32 and (WINE32 / "bin/wine").exists():
         runner = "old-style Wine (32-bit prefix ~/.wine32)"
         env = ('export WINEPREFIX="$HOME/.wine32" WINEARCH=win32 WINEDEBUG=-all\n'
-               'export WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"\n' + POWER_ENV)
+               'export WINEDLLOVERRIDES="mscoree,mshtml,winegstreamer=d"\n')
         cmd = f'"$HOME/Games/tools/wine32/bin/wine" "./{exe.name}"'
     elif rec["os"] == "windows":
-        runner, env = "wine (shared prefix ~/.wine)", "export WINEDEBUG=-all\n" + POWER_ENV
+        runner, env = "wine (shared prefix ~/.wine)", "export WINEDEBUG=-all\n"
         cmd = f'wine "./{exe.name}"'
     else:
         runner, env = "native", ""
