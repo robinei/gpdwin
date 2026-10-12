@@ -40,3 +40,23 @@
     submit CPU time but still small per frame. Not worth a softpin port for speed.
 
 Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already on).
+14. f2fs root with LZ4 compression, for faster game loading (discussed 2026-10-12, not done). Measured: eMMC
+    cold reads 106-124 MB/s (random 4/16/128 KB: 9/32/73 MB/s); LZ4 on this Atom decompresses 1050-1600 MB/s,
+    zstd-1 300-860 MB/s. Game samples: Psychonauts 1.00x (no gain), Bastion 1.23x (~+13% read speed with LZ4,
+    ~+8% btrfs zstd), Caves of Qud 1.49x (~+29% LZ4, ~+4% zstd). So f2fs+LZ4 is the speed choice, btrfs (no LZ4)
+    isn't. f2fs compression without `release_cblocks` saves read time, not space (fine at 58% full); keep it
+    under ~80% full (GC). First check whether loading is disk-bound at all: time a game's load with a cold
+    page cache vs right after.
+    Prepared: `f2fs` in mkinitcpio MODULES (both images), `f2fs-tools` installed. Plan, from the Arch live USB
+    over ssh (key: `mount -o ro /dev/disk/by-uuid/7a64638b-a129-47b5-a777-d0cd63d86cf1 /mnt && install -Dm600
+    /mnt/home/robin/.ssh/authorized_keys /root/.ssh/authorized_keys`; Wi-Fi via `iwctl`):
+    1. Back up mmcblk1p3 (29 GB) to the desktop: `tar --xattrs --acls --numeric-owner -cpS | zstd -1 -T4` over
+       ssh (-c aes128-gcm: ~45 MB/s measured, 10-15 min); keep it as the rollback. Verify (list, size) first.
+    2. `mkfs.f2fs -f -l root -U 7a64638b-a129-47b5-a777-d0cd63d86cf1 -O extra_attr,inode_checksum,sb_checksum,compression`
+       (same UUID: boot entries and fstab's UUID stay valid).
+    3. Mount with `compress_algorithm=lz4,compress_extension=*` and `nocompress_extension` for already-compressed
+       types (chd, cso, zip, 7z, png, jpg, ogg, mp3, mp4, bik, ...); restore the tar (also ~10-15 min).
+    4. fstab: ext4 -> f2fs with those options (plus `lazytime`); arch-chroot: `mkinitcpio -P` and
+       `gpd-stock-initramfs` (fsck hook then picks fsck.f2fs); check `lsinitcpio`.
+    5. Reboot; check Wi-Fi, sway, shelf, a game, suspend and hibernate (swap partition unchanged). Update
+       boot.md/packages.md. Rollback: same steps with mkfs.ext4 and the backup.

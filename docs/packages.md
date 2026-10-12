@@ -6,7 +6,7 @@ truth; this explains the choices.
 - Base: `base linux linux-firmware-broadcom linux-firmware-intel intel-ucode` (only the two
   firmware sub-packages this hardware needs), `iwd`, `openssh`, `sudo`, `fish`, `vim`, `helix`,
   `wireless-regdb`, `iw`, `pacman-contrib` (checkupdates, pacdiff, paccache), `bc`, `strace` (debugging; installed 2026-10-11).
-  `f2fs-tools` (root filesystem is f2fs since 2026-10-12: fsck.f2fs for the initramfs fsck hook, mkfs; docs/boot.md).
+  `f2fs-tools` (installed 2026-10-12 for the planned f2fs root, ideas.md 14; `f2fs` is also in mkinitcpio MODULES).
 - Desktop: `sway swaybg swayidle foot fuzzel wob brightnessctl grim ttf-dejavu btop` (swayidle unused since
   2026-10-11: inputd does idle), seatd
   (sway dependency, `seatd.service` enabled, user in group `seat`).
