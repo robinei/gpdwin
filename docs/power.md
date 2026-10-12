@@ -163,6 +163,10 @@ Until that's known: plain 5 V chargers only.
 USB power meter in the cable: ~20 W while on and charging (2 W SoC/screen + ~4 W charging + the ~14 W fault),
 2 W while off (charging the battery while off). So the extra load exists only while the device is on: a rail
 the board switches on with the system, not the always-on charger/battery side.
+Battery disconnected ~5 min (gauge reset: cycle_count 2, charge_full back to design): idle drain at 5%
+brightness 1.65 A (~6.0 W at 3.63 V; normal 0.59 A / 2.6 W), full brightness +0.25 A, package 1.15 W, temps
+38 -> 42 C over 4 min. So the extra load fell from ~12 W to ~3.5 W but didn't go away. Next: battery out
+overnight, then measure again.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
