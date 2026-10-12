@@ -78,8 +78,9 @@ int main(int argc, char **argv)
     vkGetDeviceQueue(dev, 0, 0, &q);
 
     VkImageView cview, dview;
-    image(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &cview, VK_IMAGE_ASPECT_COLOR_BIT);
-    image(df, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, &dview, daspect);
+    VkImage cimg = image(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                         &cview, VK_IMAGE_ASPECT_COLOR_BIT);
+    VkImage dimg = image(df, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, &dview, daspect);
 
     VkAttachmentDescription att[2] = {
         { .format = VK_FORMAT_R8G8B8A8_UNORM, .samples = 1, .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -175,6 +176,49 @@ int main(int argc, char **argv)
     clock_gettime(CLOCK_MONOTONIC, &b);
     double msf = ((b.tv_sec - a.tv_sec) * 1e3 + (b.tv_nsec - a.tv_nsec) / 1e6) / frames;
     printf("%-6s %dx%d, %d layers (%d hidden): %.2f ms/frame\n", fmtname, W, H, LAYERS, LAYERS - 1, msf);
+
+    /* Check the result: the centre pixel must be layer 0 (nearest, z = 0.1): colour (26,128,230), depth 0.1.
+     * Reading the depth goes through the driver's HiZ resolve when HiZ is on. */
+    VkBufferCreateInfo bci = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = 64, .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT };
+    VkBuffer rb;
+    CK(vkCreateBuffer(dev, &bci, NULL, &rb));
+    VkMemoryRequirements mr;
+    vkGetBufferMemoryRequirements(dev, rb, &mr);
+    VkMemoryAllocateInfo ai = { .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, .allocationSize = mr.size,
+        .memoryTypeIndex = memtype(mr.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) };
+    VkDeviceMemory rm;
+    CK(vkAllocateMemory(dev, &ai, NULL, &rm));
+    CK(vkBindBufferMemory(dev, rb, rm, 0));
+    VkCommandBuffer c2;
+    CK(vkAllocateCommandBuffers(dev, &cbi, &c2));
+    CK(vkBeginCommandBuffer(c2, &bi));
+    VkImageMemoryBarrier bar[2] = {
+        { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+          .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT, .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, .image = cimg, .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 } },
+        { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+          .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT, .oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+          .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, .image = dimg,
+          .subresourceRange = { df == VK_FORMAT_D24_UNORM_S8_UINT ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 } } };
+    vkCmdPipelineBarrier(c2, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 2, bar);
+    VkBufferImageCopy cc = { .bufferOffset = 0, .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .imageOffset = { W / 2, H / 2, 0 }, .imageExtent = { 1, 1, 1 } };
+    vkCmdCopyImageToBuffer(c2, cimg, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rb, 1, &cc);
+    VkBufferImageCopy dc = { .bufferOffset = 16, .imageSubresource = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 0, 1 },
+        .imageOffset = { W / 2, H / 2, 0 }, .imageExtent = { 1, 1, 1 } };
+    vkCmdCopyImageToBuffer(c2, dimg, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rb, 1, &dc);
+    CK(vkEndCommandBuffer(c2));
+    VkSubmitInfo s2 = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &c2 };
+    CK(vkQueueSubmit(q, 1, &s2, VK_NULL_HANDLE));
+    CK(vkQueueWaitIdle(q));
+    unsigned char *p;
+    CK(vkMapMemory(dev, rm, 0, 64, 0, (void **)&p));
+    double depth = df == VK_FORMAT_D16_UNORM ? *(uint16_t *)(p + 16) / 65535.0
+                 : df == VK_FORMAT_D32_SFLOAT ? *(float *)(p + 16)
+                 : (*(uint32_t *)(p + 16) & 0xffffff) / 16777215.0;
+    int ok = abs(p[0] - 26) <= 2 && abs(p[1] - 128) <= 2 && abs(p[2] - 230) <= 2 && depth > 0.099 && depth < 0.101;
+    printf("       centre colour (%d,%d,%d) want (26,128,230), depth %.4f want 0.1000: %s\n",
+           p[0], p[1], p[2], depth, ok ? "OK" : "WRONG");
     return 0;
 }
 /* q.vert: #version 450 / layout(push_constant) uniform P { float z; } p;

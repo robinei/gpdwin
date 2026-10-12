@@ -390,3 +390,18 @@ Dark Souls profile: OA `HiDepthTestFails` 0, early-depth bottleneck 34%. Tests (
 - CHV devinfo: `has_hiz_and_separate_stencil = true`; anv_can_sample_with_hiz allows gen8.
 Also: D16 is ~1.8x faster than 24/32-bit depth in this fill test (bandwidth).
 Fix candidate: restore `aux_usage = ISL_AUX_USAGE_HIZ` + `add_surface(aux_surface, PLANE_0 + plane, IMPLICIT)`.
+
+### Fix tested (Mesa 1.7 = 26.2.4 + `0006-hasvk-restore-hiz.patch`, from a test folder via LD_LIBRARY_PATH)
+Two pieces were lost in e4904344: `aux_usage = HIZ` + `add_surface()` in `add_aux_surface_if_supported()`, and the
+`case ISL_AUX_USAGE_HIZ:` in `anv_layout_to_aux_state()` (without it HIZ falls into `UNREACHABLE`; a 1.6 build with
+only the first piece emitted HiZ only around resolves, not while drawing). With both:
+| test | stock | 1.7 | 1.7 + nohiz |
+|---|---|---|---|
+| vkdepth D16 | 15.6 ms | **5.24 ms** | 16.0 ms |
+| vkdepth D24S8 | 27.5 ms | **4.83 ms** | 28.1 ms |
+| vkdepth D32 | 27.5 ms | **5.18 ms** | 28.1 ms |
+| d3d9depth DXVK 2.6.2 x64, D24S8 surface | 35.2 fps | **181.8 fps** | |
+| d3d9depth INTZ depth texture | 35.4 fps | **182.9 fps** | |
+Colour and depth readback (through the HiZ resolve) correct in every vkdepth run; 32-bit d3d9tex with DXVK
+gplasync 2.4.1 correct; no GPU hang in any run. `INTEL_DEBUG=bat`: `Hierarchical Depth Buffer Enable: true` for
+the draws.

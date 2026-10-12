@@ -19,6 +19,13 @@ Contents:
 - `0002-crocus-blit-large-tiled-uploads.patch` (since 1.4): write-only uploads >= 64 KiB into tiled textures on
   non-LLC parts use a linear staging texture + GPU blit instead of the CPU tiled copy through an uncached map:
   matching-format uploads (SDL opengles2, wlroots shm clients) 2.01 -> 0.91 ms (853x480).
+- `0006-hasvk-restore-hiz.patch` (1.7, 2026-10-12; not installed yet): hasvk (Vulkan, Gfx7/8) has had no HiZ since
+  Mesa 23.0: e4904344 "hasvk: Drop CCS_E support" removed the HiZ+CCS (Gfx12) cases in `add_aux_surface_if_supported()`
+  and `anv_layout_to_aux_state()` and the plain HiZ ones with them. The patch restores both. Native Vulkan fill test
+  (`reports/r5/vkdepth.c`, 199 hidden full-screen layers): D16 15.6 -> 5.2 ms, D24S8/D32 27.5 -> 4.8/5.2 ms, results
+  correct (colour + depth readback), `INTEL_DEBUG=nohiz` back to the old times; DXVK D3D9 (`reports/r5/d3d9depth.c`)
+  35 -> 182 fps, D24S8 and INTZ. Details: `reports/R5-softpin-vulkan13.md`. (1.6 had only the first half: HiZ
+  allocated but the layout switch fell into UNREACHABLE, so not enabled while drawing.)
 - `unused/`: the test-switch patches of the 1.1 test build (fix 2 `MESA_ST_MATCH_SIZED`, fix 1a/1b
   `CROCUS_STAGING_NOSNOOP`, `CROCUS_SNOOP_UC_MOCS`), kept for reference, not built.
 - `build.sh`: builds all packages of the pkgbase on the desktop in a clean chroot (devtools, sudo).

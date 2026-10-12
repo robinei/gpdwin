@@ -1,0 +1,51 @@
+From: GPD maintenance <noreply@localhost>
+Subject: [PATCH] hasvk: restore HiZ for depth images
+
+Commit e4904344 ("hasvk: Drop CCS_E support") removed the HiZ+CCS (Gfx12)
+cases from add_aux_surface_if_supported() and anv_layout_to_aux_state() and
+with them the plain HiZ ones: since Mesa 23.0 hasvk computes a HiZ surface for
+depth images but never allocates or enables it (3DSTATE_DEPTH_BUFFER HiZ
+enable false while drawing, INTEL_DEBUG=nohiz makes no difference, OA
+HiDepthTestFails 0 on CHV), and an image with aux_usage HIZ would hit
+UNREACHABLE in anv_layout_to_aux_state(). Restore both plain HiZ cases as they
+were before that commit.
+---
+--- a/src/intel/vulkan_hasvk/anv_image.c	2026-10-12 11:43:08.947877158 +0200
++++ b/src/intel/vulkan_hasvk/anv_image.c	2026-10-12 11:52:31.652047348 +0200
+@@ -590,6 +590,18 @@
+                                  &image->planes[plane].aux_surface.isl);
+       if (!ok)
+          return VK_SUCCESS;
++
++      /* e4904344 ("hasvk: Drop CCS_E support") removed the HiZ+CCS (Gfx12)
++       * cases here and with them the plain HiZ ones, so hasvk computed the HiZ
++       * surface but never used it: no HiZ on Gfx8 since Mesa 23.0.
++       */
++      image->planes[plane].aux_usage = ISL_AUX_USAGE_HIZ;
++
++      result = add_surface(device, image, &image->planes[plane].aux_surface,
++                           ANV_IMAGE_MEMORY_BINDING_PLANE_0 + plane,
++                           ANV_OFFSET_IMPLICIT);
++      if (result != VK_SUCCESS)
++         return result;
+    } else if ((aspect & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV) && image->vk.samples == 1) {
+       if (image->n_planes != 1) {
+          /* Multiplanar images seem to hit a sampler bug with CCS and R16G16
+@@ -2002,6 +2014,17 @@
+    }
+ 
+    switch (aux_usage) {
++   case ISL_AUX_USAGE_HIZ:
++      /* Also dropped by e4904344 together with the HiZ+CCS cases. */
++      if (aux_supported) {
++         assert(clear_supported);
++         return ISL_AUX_STATE_COMPRESSED_CLEAR;
++      } else if (read_only) {
++         return ISL_AUX_STATE_RESOLVED;
++      } else {
++         return ISL_AUX_STATE_AUX_INVALID;
++      }
++
+    case ISL_AUX_USAGE_CCS_D:
+       /* We only support clear in exactly one state */
+       if (layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {

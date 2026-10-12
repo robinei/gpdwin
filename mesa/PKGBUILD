@@ -12,7 +12,7 @@ pkgname=(
 )
 pkgver=26.2.4
 _pkgver=${pkgver/[a-z]/-&}
-pkgrel=1.5
+pkgrel=1.7
 epoch=1
 pkgdesc="Open-source OpenGL drivers (GPD Win 1 build: crocus + hasvk only)"
 url="https://www.mesa3d.org/"
@@ -67,6 +67,7 @@ source=(
   0003-crocus-upload-blit-threshold-256k.patch
   0004-crocus-read-back-tiled-textures-via-blit.patch
   0005-crocus-invalidate-only-mapped-range-on-read.patch
+  0006-hasvk-restore-hiz.patch
   drirc-trim.py
   drirc-keep.txt
 )
@@ -85,6 +86,7 @@ b2sums=('28506a9366e3c031acbb52924e43b0ec098f44a3ac3bb839ec2a86fa0faf83652347704
         'cb7b4e19d8f813b3981809d36bdec2b554ad52d6580e048caac7724de952a674b8e2b4d3c541c3bc38b609c9dd1d6c149a26063027c8b401d0eafe3f2d3ee6fe'
         'e8e982997469145dea8ad75b52f3f4cc100ec586756973153204c130cda0cde12d71fab7e19615a5b93540022ca493d26ea0e32bf51c89a3bd119db924d6df7b'
         '467fc913c668f1a3375b13e3e7dd7c7bbb2e7306b99c841971482bfef32f96fe0e1fa1b8b96981c71e2508f3fd5fd79b27a263c5c9d5f109230d21d8ab96fff3'
+        '2d875555f7c1a9b78bcd16311853a15a3c18c252bfff51852b81d7e6e9f7abacdb02ef1882cb6bf75d50982b0862edffe5168603761ea2e5f9e145a658599d33'
         'e7eee0e5079bea875f5f12ec7dae400f5727e87ca8dd498b71534bab5bfab982f834c2550d9cab6ce759ea34e2ae94e62cc33f8510d71272a1d464e6605ddf39'
         '8874b562ba6ab2777c7b2e0ad4f648e9b6443a416cbbcc3acfea4ad46cc006210ef6506faf83cbf7efbb0facf6aa12d84016cc110d7b8f5133fca8071b8bdf6d')
 sha256sums=('bce5f7fbebb934373b86c999a064d52fb5065878dc57f287f95346648ec832e9'
@@ -94,6 +96,7 @@ sha256sums=('bce5f7fbebb934373b86c999a064d52fb5065878dc57f287f95346648ec832e9'
             'd797a7896923165a2d7b363b6f065430c89aa6c633648660185471f6ee748b21'
             '4113e8edf4b02bb046adca6bb3bb15bf1a6dc1bb7ff31d6dd7a83f2e5f856705'
             '8394cd43444c4a4a3af5a8fb62166c84fa0543c1b669f6c373d620d7b116d267'
+            '5928d2b8307a1445cf9aab88be391512844081bb9830be21895f454831874a4e'
             '6b4df4cc781e52109a69b15cde52d0bdb35551ef6b8b41240bbd95e85d009eee'
             '203b57e88fb23caef33b185612887ee4fe032384165b4d933a7299483e218462')
 
