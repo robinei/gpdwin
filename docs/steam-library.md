@@ -109,7 +109,14 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   - Counters (one ~31 ms window): GPU busy ~100% at 485-580 MHz; EU active 54-60%, EU stall 28%; samplers 70% busy,
     23% texel misses; ~3.3 GB/s read + 2.1 GB/s write; rasterized ~15M pixels per 31 ms (many times 960x540:
     shadow maps, overdraw, post); early-depth bottleneck 34%, early-depth fails ~28% of pixels, **HiZ fails 0**
-    (hierarchical depth apparently not in use, possibly because the depth buffer is also sampled). Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
+    (hierarchical depth apparently not in use).
+  - HiZ in hasvk (Mesa 26.2.4 source): enabled on gen8 for single-sample, single-mip depth attachments, sampling
+    with HiZ allowed on gen8 (`anv_can_sample_with_hiz`); off for multi-mip ("Enable multi-LOD HiZ"), gen8 MSAA
+    ("Enable gfx8 multisampled HiZ"), GENERAL-type layouts with input-attachment usage (silent), and resolved away
+    in layouts without aux (silent). `INTEL_DEBUG=perf` run: only "Enable gfx8 multisampled HiZ" (one image). Not
+    the swapchain: `d3d9.forceSwapchainMSAA = 0` kept the warning, HiZ fails still 0, no fps change (reverted).
+    DSfix passes the game's MSAA type through unchanged. Open: which image is MSAA, why the main depth gets no HiZ
+    (a silent path, or the counter doesn't count on CHV). Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support
