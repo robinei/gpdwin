@@ -179,6 +179,12 @@ fusb302) and passives; no 5 V converter there. So the hot area is the charger ci
 marks. Candidates: the bq24292i failing (internal leakage; replaceable QFN-24 4x4 by a micro-soldering shop), or
 heat from the battery pack, which lies over this area when the cover is closed. Pinpointing needs a thermal camera
 or a careful fingertip test of the charger chip, inductor and gauge with the device on.
+Robin (2026-10-13): no heat from the battery; the hot spot is the bare area below the BAT label, where dense via
+fields lead to the other side of the board. The parts are therefore on the far side, under the copper plate:
+SoC, PMIC, memory or their regulators (matches the SoC's own DTS sensors reading 76-79 C at a nominal 1.3 W).
+Software test for next boot: does the extra current follow the CPU/GPU voltage (cap CPU at its lowest clock,
+offline cores 1-3, GPU at its minimum, then turbo)? Leakage in the SoC or on its core rail scales with voltage;
+a short elsewhere wouldn't.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
