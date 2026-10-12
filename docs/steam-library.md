@@ -133,7 +133,7 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     **30 fps (the cap)**, GPU 93-96% busy at ~580 MHz. The game now runs our `dxvk/build.sh` d3d9.dll; the release
     gplasync and 1.10.3 DLLs stay in `dxvk-test/`. Two whole-device freezes with no log during DXVK sessions
     (10:40 stock driver, 12:32 with HiZ): cause unknown; `ssh ... sudo dmesg -w` to the desktop catches the next one.
-  - Then: DSfix `FPSlimit 60` (unlockFPS was already 1; DSfix warns of physics/ladder glitches above 30), and the
+  - Then: DSfix `FPSlimit 60` tried and set back to 30 (the game's cap; DSfix warns of physics glitches above 30), and the
     launcher pins the GPU minimum clock to its current maximum while the game runs (`rps_min_freq_mhz`, made
     wheel-writable in `/etc/tmpfiles.d/turbo.conf`), back to RPn afterwards.
   - Power: the firmware sets the package power limit (RAPL PL1) to 6.0 W (1 s window; PL2 20 W / 10 s). With the GPU

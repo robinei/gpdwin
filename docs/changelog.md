@@ -695,3 +695,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   (turbo.conf: `rps_min_freq_mhz` wheel-writable).
 - Package power limit: the firmware's 6 W PL1 throttled CPU and GPU together in games (not heat: 62-71 C). PL1 made
   wheel-writable (turbo.conf); Dark Souls' launcher sets 8 W while it runs (24 -> 28 fps in a heavy area, 77-80 C).
+- Dark Souls: DSfix frame cap back to 30 (unlockFPS stays on: flexible limiter, no 15/20 fps rounding).
