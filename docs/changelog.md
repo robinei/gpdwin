@@ -767,3 +767,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   heap; DXVK 2.7 uses BDA for all memory and failed at 256 MiB. `mesa/vk13/0005` restricts that heap to capture/replay
   allocations; lib32 `lib32-vulkan-intel-gpd 1:26.2.4-1.10` deployed to `~/Games/tools/mesa-vk13/` and `~/vk13-test/lib32`
   (1.9 kept as `.so.1.9`; revert: move it back). Headless texture test OK; Dark Souls retest pending.
+- Dark Souls on DXVK 2.7.1 + hasvk 1.10: works now, but heavier/slower than 2.4.1 (Robin's impression). The game stays
+  on 2.4.1 (its normal launcher was never switched back to 2.7.1).

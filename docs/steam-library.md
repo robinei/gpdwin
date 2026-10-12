@@ -150,6 +150,9 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     client-visible heap and hasvk put every `DEVICE_ADDRESS_BIT` allocation there; DXVK 2.7 sets that bit on all memory.
     Fixed by `mesa/vk13/0005` (only capture/replay allocations use that heap); lib32 1.10 in `~/Games/tools/mesa-vk13/`
     (1.9 kept as `.so.1.9`).
+    With 0005 the save loads and plays on 2.7.1 (GPU memory ~485 MiB), but Robin found it heavier/slower than 2.4.1
+    (felt, no fps numbers; DXVK 2.7 logs "Graphics pipeline libraries not supported", and the R9 micro test had 2.7.1 at
+    about half 2.4.1's speed). The game stays on DXVK 2.4.1 + the system driver.
   - Power: the firmware sets the package power limit (RAPL PL1) to 6.0 W (1 s window; PL2 20 W / 10 s). With the GPU
     fully loaded the package sat at 6.07 W, the GPU fell to ~460 MHz despite the minimum-clock pin and the CPU
     clocked down (seen at 1.76 GHz); temperatures 62-71 C. PL1 8 W: 7.5-7.9 W drawn, GPU 600 MHz, CPU 2.4 GHz,
