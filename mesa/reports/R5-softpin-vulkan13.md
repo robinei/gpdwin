@@ -343,3 +343,11 @@ requirements with `vkq`-style feature dumps rather than its minimum "Vulkan 1.3"
 - The Mesa 1.4 build profiled here carries new crocus upload patches (uncommitted in the repo at the time);
   they do not touch batch submission. The device was rebooted by the main session at ~01:53 (its `/tmp` was
   cleared); the `perf` profiles are from the fresh boot, the other measurements from before.
+
+## Field test 2026-10-12: DXVK 2.6.2 with the claim (Dark Souls PTDE, D3D9, 32-bit Wine)
+The claim works as an environment variable (`hasvk_report_vk_1_3_version=true`; `vkq`: api 1.2.354 -> 1.3.354).
+DXVK 2.6.2 accepts the device and creates it with its 1.3 feature list, presents frames, but renders black:
+of `DXVK_HUD` only the frame-time graph (untextured) appears, no text, no game. DXVK 1.10.3 on the same game
+and driver (no claim) renders correctly, 30 fps. So "works with the claim" (section 4c, from source) does not
+hold in practice for 2.6.2: something DXVK 2.x uses for textured draws misbehaves on hasvk CHV. Next: DXVK 2.0
+(bisect 2.0..2.6.2), DXVK log at debug level, Mesa `INTEL_DEBUG`/validation layers for the failing draws.

@@ -670,3 +670,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   Stress tests now via `kernel/dsi-investigation/scripts/r8-cycle.sh` (aborts at the first I2C error).
 - Dark Souls: Prepare to Die Edition runs under wine32 with the gbe `steam_api.dll` (original kept as
   `steam_api.dll.orig`; silent exit 1 without it). docs/steam-library.md.
+- Dark Souls PTDE: DXVK 1.10.3 as default (30 fps vs ~15 with wined3d). DXVK 2.6.2 + claim-1.3 driconf:
+  device created but black picture (textured draws fail); recorded in mesa/reports/R5 and steam-library.md.

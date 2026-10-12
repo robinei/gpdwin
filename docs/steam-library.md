@@ -67,7 +67,13 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   Dark Souls: Prepare to Die Edition (211420, 2026-10-12): installed by `scripts/games` (Windows, old-style
   Wine `wine32`), `DATA/DARKSOULS.exe` has no SteamStub; with the original `steam_api.dll` it loaded d3d9 and
   exited with status 1 silently; with gbe x86 `steam_api.dll` + `steam_settings/` (app id, interfaces from the
-  original) it runs (Wine d3d9 -> wined3d/OpenGL). ~80% CPU of one core at the title screen.
+  original) it runs (Wine d3d9 -> wined3d/OpenGL), ~15 fps in game. Now DXVK 1.10.3 (`DATA/d3d9.dll` x32,
+  `d3d9=n`): works, 30 fps (the game's cap) at the title screen. DXVK 2.6.2 (last release that the R5 review
+  expects to work with the claim-1.3 driconf, `hasvk_report_vk_1_3_version=true` as an env var, verified with
+  `vkq`: api 1.3.354): device created (log lists Vulkan 1.3 features), but the picture is black and of its HUD
+  only the frame-time graph (untextured lines) draws, not the text: textured draws fail. No GPU hang during
+  that run. Wined3d launcher kept as `gpd-launch-wined3d.sh`; test kit in the game's `dxvk-test/` (README).
+  Not yet known whether all of 2.x fails (2.0 would tell) or what in hasvk breaks (sampling/descriptors?).
 
 ## Very likely runs well, controller support
 
