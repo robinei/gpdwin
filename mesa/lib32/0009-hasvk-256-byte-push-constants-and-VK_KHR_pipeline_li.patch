@@ -1,0 +1,55 @@
+From fc9e108abbca02c8a31b9e1481af045b54eff795 Mon Sep 17 00:00:00 2001
+From: r9 <r9@local>
+Date: Mon, 12 Oct 2026 15:51:40 +0200
+Subject: [PATCH 3/4] hasvk: 256-byte push constants and
+ VK_KHR_pipeline_library
+
+MAX_PUSH_CONSTANTS_SIZE 128 -> 256, the Vulkan 1.4 minimum and anv's
+value; DXVK >= 2.7 requires 256.  The client data is pushed as part of
+anv_push_constants, which still fits the per-stage push constant space
+and the 64 (scalar) / 32 (vec4) register push limit with room for UBO
+ranges.  dEQP-VK.pipeline.monolithic.push_constant.* 133/133 pass (the
+range_size_256 cases were NotSupported before).
+
+Expose VK_KHR_pipeline_library (DXVK >= 2.7 requires it as a dependency
+of graphics pipeline libraries, which hasvk does not support, so the
+driver is never given a VkPipelineLibraryCreateInfoKHR).
+---
+ src/intel/vulkan_hasvk/anv_device.c  | 1 +
+ src/intel/vulkan_hasvk/anv_private.h | 8 +++++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/intel/vulkan_hasvk/anv_device.c b/src/intel/vulkan_hasvk/anv_device.c
+index fcb2ef4..8861863 100644
+--- a/src/intel/vulkan_hasvk/anv_device.c
++++ b/src/intel/vulkan_hasvk/anv_device.c
+@@ -216,6 +216,7 @@ get_device_extensions(const struct anv_physical_device *device,
+           INTEL_DEBUG(DEBUG_NO_OACONFIG)) &&
+          device->use_call_secondary,
+       .KHR_pipeline_executable_properties    = true,
++      .KHR_pipeline_library                  = true,
+ #ifdef ANV_USE_WSI_PLATFORM
+       .KHR_present_id                        = true,
+       .KHR_present_id2                       = true,
+diff --git a/src/intel/vulkan_hasvk/anv_private.h b/src/intel/vulkan_hasvk/anv_private.h
+index d086fec..57a435f 100644
+--- a/src/intel/vulkan_hasvk/anv_private.h
++++ b/src/intel/vulkan_hasvk/anv_private.h
+@@ -270,7 +270,13 @@ struct anv_va_layout {
+ #define MAX_RTS          8
+ #define MAX_VIEWPORTS   16
+ #define MAX_SCISSORS    16
+-#define MAX_PUSH_CONSTANTS_SIZE 128
++/* 256 bytes is what Vulkan 1.4 and DXVK >= 2.7 require (anv uses the same).
++ * The client data is pushed together with the rest of anv_push_constants:
++ * 2 KiB (gfx8: 2 or 4 KiB) per stage of push constant space and up to 64
++ * registers (32 for the vec4 back-end) per shader, which the larger range
++ * still fits with room for pushed UBO ranges.
++ */
++#define MAX_PUSH_CONSTANTS_SIZE 256
+ #define MAX_DYNAMIC_BUFFERS 16
+ #define MAX_IMAGES 64
+ #define MAX_PUSH_DESCRIPTORS 32 /* Minimum requirement */
+-- 
+2.56.0
+

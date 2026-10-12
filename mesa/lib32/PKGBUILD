@@ -10,7 +10,7 @@ pkgname=(
 )
 pkgver=26.2.4
 _pkgver=${pkgver/[a-z]/-&}
-pkgrel=1.7
+pkgrel=1.11
 epoch=1
 pkgdesc="Open-source OpenGL drivers - 32-bit (GPD Win 1 build: crocus + hasvk only)"
 url="https://www.mesa3d.org/"
@@ -62,6 +62,11 @@ source=(
   0004-crocus-read-back-tiled-textures-via-blit.patch
   0005-crocus-invalidate-only-mapped-range-on-read.patch
   0006-hasvk-restore-hiz.patch
+  0007-hasvk-32-bit-softpin-layout-for-Cherry-Trail-4-GiB-P.patch
+  0008-hasvk-fail-instead-of-spinning-when-a-state-pool-is-.patch
+  0009-hasvk-256-byte-push-constants-and-VK_KHR_pipeline_li.patch
+  0010-hasvk-option-to-report-the-descriptor-indexing-featu.patch
+  0011-hasvk-client-visible-heap-only-for-capture-replay.patch
 )
 validpgpkeys=(
   946D09B5E4C9845E63075FF1D961C596A7203456 # Andres Gomez <tanty@igalia.com>
@@ -78,7 +83,12 @@ b2sums=('28506a9366e3c031acbb52924e43b0ec098f44a3ac3bb839ec2a86fa0faf83652347704
         'cb7b4e19d8f813b3981809d36bdec2b554ad52d6580e048caac7724de952a674b8e2b4d3c541c3bc38b609c9dd1d6c149a26063027c8b401d0eafe3f2d3ee6fe'
         'e8e982997469145dea8ad75b52f3f4cc100ec586756973153204c130cda0cde12d71fab7e19615a5b93540022ca493d26ea0e32bf51c89a3bd119db924d6df7b'
         '467fc913c668f1a3375b13e3e7dd7c7bbb2e7306b99c841971482bfef32f96fe0e1fa1b8b96981c71e2508f3fd5fd79b27a263c5c9d5f109230d21d8ab96fff3'
-        '2d875555f7c1a9b78bcd16311853a15a3c18c252bfff51852b81d7e6e9f7abacdb02ef1882cb6bf75d50982b0862edffe5168603761ea2e5f9e145a658599d33')
+        '2d875555f7c1a9b78bcd16311853a15a3c18c252bfff51852b81d7e6e9f7abacdb02ef1882cb6bf75d50982b0862edffe5168603761ea2e5f9e145a658599d33'
+        'SKIP'
+        'SKIP'
+        'SKIP'
+        'SKIP'
+        'SKIP')
 sha256sums=('bce5f7fbebb934373b86c999a064d52fb5065878dc57f287f95346648ec832e9'
             'SKIP'
             '68c00fc8c9dfa56c0f073a578d7f5e7b47938cb20e5354bda777bfec113edf45'
@@ -86,7 +96,12 @@ sha256sums=('bce5f7fbebb934373b86c999a064d52fb5065878dc57f287f95346648ec832e9'
             'd797a7896923165a2d7b363b6f065430c89aa6c633648660185471f6ee748b21'
             '4113e8edf4b02bb046adca6bb3bb15bf1a6dc1bb7ff31d6dd7a83f2e5f856705'
             '8394cd43444c4a4a3af5a8fb62166c84fa0543c1b669f6c373d620d7b116d267'
-            '5928d2b8307a1445cf9aab88be391512844081bb9830be21895f454831874a4e')
+            '5928d2b8307a1445cf9aab88be391512844081bb9830be21895f454831874a4e'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP')
 
 prepare() {
   cd mesa-$_pkgver

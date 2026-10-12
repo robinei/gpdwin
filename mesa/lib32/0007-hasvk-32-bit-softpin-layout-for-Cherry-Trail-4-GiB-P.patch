@@ -1,0 +1,609 @@
+From a58328674dcdb5873281623ca41707039faf3e48 Mon Sep 17 00:00:00 2001
+From: r9 <r9@local>
+Date: Mon, 12 Oct 2026 15:49:14 +0200
+Subject: [PATCH 1/4] hasvk: 32-bit softpin layout for Cherry Trail (4 GiB
+ PPGTT): real BDA / Vulkan 1.3
+
+Cherry Trail was kept on relocations because hasvk's softpin address
+layout needs 48-bit addresses (pools spread over ~15 GiB of VMA) and CHV's
+full PPGTT is exactly 4 GiB, which is also why supports_48bit_addresses is
+false there.  The kernel accepts EXEC_OBJECT_PINNED at any page-aligned
+address below 4 GiB, and nothing in the gfx8 softpin code depends on 48-bit
+addresses: the vertex cache workaround only needs to know the real
+addresses (and can never trigger when every address is below 4 GiB).
+
+Make the layout a runtime choice (struct anv_va_layout in the physical
+device): the existing 48-bit one when supports_48bit_addresses, otherwise a
+32-bit one with the state pools in the low 1 GiB (general 2-64 MiB, dynamic
+64-256 MiB, binding tables 256-384 MiB, surface states 384-640 MiB,
+instructions 640-768 MiB, client-visible heap for capture/replay 768 MiB -
+1 GiB) and one heap from 1 GiB to 4 GiB - 64 MiB.  The binding table pool
+stays below the surface state pool within 4 GiB (16-bit binding table and
+32-bit surface state offsets from Surface State Base Address), the general
+state base address stays 0.  The state pools get a max_size so that they
+cannot grow into their neighbour; STATE_BASE_ADDRESS sizes, the batch
+decoder bases and the shader constant data address come from the layout.
+The Vulkan heap is sized from the address space (2.94 GiB - 256 MiB)
+instead of the 2 GiB clamp relocation mode gets on CHV.  Relocation mode
+stays available for comparison with HASVK_USE_RELOCATIONS=1 (and is still
+what gfx7 uses).
+
+With softpin, hasvk's existing Broadwell paths switch on: A64 buffer access
+(VK_KHR/EXT_buffer_device_address, bufferDeviceAddress, 64-bit global
+SSBO/UBO addressing, 65535 SSBOs), secondary command buffer calls and
+command buffer chaining, no per-submit surface state relocations, and the
+1.3 apiVersion/conformanceVersion.
+
+Tested on a GPD Win (Atom x7-Z8700): dEQP-VK.binding_model.buffer_device_address.*
+4716/4716 pass, sampled groups identical to the relocation-mode driver,
+DXVK 2.7.1 (with the descriptor indexing option) renders correctly, submit
+CPU time -38 % user / -13 % sys in a copy benchmark.
+---
+ src/intel/vulkan_hasvk/anv_allocator.c        |  19 ++-
+ src/intel/vulkan_hasvk/anv_device.c           | 159 ++++++++++++++----
+ src/intel/vulkan_hasvk/anv_pipeline_cache.c   |   2 +-
+ src/intel/vulkan_hasvk/anv_private.h          |  75 ++++++++-
+ src/intel/vulkan_hasvk/genX_cmd_buffer.c      |   6 +-
+ .../tests/block_pool_grow_first.c             |   2 +-
+ .../vulkan_hasvk/tests/block_pool_no_free.c   |   2 +-
+ src/intel/vulkan_hasvk/tests/state_pool.c     |   2 +-
+ .../tests/state_pool_free_list_only.c         |   2 +-
+ .../vulkan_hasvk/tests/state_pool_no_free.c   |   2 +-
+ .../vulkan_hasvk/tests/state_pool_padding.c   |   2 +-
+ 11 files changed, 224 insertions(+), 49 deletions(-)
+
+diff --git a/src/intel/vulkan_hasvk/anv_allocator.c b/src/intel/vulkan_hasvk/anv_allocator.c
+index a50abd2..ce15d43 100644
+--- a/src/intel/vulkan_hasvk/anv_allocator.c
++++ b/src/intel/vulkan_hasvk/anv_allocator.c
+@@ -368,7 +368,8 @@ anv_block_pool_init(struct anv_block_pool *pool,
+                     struct anv_device *device,
+                     const char *name,
+                     uint64_t start_address,
+-                    uint32_t initial_size)
++                    uint32_t initial_size,
++                    uint64_t max_size)
+ {
+    VkResult result;
+ 
+@@ -377,6 +378,8 @@ anv_block_pool_init(struct anv_block_pool *pool,
+    pool->use_relocations = anv_use_relocations(device->physical);
+    pool->nbos = 0;
+    pool->size = 0;
++   pool->max_size = max_size;
++   assert(max_size == 0 || initial_size <= max_size);
+    pool->center_bo_offset = 0;
+    pool->start_address = intel_canonical_address(start_address);
+    pool->map = NULL;
+@@ -679,6 +682,15 @@ anv_block_pool_grow(struct anv_block_pool *pool, struct anv_block_state *state,
+    while (size < back_required + front_required)
+       size *= 2;
+ 
++   /* With softpin the pool cannot grow past its address range. */
++   if (pool->max_size != 0 && size > pool->max_size) {
++      if (back_required + front_required > pool->max_size) {
++         result = VK_ERROR_OUT_OF_DEVICE_MEMORY;
++         goto done;
++      }
++      size = pool->max_size;
++   }
++
+    assert(size > pool->size);
+ 
+    /* We compute a new center_bo_offset such that, when we double the size
+@@ -830,7 +842,8 @@ anv_state_pool_init(struct anv_state_pool *pool,
+                     const char *name,
+                     uint64_t base_address,
+                     int32_t start_offset,
+-                    uint32_t block_size)
++                    uint32_t block_size,
++                    uint64_t max_size)
+ {
+    /* We don't want to ever see signed overflow */
+    assert(start_offset < INT32_MAX - (int32_t)BLOCK_POOL_MEMFD_SIZE);
+@@ -839,7 +852,7 @@ anv_state_pool_init(struct anv_state_pool *pool,
+ 
+    VkResult result = anv_block_pool_init(&pool->block_pool, device, name,
+                                          base_address + start_offset,
+-                                         initial_size);
++                                         initial_size, max_size);
+    if (result != VK_SUCCESS)
+       return result;
+ 
+diff --git a/src/intel/vulkan_hasvk/anv_device.c b/src/intel/vulkan_hasvk/anv_device.c
+index 5c2eab0..fcb2ef4 100644
+--- a/src/intel/vulkan_hasvk/anv_device.c
++++ b/src/intel/vulkan_hasvk/anv_device.c
+@@ -1283,6 +1283,67 @@ get_properties(const struct anv_physical_device *pdevice,
+    }
+ }
+ 
++/* Choose the address layout.  In relocation mode (gfx7, HASVK_USE_RELOCATIONS)
++ * the kernel places the BOs and only the pool start offsets matter, which are
++ * those of the 48-bit layout as before.
++ */
++static void
++anv_physical_device_init_va(struct anv_physical_device *device)
++{
++   if (!device->use_softpin || device->supports_48bit_addresses) {
++      device->va = (struct anv_va_layout) {
++         .general_state_pool = ANV_VA_RANGE(GENERAL_STATE_POOL_MIN_ADDRESS,
++                                            GENERAL_STATE_POOL_MAX_ADDRESS),
++         .dynamic_state_pool = ANV_VA_RANGE(DYNAMIC_STATE_POOL_MIN_ADDRESS,
++                                            DYNAMIC_STATE_POOL_MAX_ADDRESS),
++         .binding_table_pool = ANV_VA_RANGE(BINDING_TABLE_POOL_MIN_ADDRESS,
++                                            BINDING_TABLE_POOL_MAX_ADDRESS),
++         .surface_state_pool = ANV_VA_RANGE(SURFACE_STATE_POOL_MIN_ADDRESS,
++                                            SURFACE_STATE_POOL_MAX_ADDRESS),
++         .instruction_state_pool =
++            ANV_VA_RANGE(INSTRUCTION_STATE_POOL_MIN_ADDRESS,
++                         INSTRUCTION_STATE_POOL_MAX_ADDRESS),
++         .client_visible_heap = ANV_VA_RANGE(CLIENT_VISIBLE_HEAP_MIN_ADDRESS,
++                                             CLIENT_VISIBLE_HEAP_MAX_ADDRESS),
++         .low_heap = ANV_VA_RANGE(LOW_HEAP_MIN_ADDRESS, LOW_HEAP_MAX_ADDRESS),
++         /* Leave the last 4GiB out of the high vma range, so that no state
++          * base address + size can overflow 48 bits. For more information see
++          * the comment about Wa32bitGeneralStateOffset in anv_allocator.c
++          */
++         .high_heap = {
++            .addr = HIGH_HEAP_MIN_ADDRESS,
++            .size = device->gtt_size - (1ull << 32) - HIGH_HEAP_MIN_ADDRESS,
++         },
++      };
++   } else {
++      /* 4 GiB PPGTT (Cherry Trail): see the layout comment in anv_private.h */
++      assert(device->gtt_size >= (4ULL << 30));
++      device->va = (struct anv_va_layout) {
++         .general_state_pool =
++            ANV_VA_RANGE(VA32_GENERAL_STATE_POOL_MIN_ADDRESS,
++                         VA32_GENERAL_STATE_POOL_MAX_ADDRESS),
++         .dynamic_state_pool =
++            ANV_VA_RANGE(VA32_DYNAMIC_STATE_POOL_MIN_ADDRESS,
++                         VA32_DYNAMIC_STATE_POOL_MAX_ADDRESS),
++         .binding_table_pool =
++            ANV_VA_RANGE(VA32_BINDING_TABLE_POOL_MIN_ADDRESS,
++                         VA32_BINDING_TABLE_POOL_MAX_ADDRESS),
++         .surface_state_pool =
++            ANV_VA_RANGE(VA32_SURFACE_STATE_POOL_MIN_ADDRESS,
++                         VA32_SURFACE_STATE_POOL_MAX_ADDRESS),
++         .instruction_state_pool =
++            ANV_VA_RANGE(VA32_INSTRUCTION_STATE_POOL_MIN_ADDRESS,
++                         VA32_INSTRUCTION_STATE_POOL_MAX_ADDRESS),
++         .client_visible_heap =
++            ANV_VA_RANGE(VA32_CLIENT_VISIBLE_HEAP_MIN_ADDRESS,
++                         VA32_CLIENT_VISIBLE_HEAP_MAX_ADDRESS),
++         .low_heap = ANV_VA_RANGE(VA32_LOW_HEAP_MIN_ADDRESS,
++                                  VA32_LOW_HEAP_MAX_ADDRESS),
++         .high_heap = { 0, 0 },
++      };
++   }
++}
++
+ static uint64_t
+ anv_compute_sys_heap_size(struct anv_physical_device *device,
+                           uint64_t available_ram)
+@@ -1292,7 +1353,15 @@ anv_compute_sys_heap_size(struct anv_physical_device *device,
+     */
+    available_ram = MIN2(available_ram, device->gtt_size * 3 / 4);
+ 
+-   if (available_ram > (2ull << 30) && !device->supports_48bit_addresses) {
++   if (device->use_softpin && !device->supports_48bit_addresses) {
++      /* 32-bit softpin layout: all memory objects, batch buffers and other
++       * driver allocations share the low heap, so the Vulkan heap must leave
++       * room in it.
++       */
++      const uint64_t heap_va = device->va.low_heap.size +
++                               device->va.high_heap.size;
++      available_ram = MIN2(available_ram, heap_va - (256ull << 20));
++   } else if (available_ram > (2ull << 30) && !device->supports_48bit_addresses) {
+       /* When running with an overridden PCI ID, we may get a GTT size from
+        * the kernel that is greater than 2 GiB but the execbuf check for 48bit
+        * address support can still fail.  Just clamp the address space size to
+@@ -1690,8 +1759,13 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
+       goto fail_base;
+    }
+ 
++   /* Gfx8+ use softpin.  Cherry Trail used to be excluded because its PPGTT
++    * is only 4 GiB (no 48-bit addresses): it now gets the 32-bit softpin
++    * layout (anv_physical_device_init_va).  HASVK_USE_RELOCATIONS=1 restores
++    * the relocation mode for comparison.
++    */
+    device->use_relocations = device->info.ver < 8 ||
+-                             device->info.platform == INTEL_PLATFORM_CHV;
++                             debug_get_bool_option("HASVK_USE_RELOCATIONS", false);
+ 
+    if (!device->use_relocations &&
+        (!intel_gem_get_param(fd, I915_PARAM_HAS_EXEC_SOFTPIN, &val) || !val)) {
+@@ -1746,19 +1820,20 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
+    device->gtt_size = device->info.gtt_size ? device->info.gtt_size :
+                                               device->info.aperture_bytes;
+ 
+-   /* We only allow 48-bit addresses with softpin because knowing the actual
+-    * address is required for the vertex cache flush workaround.
++   /* 48-bit addresses need a PPGTT larger than 4 GiB (Broadwell: 48 bits,
++    * Cherry Trail: 32 bits).  With softpin, the gfx8 vertex cache workaround
++    * needs the actual addresses, which we have in both layouts.
+     */
+    device->supports_48bit_addresses = (device->info.ver >= 8) &&
+                                       device->gtt_size > (4ULL << 30 /* GiB */);
+ 
++   device->use_softpin = !device->use_relocations;
++   anv_physical_device_init_va(device);
++
+    result = anv_physical_device_init_heaps(device, fd);
+    if (result != VK_SUCCESS)
+       goto fail_base;
+ 
+-   assert(device->supports_48bit_addresses == !device->use_relocations);
+-   device->use_softpin = !device->use_relocations;
+-
+    device->sync_syncobj_type = vk_drm_syncobj_get_type(fd);
+    assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_CPU_WAIT);
+    assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_TIMELINE);
+@@ -2478,10 +2553,12 @@ VkResult anv_CreateDevice(
+                                       stderr, decode_flags, NULL,
+                                       decode_get_bo, NULL, device);
+ 
+-      device->decoder_ctx.dynamic_base = DYNAMIC_STATE_POOL_MIN_ADDRESS;
+-      device->decoder_ctx.surface_base = SURFACE_STATE_POOL_MIN_ADDRESS;
++      device->decoder_ctx.dynamic_base =
++         physical_device->va.dynamic_state_pool.addr;
++      device->decoder_ctx.surface_base =
++         physical_device->va.surface_state_pool.addr;
+       device->decoder_ctx.instruction_base =
+-         INSTRUCTION_STATE_POOL_MIN_ADDRESS;
++         physical_device->va.instruction_state_pool.addr;
+    }
+ 
+    anv_device_set_physical(device, physical_device);
+@@ -2543,20 +2620,18 @@ VkResult anv_CreateDevice(
+          goto fail_queues;
+       }
+ 
++      const struct anv_va_layout *va = &physical_device->va;
++
+       /* keep the page with address zero out of the allocator */
+       util_vma_heap_init(&device->vma_lo,
+-                         LOW_HEAP_MIN_ADDRESS, LOW_HEAP_SIZE);
++                         va->low_heap.addr, va->low_heap.size);
+ 
+-      util_vma_heap_init(&device->vma_cva, CLIENT_VISIBLE_HEAP_MIN_ADDRESS,
+-                         CLIENT_VISIBLE_HEAP_SIZE);
++      util_vma_heap_init(&device->vma_cva, va->client_visible_heap.addr,
++                         va->client_visible_heap.size);
+ 
+-      /* Leave the last 4GiB out of the high vma range, so that no state
+-       * base address + size can overflow 48 bits. For more information see
+-       * the comment about Wa32bitGeneralStateOffset in anv_allocator.c
+-       */
+-      util_vma_heap_init(&device->vma_hi, HIGH_HEAP_MIN_ADDRESS,
+-                         physical_device->gtt_size - (1ull << 32) -
+-                         HIGH_HEAP_MIN_ADDRESS);
++      /* Empty in the 32-bit layout, see anv_physical_device_init_va() */
++      util_vma_heap_init(&device->vma_hi, va->high_heap.addr,
++                         va->high_heap.size);
+    }
+ 
+    list_inithead(&device->memory_objects);
+@@ -2583,15 +2658,23 @@ VkResult anv_CreateDevice(
+     * the base address 0 and start the pool memory at an offset.  This way we
+     * get the correct offsets in the anv_states that get allocated from it.
+     */
++   /* In relocation mode the pool addresses are chosen by the kernel and the
++    * sizes are bounded by the memfd; the layout only matters with softpin.
++    */
++   const struct anv_va_layout *va = &physical_device->va;
++   const bool softpin = !anv_use_relocations(physical_device);
++
+    result = anv_state_pool_init(&device->general_state_pool, device,
+                                 "general pool",
+-                                0, GENERAL_STATE_POOL_MIN_ADDRESS, 16384);
++                                0, va->general_state_pool.addr, 16384,
++                                softpin ? va->general_state_pool.size : 0);
+    if (result != VK_SUCCESS)
+       goto fail_batch_bo_pool;
+ 
+    result = anv_state_pool_init(&device->dynamic_state_pool, device,
+                                 "dynamic pool",
+-                                DYNAMIC_STATE_POOL_MIN_ADDRESS, 0, 16384);
++                                va->dynamic_state_pool.addr, 0, 16384,
++                                softpin ? va->dynamic_state_pool.size : 0);
+    if (result != VK_SUCCESS)
+       goto fail_general_state_pool;
+ 
+@@ -2610,25 +2693,28 @@ VkResult anv_CreateDevice(
+ 
+    result = anv_state_pool_init(&device->instruction_state_pool, device,
+                                 "instruction pool",
+-                                INSTRUCTION_STATE_POOL_MIN_ADDRESS, 0, 16384);
++                                va->instruction_state_pool.addr, 0, 16384,
++                                softpin ? va->instruction_state_pool.size : 0);
+    if (result != VK_SUCCESS)
+       goto fail_dynamic_state_pool;
+ 
+    result = anv_state_pool_init(&device->surface_state_pool, device,
+                                 "surface state pool",
+-                                SURFACE_STATE_POOL_MIN_ADDRESS, 0, 4096);
++                                va->surface_state_pool.addr, 0, 4096,
++                                softpin ? va->surface_state_pool.size : 0);
+    if (result != VK_SUCCESS)
+       goto fail_instruction_state_pool;
+ 
+-   if (!anv_use_relocations(physical_device)) {
+-      int64_t bt_pool_offset = (int64_t)BINDING_TABLE_POOL_MIN_ADDRESS -
+-                               (int64_t)SURFACE_STATE_POOL_MIN_ADDRESS;
++   if (softpin) {
++      int64_t bt_pool_offset = (int64_t)va->binding_table_pool.addr -
++                               (int64_t)va->surface_state_pool.addr;
+       assert(INT32_MIN < bt_pool_offset && bt_pool_offset < 0);
+       result = anv_state_pool_init(&device->binding_table_pool, device,
+                                    "binding table pool",
+-                                   SURFACE_STATE_POOL_MIN_ADDRESS,
++                                   va->surface_state_pool.addr,
+                                    bt_pool_offset,
+-                                   BINDING_TABLE_POOL_BLOCK_SIZE);
++                                   BINDING_TABLE_POOL_BLOCK_SIZE,
++                                   va->binding_table_pool.size);
+    }
+    if (result != VK_SUCCESS)
+       goto fail_surface_state_pool;
+@@ -2901,7 +2987,8 @@ anv_vma_alloc(struct anv_device *device,
+ 
+    assert(client_address == 0);
+ 
+-   if (!(alloc_flags & ANV_BO_ALLOC_32BIT_ADDRESS))
++   if (!(alloc_flags & ANV_BO_ALLOC_32BIT_ADDRESS) &&
++       device->physical->va.high_heap.size != 0)
+       addr = util_vma_heap_alloc(&device->vma_hi, size, align);
+ 
+    if (addr == 0)
+@@ -2919,17 +3006,19 @@ anv_vma_free(struct anv_device *device,
+              uint64_t address, uint64_t size)
+ {
+    const uint64_t addr_48b = intel_48b_address(address);
++   const struct anv_va_layout *va = &device->physical->va;
+ 
+    pthread_mutex_lock(&device->vma_mutex);
+ 
+-   if (addr_48b >= LOW_HEAP_MIN_ADDRESS &&
+-       addr_48b <= LOW_HEAP_MAX_ADDRESS) {
++   if (addr_48b >= va->low_heap.addr &&
++       addr_48b < va->low_heap.addr + va->low_heap.size) {
+       util_vma_heap_free(&device->vma_lo, addr_48b, size);
+-   } else if (addr_48b >= CLIENT_VISIBLE_HEAP_MIN_ADDRESS &&
+-              addr_48b <= CLIENT_VISIBLE_HEAP_MAX_ADDRESS) {
++   } else if (addr_48b >= va->client_visible_heap.addr &&
++              addr_48b < va->client_visible_heap.addr +
++                         va->client_visible_heap.size) {
+       util_vma_heap_free(&device->vma_cva, addr_48b, size);
+    } else {
+-      assert(addr_48b >= HIGH_HEAP_MIN_ADDRESS);
++      assert(va->high_heap.size != 0 && addr_48b >= va->high_heap.addr);
+       util_vma_heap_free(&device->vma_hi, addr_48b, size);
+    }
+ 
+diff --git a/src/intel/vulkan_hasvk/anv_pipeline_cache.c b/src/intel/vulkan_hasvk/anv_pipeline_cache.c
+index ec4c0bb..d2c4bb5 100644
+--- a/src/intel/vulkan_hasvk/anv_pipeline_cache.c
++++ b/src/intel/vulkan_hasvk/anv_pipeline_cache.c
+@@ -109,7 +109,7 @@ anv_shader_bin_create(struct anv_device *device,
+    memcpy(shader->kernel.map, kernel_data, kernel_size);
+    shader->kernel_size = kernel_size;
+ 
+-   uint64_t shader_data_addr = INSTRUCTION_STATE_POOL_MIN_ADDRESS +
++   uint64_t shader_data_addr = device->physical->va.instruction_state_pool.addr +
+                                shader->kernel.offset +
+                                prog_data_in->const_data_offset;
+ 
+diff --git a/src/intel/vulkan_hasvk/anv_private.h b/src/intel/vulkan_hasvk/anv_private.h
+index 07996ca..26b98bb 100644
+--- a/src/intel/vulkan_hasvk/anv_private.h
++++ b/src/intel/vulkan_hasvk/anv_private.h
+@@ -177,6 +177,68 @@ struct intel_perf_query_result;
+ #define CLIENT_VISIBLE_HEAP_SIZE               \
+    (CLIENT_VISIBLE_HEAP_MAX_ADDRESS - CLIENT_VISIBLE_HEAP_MIN_ADDRESS + 1)
+ 
++/* 32-bit softpin layout
++ * =====================
++ *
++ * Cherry Trail (gfx8) has a full PPGTT of only 4 GiB (4 PDP entries, no
++ * EXEC_OBJECT_SUPPORTS_48B_ADDRESS), so the 48-bit layout above cannot be
++ * used.  The kernel accepts EXEC_OBJECT_PINNED at any page-aligned address
++ * below 4 GiB, so we squeeze the same pools into the low 1 GiB and give the
++ * rest to a single heap:
++ *
++ *   2 MiB .. 64 MiB   general state pool (base address 0, like above)
++ *  64 MiB .. 256 MiB  dynamic state pool
++ * 256 MiB .. 384 MiB  binding table pool (below the surface state pool
++ *                     within 4 GiB, see consideration (2) above)
++ * 384 MiB .. 640 MiB  surface state pool
++ * 640 MiB .. 768 MiB  instruction state pool
++ * 768 MiB .. 1 GiB    client visible heap (buffer device address
++ *                     capture/replay; dEQP's capture_replay_stress needs
++ *                     ~75-150 MiB of it)
++ *   1 GiB .. 4 GiB - 64 MiB  heap (the "low" heap; the high heap is empty)
++ *
++ * Consideration (1), the VF cache workaround, is trivially satisfied: every
++ * address is below 4 GiB.  Consideration (3) becomes a 64 MiB margin below
++ * the 4 GiB boundary.  The state pools cannot grow past their range
++ * (anv_block_pool::max_size).
++ */
++#define VA32_GENERAL_STATE_POOL_MIN_ADDRESS     0x00200000ULL /* 2 MiB */
++#define VA32_GENERAL_STATE_POOL_MAX_ADDRESS     0x03ffffffULL
++#define VA32_DYNAMIC_STATE_POOL_MIN_ADDRESS     0x04000000ULL /* 64 MiB */
++#define VA32_DYNAMIC_STATE_POOL_MAX_ADDRESS     0x0fffffffULL
++#define VA32_BINDING_TABLE_POOL_MIN_ADDRESS     0x10000000ULL /* 256 MiB */
++#define VA32_BINDING_TABLE_POOL_MAX_ADDRESS     0x17ffffffULL
++#define VA32_SURFACE_STATE_POOL_MIN_ADDRESS     0x18000000ULL /* 384 MiB */
++#define VA32_SURFACE_STATE_POOL_MAX_ADDRESS     0x27ffffffULL
++#define VA32_INSTRUCTION_STATE_POOL_MIN_ADDRESS 0x28000000ULL /* 640 MiB */
++#define VA32_INSTRUCTION_STATE_POOL_MAX_ADDRESS 0x2fffffffULL
++#define VA32_CLIENT_VISIBLE_HEAP_MIN_ADDRESS    0x30000000ULL /* 768 MiB */
++#define VA32_CLIENT_VISIBLE_HEAP_MAX_ADDRESS    0x3fffffffULL
++#define VA32_LOW_HEAP_MIN_ADDRESS               0x40000000ULL /* 1 GiB */
++#define VA32_LOW_HEAP_MAX_ADDRESS               0xfbffffffULL /* 4 GiB - 64 MiB - 1 */
++
++struct anv_va_range {
++   uint64_t addr;
++   uint64_t size;
++};
++
++#define ANV_VA_RANGE(min, max) \
++   ((struct anv_va_range) { .addr = (min), .size = (max) - (min) + 1 })
++
++/* The virtual address layout a softpin device uses (one of the two above),
++ * chosen in anv_physical_device_init_va().
++ */
++struct anv_va_layout {
++   struct anv_va_range general_state_pool;
++   struct anv_va_range dynamic_state_pool;
++   struct anv_va_range binding_table_pool;
++   struct anv_va_range surface_state_pool;
++   struct anv_va_range instruction_state_pool;
++   struct anv_va_range client_visible_heap;
++   struct anv_va_range low_heap;
++   struct anv_va_range high_heap;  /* size 0 in the 32-bit layout */
++};
++
+ /* Allowing different clear colors requires us to perform a depth resolve at
+  * the end of certain render passes. This is because while slow clears store
+  * the clear color in the HiZ buffer, fast clears (without a resolve) don't.
+@@ -566,6 +628,11 @@ struct anv_block_pool {
+ 
+    uint64_t size;
+ 
++   /* The pool never grows past this size (0: no limit other than the memfd
++    * size).  With softpin this is the size of the pool's address range.
++    */
++   uint64_t max_size;
++
+    /* The address where the start of the pool is pinned. The various bos that
+     * are created as the pool grows will have addresses in the range
+     * [start_address, start_address + BLOCK_POOL_MEMFD_SIZE).
+@@ -699,7 +766,8 @@ VkResult anv_block_pool_init(struct anv_block_pool *pool,
+                              struct anv_device *device,
+                              const char *name,
+                              uint64_t start_address,
+-                             uint32_t initial_size);
++                             uint32_t initial_size,
++                             uint64_t max_size);
+ void anv_block_pool_finish(struct anv_block_pool *pool);
+ int32_t anv_block_pool_alloc(struct anv_block_pool *pool,
+                              uint32_t block_size, uint32_t *padding);
+@@ -713,7 +781,8 @@ VkResult anv_state_pool_init(struct anv_state_pool *pool,
+                              const char *name,
+                              uint64_t base_address,
+                              int32_t start_offset,
+-                             uint32_t block_size);
++                             uint32_t block_size,
++                             uint64_t max_size);
+ void anv_state_pool_finish(struct anv_state_pool *pool);
+ struct anv_state anv_state_pool_alloc(struct anv_state_pool *pool,
+                                       uint32_t state_size, uint32_t alignment);
+@@ -846,6 +915,8 @@ struct anv_physical_device {
+     char                                        path[20];
+     struct intel_device_info                      info;
+     bool                                        supports_48bit_addresses;
++    /* Softpin address layout (48-bit or 32-bit), see anv_va_layout */
++    struct anv_va_layout                        va;
+     struct elk_compiler *                       compiler;
+     struct isl_device                           isl_dev;
+     struct intel_perf_config *                    perf;
+diff --git a/src/intel/vulkan_hasvk/genX_cmd_buffer.c b/src/intel/vulkan_hasvk/genX_cmd_buffer.c
+index d1e5c24..300849c 100644
+--- a/src/intel/vulkan_hasvk/genX_cmd_buffer.c
++++ b/src/intel/vulkan_hasvk/genX_cmd_buffer.c
+@@ -151,8 +151,10 @@ genX(cmd_buffer_emit_state_base_address)(struct anv_cmd_buffer *cmd_buffer)
+          /* With softpin, we use fixed addresses so we actually know how big
+           * our base addresses are.
+           */
+-         sba.DynamicStateBufferSize    = DYNAMIC_STATE_POOL_SIZE / 4096;
+-         sba.InstructionBufferSize     = INSTRUCTION_STATE_POOL_SIZE / 4096;
++         sba.DynamicStateBufferSize    =
++            device->physical->va.dynamic_state_pool.size / 4096;
++         sba.InstructionBufferSize     =
++            device->physical->va.instruction_state_pool.size / 4096;
+       }
+       sba.GeneralStateBufferSizeModifyEnable    = true;
+       sba.IndirectObjectBufferSizeModifyEnable  = true;
+diff --git a/src/intel/vulkan_hasvk/tests/block_pool_grow_first.c b/src/intel/vulkan_hasvk/tests/block_pool_grow_first.c
+index 76dced0..e8294c2 100644
+--- a/src/intel/vulkan_hasvk/tests/block_pool_grow_first.c
++++ b/src/intel/vulkan_hasvk/tests/block_pool_grow_first.c
+@@ -43,7 +43,7 @@ void block_pool_grow_first_test(void)
+    anv_device_set_physical(&device, &physical_device);
+    pthread_mutex_init(&device.mutex, NULL);
+    anv_bo_cache_init(&device.bo_cache, &device);
+-   anv_block_pool_init(&pool, &device, "test", 4096, initial_size);
++   anv_block_pool_init(&pool, &device, "test", 4096, initial_size, 0);
+    ASSERT(pool.size == initial_size);
+ 
+    uint32_t padding;
+diff --git a/src/intel/vulkan_hasvk/tests/block_pool_no_free.c b/src/intel/vulkan_hasvk/tests/block_pool_no_free.c
+index 5272887..043533b 100644
+--- a/src/intel/vulkan_hasvk/tests/block_pool_no_free.c
++++ b/src/intel/vulkan_hasvk/tests/block_pool_no_free.c
+@@ -119,7 +119,7 @@ static void run_test()
+    anv_device_set_physical(&device, &physical_device);
+    pthread_mutex_init(&device.mutex, NULL);
+    anv_bo_cache_init(&device.bo_cache, &device);
+-   anv_block_pool_init(&pool, &device, "test", 4096, 4096);
++   anv_block_pool_init(&pool, &device, "test", 4096, 4096, 0);
+ 
+    for (unsigned i = 0; i < NUM_THREADS; i++) {
+       jobs[i].pool = &pool;
+diff --git a/src/intel/vulkan_hasvk/tests/state_pool.c b/src/intel/vulkan_hasvk/tests/state_pool.c
+index 0fe0d3c..dfd5008 100644
+--- a/src/intel/vulkan_hasvk/tests/state_pool.c
++++ b/src/intel/vulkan_hasvk/tests/state_pool.c
+@@ -45,7 +45,7 @@ void state_pool_test(void)
+ 
+    const unsigned num_runs = 64;
+    for (unsigned i = 0; i < num_runs; i++) {
+-      anv_state_pool_init(&state_pool, &device, "test", 4096, 0, 256);
++      anv_state_pool_init(&state_pool, &device, "test", 4096, 0, 256, 0);
+ 
+       /* Grab one so a zero offset is impossible */
+       anv_state_pool_alloc(&state_pool, 16, 16);
+diff --git a/src/intel/vulkan_hasvk/tests/state_pool_free_list_only.c b/src/intel/vulkan_hasvk/tests/state_pool_free_list_only.c
+index 47082ff..2252580 100644
+--- a/src/intel/vulkan_hasvk/tests/state_pool_free_list_only.c
++++ b/src/intel/vulkan_hasvk/tests/state_pool_free_list_only.c
+@@ -42,7 +42,7 @@ void state_pool_free_list_only_test(void)
+    anv_device_set_physical(&device, &physical_device);
+    pthread_mutex_init(&device.mutex, NULL);
+    anv_bo_cache_init(&device.bo_cache, &device);
+-   anv_state_pool_init(&state_pool, &device, "test", 4096, 0, 4096);
++   anv_state_pool_init(&state_pool, &device, "test", 4096, 0, 4096, 0);
+ 
+    /* Grab one so a zero offset is impossible */
+    anv_state_pool_alloc(&state_pool, 16, 16);
+diff --git a/src/intel/vulkan_hasvk/tests/state_pool_no_free.c b/src/intel/vulkan_hasvk/tests/state_pool_no_free.c
+index e8bbb74..b573829 100644
+--- a/src/intel/vulkan_hasvk/tests/state_pool_no_free.c
++++ b/src/intel/vulkan_hasvk/tests/state_pool_no_free.c
+@@ -62,7 +62,7 @@ static void run_test()
+    anv_device_set_physical(&device, &physical_device);
+    pthread_mutex_init(&device.mutex, NULL);
+    anv_bo_cache_init(&device.bo_cache, &device);
+-   anv_state_pool_init(&state_pool, &device, "test", 4096, 0, 64);
++   anv_state_pool_init(&state_pool, &device, "test", 4096, 0, 64, 0);
+ 
+    pthread_barrier_init(&barrier, NULL, NUM_THREADS);
+ 
+diff --git a/src/intel/vulkan_hasvk/tests/state_pool_padding.c b/src/intel/vulkan_hasvk/tests/state_pool_padding.c
+index 72754e3..ad0a19a 100644
+--- a/src/intel/vulkan_hasvk/tests/state_pool_padding.c
++++ b/src/intel/vulkan_hasvk/tests/state_pool_padding.c
+@@ -37,7 +37,7 @@ void state_pool_padding_test(void)
+    anv_device_set_physical(&device, &physical_device);
+    pthread_mutex_init(&device.mutex, NULL);
+    anv_bo_cache_init(&device.bo_cache, &device);
+-   anv_state_pool_init(&state_pool, &device, "test", 4096, 0, 4096);
++   anv_state_pool_init(&state_pool, &device, "test", 4096, 0, 4096, 0);
+ 
+    /* Get the size of the underlying block_pool */
+    struct anv_block_pool *bp = &state_pool.block_pool;
+-- 
+2.56.0
+

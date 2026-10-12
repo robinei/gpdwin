@@ -26,6 +26,14 @@ Contents:
   correct (colour + depth readback), `INTEL_DEBUG=nohiz` back to the old times; DXVK D3D9 (`reports/r5/d3d9depth.c`)
   35 -> 182 fps, D24S8 and INTZ. Details: `reports/R5-softpin-vulkan13.md`. (1.6 had only the first half: HiZ
   allocated but the layout switch fell into UNREACHABLE, so not enabled while drawing.)
+- `0007`-`0011` (1.11, 2026-10-12): real Vulkan 1.3 on hasvk/CHV (`reports/R9-vulkan13.md`, design, CTS, risks).
+  `0007` softpin with a 32-bit address layout on CHV (4 GiB PPGTT): buffer device address, apiVersion 1.3, no
+  relocations (submit CPU -38 %); `HASVK_USE_RELOCATIONS=1` gives the old 1.2 relocation driver per program.
+  `0008` state-pool exhaustion returns OUT_OF_DEVICE_MEMORY instead of spinning. `0009` 256-byte push constants +
+  `VK_KHR_pipeline_library`. `0010` opt-in `hasvk_report_descriptor_indexing=true` (not conformant; what DXVK >= 2.7
+  needs). `0011` only capture/replay allocations use the 256 MiB client-visible heap (before it, DXVK 2.7.1 crashed
+  Dark Souls at 256 MiB). CTS: per test identical to 1.7 or better in every sampled group, 0 GPU hangs. Dark Souls
+  (DXVK 2.4.1) on it: same feel as 1.7.
 - `unused/`: the test-switch patches of the 1.1 test build (fix 2 `MESA_ST_MATCH_SIZED`, fix 1a/1b
   `CROCUS_STAGING_NOSNOOP`, `CROCUS_SNOOP_UC_MOCS`), kept for reference, not built.
 - `build.sh`: builds all packages of the pkgbase on the desktop in a clean chroot (devtools, sudo).

@@ -73,7 +73,8 @@ truth; this explains the choices.
   (crocus + softpipe, hasvk; no LLVM at runtime) + five crocus patches (no snooped staging textures: stops the display
   flashes; GPU blit for uploads >= 256 KiB and for tiled readback; range-limited invalidate for read maps) and a
   trimmed driconf file, and a hasvk patch restoring HiZ (lost upstream in Mesa 23.0; Vulkan/DXVK depth-heavy
-  rendering up to 5x faster in fill tests); GL programs start ~40 % faster with ~60 % less memory (mesa/README.md; release 1.7;
+  rendering up to 5x faster in fill tests), and real Vulkan 1.3 on hasvk (softpin with a 32-bit address layout, buffer
+  device address; `HASVK_USE_RELOCATIONS=1` = old driver; mesa/reports/R9); GL programs start ~40 % faster with ~60 % less memory (mesa/README.md; release 1.11;
   correctness: mesa/reports/R6, dEQP/piglit identical to Arch's Mesa). Vulkan 1.3/DXVK and softpin: `mesa/reports/R5-*.md`, ideas 13. Built on the desktop (`mesa/build.sh`,
   `mesa/build.sh lib32`), installed with `mesa/install.sh`; Arch's packages saved in `/var/cache/gpd-mesa-stock`,
   `mesa/rollback.sh` puts them back. `scripts/aur check` shows "REBUILD" when Arch has a newer Mesa; a package

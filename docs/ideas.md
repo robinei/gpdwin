@@ -29,17 +29,10 @@
     now that packages can be built for it: e.g. `-march=silvermont`/`-mtune` builds of hot packages (Mesa,
     emulator cores, SDL), Mesa/driconf defaults that suit a non-LLC GPU, trimming libraries loaded by every
     process. Find candidates by measuring first (perf, startup traces), not by guessing.
-13. Vulkan 1.3 on hasvk (investigated 2026-10-12, `mesa/reports/R5-softpin-vulkan13.md`): on CHV hasvk reports
-    every Vulkan 1.3 requirement except buffer device address (needs softpin, which hasvk enables only above 4 GiB
-    address space; the kernel allows softpin on CHV's 4 GiB PPGTT, measured). DXVK 2.0-2.6.x need only what hasvk
-    has + the version: the driconf/env option `hasvk_report_vk_1_3_version=true` is enough for them (non-conformant
-    by that one feature). DXVK >= 2.7 also needs descriptor indexing, pipeline libraries and 256 B push constants.
-    **Done as patches (2026-10-12, `mesa/reports/R9-vulkan13.md`, `mesa/vk13/`, not installed):** hasvk with a 32-bit
-    softpin layout gives real buffer device address / Vulkan 1.3 on CHV (dEQP BDA group 4716/4716, sampled groups
-    identical to the installed driver, 0 hangs, submit CPU -38 % user); 256 B push constants + pipeline_library are
-    8 lines; descriptor indexing cannot be done conformantly on gfx8 (no bindless surfaces) but an opt-in claim
-    (`hasvk_report_descriptor_indexing=true`) is enough for DXVK 2.7.1, which rendered correctly (D3D9 test).
-    Robin decides whether to ship (add to `mesa/PKGBUILD` + lib32, rebuild); a DXVK >= 2.7 build is not installed.
+13. Vulkan 1.3 on hasvk: shipped in Mesa 1.11 (2026-10-12, `mesa/README.md`, `mesa/reports/R9-vulkan13.md`). Left
+    open: a real (still non-conformant) descriptor indexing for non-sampler descriptors (~300-500 lines, R9 section
+    7.3), only useful if something besides DXVK >= 2.7 needs it; DXVK 2.7.1 works with the opt-in claim but felt
+    slower than 2.4.1 in Dark Souls, so the games stay on 2.4.1.
 4b. Relocation overhead (same report): small. GL (crocus) well under 1 % of a frame; hasvk 18-25 % of its own
     submit CPU time but still small per frame. Not worth a softpin port for speed.
 

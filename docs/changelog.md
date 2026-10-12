@@ -769,3 +769,12 @@ Details before 2026-10-06 are in `docs/archive/`.
   (1.9 kept as `.so.1.9`; revert: move it back). Headless texture test OK; Dark Souls retest pending.
 - Dark Souls on DXVK 2.7.1 + hasvk 1.10: works now, but heavier/slower than 2.4.1 (Robin's impression). The game stays
   on 2.4.1 (its normal launcher was never switched back to 2.7.1).
+
+## 2026-10-12 — Mesa 1.11: real Vulkan 1.3 (hasvk softpin) installed
+- The R9 patches ship: `mesa/0007`-`0011` (moved from `mesa/vk13/0001-0005`) in `mesa/PKGBUILD` and `mesa/lib32/PKGBUILD`,
+  pkgrel 1.7 -> 1.11 (1.9/1.10 were lib32 test builds outside pacman). hasvk now runs with softpin and a 32-bit address
+  layout on CHV: apiVersion 1.3.354, buffer device address, no relocations, 256 B push constants, pipeline_library,
+  opt-in descriptor indexing claim, client-visible heap only for capture/replay. Why: Robin chose to ship after Dark
+  Souls ran the same on it (DXVK 2.4.1) and the CTS showed no regressions. Installed with `mesa/install.sh` (all six
+  -gpd packages). Per-program escape hatch: `HASVK_USE_RELOCATIONS=1`. Revert: reinstall the 1.7 packages
+  (`mesa/*1.7*.pkg.tar.zst`, `mesa/lib32/*1.7*` on the desktop) with `mesa/install.sh`, or `mesa/rollback.sh` (Arch's).

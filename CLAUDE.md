@@ -74,6 +74,8 @@ The user is Robin (they/them).
   names so repo updates don't touch them (docs/packages.md "Own Mesa", `mesa/README.md`). `scripts/aur check`
   says REBUILD when Arch is newer: update `mesa/PKGBUILD` from Arch's, `mesa/build.sh` (+ `lib32`) on the desktop
   (needs desktop sudo), `mesa/install.sh` on the GPD. **"Display flashes/splits again" → check `pacman -Q mesa-gpd`.**
+  hasvk (Vulkan) uses softpin with our 32-bit address layout since 1.11 (real Vulkan 1.3): a Vulkan game that breaks →
+  try `HASVK_USE_RELOCATIONS=1` in its launcher (old relocation driver, Vulkan 1.2; then `hasvk_report_vk_1_3_version=true` for DXVK 2.x).
 - Never unload/unbind the sound codec at runtime (`rmmod snd_soc_rt5645`, unbinding `i2c-10EC5645:00`):
   it hangs the unload for good (`rt5645_i2c_remove` waits for `rt5645_jack_detect_work`, `rmmod` stuck in
   D state, only a reboot clears it; seen twice, the second time after a kernel oops in that work).
