@@ -665,3 +665,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   (no process started, nothing blocks on sway). Same rules (focus on workspace 1 -> fullscreen except
   shelf, floating non-dialog X11 windows -> fullscreen, stands aside for speaker-tune). Tested with
   simulated events (socketpair). Revert: restore the script and its `exec` line in `sway/autostart`.
+- PMIC wedge experiments (R8 table): GPU load + PMIC reads, 300 screen-only cycles, 400 cycles of GPU load + screen
+  (stock Mesa vs 1.5) all clean; 0015 restored VLV_IER 46 times and always settled. Not reproducible; nothing reverted.
+  Stress tests now via `kernel/dsi-investigation/scripts/r8-cycle.sh` (aborts at the first I2C error).

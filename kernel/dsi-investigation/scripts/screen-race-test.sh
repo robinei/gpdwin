@@ -5,6 +5,7 @@
 #   screen-race-test.sh CYCLES [OFF_S] [ON_S] > log
 # With 0015, a caught race logs "VLV_IER 0x... after display irq enable, restoring"; without it, the
 # display would die ("vblank wait timed out", flip_done timeouts). Stops early at /tmp/race-test-stop.
+# 2026-10-12: once wedged the PMIC I2C bus (reports/R8); prefer scripts/r8-cycle.sh, which aborts at the first I2C error.
 N=${1:-300} OFF=${2:-1} ON=${3:-1.5}
 export SWAYSOCK=$(ls /run/user/1000/sway-ipc.*.sock)
 /tmp/gpuload > /tmp/gpuload.log & L=$!

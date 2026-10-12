@@ -342,3 +342,25 @@ controller is runtime-suspended between transfers by design. So: the missing sem
 Remaining candidates: something in the controller's runtime suspend/resume or the kernel side of the transfers
 (e.g. a lost controller interrupt around a resume), or the PMIC itself (Whiskey Cove) misbehaving under the panel
 power sequence. The failing boot shows no "nobody cared"/disabled IRQ. Experiments continue (E1 running).
+
+## Experiments (main session, 2026-10-12, boot from 08:01, i915 with the reworked 0015, Mesa 1.5; `scripts/r8-cycle.sh`)
+
+| run | setup | result |
+|---|---|---|
+| E1 08:38-08:48 | gpuload (1271 finishes/s) + charger/battery reads 5/s, screen untouched, 240 x 2.5 s | clean, 0 I2C errors |
+| E2 08:48-09:06 | screen off/on, no GPU load, 300 cycles | clean |
+| E3a 09:06 | gpuload on Arch's stock Mesa (1306/s) + screen off/on, 100 cycles | clean |
+| E3b 09:12 | gpuload on our Mesa 1.5 (1349/s) + screen off/on, 100 cycles | clean |
+| E3c 09:18 | stock Mesa (1329/s), 100 cycles | clean |
+| E3d 09:24 | our Mesa 1.5 (1318/s), 100 cycles | clean |
+
+During E3 the reworked 0015 restored a lost VLV_IER 24 times on enable and 22 times on disable, every time settled
+at once (no "did not settle", no vblank/flip timeouts). The gpuload rate is the same with both Mesas and as on
+2026-10-10 (1337/s), so Mesa 1.5 does not change the load. The charge-limit boot service writes through the charger
+driver (serialized adapter access) within seconds of boot, long before the failing test.
+
+Conclusion: the wedge is not reproducible on demand: 400 cycles of the exact failing combination (200 with the same
+i915 and Mesa as at 07:51) plus 300 display-only cycles ran clean. Neither 0015 nor Mesa 1.5 is implicated by any
+evidence; nothing is reverted. The one untested difference is timing: the failing run started 80 s after boot (the
+later runs 37+ min in). Open, low priority. Precaution: stress tests use `r8-cycle.sh` (aborts at the first I2C error)
+instead of `screen-race-test.sh`; recovery from a wedge is a reboot.
