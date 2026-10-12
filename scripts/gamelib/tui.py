@@ -1,5 +1,5 @@
 """Curses UI: browse owned games with filters, install/uninstall, add to shelf."""
-import curses, locale, os, shutil, sys
+import curses, locale, os, shutil, subprocess, sys
 from pathlib import Path
 
 from . import core
@@ -30,6 +30,13 @@ def flag(value, text):
 CTRL_FILTERS = [("any input", lambda g: True), ("controller", lambda g: g.get("controller"))]
 TIER_SHORT = {"good": "well", "maybe": "maybe", "mouse": "mouse", "heavy": "heavy", None: "?"}
 HELP = "↑↓ PgUp/PgDn move  / search  d DRM  t tier  c controller  i installed  s sort  Enter actions  R refresh  q quit"
+
+
+def setup_session(rec):
+    """Per-game setup as a Claude Code session (.claude/commands/setup-game.md), through scripts/maintain
+    (sudo once, one session at a time). The game is the folder name under ~/Games/installed."""
+    folder = Path(rec["dir"]).name
+    subprocess.call([str(Path(__file__).resolve().parents[1] / "maintain"), f"/setup-game {folder}"])
 
 
 class App:
@@ -142,7 +149,8 @@ class App:
         if not rec and hasattr(src, "size_hint") and src.size_hint(g):
             info += f"  ~{size_text(g['size_mb'])} (store estimate)"
         if rec:
-            opts = [("exe", f"Change executable (now {rec['exe']})"), ("launcher", "Rewrite launcher script"),
+            opts = [("setup", "Set up with Claude (DRM, DXVK, performance; asks for sudo)"),
+                    ("exe", f"Change executable (now {rec['exe']})"), ("launcher", "Rewrite launcher script"),
                     ("uninstall", f"Uninstall ({core.human(rec.get('size', 0))})"), (None, "Back")]
         else:
             opts = [(f"install:{p}", f"Install {p} build" + (" (preferred)" if i == 0 else ""))
@@ -160,6 +168,8 @@ class App:
                 self.msg = f"Uninstalled {g['name']}."
         elif choice == "exe":
             self.outside(scr, lambda: self.pick_exe(rec, force_ask=True))
+        elif choice == "setup":
+            self.outside(scr, lambda: setup_session(rec))
         elif choice == "launcher":
             core.write_launcher(rec, force=True); core.write_metadata()
             self.msg = "Launcher rewritten."
@@ -243,6 +253,8 @@ class App:
             print(f"Added to PC Games ({'Wine' if osname == 'windows' else 'native'}).")
         for line in core.restore_saves(rec):
             print(line)
+        if rec.get("exe") and input("\nSet it up with Claude now (DRM, DXVK, performance; asks for sudo)? [Y/n] ").strip().lower() in ("", "y", "yes"):
+            setup_session(rec)
         return True
 
     def offer_windows(self, g):

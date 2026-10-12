@@ -190,6 +190,12 @@ when it's no longer wanted.
   regeneration; used by Commander Keen) and `"description"` (replaces the generated
   description, otherwise "Installed from Steam (Wine / native Linux)"). shelf rescans the metadata
   when the tool exits.
+- Per-game setup is a Claude session (2026-10-12): after a download the installer offers it, and an installed
+  game's menu has "Set up with Claude". It runs `scripts/maintain "/setup-game <folder>"` (sudo once, one session
+  at a time) with the playbook `.claude/commands/setup-game.md`: DRM (Steamless, gbe), renderer (Direct3D 9 →
+  our DXVK build from `~/Games/tools/dxvk/gpd/x32|x64`, `dxvk/`), measuring and fixing the real limiter
+  (vsync rounding, GPU stalls via the DXVK wait log, power), recording in steam-library.md. Generated Windows
+  launchers carry `GPD_TDP_W=8 GPD_GPU_PIN=1` (game-wrap, docs/power.md).
 - `~/Games/installed/metadata.pegasus.txt` is regenerated from the records with
   `collection: PC Games` / `shortname: pc`, so these games merge into PC Games
   (verified). `~/Games/installed` is in `game_dirs.txt`. Launchers are not overwritten on

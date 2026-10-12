@@ -700,3 +700,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - statusbar: `tdp 6W` block (package power limit; white at the firmware's 6 W, yellow when a game raised it); game-wrap signals the bar when it changes it.
 - MangoHud: `cpu_power` (package draw from RAPL, also on AC); `energy_uj` made readable by wheel (turbo.conf). Dark Souls: DXVK's own fps counter off (MangoHud works).
 - MangoHud: table_columns=4 so the package watts share the CPU row.
+- Game installer: per-game setup as a Claude session (`/setup-game`, `.claude/commands/setup-game.md`: everything
+  learned on Dark Souls), offered after a download and in an installed game's menu; generated Windows launchers
+  get `GPD_TDP_W=8 GPD_GPU_PIN=1`. `dxvk/build.sh` now builds x32 and x64 (`~/Games/tools/dxvk/gpd/` on the GPD).
