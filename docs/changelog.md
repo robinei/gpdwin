@@ -674,3 +674,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   device created but black picture (textured draws fail); recorded in mesa/reports/R5 and steam-library.md.
 - Dark Souls PTDE: DSfix 2.4 (vsync off, borderless, render 1280x720, original DoF); in-game 15 fps with
   DXVK 1.10.3 measured as vsync-rounded ~55 ms frames, GPU 75% busy. docs/steam-library.md.
+- DXVK 2.x black screen narrowed down with a small D3D9 test (`mesa/reports/r5/d3d9tex.c`): 32-bit DXVK 2.5.x hangs
+  the GPU, 2.6.x loses textures after a while; 2.0/2.4 and all 64-bit fine. Dark Souls now on DXVK 2.4.

@@ -94,6 +94,9 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   DoF looks broken. User: "better". Wined3d with the same DSfix settings (and `vblank_mode=0`): worse, so DXVK 1.10.3
   stays (`gpd-launch.sh`; wined3d: `gpd-launch-wined3d.sh`). One whole-device freeze (10:40, right after starting the
   game; no log at all, nmi_watchdog off): cause unknown.
+  DXVK 2.x: the black screen is 32-bit DXVK >= 2.5 on hasvk (2.5.3 GPU hang, 2.6.x textures lost after a while),
+  mesa/reports/R5 "Narrowed down"; 2.0 and 2.4 work. Game switched to DXVK 2.4 (claim-1.3 env var in the launcher);
+  1.10.3 kept in `dxvk-test/`. Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support
 

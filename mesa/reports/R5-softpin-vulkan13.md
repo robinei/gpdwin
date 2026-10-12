@@ -351,3 +351,27 @@ of `DXVK_HUD` only the frame-time graph (untextured) appears, no text, no game. 
 and driver (no claim) renders correctly, 30 fps. So "works with the claim" (section 4c, from source) does not
 hold in practice for 2.6.2: something DXVK 2.x uses for textured draws misbehaves on hasvk CHV. Next: DXVK 2.0
 (bisect 2.0..2.6.2), DXVK log at debug level, Mesa `INTEL_DEBUG`/validation layers for the failing draws.
+
+### Narrowed down (same day): 32-bit only, DXVK >= 2.5, not the claim
+Test program `r5/d3d9tex.c` (zig cc -target x86/x86_64-windows-gnu): draws a textured (checkerboard) and an
+untextured quad for N frames, reads back the render target. Runs under Wine with each DXVK's `d3d9.dll`
+(`d3d9=n`), claim on for 2.x; GPU hangs counted from dmesg per run. 2400 frames unless noted:
+
+| DXVK | 64-bit (~/.wine) | 32-bit (wine32, ~/.wine32) |
+|---|---|---|
+| wined3d | correct | (game ok) |
+| 1.10.3 | correct | correct, 0 hangs |
+| 2.0 | | correct, 0 hangs |
+| 2.4 | | correct, 0 hangs |
+| 2.5.3 | | GPU hang ("Resetting rcs0 for CS error", ecode 8:1:...), then stalls forever |
+| 2.6.1 | | correct at 300 frames, textured black at 2400 |
+| 2.6.2 | correct | correct at 1 and 30 frames, black from 300; no GPU hang logged |
+
+So: not the claim (2.0/2.4 use it), not a missing feature (64-bit 2.6.2 is fine). Two 32-bit failures from
+DXVK 2.5 on: a CS-error hang (invalid commands reached the GPU) with 2.5.3, and lost texture contents after a
+while without a hang with 2.6.x. 2.5 brought DXVK's new memory allocator; 32-bit DXVK also manages mappings to
+save address space. `DXVK_CONFIG="dxvk.enableMemoryDefrag = False"` did not help 2.6.2 (option name unverified).
+Likely in 32-bit hasvk (relocation/address handling with the new allocation patterns) or 32-bit DXVK; not yet
+known which. Next: DXVK memory logging at the moment textures go black, DXVK's 32-bit mapping options, a 32-bit
+validation layer (not packaged for Arch). Practical: 32-bit games use DXVK <= 2.4 (Dark Souls: 2.4).
+The game's "black screen" earlier: HUD text present at first, then gone (user), matching the time-based loss.
