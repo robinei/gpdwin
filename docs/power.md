@@ -144,15 +144,16 @@ in OTG/boost mode and USB-C was not sourcing. So ~11 W went somewhere outside th
 a failing power component or the battery. Powered off to cool. Next: check the battery for swelling,
 then boot on the charger and measure the drain right after boot.
 After cooling (22:40, ~45 min off): still 4.1-4.6 A right after boot, SoC 1.3-1.8 W, temps 42 -> 48 C in two
-minutes at idle. Backlight: the PWM follows the setting (level 5 = 13% duty, checked in debugfs), but the screen
-stays at full brightness and the current barely changes between levels 100 and 1 (~100 mA): the backlight
-circuit doesn't follow its control, a likely suspect for the extra load and the heat (not confirmed). On a
+minutes at idle. Backlight works: setting it from ssh dimmed the screen (Robin confirmed), the PWM follows (level 5 = 13% duty,
+debugfs), and levels 100 to 1 change the current by only ~100-300 mA, so the backlight is not the extra load. (The
+brightness key and the wob bar were out of step with the real level after boot: the bar showed the minimum at
+level 100 and brightness-down did nothing; not investigated yet.) On a
 12 V PD charger the battery charged at +1.1 A, so the charger covered the extra load, but PNIT still climbed
 48 -> 59 C at idle. Powered off. Web search (2026-10-12): no known GPD Win 1 fault with these symptoms; swollen
 batteries are a known GPD Win problem; the battery sits in the bottom cover (6 small Phillips screws, two cables:
 battery and fan), so it can be inspected without taking the board out. The gauge measured the 4 A through its
 sense resistor, so the load is outside the cell (an internal cell short would not show there).
-Robin: the heat came from the body (base), not the screen half; so the board or battery area, not the panel.
+Robin: the heat came from the body (base), not the screen half: the board or the battery.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
