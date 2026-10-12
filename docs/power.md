@@ -185,6 +185,11 @@ SoC, PMIC, memory or their regulators (matches the SoC's own DTS sensors reading
 Software test for next boot: does the extra current follow the CPU/GPU voltage (cap CPU at its lowest clock,
 offline cores 1-3, GPU at its minimum, then turbo)? Leakage in the SoC or on its core rail scales with voltage;
 a short elsewhere wouldn't.
+Timeline: earlier on 2026-10-12, Dark Souls ran for hours at 8 W (CPU and GPU turbo, 77-80 C) while charging at
+9 V PD. The device "almost melted" during the first Wind Waker test (~21:40-21:50), while charging. During that
+test MangoHud showed ~4 W package yet the SoC sensors reached 85 C, hotter than Dark Souls at 8 W, so the extra load
+was probably already there when Dolphin started; the long hot sessions before it may have tipped an ageing part.
+No battery-current log exists from before 21:50 to show when it began.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
