@@ -91,7 +91,9 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   threads 49/31/17%). Then render 960x540 and `dofOverrideResolution 180`: DSfix has no DoF off switch, but its
   source (`getDofRes`, d3d9dev.cpp) takes any height: 180 makes the DoF targets 320x180 and 160x90 instead of the
   game's 512x360 and 256x180 (a quarter of the pixels, blurrier DoF). Untested values per the ini; back to 0 if
-  DoF looks broken.
+  DoF looks broken. User: "better". Wined3d with the same DSfix settings (and `vblank_mode=0`): worse, so DXVK 1.10.3
+  stays (`gpd-launch.sh`; wined3d: `gpd-launch-wined3d.sh`). One whole-device freeze (10:40, right after starting the
+  game; no log at all, nmi_watchdog off): cause unknown.
 
 ## Very likely runs well, controller support
 
