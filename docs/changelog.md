@@ -808,3 +808,11 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Captured settings (Robin's choices): RetroArch `video_driver = "vulkan"` (snes9x fast-forward ~300 fps vs ~200 with
   gl), F toggles the fps display, menu aspect ratio 2/lock 2; PPSSPP previous/next save-slot keys; DevilutionX
   1280x720 (was 853x480).
+
+## 2026-10-12 — GameCube collection (Dolphin)
+- `dolphin-emu` installed; `~/Games/ngc` collection (logo `gc.svg` from the grid theme), config in
+  `dotfiles/dolphin-emu/`, fetch-boxart knows GameCube. Wind Waker ISO renamed from `s3-zldww.iso`.
+  Open: keyboard input while Dolphin is focused; speed not measured. Revert: `pacman -Rns dolphin-emu`,
+  drop the `ngc` lines from game_dirs.txt and manifest.tsv.
+- The device overheated during the test: ~14 W battery drain with the SoC idle (docs/power.md
+  "Overheating with a 4 A battery drain"). Powered off.

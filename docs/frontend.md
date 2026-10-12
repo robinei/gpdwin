@@ -101,6 +101,17 @@ One directory per collection under `~/Games`, each listed in `~/.config/pegasus-
   Settings (2026-10-12): Vulkan backend with VSync off. Fast-forward: Vulkan 165 fps vs OpenGL 145, both smooth; with
   VSync on, Vulkan's FIFO swapchain shows at most ~60 of the fast-forwarded frames (judder, "50/60"), while PPSSPP's GL
   backend drops vsync for fast-forward itself. Status display shows fps + speed (`iShowStatusFlags = 6`).
+- `ngc` (ISOs, not in the repo; metadata is a `copy` entry): `shortname: gc` (logo), standalone Dolphin
+  (`dolphin-emu`, Arch package): `env QT_QPA_PLATFORM=xcb dolphin-emu -b -e "{file.path}"` (Dolphin doesn't
+  support Wayland rendering; `-b` quits Dolphin when the game stops). Name ISOs as in Redump
+  (`Legend of Zelda, The - The Wind Waker (USA).iso`). Config `dotfiles/dolphin-emu/` (`keep` entries):
+  Vulkan, 1x, 16:9, shader compilation "skip drawing" (no stutter, brief missing effects), VSync off,
+  SDL pad mapped by position (A/B/X/Y, Z = right shoulder, L/R = triggers, C-stick = right stick), Esc
+  stops. Wind Waker: Dolphin's own widescreen Gecko code and "Remove Distance Blur" enabled
+  (`~/.local/share/dolphin-emu/GameSettings/GZLE01.ini`). Tried 2026-10-12: Esc and save-state keys
+  (Shift+F1..F8) didn't reach Dolphin and sway's workspace keys didn't work while it was focused
+  (cause not found yet). No speed figure yet: the test ended when the device overheated
+  (docs/power.md).
 - `utils` (repo `pegasus/utils`, `x-shelf-kind: tools`): tools in `tools/*.sh`, 512x512 icons in
   `media/` (#11111b / #1e1e2e / #45475a / #89b4fa, DejaVu Sans Bold labels; keep them 8-bit).
   Terminal tools run `foot --app-id=shelf-tool`, fullscreen like everything on workspace 1.

@@ -134,6 +134,16 @@ is the right "screen off" despite causing ~64 i915 irq/s while off (backlight-0 
 Method: average `max170xx_battery/current_now` every 2 s for 60 s after 20 s settling, swayidle
 paused, run via `swaymsg exec` (brightnessctl needs the session).
 
+## Overheating with a 4 A battery drain (2026-10-12, open)
+After ~10 min of Wind Waker in Dolphin (package limit 6 W, MangoHud showed ~4 W) the device got very hot.
+Dolphin stopped, charger unplugged, screen at 1%: package 1.3 W (normal), but the battery discharged at
+3.9-4.1 A at 3.57 V (~14 W; normal idle 0.6 A / 2.6 W, table above). The gauge's own count agreed
+(34 mAh in 30 s; 76% -> 54% in ~25 min) and the cell sagged 0.45 V below its open-circuit estimate, so
+the load was real. PNIT 79 -> 81 C and rising while idle, coretemp 79 C at idle. The charger was not
+in OTG/boost mode and USB-C was not sourcing. So ~11 W went somewhere outside the SoC: suspect a short,
+a failing power component or the battery. Powered off to cool. Next: check the battery for swelling,
+then boot on the charger and measure the drain right after boot.
+
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
   answers its 4 ms interrupt poll with identical idle reports, 250 irq/s, whenever the screen is
