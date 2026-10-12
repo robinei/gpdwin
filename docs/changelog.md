@@ -803,3 +803,8 @@ Details before 2026-10-06 are in `docs/archive/`.
   builds. setup-game playbook: the claim-1.3 variable is no longer needed, the old "no 32-bit DXVK >= 2.5" rule dropped.
 - Heretic + Hexen: DXVK 2.4.1 (64-bit gplasync release `d3d11.dll` + `dxgi.dll`, async compile) instead of Wine's
   wined3d; old launcher kept as `gpd-launch-wined3d.sh`. Revert: copy that over `gpd-launch.sh` (the DLLs are then unused).
+- Heretic + Hexen: DXVK removed again (DLLs, dxvk.conf, wined3d launcher); the game has its own Vulkan renderer, now
+  selected in its settings (`r_rhirenderfamily "vulkan"`).
+- Captured settings (Robin's choices): RetroArch `video_driver = "vulkan"` (snes9x fast-forward ~300 fps vs ~200 with
+  gl), F toggles the fps display, menu aspect ratio 2/lock 2; PPSSPP previous/next save-slot keys; DevilutionX
+  1280x720 (was 853x480).
