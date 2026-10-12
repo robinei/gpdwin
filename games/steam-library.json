@@ -3401,7 +3401,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Dark Souls: Prepare to Die Edition",
-   "windows": true
+   "windows": true,
+   "size_mb": 3826
   },
   {
    "source": "steam",
