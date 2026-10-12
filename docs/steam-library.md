@@ -96,7 +96,9 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   game; no log at all, nmi_watchdog off): cause unknown.
   DXVK 2.x: the black screen is 32-bit DXVK >= 2.5 on hasvk (2.5.3 GPU hang, 2.6.x textures lost after a while),
   mesa/reports/R5 "Narrowed down"; 2.0 and 2.4 work. Game switched to DXVK 2.4 (claim-1.3 env var in the launcher);
-  1.10.3 kept in `dxvk-test/`. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
+  1.10.3 kept in `dxvk-test/`. Then dxvk-gplasync v2.4.1-1 (gitlab.com/Ph42oN/dxvk-gplasync `releases/`, sha256 `ee96eaf6...f8a1f4`, no
+  upstream checksum; 32-bit d3d9tex: correct after 2400 frames, no hang) with `dxvk.enableAsync = true` in dxvk.conf
+  (async pipeline compiles; hasvk has no graphics pipeline library, so only the async part applies). Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support
