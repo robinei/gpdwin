@@ -116,7 +116,16 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     in layouts without aux (silent). `INTEL_DEBUG=perf` run: only "Enable gfx8 multisampled HiZ" (one image). Not
     the swapchain: `d3d9.forceSwapchainMSAA = 0` kept the warning, HiZ fails still 0, no fps change (reverted).
     DSfix passes the game's MSAA type through unchanged. Open: which image is MSAA, why the main depth gets no HiZ
-    (a silent path, or the counter doesn't count on CHV). Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
+    (a silent path, or the counter doesn't count on CHV).
+  - Cause found and fixed: hasvk had no HiZ at all since Mesa 23.0 (mesa/0006-hasvk-restore-hiz.patch, Mesa 1.7,
+    installed). In game HiZ now rejects most hidden pixels (early-depth bottleneck 34% -> 14%), GPU load ~90% ->
+    ~76%, but fps about the same: ~19-24 depending on the spot.
+  - Where the frame goes now (perf sched, 8 s): the game's render thread HighGraphics runs ~50-66% (game code, ~30 ms
+    per frame), and is blocked ~25-40%, woken by DXVK's dxvk-queue (frames finishing); GPU ~76% busy at ~460 MHz.
+    GPU pinned at 600 MHz: no change (memory-bandwidth bound). `d3d9.numBackBuffers = 3` + `d3d9.maxFrameLatency = 3`
+    kept (dxvk.conf; no measurable change, no added lag noticed); maxFrameLatency 6: no change.
+  - Wine's Wayland driver (launcher with `unset DISPLAY`): the game crashes at start (page fault reading 0 in
+    darksouls+0xb70225 while handling display modes, stack holds 1280x720/800x450/... sizes); back to X11. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support
