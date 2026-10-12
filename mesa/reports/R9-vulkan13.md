@@ -177,7 +177,19 @@ Sampled groups finished later (patches 1+3 build `vk13p2dbg` vs stock, same list
 | `pipeline.monolithic` /200 (1490) | 788 Pass, 701 NS, **1 Fail** (`interface_matching...float64.multiple_locations.vec2`) | 789 Pass, 701 NS, 0 Fail | the stock failure passes with the patches (not investigated: may be nondeterministic) |
 | `glsl` /50 (478) | 356 Pass, 122 NS | 359 Pass, 119 NS | 3 cases NotSupported on stock pass (they need features the patches add) |
 | `draw` /25 (1229) | 932 Pass, 292 NS, **5 Fail** | 930 Pass, 292 NS, **7 Fail** | all failures on both drivers are `indexed_draw`/`indirect_draw` cases with `offset_minus_one` / `offset_negative_large` / `alloc_offset` (index buffer offsets outside the buffer, robustness of out-of-bounds index fetches), and the failing *set* differs between the two runs: nondeterministic on this hardware/driver, present before the patches, not a softpin regression as far as these runs show. Worth a repeat run on both drivers when the device is free. |
-| `robustness` /60 (1608) | (running) | 704 Pass, 904 NS, 0 Fail | |
+| `robustness` /60 (1608) | (queue4) | 704 Pass, 904 NS, 0 Fail | |
+| `draw` /25 (1229), final build | 932 Pass, 5 Fail | 929 Pass, 292 NS, 8 Fail | same nondeterministic index-offset cases |
+| `pipeline.monolithic` /200, final build | 788 Pass, 1 Fail | 789 Pass, 701 NS, 0 Fail | |
+| `push_constant`/`push_descriptor` (133), final build | 131 Pass, 2 NS | 133 Pass | |
+
+Draw-group failures, repeated (`lists-drawfail.txt` = the 10 cases that failed in either run, twice per driver;
+`lists-indexed.txt` = every 3rd `indexed_draw` case of renderpass + dynamic_rendering primary): stock **5/10 and 5/10
+fail**, patched 2/10 and 4/10 (different cases each time); indexed sample: stock 16/121 fail, patched 13/121. All are
+`offset_minus_one` / `offset_negative_large` / `alloc_offset` / `indexed_alloc_offset_16` cases (index fetches outside the
+bound range). **Pre-existing and nondeterministic on this hardware/driver, not a softpin regression.** The later queue4
+groups (ssbo, texture, shader_access, descriptor_indexing with the claim, bm-other, devinit, final-build confirmation of
+compute/glsl/memory/bda sample) were still running at the end of the session: `bash ~/vk13-test/compare.sh` on the GPD
+lists them (`QUEUE4DONE` marks completion).
 
 **Still running on the GPD when this was written** (the plan continues unattended; `ssh gpdwin.lan bash
 ~/vk13-test/compare.sh` prints the summary and the per-test diffs when they are done; `ALLDONE`/`QUEUE2DONE`/`QUEUE3DONE`
@@ -350,7 +362,7 @@ What could be made real on gfx8, so that the option becomes a default:
 ~/vk13-test/darksouls-test.sh vk13-24          # same DXVK 2.4.1 DLL, patched 32-bit driver (softpin, real 1.3)
 ~/vk13-test/darksouls-test.sh vk13-24-reloc    # patched driver in relocation mode (isolates the softpin part)
 ASYNC=0 ~/vk13-test/darksouls-test.sh vk13-24  # async readback off: expect ~19-24 fps, GPU ~75 % (R5/dxvk README)
-~/vk13-test/darksouls-test.sh vk13-27          # DXVK 2.7.1-gpd; only enabled once ~/vk13-test/vk13-27-ok exists (9.3)
+~/vk13-test/darksouls-test.sh vk13-27          # DXVK 2.7.1-gpd + gplasync + readback port, patched driver (enabled, 9.3)
 ```
 Run from a terminal in sway (foot) on the GPD, never two at once. The script prints the variant, driver and DLL
 (sha256) at start, swaps `DATA/d3d9.dll` only for `vk13-27` and restores it on any exit (verified by sha256; dry-run
