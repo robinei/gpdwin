@@ -801,3 +801,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   On the GPD `~/Games/tools/dxvk/gpd-2.6.2/` and `gpd-2.7.1/` (x32 + x64, gplasync + async readback; texture test
   correct on Mesa 1.11); `gpd/` stays 2.4.1, the default. Dark Souls' `dxvk-test/` 2.6.2/2.7.1 copies replaced by these
   builds. setup-game playbook: the claim-1.3 variable is no longer needed, the old "no 32-bit DXVK >= 2.5" rule dropped.
+- Heretic + Hexen: DXVK 2.4.1 (64-bit gplasync release `d3d11.dll` + `dxgi.dll`, async compile) instead of Wine's
+  wined3d; old launcher kept as `gpd-launch-wined3d.sh`. Revert: copy that over `gpd-launch.sh` (the DLLs are then unused).

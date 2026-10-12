@@ -159,6 +159,10 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     **24.3 -> 28.0 fps** in a heavy area; temperatures level at 77-80 C after 2 min (limit ~90 C). The launcher sets
     8 W while the game runs (now `GPD_TDP_W=8 GPD_GPU_PIN=1` for game-wrap, docs/power.md); a reboot resets it too. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
+  Heretic + Hexen (3286930, Nightdive KEX remaster, 64-bit): renders through D3D11 (`kexengine.log`: kexRHIContextD3D11,
+  under Wine's wined3d it saw "Intel(R) HD Graphics 4000 (11_1)"); the KEX engine also has Vulkan cvars (`vk_*`), a native
+  Vulkan renderer is untried. 2026-10-12: DXVK 2.4.1 (gplasync release x64 `d3d11.dll` + `dxgi.dll` next to the exe,
+  `WINEDLLOVERRIDES="d3d11,dxgi=n"`, `dxvk.conf` with `dxvk.enableAsync = true`); Wine's d3d11: `gpd-launch-wined3d.sh`.
   Psychonauts (3830, 2026-10-12): Windows build, 32-bit D3D9, no SteamStub, `steam_appid.txt` is enough (no gbe).
   Wine's d3d9 first start: "unable to find a 32bpp display mode" (Xwayland offers only 720x1280 and 640x480): fixed by a
   `DisplaySettings.ini` next to the exe (PCGamingWiki; 1280x720, FullScreen=true, VSync=false, FSAA=false). Then it runs.
