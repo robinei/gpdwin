@@ -676,3 +676,11 @@ Details before 2026-10-06 are in `docs/archive/`.
   DXVK 1.10.3 measured as vsync-rounded ~55 ms frames, GPU 75% busy. docs/steam-library.md.
 - DXVK 2.x black screen narrowed down with a small D3D9 test (`mesa/reports/r5/d3d9tex.c`): 32-bit DXVK 2.5.x hangs
   the GPU, 2.6.x loses textures after a while; 2.0/2.4 and all 64-bit fine. Dark Souls now on DXVK 2.4.
+
+## 2026-10-12 — Mesa 1.7: HiZ for Vulkan (hasvk)
+- Profiling Dark Souls (DXVK) showed no hierarchical-depth rejects. Cause: hasvk has had no HiZ since Mesa 23.0
+  (upstream e4904344 dropped the plain HiZ cases with the Gfx12 HiZ+CCS ones). `mesa/0006-hasvk-restore-hiz.patch`
+  restores them; fill tests 3-6x faster (DXVK 35 -> 182 fps), results correct, no GPU hangs. In Dark Souls HiZ now
+  rejects most hidden pixels and GPU load fell ~90% -> ~78%, fps about the same (now limited elsewhere).
+  All six -gpd packages 1.5 -> 1.7 installed with `mesa/install.sh`. Revert: reinstall 1.5 packages or `mesa/rollback.sh`.
+- Dark Souls launcher: profiling settings and the test driver path removed again.

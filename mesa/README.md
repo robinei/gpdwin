@@ -19,7 +19,7 @@ Contents:
 - `0002-crocus-blit-large-tiled-uploads.patch` (since 1.4): write-only uploads >= 64 KiB into tiled textures on
   non-LLC parts use a linear staging texture + GPU blit instead of the CPU tiled copy through an uncached map:
   matching-format uploads (SDL opengles2, wlroots shm clients) 2.01 -> 0.91 ms (853x480).
-- `0006-hasvk-restore-hiz.patch` (1.7, 2026-10-12; not installed yet): hasvk (Vulkan, Gfx7/8) has had no HiZ since
+- `0006-hasvk-restore-hiz.patch` (1.7, installed on the GPD 2026-10-12): hasvk (Vulkan, Gfx7/8) has had no HiZ since
   Mesa 23.0: e4904344 "hasvk: Drop CCS_E support" removed the HiZ+CCS (Gfx12) cases in `add_aux_surface_if_supported()`
   and `anv_layout_to_aux_state()` and the plain HiZ ones with them. The patch restores both. Native Vulkan fill test
   (`reports/r5/vkdepth.c`, 199 hidden full-screen layers): D16 15.6 -> 5.2 ms, D24S8/D32 27.5 -> 4.8/5.2 ms, results
