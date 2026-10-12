@@ -85,3 +85,12 @@ draw-heavy variants were GPU fill-rate bound); not enabled. Functional checks wi
 - Draw-call overhead (`drawbench 2000`): 2.9 ms/frame = ~690k draws/s; glthread 3.0 ms (no gain).
 - Final 1.4 from /tmp: colorcheck PASS (64/32-bit); opengles2 upload 0.91 ms / 699 fps, opengl 0.82 ms / 757 fps;
   0 flash events in 5 min of the SDL-style upload test; readback GL_BGRA 3.55 / 4.35 ms. Installed 2026-10-12.
+
+## 1.5 (2026-10-12, installed)
+Adds R7's patches 0003 (upload-blit threshold 256 KiB), 0004 (read-only maps of tiled textures >= 64 KiB via staging
+blit: glReadPixels/glGetTexImage without conversion ~5 -> 3.9 ms, 1280x720 ~11 -> ~5 ms; glGetTexImage *with*
+conversion ~1 ms slower), 0005 (read-only buffer maps invalidate only the mapped range: 0.8-1.4 -> 0.11 ms for 64 B
+from 4 MiB) and the driconf trim (`drirc-trim.py`, `drirc-keep.txt`: 111 native-program entries dropped, all .exe
+entries kept; ~3-4.5 ms faster GL program start). Correctness review R6: all ship; dEQP 12,994 cases and piglit
+identical to stock. From /tmp before install: colorcheck PASS 64/32-bit, 0 flash events in 5 min, frame rates unchanged.
+To keep a driconf workaround for a newly installed native game: add its executable to `drirc-keep.txt`, rebuild.

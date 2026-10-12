@@ -70,9 +70,10 @@ truth; this explains the choices.
 - **Own Mesa** (since 2026-10-12): `mesa-gpd`, `vulkan-intel-gpd`, `vulkan-mesa-implicit-layers-gpd` and their
   `lib32-` versions replace Arch's `mesa`, `vulkan-intel`, ... (provide + conflict the Arch names, like
   `mangohud-light`, so repo updates never overwrite them). `mesa/`: Arch's PKGBUILD slimmed to this device
-  (crocus + softpipe, hasvk; no LLVM at runtime) + two crocus patches (no snooped staging textures: stops the display
-  flashes, uploads ~3x and readback ~40 % cheaper; GPU blit for large texture uploads: ~2x cheaper); GL programs start
-  ~1/3 faster with ~60 % less memory (mesa/README.md). Vulkan 1.3/DXVK and softpin: `mesa/reports/R5-*.md`, ideas 13. Built on the desktop (`mesa/build.sh`,
+  (crocus + softpipe, hasvk; no LLVM at runtime) + five crocus patches (no snooped staging textures: stops the display
+  flashes; GPU blit for uploads >= 256 KiB and for tiled readback; range-limited invalidate for read maps) and a
+  trimmed driconf file; GL programs start ~40 % faster with ~60 % less memory (mesa/README.md; release 1.5;
+  correctness: mesa/reports/R6, dEQP/piglit identical to Arch's Mesa). Vulkan 1.3/DXVK and softpin: `mesa/reports/R5-*.md`, ideas 13. Built on the desktop (`mesa/build.sh`,
   `mesa/build.sh lib32`), installed with `mesa/install.sh`; Arch's packages saved in `/var/cache/gpd-mesa-stock`,
   `mesa/rollback.sh` puts them back. `scripts/aur check` shows "REBUILD" when Arch has a newer Mesa; a package
   update that needs a newer Mesa than ours fails with a dependency error until we rebuild.
