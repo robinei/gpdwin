@@ -118,6 +118,9 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - Boot race (fixed 2026-10-12): tmpfiles applies turbo.conf at ~8 s, intel_rapl creates the powercap files at
   ~13 s, so PL1 and energy_uj kept their root-only modes (GPD_TDP_W silently ineffective, MangoHud 0 W).
   `turbo-perms.service` (enabled) waits for the files and runs tmpfiles for turbo.conf again.
+- Reference points (2026-10-12): idle with the screen on ~1.2 W; Chrono Trigger (SNES, RetroArch snes9x, turbo
+  off) draws ~2.1 W at full speed (CPU 1.6 GHz, RetroArch half a core, GPU at its minimum) and at a 1 W limit
+  runs ~40 fps instead of 60 (two-thirds speed); Dark Souls wants 8 W.
 
 ## Measured power (2026-10-07, on battery, Pegasus idle, brightness 5%)
 | State | Current | Power |
