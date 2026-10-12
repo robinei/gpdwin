@@ -10,7 +10,7 @@ pkgname=(
 )
 pkgver=26.2.4
 _pkgver=${pkgver/[a-z]/-&}
-pkgrel=1.4
+pkgrel=1.5
 epoch=1
 pkgdesc="Open-source OpenGL drivers - 32-bit (GPD Win 1 build: crocus + hasvk only)"
 url="https://www.mesa3d.org/"
@@ -58,6 +58,9 @@ source=(
   "https://archive.mesa3d.org/mesa-$_pkgver.tar.xz"{,.sig}
   0001-crocus-don-t-snoop-staging-textures.patch
   0002-crocus-blit-large-tiled-uploads.patch
+  0003-crocus-upload-blit-threshold-256k.patch
+  0004-crocus-read-back-tiled-textures-via-blit.patch
+  0005-crocus-invalidate-only-mapped-range-on-read.patch
 )
 validpgpkeys=(
   946D09B5E4C9845E63075FF1D961C596A7203456 # Andres Gomez <tanty@igalia.com>
@@ -70,11 +73,17 @@ validpgpkeys=(
 b2sums=('28506a9366e3c031acbb52924e43b0ec098f44a3ac3bb839ec2a86fa0faf83652347704b0e58bdc447aaebae5a2a254e5456e0b893755fd7721e57d6b614ecc4'
         'SKIP'
         'ae1b2d2120a6c847aa13a784945f6eef035a56509ff7e788f7f95e9ee218f8fb6df7533eb54a10b711bfe9993d3c0ebecbdf8f84a8efb7b64be0ce7759f27ac0'
-        '5999461b17d1376c900c692838000fa49cf1a1b57308cad6cef9806eb8153cc05cb893d37d43c1226cd43e6e728950d22baa9f46789f8f19763f51c4e4ab75f5')
+        '5999461b17d1376c900c692838000fa49cf1a1b57308cad6cef9806eb8153cc05cb893d37d43c1226cd43e6e728950d22baa9f46789f8f19763f51c4e4ab75f5'
+        'cb7b4e19d8f813b3981809d36bdec2b554ad52d6580e048caac7724de952a674b8e2b4d3c541c3bc38b609c9dd1d6c149a26063027c8b401d0eafe3f2d3ee6fe'
+        'e8e982997469145dea8ad75b52f3f4cc100ec586756973153204c130cda0cde12d71fab7e19615a5b93540022ca493d26ea0e32bf51c89a3bd119db924d6df7b'
+        '467fc913c668f1a3375b13e3e7dd7c7bbb2e7306b99c841971482bfef32f96fe0e1fa1b8b96981c71e2508f3fd5fd79b27a263c5c9d5f109230d21d8ab96fff3')
 sha256sums=('bce5f7fbebb934373b86c999a064d52fb5065878dc57f287f95346648ec832e9'
             'SKIP'
             '68c00fc8c9dfa56c0f073a578d7f5e7b47938cb20e5354bda777bfec113edf45'
-            'dd9ac293bc7ac4d284b26918628c33fd82a417d0ccd61e56943a0a47859e2fd2')
+            'dd9ac293bc7ac4d284b26918628c33fd82a417d0ccd61e56943a0a47859e2fd2'
+            'd797a7896923165a2d7b363b6f065430c89aa6c633648660185471f6ee748b21'
+            '4113e8edf4b02bb046adca6bb3bb15bf1a6dc1bb7ff31d6dd7a83f2e5f856705'
+            '8394cd43444c4a4a3af5a8fb62166c84fa0543c1b669f6c373d620d7b116d267')
 
 prepare() {
   cd mesa-$_pkgver

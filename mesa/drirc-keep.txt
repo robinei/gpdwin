@@ -1,0 +1,3 @@
+# Native executables whose Mesa driconf entries are kept by drirc-trim.py (one per line).
+# Add a game here if Mesa's 00-mesa-defaults.conf has a workaround for it and it gets installed.
+firefox
