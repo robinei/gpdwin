@@ -154,6 +154,12 @@ batteries are a known GPD Win problem; the battery sits in the bottom cover (6 s
 battery and fan), so it can be inspected without taking the board out. The gauge measured the 4 A through its
 sense resistor, so the load is outside the cell (an internal cell short would not show there).
 Robin: the heat came from the body (base), not the screen half: the board or the battery.
+Chargers: GPD specified 5 V / 2.5 A for this device, and owners repeat "only use plain 1-2 A chargers" (no
+source found). Linux negotiates USB PD up to 12 V / 3 A here: `drivers/platform/x86/intel/chtwc_int33fe.c` gives
+the fusb302 the sink PDOs 5 V fixed + 5-12 V variable at 3 A (written for the GPD Win and GPD Pocket, which share
+this charger design; the Pocket ships with a 12 V PD charger). The device ran at 9 V PD and 12 V PD on
+2026-10-12. Whether the Win 1's VBUS side tolerates that long-term is unknown; it may be unrelated to the fault.
+Until that's known: plain 5 V chargers only.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
