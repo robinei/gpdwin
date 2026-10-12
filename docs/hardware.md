@@ -208,6 +208,14 @@ An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful
 - The in-session "split picture" (bottom half on top) that we fix with `Mod4+F10` is not covered
   by their patch (different symptom: ours keeps running, theirs stalls).
 
+## Firmware (checked 2026-10-12)
+- BIOS: American Megatrends 5.11, 2016-10-18 (`/sys/class/dmi/id/bios_*`). Memory (SMBIOS type 17, read from
+  `/sys/firmware/dmi/tables/DMI`): 2 x 2 GB Hynix, 1600 MT/s configured. Package power limit PL1 6 W (docs/power.md).
+- A "GPD WIN1 original universal BIOS 2016-11-18" circulates (chinafix.com thread 1401335, RAR re-upload, no
+  checksum or author) claiming "memory 1600 MHz + a high-performance option": the memory part is already true
+  here, the rest is undocumented. Not flashed: unclear source, a bad flash needs an external programmer, and our
+  display/PMIC workarounds depend on firmware behaviour. Only with an official source and a backup first.
+
 ## Memory map (checked 2026-10-07)
 - 4 GB physical, 3.7 GB `MemTotal`. Firmware keeps ~94 MB: 32 MB graphics stolen memory (DVMT
   pre-allocated; already minimal), an 18 MB block at 0x1f000000, ACPI/EFI tables. The kernel
