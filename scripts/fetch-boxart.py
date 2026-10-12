@@ -24,6 +24,8 @@ SYSTEMS = {
     "psx": "Sony - PlayStation",
     "ps1": "Sony - PlayStation",
     "psp": "Sony - PlayStation Portable",
+    "ngc": "Nintendo - GameCube",
+    "gc": "Nintendo - GameCube",
 }
 BASE = "https://thumbnails.libretro.com"
 REGION_PREF = ["(USA)", "(USA, Europe)", "(World)", "(Europe)", "(Japan, USA)", "(Japan)"]

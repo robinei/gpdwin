@@ -38,6 +38,7 @@ keep	dotfiles/devilutionx/diablo.ini	~/.local/share/diasurgical/devilution/diabl
 copy	pegasus/snes/metadata.pegasus.txt	~/Games/snes/metadata.pegasus.txt	robin:robin:0644
 copy	pegasus/psp/metadata.pegasus.txt	~/Games/psp/metadata.pegasus.txt	robin:robin:0644
 copy	pegasus/ps1/metadata.pegasus.txt	~/Games/ps1/metadata.pegasus.txt	robin:robin:0644
+copy	pegasus/ngc/metadata.pegasus.txt	~/Games/ngc/metadata.pegasus.txt	robin:robin:0644
 
 # --- system files (copied, installed with sudo) ---
 copy	system/boot/loader/loader.conf	/boot/loader/loader.conf	root:root:0700
@@ -91,3 +92,7 @@ link	dotfiles/systemd/user/saves-backup.service	~/.config/systemd/user/saves-bac
 link	dotfiles/systemd/user/saves-backup.timer	~/.config/systemd/user/saves-backup.timer
 keep	dotfiles/ppsspp/ppsspp.ini	~/.config/ppsspp/PSP/SYSTEM/ppsspp.ini	robin:robin:0644
 keep	dotfiles/ppsspp/controls.ini	~/.config/ppsspp/PSP/SYSTEM/controls.ini	robin:robin:0644
+keep	dotfiles/dolphin-emu/Dolphin.ini	~/.config/dolphin-emu/Dolphin.ini	robin:robin:0644
+keep	dotfiles/dolphin-emu/GFX.ini	~/.config/dolphin-emu/GFX.ini	robin:robin:0644
+keep	dotfiles/dolphin-emu/GCPadNew.ini	~/.config/dolphin-emu/GCPadNew.ini	robin:robin:0644
+keep	dotfiles/dolphin-emu/GameSettings/GZLE01.ini	~/.local/share/dolphin-emu/GameSettings/GZLE01.ini	robin:robin:0644

@@ -1,0 +1,4 @@
+collection: GameCube
+shortname: gc
+extensions: iso, gcm, rvz, ciso, gcz
+launch: env QT_QPA_PLATFORM=xcb dolphin-emu -b -e "{file.path}"
