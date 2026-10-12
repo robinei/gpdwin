@@ -132,7 +132,10 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     GPU took turns. `DXVK_GPD_ASYNC_READBACK=1` (our patch) skips that wait (values a frame or two old):
     **30 fps (the cap)**, GPU 93-96% busy at ~580 MHz. The game now runs our `dxvk/build.sh` d3d9.dll; the release
     gplasync and 1.10.3 DLLs stay in `dxvk-test/`. Two whole-device freezes with no log during DXVK sessions
-    (10:40 stock driver, 12:32 with HiZ): cause unknown; `ssh ... sudo dmesg -w` to the desktop catches the next one. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
+    (10:40 stock driver, 12:32 with HiZ): cause unknown; `ssh ... sudo dmesg -w` to the desktop catches the next one.
+  - Then: DSfix `FPSlimit 60` (unlockFPS was already 1; DSfix warns of physics/ladder glitches above 30), and the
+    launcher pins the GPU minimum clock to its current maximum while the game runs (`rps_min_freq_mhz`, made
+    wheel-writable in `/etc/tmpfiles.d/turbo.conf`), back to RPn afterwards. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support
