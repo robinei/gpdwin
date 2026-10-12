@@ -4,7 +4,7 @@
  *   cpu 2.4G | gpu 400M | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
  *
  * Battery: "bat 80%" on battery (yellow <=30%, red <=15%), "bat 80%+" charging, "bat full" when
- * charged with the charger connected, "bat 80% max" when held at the charge limit (docs/power.md),
+ * charged to 100% with the charger connected, "bat 80% max" when held at the charge limit (docs/power.md),
  * "bat 80% not charging" (yellow) when connected but stuck.
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
@@ -313,9 +313,11 @@ static void emit(void)
         block(st.muted ? DIM : TEXT, LINE, "%s %d%%", st.muted ? "muted" : "vol", st.volume);
     if (st.battery < 0)
         block(DIM, LINE, "bat ?");
-    else if (st.plugged && strcmp(st.charge, "Full") == 0)
+    else if (st.plugged && strcmp(st.charge, "Full") == 0 && st.battery >= 99)
         block(TEXT, LINE, "bat full");
-    else if (st.plugged && st.at_limit) /* before "Charging": above the limit the chip may say so with 0 A in */
+    /* at the charge limit: the chip says "Full" there too (at ~89%), or above it "Charging"/"Not
+     * charging" with no current going in */
+    else if (st.plugged && (st.at_limit || strcmp(st.charge, "Full") == 0))
         block(TEXT, LINE, "bat %d%% max", st.battery);
     else if (st.plugged && strcmp(st.charge, "Charging") == 0)
         block(TEXT, LINE, "bat %d%%+", st.battery);

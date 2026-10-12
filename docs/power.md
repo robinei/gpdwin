@@ -71,7 +71,8 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - Above the limit (just after lowering it) the battery runs the system until it is down to the limit
   (measured -0.6 A at 4.30 V), and the charger says "Not charging", or "Charging" (seen after a
   recharge cycle started, -1.2 A while it said so): the bar shows `bat N% max` either way.
-  Once at the limit the charger tops up and says "Full" (`bat full`). 
+  Once at the limit the charger says "Full" (at 89%, 4.185 V, +2 mA: the adapter runs the system,
+  the battery rests; measured 2026-10-12); the bar shows `bat 89% max` (`bat full` only at >=99%). 
 - Full charge for a trip: shelf Utilities > Full Charge (`pegasus/utils/tools/charge.sh`) toggles
   4.144 V ↔ 4.384 V, no password (charge-limit makes the file writable by wheel), shows it in wob
   (yellow bar at 80 = limited, full = 100%). Back to the limit at the next boot.
