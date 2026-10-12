@@ -375,3 +375,18 @@ Likely in 32-bit hasvk (relocation/address handling with the new allocation patt
 known which. Next: DXVK memory logging at the moment textures go black, DXVK's 32-bit mapping options, a 32-bit
 validation layer (not packaged for Arch). Practical: 32-bit games use DXVK <= 2.4 (Dark Souls: 2.4).
 The game's "black screen" earlier: HUD text present at first, then gone (user), matching the time-based loss.
+
+## hasvk has had no HiZ since Mesa 23.0 (found 2026-10-12)
+Dark Souls profile: OA `HiDepthTestFails` 0, early-depth bottleneck 34%. Tests (`r5/d3d9depth.c` through DXVK,
+`r5/vkdepth.c` native Vulkan, offscreen, 200 full-screen layers front to back, 199 hidden):
+- vkdepth ms/frame, default vs `INTEL_DEBUG=nohiz`: D16 15.59 / 15.64, D24S8 27.50 / 27.58, D32 27.50 / 27.51.
+  d3d9depth (DXVK 2.6.2 x64): 32.7 / 32.8 fps; OA HiZ fails 0, early-depth fails ~all, early-depth bottleneck 80%.
+- `INTEL_DEBUG=bat` of vkdepth: `3DSTATE_DEPTH_BUFFER ... Hierarchical Depth Buffer Enable: false` for the D16 buffer.
+- Cause: `add_aux_surface_if_supported()` (vulkan_hasvk/anv_image.c) computes the HiZ surface for depth and
+  returns without setting `aux_usage = ISL_AUX_USAGE_HIZ` or `add_surface()` for it. Removed by e4904344
+  "hasvk: Drop CCS_E support" (2022-12-02, first in 23.0): it deleted the HIZ_CCS (TGL+) branches and with them the
+  plain HiZ assignment. Still so on main (checked 2026-10-12); no issue or MR found. All other HiZ paths in hasvk
+  (layouts, resolves, HZ_OP clears, `3DSTATE_HIER_DEPTH_BUFFER`) are still there, unexercised since.
+- CHV devinfo: `has_hiz_and_separate_stencil = true`; anv_can_sample_with_hiz allows gen8.
+Also: D16 is ~1.8x faster than 24/32-bit depth in this fill test (bandwidth).
+Fix candidate: restore `aux_usage = ISL_AUX_USAGE_HIZ` + `add_surface(aux_surface, PLANE_0 + plane, IMPLICIT)`.
