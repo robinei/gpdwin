@@ -186,21 +186,19 @@ Draw-group failures, repeated (`lists-drawfail.txt` = the 10 cases that failed i
 `lists-indexed.txt` = every 3rd `indexed_draw` case of renderpass + dynamic_rendering primary): stock **5/10 and 5/10
 fail**, patched 2/10 and 4/10 (different cases each time); indexed sample: stock 16/121 fail, patched 13/121. All are
 `offset_minus_one` / `offset_negative_large` / `alloc_offset` / `indexed_alloc_offset_16` cases (index fetches outside the
-bound range). **Pre-existing and nondeterministic on this hardware/driver, not a softpin regression.** The later queue4
-groups (ssbo, texture, shader_access, descriptor_indexing with the claim, bm-other, devinit, final-build confirmation of
-compute/glsl/memory/bda sample) were still running at the end of the session: `bash ~/vk13-test/compare.sh` on the GPD
-lists them (`QUEUE4DONE` marks completion).
+bound range). **Pre-existing and nondeterministic on this hardware/driver, not a softpin regression.**
 
-**Still running on the GPD when this was written** (the plan continues unattended; `ssh gpdwin.lan bash
-~/vk13-test/compare.sh` prints the summary and the per-test diffs when they are done; `ALLDONE`/`QUEUE2DONE`/`QUEUE3DONE`
-in `~/vk13-test/logs` mark completion): sampled `memory`, `draw`, `pipeline.monolithic`, `compute`, `query_pool`,
-`api.copy_and_blit`, `synchronization`, `glsl`, `dynamic_state`, `robustness`, `ssbo`/`ubo`, `texture`, each on
-`vk13p2dbg` and stock (`runall2.sh`, ~25 k cases); `binding_model.shader_access` sample and `binding_model` others on
-final and stock, the full `descriptor_indexing.*` group (110) with patch 4's option on final (`queue2.sh`); and
-confirmation runs of `draw`, `pipeline`, `compute`, `glsl`, `push`, every 5th `buffer_device_address`, `memory`,
-`api.device_init` + `object_management` on the final build (`queue3.sh`). Any difference from stock would show up in
-`compare.sh`'s "DIFFERS" lines; none had appeared in the groups finished so far. The test session saw **0 GPU hangs**
-(`journalctl -k`, checked after every group) and no assert on the `dbg` builds.
+**Final CTS state (all queues finished 2026-10-12 ~17:00, `compare.sh`):** per test identical to stock: memory,
+compute, copy_and_blit, query_pool, synchronization, dynamic_state, robustness, cmdbuf (final), devinit (final, 688),
+`binding_model.shader_access` sample (864), `binding_model` others (548), texture sample (140). Differing groups differ
+only as described: push (256-byte cases NotSupported -> Pass), glsl (+3 Pass), pipeline (stock's 1 Fail passes),
+ssbo sample (641 Pass / 363 NS, 0 Fail: BDA variants NotSupported on stock now pass), draw/indexed (the nondeterministic
+index-offset failures above). Non-pass results on the patched driver apart from those draw cases: the 3
+`capture_replay_stress` ResourceErrors of the first debug build (fixed, 4716/4716 on the final build), 2
+`object_management.alloc_callback_fail` QualityWarnings (stock identical), and in `descriptor_indexing.*` with patch 4's
+claim **6 Pass, 1 NotSupported (uniform_buffer), 1 Fail: `storage_texel_buffer`**. That fail is the known limit of
+patch 4 (update-after-bind for non-sampler descriptors falls back to the binding table, so a later update is not seen);
+DXVK only uses the sampler path. **0 GPU hangs and no asserts in the whole session.**
 
 ### 4.3 DXVK 2.7.1 (own build, `/var/lib/archbuild/gpd-dxvk/root/build-271`, x64 + x32 DLLs in `~/vk13-test/dxvk271`)
 `r9/dxvktest.sh`: `r5/d3d9tex.exe` (64-bit, Wine 11.19, `~/.wine`) with DXVK's `d3d9.dll` next to the exe
@@ -261,7 +259,7 @@ Residual risks:
    non-LLC part) like Broadwell's; in relocation mode they are userptr memfd mappings, which are snooped too, so no change
    in kind. R4's DSI display flashes were triggered by large *uploads* through snooped staging textures; state pools are
    small writes; not observable this session (lid closed), an on-screen check is listed in section 8.
-4. **CTS coverage.** ~22 k dEQP-VK cases complete at writing time (section 4.2) plus the sampled groups still running, in the groups that softpin/BDA touch (binding model, API, memory,
+4. **CTS coverage.** ~22 k dEQP-VK cases plus the sampled groups (all finished, section 4.2), in the groups that softpin/BDA touch (binding model, API, memory,
    command buffers, draw, pipeline, compute, glsl, synchronization, queries, copies, robustness, push constants),
    sampled, all matching the installed driver. The full mustpass is 1.69 M cases (days on this Atom); a conformance
    claim for CHV would need all of it plus the WSI groups on-screen.

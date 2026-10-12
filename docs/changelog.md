@@ -745,3 +745,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - R9 32-bit matrix done (section 9.3): DXVK 2.7.1 x32 runs only on the patched (softpin) driver, correct in d3d9tex32
   and d3d9rb32, 0 GPU hangs; async readback needed and works on 2.7.1 too (lock 8.90 -> 0.05 ms/frame), but 2.7.1 is
   slower than 2.4.1 in the readback test (7.00 vs 3.60 ms/frame). Kit variant vk13-27 enabled (`~/vk13-test/vk13-27-ok`).
+- R9 CTS queues finished (section 4.2): every sampled group identical to stock or better (push/glsl/pipeline/ssbo gain
+  passes); the draw index-offset failures are nondeterministic on both drivers; `descriptor_indexing.storage_texel_buffer`
+  fails with patch 4's claim (known limit, DXVK only uses samplers); 0 GPU hangs. The GPD is free again.
