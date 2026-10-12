@@ -164,6 +164,21 @@ The per-test result files of the `info`, `apibuf` and `push` runs were produced 
 parser was broken; the numbers above are dEQP's own totals from the run output (`logs/*.out`), re-parsed with
 `r9/reparse.sh`.
 
+Sampled groups finished later (patches 1+3 build `vk13p2dbg` vs stock, same lists; from `compare.sh`):
+
+| list (count) | stock | vk13p2dbg | per test |
+|---|---|---|---|
+| `memory.*` /5 (1254) | 537 Pass, 717 NS | same | identical |
+| `compute.*` /50 (1216) | 91 Pass, 1125 NS | same | identical |
+| `api.copy_and_blit` /200 (1299) | 343 Pass, 956 NS | same | identical |
+| `query_pool` /10 (1825) | 1801 Pass, 24 NS | same | identical |
+| `synchronization` /60 (1080) | 343 Pass, 737 NS | same | identical |
+| `dynamic_state` /10 (67) | 12 Pass, 55 NS | same | identical |
+| `pipeline.monolithic` /200 (1490) | 788 Pass, 701 NS, **1 Fail** (`interface_matching...float64.multiple_locations.vec2`) | 789 Pass, 701 NS, 0 Fail | the stock failure passes with the patches (not investigated: may be nondeterministic) |
+| `glsl` /50 (478) | 356 Pass, 122 NS | 359 Pass, 119 NS | 3 cases NotSupported on stock pass (they need features the patches add) |
+| `draw` /25 (1229) | 932 Pass, 292 NS, **5 Fail** | 930 Pass, 292 NS, **7 Fail** | all failures on both drivers are `indexed_draw`/`indirect_draw` cases with `offset_minus_one` / `offset_negative_large` / `alloc_offset` (index buffer offsets outside the buffer, robustness of out-of-bounds index fetches), and the failing *set* differs between the two runs: nondeterministic on this hardware/driver, present before the patches, not a softpin regression as far as these runs show. Worth a repeat run on both drivers when the device is free. |
+| `robustness` /60 (1608) | (running) | 704 Pass, 904 NS, 0 Fail | |
+
 **Still running on the GPD when this was written** (the plan continues unattended; `ssh gpdwin.lan bash
 ~/vk13-test/compare.sh` prints the summary and the per-test diffs when they are done; `ALLDONE`/`QUEUE2DONE`/`QUEUE3DONE`
 in `~/vk13-test/logs` mark completion): sampled `memory`, `draw`, `pipeline.monolithic`, `compute`, `query_pool`,
