@@ -10,6 +10,8 @@
  *   ~/.config/pegasus-frontend/stats.db                play time: read, and one row per finished game
  *                                                      written with Pegasus' exact SQL
  *   ~/.config/pegasus-frontend/favorites.txt           favourites (read; rewritten in Pegasus' format)
+ *   ~/.config/pegasus-frontend/shelf-game-settings.txt shelf's own: per-game performance settings, only
+ *                                                      the ones changed with C G T P L (see "Performance")
  * Paths are cleaned lexically and never symlink-resolved, like Pegasus, so stats and favourites match.
  * shelf's own: ~/.local/state/shelf/last (where you were), ~/.local/share/shelf/logos/ (tab logos).
  *
@@ -22,6 +24,12 @@
  * a plain surface; SDL's video subsystem isn't used, because its Wayland backend loads EGL/Mesa even
  * to show a software frame. Box art and logos are decoded by a background thread, and kept scaled in
  * ~/.cache/shelf/img.
+ *
+ * Performance (per game, keys C G T P L on the selected game; shown in the details): CPU turbo
+ * (default/on/off), GPU turbo (default/on = 600 MHz/off = 400 MHz), power limit (default 6 W/7 W/8 W),
+ * GPU clock pin (off/on), fps cap through MangoHud (off/30/60). Only changed values are stored; at launch
+ * they go to the game as GPD_CPU_TURBO, GPD_GPU_TURBO, GPD_TDP_W, GPD_GPU_PIN and MANGOHUD_CONFIG, which
+ * scripts/game-wrap applies for the game's lifetime and restores afterwards (docs/power.md).
  *
  * Input: keyboard (only while the window has focus), mouse and touch from Wayland. Gamepads (any
  * with the Xbox layout, up to four) are read directly from evdev in a thread (inotify for hotplug),
@@ -365,6 +373,7 @@ typedef struct Game {
     Collection **colls;
     int ncolls;
     bool favorite;
+    signed char perf[5]; /* PERF_*: 0 = default (not stored) */
     int play_count;
     long long play_time, last_played;
 } Game;
@@ -1255,6 +1264,105 @@ static void save_favorites(Library *L, const char *cfg)
     free(b);
 }
 
+/* Per-game performance settings (see the top). One line per game in shelf-game-settings.txt:
+ * "<path>\tcpu=off gpu=on tdp=8 pin=on fps=30", only the keys that differ from the default. */
+enum { PERF_CPU, PERF_GPU, PERF_TDP, PERF_PIN, PERF_FPS, NPERF };
+static const char *const perf_key[NPERF] = { "cpu", "gpu", "tdp", "pin", "fps" };
+/* the values each setting cycles through; [0] is the default (0) */
+static const signed char perf_cycle[NPERF][4] = {
+    { 0, 1, 2, -1 },  /* cpu: default, on, off */
+    { 0, 1, 2, -1 },  /* gpu: default, on, off */
+    { 0, 7, 8, -1 },  /* tdp: default (firmware 6 W), 7 W, 8 W */
+    { 0, 1, -1 },     /* pin: off, on */
+    { 0, 30, 60, -1 } /* fps: no cap, 30, 60 */
+};
+
+static const char *perf_value_name(int k, int v)
+{
+    static char buf[8];
+    if (k == PERF_CPU || k == PERF_GPU)
+        return v == 1 ? "on" : "off";
+    if (k == PERF_PIN)
+        return "on";
+    snprintf(buf, sizeof buf, "%d", v);
+    return buf;
+}
+
+static void load_perf(Library *L, const char *cfg)
+{
+    char *path = fmt("%s/shelf-game-settings.txt", cfg);
+    char *text = read_file(path, NULL);
+    for (char *s = text; s && *s;) {
+        char *nl = strchr(s, '\n');
+        size_t n = nl ? (size_t)(nl - s) : strlen(s);
+        char *line = xstrndup(s, n), *tab = strchr(line, '\t');
+        if (tab && line[0] != '#') {
+            *tab = 0;
+            Game *g = lib_file_game(L, line);
+            for (char *kv = strtok(tab + 1, " "); g && kv; kv = strtok(NULL, " ")) {
+                char *eq = strchr(kv, '=');
+                if (!eq)
+                    continue;
+                *eq = 0;
+                for (int k = 0; k < NPERF; k++)
+                    if (!strcmp(kv, perf_key[k]))
+                        g->perf[k] = !strcmp(eq + 1, "on") ? 1 : !strcmp(eq + 1, "off") ? 2 : atoi(eq + 1);
+            }
+        }
+        free(line);
+        s += n + (nl ? 1 : 0);
+    }
+    free(text);
+    free(path);
+}
+
+static void save_perf(Library *L, const char *cfg)
+{
+    size_t cap = 256, n = 0;
+    char *b = xmalloc(cap);
+    const char *head = "# shelf: per-game performance settings (keys C G T P L), only the changed ones\n";
+    strcpy(b, head);
+    n = strlen(head);
+    for (int i = 0; i < L->ngames; i++) {
+        Game *g = L->games[i];
+        char vals[128] = "";
+        for (int k = 0; k < NPERF; k++)
+            if (g->perf[k])
+                snprintf(vals + strlen(vals), sizeof vals - strlen(vals), "%s%s=%s", *vals ? " " : "",
+                         perf_key[k], perf_value_name(k, g->perf[k]));
+        if (!*vals)
+            continue;
+        size_t l = strlen(g->files.v[0]) + strlen(vals) + 3;
+        if (n + l > cap)
+            b = xrealloc(b, cap = (n + l) * 2);
+        n += sprintf(b + n, "%s\t%s\n", g->files.v[0], vals);
+    }
+    char *path = fmt("%s/shelf-game-settings.txt", cfg);
+    write_file(path, b);
+    free(path);
+    free(b);
+}
+
+/* "CPU turbo off · 8 W · 30 fps" for the changed settings, or "" */
+static void perf_summary(const Game *g, char *out, size_t size)
+{
+    *out = 0;
+    for (int k = 0; k < NPERF; k++) {
+        int v = g->perf[k];
+        if (!v)
+            continue;
+        char item[32];
+        switch (k) {
+        case PERF_CPU: snprintf(item, sizeof item, "CPU turbo %s", v == 1 ? "on" : "off"); break;
+        case PERF_GPU: snprintf(item, sizeof item, "GPU turbo %s", v == 1 ? "on" : "off"); break;
+        case PERF_TDP: snprintf(item, sizeof item, "%d W", v); break;
+        case PERF_PIN: snprintf(item, sizeof item, "GPU clock pinned"); break;
+        default: snprintf(item, sizeof item, "%d fps cap", v); break;
+        }
+        snprintf(out + strlen(out), size - strlen(out), "%s%s", *out ? "  ·  " : "", item);
+    }
+}
+
 static void load_library(Library *L)
 {
     char *cfg = config_dir();
@@ -1332,6 +1440,7 @@ static void load_library(Library *L)
     find_media(L);
     load_stats(L, cfg);
     load_favorites(L, cfg);
+    load_perf(L, cfg);
 
     sort(L->colls, L->ncolls, sizeof *L->colls, cmp_coll);
     for (int i = 0; i < L->ncolls; i++)
@@ -1512,13 +1621,32 @@ static bool launch(Running *r, Game *g)
     int nenv = 0;
     while (environ[nenv])
         nenv++;
-    char **envp = xmalloc((nenv + 2) * sizeof *envp), *preload = pre && *pre ? fmt("LD_PRELOAD=%s", pre) : NULL;
+    char **envp = xmalloc((nenv + 2 + NPERF) * sizeof *envp), *preload = pre && *pre ? fmt("LD_PRELOAD=%s", pre) : NULL;
+    /* the game's performance settings (see the top), for scripts/game-wrap and MangoHud */
+    char *perf_env[NPERF] = { 0 };
+    if (g->perf[PERF_CPU])
+        perf_env[PERF_CPU] = fmt("GPD_CPU_TURBO=%s", g->perf[PERF_CPU] == 1 ? "on" : "off");
+    if (g->perf[PERF_GPU])
+        perf_env[PERF_GPU] = fmt("GPD_GPU_TURBO=%s", g->perf[PERF_GPU] == 1 ? "on" : "off");
+    if (g->perf[PERF_TDP])
+        perf_env[PERF_TDP] = fmt("GPD_TDP_W=%d", g->perf[PERF_TDP]);
+    if (g->perf[PERF_PIN])
+        perf_env[PERF_PIN] = fmt("GPD_GPU_PIN=1");
+    if (g->perf[PERF_FPS])
+        perf_env[PERF_FPS] = fmt("MANGOHUD_CONFIG=read_cfg,fps_limit=%d", g->perf[PERF_FPS]);
     int ne = 0;
-    for (int i = 0; i < nenv; i++)
-        if (!preload || strncmp(environ[i], "LD_PRELOAD=", 11) != 0)
+    for (int i = 0; i < nenv; i++) {
+        bool replaced = preload && !strncmp(environ[i], "LD_PRELOAD=", 11);
+        for (int k = 0; k < NPERF && !replaced; k++)
+            replaced = perf_env[k] && !strncmp(environ[i], perf_env[k], strchr(perf_env[k], '=') - perf_env[k] + 1);
+        if (!replaced)
             envp[ne++] = environ[i];
+    }
     if (preload)
         envp[ne++] = preload;
+    for (int k = 0; k < NPERF; k++)
+        if (perf_env[k])
+            envp[ne++] = perf_env[k];
     envp[ne] = NULL;
 
     int pfd[2];
@@ -1619,7 +1747,8 @@ out:
 
 /* ------------------------------------------------------------------ gamepad (evdev thread) */
 
-enum { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_PGUP, A_PGDN, A_HOME, A_END, A_LAUNCH, A_FAV, A_BACK };
+enum { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_PGUP, A_PGDN, A_HOME, A_END, A_LAUNCH, A_FAV, A_BACK,
+       A_PERF_CPU, A_PERF_GPU, A_PERF_TDP, A_PERF_PIN, A_PERF_FPS };
 
 static int pad_quit_pipe[2] = { -1, -1 };
 
@@ -2700,6 +2829,14 @@ static void draw_details(App *a, Game *g, int LW, int W, int H)
     ty += text(a, a->f_small, line, P.overlay, tx, ty, tw) + S(6);
     if (g->favorite)
         ty += text(a, a->f_small, "Favourite", P.fav, tx, ty, tw) + S(6);
+    if (!is_tool(g)) {
+        char perf[160];
+        perf_summary(g, perf, sizeof perf);
+        if (*perf)
+            ty += text(a, a->f_small, perf, P.accent, tx, ty, tw) + S(6);
+        else
+            ty += text(a, a->f_small, "Default performance (C G T P L to change)", P.overlay, tx, ty, tw) + S(6);
+    }
     const char *desc = g->description ? g->description : g->summary;
     int dy = SDL_max(y + img_h, ty) + S(20);
     if (desc && H - dy - S(12) > S(20)) {
@@ -2815,6 +2952,23 @@ static void toggle_favorite(App *a)
     a->dirty = true;
 }
 
+/* C G T P L: step the selected game's setting to its next value and store it */
+static void cycle_perf(App *a, int k)
+{
+    Game *g = cur_game(a);
+    if (!g || is_tool(g))
+        return;
+    int i = 0;
+    while (perf_cycle[k][i] != g->perf[k] && perf_cycle[k][i] >= 0)
+        i++;
+    int next = perf_cycle[k][i] >= 0 ? perf_cycle[k][i + 1] : 0;
+    g->perf[k] = next < 0 ? 0 : next;
+    char *cfg = config_dir();
+    save_perf(&a->lib, cfg);
+    free(cfg);
+    a->dirty = true;
+}
+
 static void action(App *a, int act, bool repeat)
 {
     switch (act) {
@@ -2828,6 +2982,10 @@ static void action(App *a, int act, bool repeat)
     case A_RIGHT: if (!repeat) switch_tab(a, 1); break;
     case A_LAUNCH: if (!repeat) start_game(a); break;
     case A_FAV: if (!repeat) toggle_favorite(a); break;
+    case A_PERF_CPU: case A_PERF_GPU: case A_PERF_TDP: case A_PERF_PIN: case A_PERF_FPS:
+        if (!repeat)
+            cycle_perf(a, act - A_PERF_CPU);
+        break;
     }
 }
 
@@ -3272,6 +3430,8 @@ static void key_action(App *a, uint32_t key, bool down)
             : key == KEY_PAGEDOWN ? A_PGDN : key == KEY_LEFT ? A_LEFT : key == KEY_RIGHT ? A_RIGHT
             : (key == KEY_ENTER || key == KEY_KPENTER) ? A_LAUNCH : key == KEY_F ? A_FAV
             : key == KEY_HOME ? A_HOME : key == KEY_END ? A_END
+            : key == KEY_C ? A_PERF_CPU : key == KEY_G ? A_PERF_GPU : key == KEY_T ? A_PERF_TDP
+            : key == KEY_P ? A_PERF_PIN : key == KEY_L ? A_PERF_FPS
             : key == KEY_TAB ? (wl.shift ? A_LEFT : A_RIGHT) : A_NONE;
     if (act)
         press(a, act, down);
