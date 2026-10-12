@@ -98,7 +98,18 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   mesa/reports/R5 "Narrowed down"; 2.0 and 2.4 work. Game switched to DXVK 2.4 (claim-1.3 env var in the launcher);
   1.10.3 kept in `dxvk-test/`. Then dxvk-gplasync v2.4.1-1 (gitlab.com/Ph42oN/dxvk-gplasync `releases/`, sha256 `ee96eaf6...f8a1f4`, no
   upstream checksum; 32-bit d3d9tex: correct after 2400 frames, no hang) with `dxvk.enableAsync = true` in dxvk.conf
-  (async pipeline compiles; hasvk has no graphics pipeline library, so only the async part applies). Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
+  (async pipeline compiles; hasvk has no graphics pipeline library, so only the async part applies).
+  Profile 2026-10-12 (gplasync 2.4.1, DSfix 960x540, ~20-24 fps; method: `INTEL_MEASURE=renderpass,file=...,
+  control=FIFO` in the launcher, `echo 60 > FIFO`; `perf record -g -p`; `i915-perf-recorder -m RenderBasic|
+  RenderPipeProfile` + `i915-perf-reader -c all`):
+  - GPU-bound: per frame 41.8 ms GPU span, 35.8 ms in draws, 5.6 ms gaps; ~714 draws (658 indexed). CPU: no hotspot,
+    ~1.6 of 4 cores busy (game code 54% of samples, dxvk-cs + hasvk ~17%).
+  - By shader: one shader pair 205 draws/frame (5.7 ms, likely shadow/depth), a few heavy geometry shaders
+    (0.3-0.5 ms per draw); full-screen passes (<=6 vertices) 8.5 ms/frame (24%), single post passes 0.6-1.4 ms.
+  - Counters (one ~31 ms window): GPU busy ~100% at 485-580 MHz; EU active 54-60%, EU stall 28%; samplers 70% busy,
+    23% texel misses; ~3.3 GB/s read + 2.1 GB/s write; rasterized ~15M pixels per 31 ms (many times 960x540:
+    shadow maps, overdraw, post); early-depth bottleneck 34%, early-depth fails ~28% of pixels, **HiZ fails 0**
+    (hierarchical depth apparently not in use, possibly because the depth buffer is also sampled). Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support
