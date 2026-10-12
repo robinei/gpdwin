@@ -85,6 +85,8 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   saturated): a cap, not load. Suspects: vsync still on (DSfix lists enableVsync under "not yet ready") or the
   game's own 30 fps limiter waiting for fixed 33 ms ticks. Set together (not yet tested): `DATA/dxvk.conf`
   `d3d9.presentInterval = 0`, DSfix `unlockFPS 1` + `FPSlimit 30` (variable frame rate, capped at the original 30).
+  Also in DSfix.ini: `skipIntro 1`, `disableCursor 1`, `forceWindowed 1` (with borderless; the in-game fullscreen
+  setting is off anyway). DSfix keys: Backspace toggles its 30 fps limit, RCtrl HUD, F6-F8 cursor/borderless.
 
 ## Very likely runs well, controller support
 
