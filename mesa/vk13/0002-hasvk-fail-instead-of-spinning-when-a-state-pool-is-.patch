@@ -1,0 +1,215 @@
+From 6cdf7f63af9d8df40af0f346f40d3d3c5f8eefb5 Mon Sep 17 00:00:00 2001
+From: r9 <r9@local>
+Date: Mon, 12 Oct 2026 16:11:22 +0200
+Subject: [PATCH 2/4] hasvk: fail instead of spinning when a state pool is
+ exhausted, allocate binding table blocks lazily
+
+anv_block_pool_alloc_new() loops until anv_block_pool_grow() returns
+enough space; a grow failure (returns 0) therefore spins forever.  With
+the bounded pools of the 32-bit layout this is reachable: dEQP-VK
+api.command_buffers.allocate_many_primary allocates 10000 command
+buffers, each of which took a 64 KiB binding table block at creation,
+more than the 128 MiB pool.
+
+Undo the reservation and return ANV_BLOCK_POOL_ALLOC_FAILED instead;
+the state pool and state stream allocators return ANV_STATE_NULL, and
+anv_cmd_buffer_new_binding_table_block() turns that into
+VK_ERROR_OUT_OF_DEVICE_MEMORY on the command buffer.  Other callers of
+the state allocators still do not check (a NULL map crashes instead of
+hanging).
+
+Allocate a command buffer's first binding table block when it is first
+needed (the STATE_BASE_ADDRESS emitted at vkBeginCommandBuffer) rather
+than at allocation/reset, so that allocated but unrecorded command
+buffers hold no pool space.
+---
+ src/intel/vulkan_hasvk/anv_allocator.c   | 29 ++++++++++++++++++++
+ src/intel/vulkan_hasvk/anv_batch_chain.c | 35 ++++++++++++++++++------
+ src/intel/vulkan_hasvk/anv_private.h     |  6 ++++
+ 3 files changed, 62 insertions(+), 8 deletions(-)
+
+diff --git a/src/intel/vulkan_hasvk/anv_allocator.c b/src/intel/vulkan_hasvk/anv_allocator.c
+index ce15d43..decedc2 100644
+--- a/src/intel/vulkan_hasvk/anv_allocator.c
++++ b/src/intel/vulkan_hasvk/anv_allocator.c
+@@ -760,6 +760,7 @@ anv_block_pool_alloc_new(struct anv_block_pool *pool,
+ 
+    while (1) {
+       state.u64 = __sync_fetch_and_add(&pool_state->u64, block_size);
++      const uint64_t reserved_state = state.u64;
+       if (state.next + block_size <= state.end) {
+          return state.next;
+       } else if (state.next <= state.end) {
+@@ -787,6 +788,15 @@ anv_block_pool_alloc_new(struct anv_block_pool *pool,
+          new.next = state.next + block_size;
+          do {
+             new.end = anv_block_pool_grow(pool, pool_state, block_size);
++            if (new.end == 0) {
++               /* The pool cannot grow (address range exhausted or BO
++                * allocation failed).  Undo the reservation so that other
++                * threads retry (and fail the same way), and fail.
++                */
++               __sync_lock_test_and_set(&pool_state->u64, reserved_state);
++               futex_wake(&pool_state->end, INT32_MAX);
++               return (uint32_t)ANV_BLOCK_POOL_ALLOC_FAILED;
++            }
+          } while (new.end < new.next);
+ 
+          old.u64 = __sync_lock_test_and_set(&pool_state->u64, new.u64);
+@@ -826,6 +836,8 @@ anv_block_pool_alloc_back(struct anv_block_pool *pool,
+ {
+    int32_t offset = anv_block_pool_alloc_new(pool, &pool->back_state,
+                                              block_size, NULL);
++   if (offset == ANV_BLOCK_POOL_ALLOC_FAILED)
++      return ANV_BLOCK_POOL_ALLOC_FAILED;
+ 
+    /* The offset we get out of anv_block_pool_alloc_new() is actually the
+     * number of bytes downwards from the middle to the end of the block.
+@@ -915,6 +927,12 @@ anv_fixed_size_state_pool_alloc_new(struct anv_fixed_size_state_pool *pool,
+       return block.next;
+    } else if (block.next == block.end) {
+       offset = anv_block_pool_alloc(block_pool, block_size, padding);
++      if ((int32_t)offset == ANV_BLOCK_POOL_ALLOC_FAILED) {
++         /* Undo the reservation (next == end again) and fail */
++         __sync_lock_test_and_set(&pool->block.u64, block.u64);
++         futex_wake(&pool->block.end, INT32_MAX);
++         return offset;
++      }
+       new.next = offset + state_size;
+       new.end = offset + block_size;
+       old.u64 = __sync_lock_test_and_set(&pool->block.u64, new.u64);
+@@ -1104,6 +1122,9 @@ anv_state_pool_alloc_no_vg(struct anv_state_pool *pool,
+                                                 alloc_size,
+                                                 pool->block_size,
+                                                 &padding);
++   if (offset == ANV_BLOCK_POOL_ALLOC_FAILED)
++      return ANV_STATE_NULL;
++
+    /* Every time we allocate a new state, add it to the state pool */
+    uint32_t idx;
+    UNUSED VkResult result = anv_state_table_add(&pool->table, &idx, 1);
+@@ -1152,6 +1173,9 @@ anv_state_pool_alloc_back(struct anv_state_pool *pool)
+    int32_t offset;
+    offset = anv_block_pool_alloc_back(&pool->block_pool,
+                                       pool->block_size);
++   if (offset == ANV_BLOCK_POOL_ALLOC_FAILED)
++      return ANV_STATE_NULL;
++
+    uint32_t idx;
+    UNUSED VkResult result = anv_state_table_add(&pool->table, &idx, 1);
+    assert(result == VK_SUCCESS);
+@@ -1259,6 +1283,11 @@ anv_state_stream_alloc(struct anv_state_stream *stream,
+ 
+       stream->block = anv_state_pool_alloc_no_vg(stream->state_pool,
+                                                  block_size, PAGE_SIZE);
++      if (stream->block.alloc_size == 0) {
++         /* Pool exhausted; the next allocation tries again. */
++         stream->next = 0;
++         return ANV_STATE_NULL;
++      }
+       util_dynarray_append(&stream->all_blocks, stream->block);
+       VG(VALGRIND_MAKE_MEM_NOACCESS(stream->block.map, block_size));
+ 
+diff --git a/src/intel/vulkan_hasvk/anv_batch_chain.c b/src/intel/vulkan_hasvk/anv_batch_chain.c
+index 9cc674a..6c6add0 100644
+--- a/src/intel/vulkan_hasvk/anv_batch_chain.c
++++ b/src/intel/vulkan_hasvk/anv_batch_chain.c
+@@ -560,6 +560,15 @@ struct anv_address
+ anv_cmd_buffer_surface_base_address(struct anv_cmd_buffer *cmd_buffer)
+ {
+    struct anv_state_pool *pool = anv_binding_table_pool(cmd_buffer->device);
++
++   /* Binding table blocks are allocated when first needed (here, from the
++    * STATE_BASE_ADDRESS emitted at vkBeginCommandBuffer), so that allocated
++    * but unrecorded command buffers do not hold 64 KiB of the pool each.
++    */
++   if (u_vector_length(&cmd_buffer->bt_block_states) == 0 &&
++       anv_cmd_buffer_new_binding_table_block(cmd_buffer) != VK_SUCCESS)
++      return ANV_NULL_ADDRESS;
++
+    struct anv_state *bt_block = u_vector_head(&cmd_buffer->bt_block_states);
+    return (struct anv_address) {
+       .bo = pool->block_pool.bo,
+@@ -779,6 +788,9 @@ struct anv_state
+ anv_cmd_buffer_alloc_binding_table(struct anv_cmd_buffer *cmd_buffer,
+                                    uint32_t entries, uint32_t *state_offset)
+ {
++   if (u_vector_length(&cmd_buffer->bt_block_states) == 0)
++      return (struct anv_state) { 0 };
++
+    struct anv_state *bt_block = u_vector_head(&cmd_buffer->bt_block_states);
+ 
+    uint32_t bt_size = align(entries * 4, 32);
+@@ -817,13 +829,21 @@ anv_cmd_buffer_alloc_dynamic_state(struct anv_cmd_buffer *cmd_buffer,
+ VkResult
+ anv_cmd_buffer_new_binding_table_block(struct anv_cmd_buffer *cmd_buffer)
+ {
++   struct anv_state block = anv_binding_table_pool_alloc(cmd_buffer->device);
++   if (block.alloc_size == 0) {
++      /* The binding table pool's address range is exhausted */
++      anv_batch_set_error(&cmd_buffer->batch, VK_ERROR_OUT_OF_DEVICE_MEMORY);
++      return vk_error(cmd_buffer, VK_ERROR_OUT_OF_DEVICE_MEMORY);
++   }
++
+    struct anv_state *bt_block = u_vector_add(&cmd_buffer->bt_block_states);
+    if (bt_block == NULL) {
++      anv_binding_table_pool_free(cmd_buffer->device, block);
+       anv_batch_set_error(&cmd_buffer->batch, VK_ERROR_OUT_OF_HOST_MEMORY);
+       return vk_error(cmd_buffer, VK_ERROR_OUT_OF_HOST_MEMORY);
+    }
+ 
+-   *bt_block = anv_binding_table_pool_alloc(cmd_buffer->device);
++   *bt_block = block;
+ 
+    /* The bt_next state is a rolling state (we update it as we suballocate
+     * from it) which is relative to the start of the binding table block.
+@@ -882,9 +902,10 @@ anv_cmd_buffer_init_batch_bo_chain(struct anv_cmd_buffer *cmd_buffer)
+       goto fail_bt_blocks;
+    cmd_buffer->last_ss_pool_center = 0;
+ 
+-   result = anv_cmd_buffer_new_binding_table_block(cmd_buffer);
+-   if (result != VK_SUCCESS)
+-      goto fail_bt_blocks;
++   /* The first binding table block is allocated lazily, see
++    * anv_cmd_buffer_surface_base_address().
++    */
++   cmd_buffer->bt_next = ANV_STATE_NULL;
+ 
+    return VK_SUCCESS;
+ 
+@@ -934,13 +955,11 @@ anv_cmd_buffer_reset_batch_bo_chain(struct anv_cmd_buffer *cmd_buffer)
+                       &cmd_buffer->batch,
+                       GFX8_MI_BATCH_BUFFER_START_length * 4);
+ 
+-   while (u_vector_length(&cmd_buffer->bt_block_states) > 1) {
++   while (u_vector_length(&cmd_buffer->bt_block_states) > 0) {
+       struct anv_state *bt_block = u_vector_remove(&cmd_buffer->bt_block_states);
+       anv_binding_table_pool_free(cmd_buffer->device, *bt_block);
+    }
+-   assert(u_vector_length(&cmd_buffer->bt_block_states) == 1);
+-   cmd_buffer->bt_next = *(struct anv_state *)u_vector_head(&cmd_buffer->bt_block_states);
+-   cmd_buffer->bt_next.offset = 0;
++   cmd_buffer->bt_next = ANV_STATE_NULL;
+ 
+    anv_reloc_list_clear(&cmd_buffer->surface_relocs);
+    cmd_buffer->last_ss_pool_center = 0;
+diff --git a/src/intel/vulkan_hasvk/anv_private.h b/src/intel/vulkan_hasvk/anv_private.h
+index 26b98bb..d086fec 100644
+--- a/src/intel/vulkan_hasvk/anv_private.h
++++ b/src/intel/vulkan_hasvk/anv_private.h
+@@ -674,6 +674,12 @@ struct anv_block_pool {
+ /* Block pools are backed by a fixed-size 1GB memfd */
+ #define BLOCK_POOL_MEMFD_SIZE (1ul << 30)
+ 
++/* Returned by the block pool allocators when the pool cannot grow (its
++ * address range is exhausted); the state pool allocators then return
++ * ANV_STATE_NULL (alloc_size == 0, map == NULL).
++ */
++#define ANV_BLOCK_POOL_ALLOC_FAILED INT32_MIN
++
+ /* The center of the block pool is also the middle of the memfd.  This may
+  * change in the future if we decide differently for some reason.
+  */
+-- 
+2.56.0
+

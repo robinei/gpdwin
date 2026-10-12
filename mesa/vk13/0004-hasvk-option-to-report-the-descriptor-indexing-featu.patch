@@ -1,0 +1,133 @@
+From dd4a695367ff1300ef0c630c79069f3dba110488 Mon Sep 17 00:00:00 2001
+From: r9 <r9@local>
+Date: Mon, 12 Oct 2026 15:59:48 +0200
+Subject: [PATCH 4/4] hasvk: option to report the descriptor indexing features
+ (DXVK >= 2.7)
+
+DXVK >= 2.7 requires descriptorIndexing, runtimeDescriptorArray,
+descriptorBindingSampledImageUpdateAfterBind, UpdateUnusedWhilePending
+and PartiallyBound.  Gfx8 has bindless samplers but no bindless surfaces
+(binding tables with 240 entries per stage), so the feature set cannot
+be implemented to the spec's limits (500000 update-after-bind
+descriptors per stage).  DXVK's only use of it is a 2048-entry
+update-after-bind sampler heap, which the existing bindless sampler
+path handles.
+
+Add the driconf/environment option hasvk_report_descriptor_indexing
+(default false) that reports the descriptor indexing feature group on
+softpin devices with bindless samplers, and make update-after-bind
+bindings whose descriptors cannot be bindless (surfaces) use the
+binding table as before instead of asserting.  Images and texel
+buffers updated after the draw is recorded keep their old binding;
+samplers are updated for real.
+
+Tested: DXVK 2.7.1 D3D9 (r5/d3d9tex) renders correctly with the option.
+---
+ src/intel/vulkan_hasvk/anv_descriptor_set.c |  8 +++-
+ src/intel/vulkan_hasvk/anv_device.c         | 45 +++++++++++++--------
+ src/intel/vulkan_hasvk/anv_drirc_gen.py     |  3 ++
+ 3 files changed, 38 insertions(+), 18 deletions(-)
+
+diff --git a/src/intel/vulkan_hasvk/anv_descriptor_set.c b/src/intel/vulkan_hasvk/anv_descriptor_set.c
+index fbe0b32..a888980 100644
+--- a/src/intel/vulkan_hasvk/anv_descriptor_set.c
++++ b/src/intel/vulkan_hasvk/anv_descriptor_set.c
+@@ -276,7 +276,13 @@ anv_descriptor_requires_bindless(const struct anv_physical_device *pdevice,
+       VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT |
+       VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+ 
+-   return (binding->flags & flags_requiring_bindless) != 0;
++   /* Bindings that cannot be bindless on this hardware (surfaces on gfx8)
++    * stay in the binding table even with update-after-bind flags
++    * (hasvk_report_descriptor_indexing): their descriptors are read when
++    * the draw is recorded.
++    */
++   return (binding->flags & flags_requiring_bindless) != 0 &&
++          anv_descriptor_supports_bindless(pdevice, binding, sampler);
+ }
+ 
+ void anv_GetDescriptorSetLayoutSupport(
+diff --git a/src/intel/vulkan_hasvk/anv_device.c b/src/intel/vulkan_hasvk/anv_device.c
+index 8861863..7f9dc05 100644
+--- a/src/intel/vulkan_hasvk/anv_device.c
++++ b/src/intel/vulkan_hasvk/anv_device.c
+@@ -346,6 +346,10 @@ get_features(const struct anv_physical_device *pdevice,
+       isl_format_supports_sampling(&pdevice->info,
+                                    ISL_FORMAT_ASTC_LDR_2D_4X4_FLT16);
+ 
++   const bool desc_idx = pdevice->use_softpin &&
++                         pdevice->has_bindless_samplers &&
++                         pdevice->instance->drirc.performance.report_descriptor_indexing;
++
+    *features = (struct vk_features) {
+       /* Vulkan 1.0 */
+       .robustBufferAccess                       = true,
+@@ -420,27 +424,34 @@ get_features(const struct anv_physical_device *pdevice,
+       .shaderFloat16                       = pdevice->info.ver >= 8 && !pdevice->instance->drirc.performance.no_16bit,
+       .shaderInt8                          = pdevice->info.ver >= 8 && !pdevice->instance->drirc.performance.no_16bit,
+ 
+-      .descriptorIndexing                                 = false,
++      /* Gfx8 has bindless samplers but no bindless surfaces, so the
++       * descriptor indexing feature set cannot be implemented in full (the
++       * binding table has 240 entries per stage, the spec's update-after-bind
++       * minimums are 500000).  DXVK >= 2.7 requires the feature bits and only
++       * uses update-after-bind for its sampler heap (2048 samplers), which the
++       * bindless sampler path handles.  Report the features on request only.
++       */
++      .descriptorIndexing                                 = desc_idx,
+       .shaderInputAttachmentArrayDynamicIndexing          = false,
+-      .shaderUniformTexelBufferArrayDynamicIndexing       = false,
+-      .shaderStorageTexelBufferArrayDynamicIndexing       = false,
++      .shaderUniformTexelBufferArrayDynamicIndexing       = desc_idx,
++      .shaderStorageTexelBufferArrayDynamicIndexing       = desc_idx,
+       .shaderUniformBufferArrayNonUniformIndexing         = false,
+-      .shaderSampledImageArrayNonUniformIndexing          = false,
+-      .shaderStorageBufferArrayNonUniformIndexing         = false,
+-      .shaderStorageImageArrayNonUniformIndexing          = false,
++      .shaderSampledImageArrayNonUniformIndexing          = desc_idx,
++      .shaderStorageBufferArrayNonUniformIndexing         = desc_idx,
++      .shaderStorageImageArrayNonUniformIndexing          = desc_idx,
+       .shaderInputAttachmentArrayNonUniformIndexing       = false,
+-      .shaderUniformTexelBufferArrayNonUniformIndexing    = false,
+-      .shaderStorageTexelBufferArrayNonUniformIndexing    = false,
++      .shaderUniformTexelBufferArrayNonUniformIndexing    = desc_idx,
++      .shaderStorageTexelBufferArrayNonUniformIndexing    = desc_idx,
+       .descriptorBindingUniformBufferUpdateAfterBind      = false,
+-      .descriptorBindingSampledImageUpdateAfterBind       = false,
+-      .descriptorBindingStorageImageUpdateAfterBind       = false,
+-      .descriptorBindingStorageBufferUpdateAfterBind      = false,
+-      .descriptorBindingUniformTexelBufferUpdateAfterBind = false,
+-      .descriptorBindingStorageTexelBufferUpdateAfterBind = false,
+-      .descriptorBindingUpdateUnusedWhilePending          = false,
+-      .descriptorBindingPartiallyBound                    = false,
+-      .descriptorBindingVariableDescriptorCount           = false,
+-      .runtimeDescriptorArray                             = false,
++      .descriptorBindingSampledImageUpdateAfterBind       = desc_idx,
++      .descriptorBindingStorageImageUpdateAfterBind       = desc_idx,
++      .descriptorBindingStorageBufferUpdateAfterBind      = desc_idx,
++      .descriptorBindingUniformTexelBufferUpdateAfterBind = desc_idx,
++      .descriptorBindingStorageTexelBufferUpdateAfterBind = desc_idx,
++      .descriptorBindingUpdateUnusedWhilePending          = desc_idx,
++      .descriptorBindingPartiallyBound                    = desc_idx,
++      .descriptorBindingVariableDescriptorCount           = desc_idx,
++      .runtimeDescriptorArray                             = desc_idx,
+ 
+       .samplerFilterMinmax                 = false,
+       .scalarBlockLayout                   = true,
+diff --git a/src/intel/vulkan_hasvk/anv_drirc_gen.py b/src/intel/vulkan_hasvk/anv_drirc_gen.py
+index 1e98ee2..79852fa 100644
+--- a/src/intel/vulkan_hasvk/anv_drirc_gen.py
++++ b/src/intel/vulkan_hasvk/anv_drirc_gen.py
+@@ -39,6 +39,9 @@ def declare_options():
+         B("hasvk_report_vk_1_3_version", False,
+           "Report Vulkan 1.3 API version",
+           c_name="report_vk_1_3_version"),
++        B("hasvk_report_descriptor_indexing", False,
++          "Report the descriptor indexing features (DXVK >= 2.7 requires them). Gfx8 only: update-after-bind is real for samplers (bindless), images and texel buffers updated after bind keep their old binding",
++          c_name="report_descriptor_indexing"),
+     ]
+ 
+     quality_options = [
+-- 
+2.56.0
+

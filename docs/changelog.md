@@ -726,3 +726,11 @@ Details before 2026-10-06 are in `docs/archive/`.
 - statusbar: power limit green when a game lowered it (2/4 W), yellow when raised.
 - shelf: games with turbo/power/pin settings are started through game-wrap (emulator games had none: their settings weren't applied); nested game-wrap only runs the game.
 - shelf: power limit step 1 W added (6 → 8 → 1 → 2 → 4 W).
+
+## 2026-10-12 — Vulkan 1.3 on hasvk (patches only, not installed)
+- `mesa/vk13/0001-0004` + `mesa/reports/R9-vulkan13.md` (+ `r9/` scripts): hasvk with a 32-bit softpin address layout
+  on CHV (real buffer device address, Vulkan 1.3 + conformance string 1.3 as upstream does for softpin devices),
+  pool-exhaustion fix, 256 B push constants + `VK_KHR_pipeline_library`, opt-in `hasvk_report_descriptor_indexing`
+  for DXVK >= 2.7. Built from the leftover R7 chroot, tested from `~/vk13-test` on the GPD only (`VK_DRIVER_FILES`);
+  nothing installed, `vulkan-intel-gpd 1:26.2.4-1.7` unchanged. To ship: add the patches to `mesa/PKGBUILD` (and
+  `lib32/`), rebuild with `mesa/build.sh`; revert = don't. `~/vk13-test` on the GPD (560 MB) can be deleted.
