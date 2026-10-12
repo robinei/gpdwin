@@ -778,3 +778,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   Souls ran the same on it (DXVK 2.4.1) and the CTS showed no regressions. Installed with `mesa/install.sh` (all six
   -gpd packages). Per-program escape hatch: `HASVK_USE_RELOCATIONS=1`. Revert: reinstall the 1.7 packages
   (`mesa/*1.7*.pkg.tar.zst`, `mesa/lib32/*1.7*` on the desktop) with `mesa/install.sh`, or `mesa/rollback.sh` (Arch's).
+- Mesa 1.11 confirmation on the installed driver (dEQP-VK): buffer_device_address 4716/4716 (incl. capture/replay),
+  push constants 133/133, memory 537 Pass/717 NS and command buffers 57/70 NS (identical to the R9 final build),
+  0 crashes, 0 GPU hangs.
