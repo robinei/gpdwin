@@ -1,0 +1,244 @@
+From d83e9d067cbb5d20cad15dd1de51da38c2100b5a Mon Sep 17 00:00:00 2001
+From: Robin Eidissen <robinei@gmail.com>
+Date: Mon, 12 Oct 2026 02:24:41 +0200
+Subject: [PATCH 1/2] crocus/st: GPD R7 test switches (CROCUS_BLIT_UPLOAD_MIN,
+ CROCUS_READ_BLIT[_MIN], CROCUS_INVAL_RANGE, CROCUS_EXT_MOCS_INTERNAL,
+ ST_PBO_UPLOAD)
+
+---
+ src/gallium/drivers/crocus/crocus_bufmgr.c   | 33 ++++++++++++++
+ src/gallium/drivers/crocus/crocus_bufmgr.h   |  2 +
+ src/gallium/drivers/crocus/crocus_resource.c | 48 ++++++++++++++++++--
+ src/gallium/drivers/crocus/crocus_resource.h |  8 +++-
+ src/mesa/state_tracker/st_pbo.c              |  7 ++-
+ 5 files changed, 93 insertions(+), 5 deletions(-)
+
+diff --git a/src/gallium/drivers/crocus/crocus_bufmgr.c b/src/gallium/drivers/crocus/crocus_bufmgr.c
+index 0406190..8630c39 100644
+--- a/src/gallium/drivers/crocus/crocus_bufmgr.c
++++ b/src/gallium/drivers/crocus/crocus_bufmgr.c
+@@ -849,6 +849,8 @@ crocus_bo_gem_mmap(struct util_debug_callback *dbg, struct crocus_bo *bo, bool w
+       return crocus_bo_gem_mmap_legacy(dbg, bo, wc);
+ }
+ 
++static bool can_map_cpu(struct crocus_bo *bo, unsigned flags);
++
+ static void *
+ crocus_bo_map_cpu(struct util_debug_callback *dbg,
+                   struct crocus_bo *bo, unsigned flags)
+@@ -909,6 +911,37 @@ crocus_bo_map_cpu(struct util_debug_callback *dbg,
+    return bo->map_cpu;
+ }
+ 
++/* GPD R7: like crocus_bo_map for a read-only, non-coherent CPU mapping, but
++ * only the given range is invalidated (the whole BO otherwise).
++ */
++void *
++crocus_bo_map_range(struct util_debug_callback *dbg,
++                    struct crocus_bo *bo, unsigned flags,
++                    uint64_t offset, uint64_t size)
++{
++   if (bo->tiling_mode != I915_TILING_NONE || (flags & MAP_WRITE) ||
++       !can_map_cpu(bo, flags) || bo->cache_coherent ||
++       bo->bufmgr->has_llc || offset + size > bo->size)
++      return crocus_bo_map(dbg, bo, flags);
++
++   if (!bo->map_cpu) {
++      void *map = crocus_bo_gem_mmap(dbg, bo, false);
++      if (!map)
++         return crocus_bo_map(dbg, bo, flags);
++      VG_DEFINED(map, bo->size);
++      if (p_atomic_cmpxchg(&bo->map_cpu, NULL, map)) {
++         VG_NOACCESS(map, bo->size);
++         munmap(map, bo->size);
++      }
++   }
++   if (!(flags & MAP_ASYNC))
++      bo_wait_with_stall_warning(dbg, bo, "CPU mapping");
++#ifdef SUPPORT_INTEL_INTEGRATED_GPUS
++   util_flush_inval_range((char *)bo->map_cpu + offset, size);
++#endif
++   return bo->map_cpu;
++}
++
+ static void *
+ crocus_bo_map_wc(struct util_debug_callback *dbg,
+                  struct crocus_bo *bo, unsigned flags)
+diff --git a/src/gallium/drivers/crocus/crocus_bufmgr.h b/src/gallium/drivers/crocus/crocus_bufmgr.h
+index 1010e3f..e9a4b7a 100644
+--- a/src/gallium/drivers/crocus/crocus_bufmgr.h
++++ b/src/gallium/drivers/crocus/crocus_bufmgr.h
+@@ -240,6 +240,8 @@ static inline void crocus_bo_unreference(struct crocus_bo *bo)
+  */
+ MUST_CHECK void *crocus_bo_map(struct util_debug_callback *dbg,
+                              struct crocus_bo *bo, unsigned flags);
++void *crocus_bo_map_range(struct util_debug_callback *dbg, struct crocus_bo *bo,
++                          unsigned flags, uint64_t offset, uint64_t size);
+ 
+ /**
+  * Reduces the refcount on the userspace mapping of the buffer
+diff --git a/src/gallium/drivers/crocus/crocus_resource.c b/src/gallium/drivers/crocus/crocus_resource.c
+index 824274b..8f5feb4 100644
+--- a/src/gallium/drivers/crocus/crocus_resource.c
++++ b/src/gallium/drivers/crocus/crocus_resource.c
+@@ -45,6 +45,7 @@
+ #include "util/u_upload_mgr.h"
+ #include "util/ralloc.h"
+ #include "util/u_memory.h"
++#include "util/u_debug.h"
+ #include "crocus_batch.h"
+ #include "crocus_context.h"
+ #include "crocus_resource.h"
+@@ -62,6 +63,19 @@ enum modifier_priority {
+    MODIFIER_PRIORITY_Y_CCS,
+ };
+ 
++/* GPD R7 test switches (environment); no change unless set. */
++DEBUG_GET_ONCE_NUM_OPTION(crocus_blit_upload_min, "CROCUS_BLIT_UPLOAD_MIN", 64 * 1024)
++DEBUG_GET_ONCE_BOOL_OPTION(crocus_read_blit, "CROCUS_READ_BLIT", false)
++DEBUG_GET_ONCE_NUM_OPTION(crocus_read_blit_min, "CROCUS_READ_BLIT_MIN", 64 * 1024)
++DEBUG_GET_ONCE_BOOL_OPTION(crocus_inval_range, "CROCUS_INVAL_RANGE", false)
++DEBUG_GET_ONCE_BOOL_OPTION(crocus_ext_mocs_internal, "CROCUS_EXT_MOCS_INTERNAL", false)
++
++bool
++crocus_debug_ext_mocs_internal(void)
++{
++   return debug_get_option_crocus_ext_mocs_internal();
++}
++
+ static const uint64_t priority_to_modifier[] = {
+    [MODIFIER_PRIORITY_INVALID] = DRM_FORMAT_MOD_INVALID,
+    [MODIFIER_PRIORITY_LINEAR] = DRM_FORMAT_MOD_LINEAR,
+@@ -1487,7 +1501,18 @@ crocus_map_direct(struct crocus_transfer *map)
+    struct pipe_box *box = &xfer->box;
+    struct crocus_resource *res = (struct crocus_resource *) xfer->resource;
+ 
+-   void *ptr = crocus_bo_map(map->dbg, res->bo, xfer->usage & MAP_FLAGS);
++   void *ptr;
++
++   /* GPD R7 test switch: a read-only map of a buffer invalidates only the
++    * mapped range instead of the whole BO (crocus_bo_map_cpu).
++    */
++   if (debug_get_option_crocus_inval_range() &&
++       res->base.b.target == PIPE_BUFFER &&
++       (xfer->usage & PIPE_MAP_READ) && !(xfer->usage & PIPE_MAP_WRITE))
++      ptr = crocus_bo_map_range(map->dbg, res->bo, xfer->usage & MAP_FLAGS,
++                                box->x, box->width);
++   else
++      ptr = crocus_bo_map(map->dbg, res->bo, xfer->usage & MAP_FLAGS);
+ 
+    if (res->base.b.target == PIPE_BUFFER) {
+       xfer->stride = 0;
+@@ -1620,8 +1645,21 @@ crocus_transfer_map(struct pipe_context *ctx,
+     * temporary and map that, to avoid the resolve.  (It might be better to
+     * a tiled temporary and use the tiled_memcpy paths...)
+     */
++   /* GPD R7 test switch: read back tiled textures on non-LLC parts through
++    * a linear staging texture (GPU blit, then a cached CPU map) instead of
++    * the CPU detiling from an uncached mapping.
++    */
++   bool read_blit = debug_get_option_crocus_read_blit() &&
++      !screen->devinfo.has_llc && resource->target != PIPE_BUFFER &&
++      surf->tiling != ISL_TILING_LINEAR && (usage & PIPE_MAP_READ) &&
++      !(usage & (PIPE_MAP_PERSISTENT | PIPE_MAP_COHERENT | PIPE_MAP_DIRECTLY)) &&
++      (uint64_t)box->width * box->height * box->depth *
++         util_format_get_blocksize(res->base.b.format) >=
++         debug_get_option_crocus_read_blit_min();
++
+    if (!(usage & PIPE_MAP_DISCARD_RANGE) &&
+-       !crocus_has_invalid_primary(res, level, 1, box->z, box->depth))
++       !crocus_has_invalid_primary(res, level, 1, box->z, box->depth) &&
++       !read_blit)
+       no_gpu = true;
+ 
+    const struct isl_format_layout *fmtl = isl_format_get_layout(surf->format);
+@@ -1637,7 +1675,11 @@ crocus_transfer_map(struct pipe_context *ctx,
+        surf->tiling != ISL_TILING_LINEAR &&
+        (usage & PIPE_MAP_WRITE) && !(usage & PIPE_MAP_READ) &&
+        (uint64_t)box->width * box->height * box->depth *
+-          util_format_get_blocksize(res->base.b.format) >= 64 * 1024)
++          util_format_get_blocksize(res->base.b.format) >=
++          debug_get_option_crocus_blit_upload_min())
++      map_would_stall = true;
++
++   if (read_blit && !no_gpu)
+       map_would_stall = true;
+ 
+    if (map_would_stall && !no_gpu) {
+diff --git a/src/gallium/drivers/crocus/crocus_resource.h b/src/gallium/drivers/crocus/crocus_resource.h
+index 75a596d..67e9a5f 100644
+--- a/src/gallium/drivers/crocus/crocus_resource.h
++++ b/src/gallium/drivers/crocus/crocus_resource.h
+@@ -300,9 +300,15 @@ static inline uint32_t
+ crocus_mocs(const struct crocus_bo *bo,
+             const struct isl_device *dev)
+ {
+-   return isl_mocs(dev, 0, bo && crocus_bo_is_external(bo));
++   /* GPD R7 test switch: external (imported/exported) BOs get the internal
++    * MOCS instead of the external one.
++    */
++   return isl_mocs(dev, 0, bo && crocus_bo_is_external(bo) &&
++                   !crocus_debug_ext_mocs_internal());
+ }
+ 
++bool crocus_debug_ext_mocs_internal(void);
++
+ struct crocus_format_info crocus_format_for_usage(const struct intel_device_info *,
+                                                   enum pipe_format pf,
+                                                   isl_surf_usage_flags_t usage);
+diff --git a/src/mesa/state_tracker/st_pbo.c b/src/mesa/state_tracker/st_pbo.c
+index f4a7ba1..8d82210 100644
+--- a/src/mesa/state_tracker/st_pbo.c
++++ b/src/mesa/state_tracker/st_pbo.c
+@@ -648,7 +648,12 @@ st_init_pbo_helpers(struct st_context *st)
+    st->pbo.upload_enabled =
+       screen->caps.texture_buffer_objects &&
+       screen->caps.texture_buffer_offset_alignment >= 1 &&
+-      screen->shader_caps[MESA_SHADER_FRAGMENT].integers;
++      screen->shader_caps[MESA_SHADER_FRAGMENT].integers &&
++      /* GPD R7 test switch: ST_PBO_UPLOAD=0 disables the shader-based PBO
++       * upload path (texture uploads from a PBO then map the PBO and take
++       * the ordinary upload path).
++       */
++      debug_get_bool_option("ST_PBO_UPLOAD", true);
+    if (!st->pbo.upload_enabled)
+       return;
+ 
+-- 
+2.56.0
+
+
+From fab8033ed59bafe860a2b67388fc5639a04ad983 Mon Sep 17 00:00:00 2001
+From: Robin Eidissen <robinei@gmail.com>
+Date: Mon, 12 Oct 2026 02:28:20 +0200
+Subject: [PATCH 2/2] r7: fix decl order
+
+---
+ src/gallium/drivers/crocus/crocus_resource.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/gallium/drivers/crocus/crocus_resource.h b/src/gallium/drivers/crocus/crocus_resource.h
+index 67e9a5f..7a0acc2 100644
+--- a/src/gallium/drivers/crocus/crocus_resource.h
++++ b/src/gallium/drivers/crocus/crocus_resource.h
+@@ -296,6 +296,8 @@ crocus_resource_bo(struct pipe_resource *p_res)
+    return res->bo;
+ }
+ 
++bool crocus_debug_ext_mocs_internal(void);
++
+ static inline uint32_t
+ crocus_mocs(const struct crocus_bo *bo,
+             const struct isl_device *dev)
+@@ -307,8 +309,6 @@ crocus_mocs(const struct crocus_bo *bo,
+                    !crocus_debug_ext_mocs_internal());
+ }
+ 
+-bool crocus_debug_ext_mocs_internal(void);
+-
+ struct crocus_format_info crocus_format_for_usage(const struct intel_device_info *,
+                                                   enum pipe_format pf,
+                                                   isl_surf_usage_flags_t usage);
+-- 
+2.56.0
+

@@ -637,3 +637,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Investigation R5 (`mesa/reports/R5-softpin-vulkan13.md`, test programs `mesa/reports/r5/`): softpin works on CHV
   (kernel), relocation overhead is small, hasvk lacks only buffer device address for Vulkan 1.3; DXVK <= 2.6 would
   run with the `hasvk_report_vk_1_3_version` option. docs/ideas.md 13 updated. Nothing changed on the device.
+- Investigation R7 (`mesa/reports/R7-optimizations.md`, benchmarks and candidate patches 0003-0005 in
+  `mesa/reports/r7/`): measured gains for tiled-texture readback via blit, range-limited invalidate for read maps,
+  upload-blit threshold 256 KiB, trimmed driconf (~6 ms per GL program start), GPU clock policy; not applied yet.
+  R6 (patch correctness) paused overnight; its dEQP results are in /tmp/r6 on the GPD until the next reboot.

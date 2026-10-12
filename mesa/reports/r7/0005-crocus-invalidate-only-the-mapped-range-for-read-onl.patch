@@ -1,0 +1,120 @@
+From a3413ac937bc9fcf7796aeb4e52a847292fb8879 Mon Sep 17 00:00:00 2001
+From: Robin Eidissen <robinei@gmail.com>
+Date: Mon, 12 Oct 2026 02:43:57 +0200
+Subject: [PATCH 3/3] crocus: invalidate only the mapped range for read-only
+ buffer maps
+
+On non-LLC parts a read-only CPU map of a non-coherent buffer invalidates
+the CPU cache lines of the whole BO (crocus_bo_map_cpu), which costs about
+7.6 ns per line on a Cherry Trail Atom: 0.5 ms per 4 MiB regardless of
+how much is read. Invalidate only the mapped range instead. Measured on a
+GPD Win 1: glGetBufferSubData / glMapBufferRange(GL_MAP_READ_BIT) of 64
+bytes from a 4 MiB vertex buffer 0.9-1.4 ms -> 0.11 ms (the remaining time
+is the draw and the fence wait). Data read is byte-identical.
+---
+ src/gallium/drivers/crocus/crocus_bufmgr.c   | 41 ++++++++++++++++++++
+ src/gallium/drivers/crocus/crocus_bufmgr.h   |  3 ++
+ src/gallium/drivers/crocus/crocus_resource.c | 14 ++++++-
+ 3 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/src/gallium/drivers/crocus/crocus_bufmgr.c b/src/gallium/drivers/crocus/crocus_bufmgr.c
+index 0406190..0aed7e9 100644
+--- a/src/gallium/drivers/crocus/crocus_bufmgr.c
++++ b/src/gallium/drivers/crocus/crocus_bufmgr.c
+@@ -849,6 +849,8 @@ crocus_bo_gem_mmap(struct util_debug_callback *dbg, struct crocus_bo *bo, bool w
+       return crocus_bo_gem_mmap_legacy(dbg, bo, wc);
+ }
+ 
++static bool can_map_cpu(struct crocus_bo *bo, unsigned flags);
++
+ static void *
+ crocus_bo_map_cpu(struct util_debug_callback *dbg,
+                   struct crocus_bo *bo, unsigned flags)
+@@ -909,6 +911,45 @@ crocus_bo_map_cpu(struct util_debug_callback *dbg,
+    return bo->map_cpu;
+ }
+ 
++/**
++ * Like crocus_bo_map for a read-only CPU (cached) mapping of a non-coherent
++ * BO, but only the given range is invalidated in the CPU caches instead of
++ * the whole BO. Falls back to crocus_bo_map when a cached read mapping is
++ * not what crocus_bo_map would use.
++ */
++void *
++crocus_bo_map_range(struct util_debug_callback *dbg,
++                    struct crocus_bo *bo, unsigned flags,
++                    uint64_t offset, uint64_t size)
++{
++   if (bo->tiling_mode != I915_TILING_NONE || (flags & MAP_WRITE) ||
++       !can_map_cpu(bo, flags) || bo->cache_coherent ||
++       bo->bufmgr->has_llc || offset + size > bo->size)
++      return crocus_bo_map(dbg, bo, flags);
++
++   if (!bo->map_cpu) {
++      void *map = crocus_bo_gem_mmap(dbg, bo, false);
++      if (!map)
++         return crocus_bo_map(dbg, bo, flags);
++      VG_DEFINED(map, bo->size);
++      if (p_atomic_cmpxchg(&bo->map_cpu, NULL, map)) {
++         VG_NOACCESS(map, bo->size);
++         munmap(map, bo->size);
++      }
++   }
++
++   if (!(flags & MAP_ASYNC))
++      bo_wait_with_stall_warning(dbg, bo, "CPU mapping");
++
++   /* See crocus_bo_map_cpu: stale lines from an earlier read of this
++    * mapping (or of a previous buffer in the BO cache) must be dropped.
++    */
++#ifdef SUPPORT_INTEL_INTEGRATED_GPUS
++   util_flush_inval_range((char *)bo->map_cpu + offset, size);
++#endif
++   return bo->map_cpu;
++}
++
+ static void *
+ crocus_bo_map_wc(struct util_debug_callback *dbg,
+                  struct crocus_bo *bo, unsigned flags)
+diff --git a/src/gallium/drivers/crocus/crocus_bufmgr.h b/src/gallium/drivers/crocus/crocus_bufmgr.h
+index 1010e3f..b5d0db5 100644
+--- a/src/gallium/drivers/crocus/crocus_bufmgr.h
++++ b/src/gallium/drivers/crocus/crocus_bufmgr.h
+@@ -240,6 +240,9 @@ static inline void crocus_bo_unreference(struct crocus_bo *bo)
+  */
+ MUST_CHECK void *crocus_bo_map(struct util_debug_callback *dbg,
+                              struct crocus_bo *bo, unsigned flags);
++/* Read-only cached map that invalidates only [offset, offset + size). */
++void *crocus_bo_map_range(struct util_debug_callback *dbg, struct crocus_bo *bo,
++                          unsigned flags, uint64_t offset, uint64_t size);
+ 
+ /**
+  * Reduces the refcount on the userspace mapping of the buffer
+diff --git a/src/gallium/drivers/crocus/crocus_resource.c b/src/gallium/drivers/crocus/crocus_resource.c
+index f32117f..b473212 100644
+--- a/src/gallium/drivers/crocus/crocus_resource.c
++++ b/src/gallium/drivers/crocus/crocus_resource.c
+@@ -1487,7 +1487,19 @@ crocus_map_direct(struct crocus_transfer *map)
+    struct pipe_box *box = &xfer->box;
+    struct crocus_resource *res = (struct crocus_resource *) xfer->resource;
+ 
+-   void *ptr = crocus_bo_map(map->dbg, res->bo, xfer->usage & MAP_FLAGS);
++   void *ptr;
++
++   /* A read-only map of a buffer only needs the mapped range invalidated in
++    * the CPU caches, not the whole BO (crocus_bo_map_cpu): a 64-byte
++    * glGetBufferSubData from a 4 MiB buffer costs 0.9-1.3 ms otherwise on a
++    * non-LLC part (clflush of every line), 0.11 ms with the range.
++    */
++   if (res->base.b.target == PIPE_BUFFER &&
++       (xfer->usage & PIPE_MAP_READ) && !(xfer->usage & PIPE_MAP_WRITE))
++      ptr = crocus_bo_map_range(map->dbg, res->bo, xfer->usage & MAP_FLAGS,
++                                box->x, box->width);
++   else
++      ptr = crocus_bo_map(map->dbg, res->bo, xfer->usage & MAP_FLAGS);
+ 
+    if (res->base.b.target == PIPE_BUFFER) {
+       xfer->stride = 0;
+-- 
+2.56.0
+
