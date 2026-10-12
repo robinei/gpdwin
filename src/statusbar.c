@@ -12,7 +12,8 @@
  * off. Volume: speaker by level, crossed out (dimmed) when muted.
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
- * "6W" is the package power limit (RAPL PL1), white at the firmware's 6 W, yellow while a game raised it
+ * "6W" is the package power limit (RAPL PL1), white at the firmware's 6 W, yellow while a game raised it,
+ * green while a game lowered it
  * (scripts/game-wrap GPD_TDP_W, docs/power.md). "55°C" is the hottest CPU core (coretemp): green, peach from
  * 75 C (normal in games at 8 W), red from 85 C (the chip throttles at 90 C).
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
@@ -369,7 +370,8 @@ static void emit(void)
     else
         block(st.gpu_turbo ? TEXT : DIM, LINE, ICON_GPU " idle");
     if (st.tdp_uw > 0)
-        block(st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, ICON_POWER " %dW", (st.tdp_uw + 500000) / 1000000);
+        block(st.tdp_uw > PL1_DEFAULT + 100000 ? YELLOW : st.tdp_uw < PL1_DEFAULT - 100000 ? GREEN : TEXT, LINE,
+              ICON_POWER " %dW", (st.tdp_uw + 500000) / 1000000);
     if (st.temp_c >= 0)
         block(st.temp_c >= 85 ? RED : st.temp_c >= 75 ? PEACH : GREEN, LINE, ICON_TEMP " %d°", st.temp_c);
     block(TEXT, LINE, ICON_RAM " %.1f/%.1fG", st.ram_used, st.ram_total);

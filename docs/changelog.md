@@ -723,3 +723,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   `~/.config/pegasus-frontend/shelf-game-settings.txt`; passed to scripts/game-wrap at launch, which now also
   handles CPU/GPU turbo and restores the previous turbo states. Launchers and the installer no longer set
   GPD_TDP_W / GPD_GPU_PIN / MANGOHUD fps caps; Dark Souls (8 W, pin) and Psychonauts (30 fps) moved to shelf.
+- statusbar: power limit green when a game lowered it (2/4 W), yellow when raised.
