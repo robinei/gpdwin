@@ -707,3 +707,9 @@ Details before 2026-10-06 are in `docs/archive/`.
 - statusbar: CPU temperature in the tdp block (`tdp 6W 55°C`, hottest core from coretemp every 5 s; red from 85 °C).
 - statusbar: power limit and temperature as separate blocks without prefixes (`6W` white/yellow, `56°C` green/peach from 75/red from 85).
 - statusbar: icons instead of word prefixes (Symbols Nerd Font, `ttf-nerd-fonts-symbols` installed): CPU, GPU, power, temperature, RAM, Wi-Fi strength, volume level, battery level/charging/at limit.
+
+## 2026-10-12 — Psychonauts set up (/setup-game)
+- `~/Games/installed/psychonauts`: `DisplaySettings.ini` (fixes the 32bpp-mode startup error), our DXVK d3d9 + `dxvk.conf`,
+  `gpd-launch.sh` (custom, 8 W / GPU pin), `gpd-launch-wined3d.sh` fallback, `Profiles` symlink to
+  `~/.local/share/Psychonauts/Profiles` (existing saves). Details in docs/steam-library.md. Revert: delete the folder's
+  added files / reinstall via `scripts/games`.

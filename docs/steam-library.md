@@ -142,6 +142,14 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     **24.3 -> 28.0 fps** in a heavy area; temperatures level at 77-80 C after 2 min (limit ~90 C). The launcher sets
     8 W while the game runs (now `GPD_TDP_W=8 GPD_GPU_PIN=1` for game-wrap, docs/power.md); a reboot resets it too. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
+  Psychonauts (3830, 2026-10-12): Windows build, 32-bit D3D9, no SteamStub, `steam_appid.txt` is enough (no gbe).
+  Wine's d3d9 first start: "unable to find a 32bpp display mode" (Xwayland offers only 720x1280 and 640x480): fixed by a
+  `DisplaySettings.ini` next to the exe (PCGamingWiki; 1280x720, FullScreen=true, VSync=false, FSAA=false). Then it runs.
+  Launcher uses our DXVK 2.4.1 gplasync d3d9.dll (x32) + dxvk.conf (async, 3 back buffers, latency 3) + claim-1.3 env +
+  `DXVK_GPD_ASYNC_READBACK=1`; wined3d variant `gpd-launch-wined3d.sh`. Saves: the build reads `<install>/Profiles`;
+  that is a symlink to `~/.local/share/Psychonauts/Profiles` (the old native-build saves, the path `games/saves.json`
+  backs up). User: "much better than the native build". Measured in game: package ~7 W at the 8 W limit, GPU busy,
+  no thread saturated (game 63%, dxvk-cs 47%). Not tuned further.
 
 ## Very likely runs well, controller support
 
