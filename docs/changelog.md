@@ -790,3 +790,6 @@ Details before 2026-10-06 are in `docs/archive/`.
 - PPSSPP: Vulkan backend, VSync off, fps/speed display on (set by Robin in PPSSPP, captured). Fast-forward 165 fps
   smooth vs OpenGL 145; with VSync on, Vulkan showed only ~50 of the frames (FIFO). Revert: Settings > Graphics in
   PPSSPP (backend OpenGL / VSync on), then `scripts/sync capture ~/.config/ppsspp/PSP/SYSTEM/ppsspp.ini`.
+- RetroArch: slang shaders for the Vulkan driver (GLSL ones only work with `gl`): buildbot `shaders_slang.zip`
+  extracted to `~/.config/retroarch/shaders/shaders_slang/`, and `config/global.slangp` = lcd3x like `global.glslp`.
+  Revert: delete both.

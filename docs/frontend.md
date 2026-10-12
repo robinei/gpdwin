@@ -143,8 +143,10 @@ when it's no longer wanted.
 - Measure pacing with `statistics_show = "true"` via `--appendconfig` (with
   `config_save_on_exit = "false"`) and a `grim` screenshot; `--max-frames` disables throttling.
 - `input_driver = wayland`, auto save/load state on, shader dir `~/.config/retroarch/shaders`
-  (Arch's default `/usr/share/libretro/shaders` doesn't exist). Use GLSL shaders with the `gl`
-  driver; light ones only (sharp-bilinear, lcd3x, crt-easymode, fakelottes).
+  (Arch's default `/usr/share/libretro/shaders` doesn't exist). The `gl` driver uses GLSL (`shaders_glsl/`), the
+  `vulkan` driver only slang (`shaders_slang/`, from the buildbot's `shaders_slang.zip` like the online updater,
+  2026-10-12); each lists only its own kind. Global presets for both: `config/global.glslp` and `config/global.slangp`
+  (both lcd3x). Light shaders only (sharp-bilinear, lcd3x, crt-easymode, fakelottes).
 - Hotkeys (user's choice, 2026-10-11): keyboard only in `retroarch.cfg`: Esc menu, Q quit, S/L save/load
   state, -/= state slot, Backspace rewind, Tab hold / Space toggle fast-forward; most others unbound (H reset
   too). No pad hotkeys there: the pad uses its autoconfig profile. RetroArch ignores modifiers, so a chord
