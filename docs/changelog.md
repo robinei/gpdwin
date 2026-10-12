@@ -756,3 +756,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   in the game's launcher, plus `hasvk_report_descriptor_indexing=true`. The system Mesa is unchanged (1.7). Why: try
   current DXVK on genuine 1.3 in the real game (headless tests were clean, R9 section 9). Revert:
   `cp dxvk-test/d3d9-gpd-2.4.1.dll DATA/d3d9.dll && cp dxvk-test/gpd-launch-2.4.1.sh gpd-launch.sh` in the game folder.
+- Dark Souls crashed on DXVK 2.7.1 when loading a save (NULL+0x20 in `DxvkBuffer::DxvkBuffer`, from
+  `CreateVertexBuffer`); reverted to DXVK 2.4.1 and the system driver (the old launcher). The 2.7.1 launcher is kept as
+  `dxvk-test/gpd-launch-2.7.1.sh`. docs/steam-library.md.
