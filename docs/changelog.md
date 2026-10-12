@@ -781,3 +781,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Mesa 1.11 confirmation on the installed driver (dEQP-VK): buffer_device_address 4716/4716 (incl. capture/replay),
   push constants 133/133, memory 537 Pass/717 NS and command buffers 57/70 NS (identical to the R9 final build),
   0 crashes, 0 GPU hangs.
+- Cleanup after R9: removed `~/vk13-test` (GPD, ~1.1 GB: test drivers, dEQP copy, logs), `~/Games/tools/mesa-vk13` and the
+  old `~/Games/tools/mesa-hiz`, the temporary Utilities "Dark Souls Test" entry, and the desktop chroot copies `r7`,
+  multilib `vk13`, `gpd-dxvk/root/build-271{,gpd}`. Kept: the build chroots and `r6` (piglit) / `r6b` (dEQP) for testing
+  future Mesa builds (mesa/README.md). Dark Souls' saved 2.7.1 launcher no longer points at the removed driver.

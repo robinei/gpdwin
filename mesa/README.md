@@ -34,6 +34,9 @@ Contents:
   needs). `0011` only capture/replay allocations use the 256 MiB client-visible heap (before it, DXVK 2.7.1 crashed
   Dark Souls at 256 MiB). CTS: per test identical to 1.7 or better in every sampled group, 0 GPU hangs. Dark Souls
   (DXVK 2.4.1) on it: same feel as 1.7.
+- Test tools kept on the desktop for future rebuilds (devtools chroot copies): `/var/lib/archbuild/gpd-x86_64/r6b`
+  (VK-GL-CTS 3.2.14.1 build, `build/deqp-gpd`: dEQP-VK/GLES, used by R6 and R9) and `.../r6` (piglit, R6). Copy the
+  binaries to the GPD and run against the installed driver (R9's `reports/r9/deqprun.sh`, `compare.sh`, case lists).
 - `unused/`: the test-switch patches of the 1.1 test build (fix 2 `MESA_ST_MATCH_SIZED`, fix 1a/1b
   `CROCUS_STAGING_NOSNOOP`, `CROCUS_SNOOP_UC_MOCS`), kept for reference, not built.
 - `build.sh`: builds all packages of the pkgbase on the desktop in a clean chroot (devtools, sudo).

@@ -137,19 +137,19 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     launcher pins the GPU minimum clock to its current maximum while the game runs (`rps_min_freq_mhz`, made
     wheel-writable in `/etc/tmpfiles.d/turbo.conf`), back to RPn afterwards.
   - Tried 2026-10-12 17:00: DXVK 2.7.1 (gplasync 2.7.1 + our async readback port, repo `dxvk/vk13/`,
-    `dxvk-test/d3d9-gpd-2.7.1.dll`) on the R9 hasvk build (`~/Games/tools/mesa-vk13/`, lib32 `lib32-vulkan-intel-gpd 1.9`,
-    via `VK_DRIVER_FILES` + `hasvk_report_descriptor_indexing=true`; launcher kept as `dxvk-test/gpd-launch-2.7.1.sh`).
+    `dxvk-test/d3d9-gpd-2.7.1.dll`) on the R9 hasvk build (then a separate lib32 driver via `VK_DRIVER_FILES`; since Mesa 1.11 the system driver)
+    + `hasvk_report_descriptor_indexing=true`; launcher kept as `dxvk-test/gpd-launch-2.7.1.sh` (now without
+    `VK_DRIVER_FILES`): to try again, copy it to `gpd-launch.sh` and the 2.7.1 DLL to `DATA/d3d9.dll`).
     **Crashed loading a save**: page fault (NULL+0x20) in `DxvkBuffer::DxvkBuffer` <- `DxvkDevice::createBuffer` <-
     `D3D9VertexBuffer` <- `CreateVertexBuffer` (symbols from an unstripped relink of the same build). Not analysed yet
     (no DXVK log: the launcher has `DXVK_LOG_LEVEL=none`); back on 2.4.1 + the system driver.
-    Diagnostic runs: Utilities > "Dark Souls Test" (temporary, `pegasus/utils/tools/darksouls-test.sh`) runs the R9 kit
+    Diagnostic runs (Utilities > "Dark Souls Test", removed again the same day) ran the R9 kit
     (`mesa/reports/r9/darksouls-test.sh`) with the DXVK log, `DXVK_HUD=memory,allocations` and a 2 s sampler of the
     process' VmSize/VmRSS and its GPU memory (fdinfo) into `~/vk13-test/logs/ds-*.mem`.
     First diagnostic run (17:36): DXVK logged `Memory allocation failed` (23 KB) with exactly 256 MiB allocated of a
     2752 MiB heap; process VmSize ~3.0 GB, GPU memory 287 MiB. Cause: R9 patch 0001's 32-bit layout has a 256 MiB
     client-visible heap and hasvk put every `DEVICE_ADDRESS_BIT` allocation there; DXVK 2.7 sets that bit on all memory.
-    Fixed by `mesa/vk13/0005` (only capture/replay allocations use that heap); lib32 1.10 in `~/Games/tools/mesa-vk13/`
-    (1.9 kept as `.so.1.9`).
+    Fixed by `mesa/vk13/0005` (now `mesa/0011`, only capture/replay allocations use that heap; shipped in Mesa 1.11).
     With 0005 the save loads and plays on 2.7.1 (GPU memory ~485 MiB), but Robin found it heavier/slower than 2.4.1
     (felt, no fps numbers; DXVK 2.7 logs "Graphics pipeline libraries not supported", and the R9 micro test had 2.7.1 at
     about half 2.4.1's speed). The game stays on DXVK 2.4.1 + the system driver.
