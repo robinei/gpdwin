@@ -191,27 +191,46 @@ static int just_resumed(void)
     return resumed >= 0 && read_double("/proc/uptime") - resumed < RESUME_GUARD;
 }
 
-/* One sway IPC request (type: 0 RUN_COMMAND, 3 GET_OUTPUTS); the reply's JSON goes into out
- * (NUL-terminated, cut at size). Returns 0 if sway couldn't be asked. */
-static int sway_ipc(uint32_t type, const char *payload, char *out, size_t size)
+/* A connection to sway's IPC socket, or -1. */
+static int sway_connect(void)
 {
     const char *sock = getenv("SWAYSOCK");
     struct sockaddr_un addr = { .sun_family = AF_UNIX };
-    uint32_t len = strlen(payload);
-    int fd, ok = 0;
-    if (!sock || strlen(sock) >= sizeof addr.sun_path || len > 1024)
-        return 0;
+    if (!sock || strlen(sock) >= sizeof addr.sun_path)
+        return -1;
     strcpy(addr.sun_path, sock);
-    fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-    if (fd < 0)
-        return 0;
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fd >= 0 && connect(fd, (struct sockaddr *)&addr, sizeof addr) < 0) {
+        close(fd);
+        fd = -1;
+    }
+    return fd;
+}
+
+/* Send one IPC message (type: 0 RUN_COMMAND, 2 SUBSCRIBE, 3 GET_OUTPUTS). Returns 0 if it wasn't sent. */
+static int sway_send(int fd, uint32_t type, const char *payload)
+{
+    uint32_t len = strlen(payload);
     char req[14 + 1024] = "i3-ipc";
+    if (len > 1024)
+        return 0;
     memcpy(req + 6, &len, 4);
     memcpy(req + 10, &type, 4);
     memcpy(req + 14, payload, len);
-    if (connect(fd, (struct sockaddr *)&addr, sizeof addr) == 0 && write(fd, req, 14 + len) == 14 + (ssize_t)len) {
+    return write(fd, req, 14 + len) == 14 + (ssize_t)len;
+}
+
+/* One sway IPC request; the reply's JSON goes into out (NUL-terminated, cut at size). Returns 0 if
+ * sway couldn't be asked. */
+static int sway_ipc(uint32_t type, const char *payload, char *out, size_t size)
+{
+    int fd = sway_connect(), ok = 0;
+    if (fd < 0)
+        return 0;
+    if (sway_send(fd, type, payload)) {
         char reply[16384];
         size_t got = 0;
+        uint32_t len;
         ssize_t n;
         while (got < sizeof reply - 1 && (n = read(fd, reply + got, sizeof reply - 1 - got)) > 0) {
             got += n;
@@ -244,41 +263,24 @@ static int screen_dark(void)
 static char *ev_buf;
 static size_t ev_len, ev_cap;
 
+static char tune_state[256]; /* $XDG_RUNTIME_DIR/TUNE_STATE, set in main */
+
 /* Subscribe to window events; the fd (non-blocking) or -1. */
 static int sway_subscribe(void)
 {
-    const char *sock = getenv("SWAYSOCK");
-    struct sockaddr_un addr = { .sun_family = AF_UNIX };
-    if (!sock || strlen(sock) >= sizeof addr.sun_path)
-        return -1;
-    strcpy(addr.sun_path, sock);
-    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-    if (fd < 0)
-        return -1;
-    const char *payload = "[\"window\"]";
-    uint32_t len = strlen(payload), type = 2; /* SUBSCRIBE */
-    char req[14 + 16] = "i3-ipc";
-    memcpy(req + 6, &len, 4);
-    memcpy(req + 10, &type, 4);
-    memcpy(req + 14, payload, len);
-    if (connect(fd, (struct sockaddr *)&addr, sizeof addr) < 0 || write(fd, req, 14 + len) != 14 + (ssize_t)len) {
+    int fd = sway_connect();
+    if (fd >= 0 && !sway_send(fd, 2, "[\"window\"]")) {
         close(fd);
-        return -1;
+        fd = -1;
     }
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    if (fd >= 0)
+        fcntl(fd, F_SETFL, O_NONBLOCK);
     return fd;
 }
 
 static void sway_command(int fd, const char *command)
 {
-    uint32_t len = strlen(command), type = 0; /* RUN_COMMAND */
-    char req[14 + 256] = "i3-ipc";
-    if (len > 256)
-        return;
-    memcpy(req + 6, &len, 4);
-    memcpy(req + 10, &type, 4);
-    memcpy(req + 14, command, len);
-    if (write(fd, req, 14 + len) != 14 + (ssize_t)len)
+    if (!sway_send(fd, 0, command))
         fprintf(stderr, "inputd: sway command not sent: %s\n", command);
 }
 
@@ -286,9 +288,7 @@ static void sway_command(int fd, const char *command)
 static void window_event(int fd, const char *ev)
 {
     if (strstr(ev, "\"change\": \"focus\"") && strstr(ev, "\"fullscreen_mode\": 0")) {
-        char state[256];
-        snprintf(state, sizeof state, "%s/" TUNE_STATE, getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "/tmp");
-        if (access(state, F_OK) == 0 || strstr(ev, "\"app_id\": \"shelf\""))
+        if (access(tune_state, F_OK) == 0 || strstr(ev, "\"app_id\": \"shelf\""))
             return;
         sway_command(fd, "[workspace=\"^1$\" con_id=__focused__ tiling] fullscreen enable");
     } else if (strstr(ev, "\"change\": \"floating\"") && strstr(ev, "\"type\": \"floating_con\"") &&
@@ -730,6 +730,8 @@ static void on_menu(void)
 
 int main(void)
 {
+    const char *run = getenv("XDG_RUNTIME_DIR");
+    snprintf(tune_state, sizeof tune_state, "%s/" TUNE_STATE, run ? run : "/tmp");
 
     int watch = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
     /* IN_ATTRIB: udev sets the node's permissions just after the kernel creates it */
