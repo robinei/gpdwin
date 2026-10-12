@@ -641,3 +641,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   `mesa/reports/r7/`): measured gains for tiled-texture readback via blit, range-limited invalidate for read maps,
   upload-blit threshold 256 KiB, trimmed driconf (~6 ms per GL program start), GPU clock policy; not applied yet.
   R6 (patch correctness) paused overnight; its dEQP results are in /tmp/r6 on the GPD until the next reboot.
+- Investigation R6 (`mesa/reports/R6-patch-correctness.md`): all Mesa patches 0001-0005, the driconf trim and the slim
+  build judged correct; dEQP 12,994 cases and piglit identical to Arch's Mesa (stock, 1.4, 1.5), own byte-exact
+  upload/readback stress tests pass 64/32-bit. i915 0015 residual race window noted in FINDINGS open items.
