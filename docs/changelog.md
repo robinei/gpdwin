@@ -684,3 +684,10 @@ Details before 2026-10-06 are in `docs/archive/`.
   rejects most hidden pixels and GPU load fell ~90% -> ~78%, fps about the same (now limited elsewhere).
   All six -gpd packages 1.5 -> 1.7 installed with `mesa/install.sh`. Revert: reinstall 1.5 packages or `mesa/rollback.sh`.
 - Dark Souls launcher: profiling settings and the test driver path removed again.
+
+## 2026-10-12 — Dark Souls at 30 fps: own DXVK build (`dxvk/`)
+- The game stalled ~18 ms per frame reading back a 16x16 eye-adaptation texture (found with a wait log added to
+  DXVK). `dxvk/0001-gpd-d3d9-async-readback-and-wait-log.patch` (on DXVK 2.4.1 + gplasync) adds
+  `DXVK_GPD_ASYNC_READBACK=1`: no wait for small read-only SYSTEMMEM locks. 19-24 -> 30 fps (cap), GPU 93-96% busy.
+  `dxvk/build.sh` builds the DLL in an Arch chroot on the desktop. Revert: copy `dxvk-test/d3d9-gplasync-2.4.1.dll`
+  to the game's `DATA/d3d9.dll` and drop the variable from its launcher.

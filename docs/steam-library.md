@@ -125,7 +125,14 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     GPU pinned at 600 MHz: no change (memory-bandwidth bound). `d3d9.numBackBuffers = 3` + `d3d9.maxFrameLatency = 3`
     kept (dxvk.conf; no measurable change, no added lag noticed); maxFrameLatency 6: no change.
   - Wine's Wayland driver (launcher with `unset DISPLAY`): the game crashes at start (page fault reading 0 in
-    darksouls+0xb70225 while handling display modes, stack holds 1280x720/800x450/... sizes); back to X11. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
+    darksouls+0xb70225 while handling display modes, stack holds 1280x720/800x450/... sizes); back to X11.
+  - **The real limiter (found 2026-10-12)**: DXVK HUD `submissions`: 1 queue sync per frame, ~19 ms. A DXVK build with
+    a wait log (repo `dxvk/`) showed it: every frame `LockRect` READONLY on a 16x16 R32F SYSTEMMEM surface (the
+    eye-adaptation luminance, copied with GetRenderTargetData), so the CPU waited for the whole GPU frame; CPU and
+    GPU took turns. `DXVK_GPD_ASYNC_READBACK=1` (our patch) skips that wait (values a frame or two old):
+    **30 fps (the cap)**, GPU 93-96% busy at ~580 MHz. The game now runs our `dxvk/build.sh` d3d9.dll; the release
+    gplasync and 1.10.3 DLLs stay in `dxvk-test/`. Two whole-device freezes with no log during DXVK sessions
+    (10:40 stock driver, 12:32 with HiZ): cause unknown; `ssh ... sudo dmesg -w` to the desktop catches the next one. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support
