@@ -42,6 +42,6 @@ parse
 {
   echo "$name ($drv, $(wc -l < "$list") tests): $(awk '{print $2}' $res | sed 's/(.*//' | sort | uniq -c | sort -rn | tr '\n' ' ')"
   echo "crashes: $crashes, wall time: $(( $(date +%s) - t0 )) s"
-  echo "hangs in dmesg: $(journalctl -k --no-pager | grep -ci 'gpu hang|Resetting rcs')"
+  echo "hangs in dmesg: $(journalctl -k --no-pager | grep -Eci 'gpu hang|Resetting rcs')"
 } > logs/$name.sum
 cat logs/$name.sum

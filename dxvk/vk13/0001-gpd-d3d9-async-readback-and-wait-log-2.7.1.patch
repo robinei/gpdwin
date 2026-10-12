@@ -1,0 +1,153 @@
+diff --git a/src/d3d9/d3d9_device.cpp b/src/d3d9/d3d9_device.cpp
+index 42b51a9..356fcb0 100644
+--- a/src/d3d9/d3d9_device.cpp
++++ b/src/d3d9/d3d9_device.cpp
+@@ -1,5 +1,36 @@
+ #include "d3d9_device.h"
+ 
++#include <chrono>
++#include <mutex>
++#include <map>
++#include <string>
++
++// GPD instrumentation (2026-10-12, port of the 2.4.1 patch to 2.7.1): which D3D9 calls make the CPU wait for the
++// GPU, and how long.
++namespace dxvk {
++  static void GpdWaitStat(const char* label, double ms, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
++    static std::mutex lock;
++    static std::map<std::string, std::pair<uint64_t, double>> stats;
++    static auto last = std::chrono::steady_clock::now();
++    static int detailed = 0;
++    std::lock_guard<std::mutex> guard(lock);
++    auto& e = stats[label];
++    e.first += 1;
++    e.second += ms;
++    if (detailed < 40 && ms > 1.0) {
++      detailed++;
++      Logger::warn(str::format("GPD wait ", label, " ", ms, " ms (a=", a, " b=", b, " c=", c, " d=0x", std::hex, d, ")"));
++    }
++    auto now = std::chrono::steady_clock::now();
++    if (now - last > std::chrono::seconds(5)) {
++      for (auto& s : stats)
++        Logger::warn(str::format("GPD wait summary 5s: ", s.first, ": ", s.second.first, " waits, ", s.second.second, " ms"));
++      stats.clear();
++      last = now;
++    }
++  }
++}
++
+ #include "d3d9_annotation.h"
+ #include "d3d9_common_texture.h"
+ #include "d3d9_interface.h"
+@@ -4782,8 +4813,11 @@ namespace dxvk {
+     }
+ 
+     // Wait for staging memory to get recycled.
+-    if (stagingBufferAllocated > MaxStagingMemoryInFlight)
++    if (stagingBufferAllocated > MaxStagingMemoryInFlight) {
++      auto gpdT0 = std::chrono::steady_clock::now();
+       m_dxvkDevice->waitForFence(*m_stagingBufferFence, stagingBufferAllocated - MaxStagingMemoryInFlight);
++      GpdWaitStat("StagingThrottle", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - gpdT0).count(), 0, 0, 0, 0);
++    }
+   }
+ 
+ 
+@@ -4802,7 +4836,12 @@ namespace dxvk {
+   bool D3D9DeviceEx::WaitForResource(
+     const DxvkPagedResource&                Resource,
+           uint64_t                          SequenceNumber,
+-          DWORD                             MapFlags) {
++          DWORD                             MapFlags,
++          const char*                       GpdLabel,
++          uint32_t                          GpdA,
++          uint32_t                          GpdB,
++          uint32_t                          GpdC,
++          uint32_t                          GpdD) {
+     // Wait for the any pending D3D9 command to be executed
+     // on the CS thread so that we can determine whether the
+     // resource is currently in use or not.
+@@ -4826,10 +4865,12 @@ namespace dxvk {
+       else {
+         // Make sure pending commands using the resource get
+         // executed on the the GPU if we have to wait for it
++        auto gpdT0 = std::chrono::steady_clock::now();
+         Flush();
+         SynchronizeCsThread(SequenceNumber);
+ 
+         m_dxvkDevice->waitForResource(Resource, access);
++        GpdWaitStat(GpdLabel, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - gpdT0).count(), GpdA, GpdB, GpdC, GpdD | MapFlags);
+       }
+     }
+ 
+@@ -5054,8 +5095,24 @@ namespace dxvk {
+         TrackTextureMappingBufferSequenceNumber(pResource, Subresource);
+       }
+ 
++      // GPD (2026-10-12): DXVK_GPD_ASYNC_READBACK=1 skips the GPU wait for read-only locks of small SYSTEMMEM
++      // images, i.e. per-frame GetRenderTargetData readbacks such as Dark Souls' 16x16 R32F eye-adaptation
++      // luminance: the game then reads the values of the last finished copy (a frame or two old) instead of
++      // stalling the CPU until the GPU has finished the whole frame (~18 ms per frame on CHV).
++      static const bool gpdAsyncReadback = env::getEnvVar("DXVK_GPD_ASYNC_READBACK") == "1";
++      const bool gpdSkipWait = gpdAsyncReadback && (Flags & D3DLOCK_READONLY) && desc.Pool == D3DPOOL_SYSTEMMEM
++                            && desc.Width * desc.Height <= 64 * 64;
++      if (gpdSkipWait) {
++        static bool gpdLogged = false;
++        if (!gpdLogged) {
++          gpdLogged = true;
++          Logger::warn(str::format("GPD: async readback active (no wait for read-only SYSTEMMEM lock ", desc.Width, "x", desc.Height, " format ", uint32_t(desc.Format), ")"));
++        }
++        ConsiderFlush(GpuFlushType::ImplicitWeakHint);
++      }
+       // Wait until the buffer is idle which may include the copy (and resolve) we just issued.
+-      if (!WaitForResource(*mappedBuffer, pResource->GetMappingBufferSequenceNumber(Subresource), Flags))
++      else if (!WaitForResource(*mappedBuffer, pResource->GetMappingBufferSequenceNumber(Subresource), Flags,
++            "LockImage(w,h,format,pool<<28|flags)", desc.Width, desc.Height, uint32_t(desc.Format), uint32_t(desc.Pool) << 28))
+         return D3DERR_WASSTILLDRAWING;
+     }
+ 
+@@ -5239,7 +5296,7 @@ namespace dxvk {
+       // That means that NeedsReadback is only true if the texture has been used with GetRTData or GetFrontbufferData before.
+       // Those functions create a buffer, so the buffer always exists here.
+       const Rc<DxvkBuffer>& buffer = pSrcTexture->GetBuffer();
+-      WaitForResource(*buffer, pSrcTexture->GetMappingBufferSequenceNumber(SrcSubresource), 0);
++      WaitForResource(*buffer, pSrcTexture->GetMappingBufferSequenceNumber(SrcSubresource), 0, "UpdateTextureReadback");
+       pSrcTexture->SetNeedsReadback(SrcSubresource, false);
+     }
+ 
+@@ -5477,7 +5534,8 @@ namespace dxvk {
+ 
+       if (!skipWait) {
+         const Rc<DxvkBuffer> mappingBuffer = pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>();
+-        if (!WaitForResource(*mappingBuffer, pResource->GetMappingBufferSequenceNumber(), Flags))
++        if (!WaitForResource(*mappingBuffer, pResource->GetMappingBufferSequenceNumber(), Flags,
++              "LockBuffer(size,usage,pool,flags)", pResource->Desc()->Size, pResource->Desc()->Usage, uint32_t(pResource->Desc()->Pool), 0))
+           return D3DERR_WASSTILLDRAWING;
+ 
+         pResource->SetNeedsReadback(false);
+@@ -5630,7 +5688,7 @@ namespace dxvk {
+         // - Write to the primary buffer using ProcessVertices which gets copied over to the staging buffer at the end.
+         //   So it could end up writing to the buffer on the GPU while the same buffer gets read here on the CPU.
+         //   That is why we need to ensure the staging buffer is idle here.
+-        WaitForResource(*vbo->GetBuffer<D3D9_COMMON_BUFFER_TYPE_STAGING>(), vbo->GetMappingBufferSequenceNumber(), D3DLOCK_READONLY);
++        WaitForResource(*vbo->GetBuffer<D3D9_COMMON_BUFFER_TYPE_STAGING>(), vbo->GetMappingBufferSequenceNumber(), D3DLOCK_READONLY, "VertexReadback");
+       }
+ 
+       const uint32_t vertexSize = m_state.vertexDecl->GetSize(i);
+diff --git a/src/d3d9/d3d9_device.h b/src/d3d9/d3d9_device.h
+index 0e0eb03..74aac20 100644
+--- a/src/d3d9/d3d9_device.h
++++ b/src/d3d9/d3d9_device.h
+@@ -825,7 +825,12 @@ namespace dxvk {
+     bool WaitForResource(
+       const DxvkPagedResource&      Resource,
+             uint64_t                SequenceNumber,
+-            DWORD                   MapFlags);
++            DWORD                   MapFlags,
++            const char*             GpdLabel = "other",
++            uint32_t                GpdA = 0,
++            uint32_t                GpdB = 0,
++            uint32_t                GpdC = 0,
++            uint32_t                GpdD = 0);
+ 
+     /**
+      * \brief Locks a subresource of an image

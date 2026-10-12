@@ -13,8 +13,8 @@ cd r5
 for p in vkq vkb vkdepth; do [ -x $p ] || gcc -O2 -o $p $p.c -lvulkan -lm 2>&1 | tail -2; done
 ls
 echo "== games"; pgrep -a "retroarch|wine|devilutionx|ppsspp|dosbox|scummvm"; echo "(checked)"
-echo "== hangs before"; journalctl -k --no-pager | grep -ci "gpu hang|Resetting rcs"
+echo "== hangs before"; journalctl -k --no-pager | grep -Eci "gpu hang|Resetting rcs"
 echo "== stock vkq"; ./vkq 2>&1 | head -4
 echo "== vk13 vkq"; VK_DRIVER_FILES=/home/robin/vk13-test/icd/vk13.json ./vkq 2>&1 | head -4
 echo "== vk13 vulkaninfo summary"; VK_DRIVER_FILES=/home/robin/vk13-test/icd/vk13.json ../vulkaninfo --summary 2>&1 | grep -E "apiVersion|driverVersion|deviceName|conformance|driverInfo" | head
-echo "== hangs after"; journalctl -k --no-pager | grep -ci "gpu hang|Resetting rcs"
+echo "== hangs after"; journalctl -k --no-pager | grep -Eci "gpu hang|Resetting rcs"

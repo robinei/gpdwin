@@ -734,3 +734,10 @@ Details before 2026-10-06 are in `docs/archive/`.
   for DXVK >= 2.7. Built from the leftover R7 chroot, tested from `~/vk13-test` on the GPD only (`VK_DRIVER_FILES`);
   nothing installed, `vulkan-intel-gpd 1:26.2.4-1.7` unchanged. To ship: add the patches to `mesa/PKGBUILD` (and
   `lib32/`), rebuild with `mesa/build.sh`; revert = don't. `~/vk13-test` on the GPD (560 MB) can be deleted.
+- Follow-up (same day, R9 section 9): lib32 build of the patches (test package `lib32-vulkan-intel-gpd 1.9` from a
+  `vk13` copy of the multilib chroot, driver only in `~/vk13-test/lib32`, not installed); DXVK 2.7.1 still waits for the
+  GPU in the Dark Souls readback pattern, so the async-readback/wait-log patch was ported: `dxvk/vk13/0001-...-2.7.1.patch`
+  (built with upstream `dxvk-gplasync-2.7.1-1.patch` in the gpd-dxvk chroot, DLLs in `~/vk13-test/dxvk271gpd`);
+  on-screen test kit `~/vk13-test/darksouls-test.sh` (= `mesa/reports/r9/darksouls-test.sh`: variants stock /
+  vk13-24 / vk13-24-reloc / vk13-27, swaps `DATA/d3d9.dll` only for the run and restores it; `r9/d3d9rb.c`,
+  `r9/dxvk32test.sh` for the headless 32-bit runs). The launcher and the game are unchanged.

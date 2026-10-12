@@ -16,4 +16,4 @@ echo "== vkb stock"; ./r5/vkb 2>&1 | tail -3
 echo "== vkb vk13"; env $V13 ./r5/vkb 2>&1 | tail -3
 echo "== vkdepth stock"; ./r5/vkdepth 2>&1 | tail -4
 echo "== vkdepth vk13"; env $V13 ./r5/vkdepth 2>&1 | tail -4
-echo "== hangs"; journalctl -k --no-pager | grep -ci "gpu hang|Resetting rcs"
+echo "== hangs"; journalctl -k --no-pager | grep -Eci "gpu hang|Resetting rcs"

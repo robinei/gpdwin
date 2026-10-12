@@ -326,3 +326,41 @@ What could be made real on gfx8, so that the option becomes a default:
   32-bit address layout on Cherry Trail". Not sent (not in scope).
 - Cleanup: `~/vk13-test` on the GPD (560 MB: driver builds, deqp-vk + data, logs), the r7 chroot's `build-dbg`
   (desktop), DXVK 2.7.1 in `/var/lib/archbuild/gpd-dxvk/root/build-271`, the scratch Mesa tree branch `vk13`.
+
+## 9. Follow-up: 32-bit (Dark Souls), DXVK 2.7.1 and the readback workaround
+
+### 9.1 How to test Dark Souls on screen (Robin)
+```
+~/vk13-test/darksouls-test.sh stock            # today's launcher settings, baseline (expect 30 fps with the cap)
+~/vk13-test/darksouls-test.sh vk13-24          # same DXVK 2.4.1 DLL, patched 32-bit driver (softpin, real 1.3)
+~/vk13-test/darksouls-test.sh vk13-24-reloc    # patched driver in relocation mode (isolates the softpin part)
+ASYNC=0 ~/vk13-test/darksouls-test.sh vk13-24  # async readback off: expect ~19-24 fps, GPU ~75 % (R5/dxvk README)
+~/vk13-test/darksouls-test.sh vk13-27          # DXVK 2.7.1-gpd; only enabled once ~/vk13-test/vk13-27-ok exists (9.3)
+```
+Run from a terminal in sway (foot) on the GPD, never two at once. The script prints the variant, driver and DLL
+(sha256) at start, swaps `DATA/d3d9.dll` only for `vk13-27` and restores it on any exit (verified by sha256; dry-run
+tested incl. `kill -TERM`), applies shelf's Dark Souls settings (cpu/gpu turbo on, 8 W, GPU pin, MangoHud 30 fps cap)
+through game-wrap like the real launcher, and logs DXVK (`DXVK_LOG_LEVEL=info`, with the GPD wait log) to
+`~/vk13-test/logs/ds-VARIANT-TIME/` and wine's stderr to `ds-VARIANT-TIME.log`. What to look for: fps (MangoHud,
+Ctrl+Shift+F12 if hidden) in the same spot for each variant; black screen or missing textures (the R5 2.6.x symptom,
+appears after a few hundred frames); a frozen picture = GPU hang (the script prints the kernel's hang count before and
+after; `journalctl -k | grep -Ei 'gpu hang|Resetting rcs'`); with `ASYNC=0` the stall is back (CPU and GPU take
+turns). Bail out: quit the game, or `pkill -x DARKSOULS.exe` from another terminal (the script then restores the
+DLL); `pkill -f darksouls-test` also restores. Nothing else on the device is changed by the script.
+
+### 9.2 Does DXVK 2.7.1 still need the async-readback patch? [S]
+Yes. In 2.7.1 `D3D9DeviceEx::LockImage()` (`src/d3d9/d3d9_device.cpp:5058`) still ends the readback path with
+`WaitForResource(*mappedBuffer, seq, Flags)` ("Wait until the buffer is idle which may include the copy (and resolve)
+we just issued"): a `READONLY` lock of a SYSTEMMEM surface that `GetRenderTargetData` was copied into waits until the
+GPU has executed that copy, i.e. the whole frame before it. Same logic as 2.4.1; what changed around it: the staging
+throttle is now `WaitStagingBuffer()` (`waitForFence` on a staging fence instead of `waitForResource(marker)`),
+`WaitForResource` takes a `DxvkPagedResource&`, and the `D3DDEVINFO_RESOURCEMANAGER` mingw workaround of our patch is
+upstream. Port: `dxvk/vk13/0001-gpd-d3d9-async-readback-and-wait-log-2.7.1.patch` (153 lines; same env switch
+`DXVK_GPD_ASYNC_READBACK=1`, same wait log labels, `StagingThrottle` now times the fence wait). Built with
+`dxvk-gplasync-2.7.1-1.patch` (upstream gitlab.com/Ph42oN/dxvk-gplasync `patches/`, sha256
+`848956793ada245a94a14b930f1d24b5545d7214255df90d02ef2eee831280b9`, identical to `dxvk-gplasync-2.7-1.patch`) in the
+gpd-dxvk chroot (`/var/lib/archbuild/gpd-dxvk/root/build-271gpd`, `-Denable_d3d8=false -Denable_d3d10=false`,
+stripped): `~/vk13-test/dxvk271gpd/{x32,x64}/d3d9.dll` on the GPD (x32 sha256 d78f8a5f…). Measured effect: 9.3.
+
+### 9.3 32-bit results
+RESULTS32_PLACEHOLDER

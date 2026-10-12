@@ -17,4 +17,4 @@ for r in *-stock.res; do
 done
 echo "== non-pass results in vk13 runs (excluding NotSupported)"
 grep -v " Pass\| NotSupported" *vk13*.res *final*.res 2>/dev/null | sort -u | head -40
-echo "== hangs: $(journalctl -k --no-pager | grep -ci 'gpu hang|Resetting rcs')"
+echo "== hangs: $(journalctl -k --no-pager | grep -Eci 'gpu hang|Resetting rcs')"

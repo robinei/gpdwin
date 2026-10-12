@@ -9,8 +9,8 @@ export WINEDEBUG=-all WINEDLLOVERRIDES="d3d9=n" DXVK_LOG_LEVEL=info DXVK_LOG_PAT
 case $drv in stock) ;; *) export VK_DRIVER_FILES=/home/robin/vk13-test/icd/$drv.json ;; esac
 echo "== games"; pgrep -a "retroarch|devilutionx|ppsspp|dosbox|scummvm"; echo "(checked)"
 rm -f logs/d3d9tex_d3d9.log
-echo "== hangs before: $(journalctl -k --no-pager | grep -ci 'gpu hang|Resetting rcs')"
+echo "== hangs before: $(journalctl -k --no-pager | grep -Eci 'gpu hang|Resetting rcs')"
 ( cd run64 && timeout 120 wine ./d3d9tex.exe $frames 2>&1 | tail -8 )
 echo "== dxvk log"; cat ../logs/d3d9tex_d3d9.log 2>/dev/null | head -40
 wineserver -k 2>/dev/null
-echo "== hangs after: $(journalctl -k --no-pager | grep -ci 'gpu hang|Resetting rcs')"
+echo "== hangs after: $(journalctl -k --no-pager | grep -Eci 'gpu hang|Resetting rcs')"
