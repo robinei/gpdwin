@@ -64,6 +64,10 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   `regular/x64/steam_api64.dll` replaces the game's DLL (original kept as `.orig`), `steam_settings/` with
   the app id and `steam_interfaces.txt` (`wine tools/generate_interfaces/generate_interfaces_x86.exe
   steam_api.dll.orig` run inside `steam_settings/`). Unpacked in `~/Games/tools/gbe/w`.
+  Dark Souls: Prepare to Die Edition (211420, 2026-10-12): installed by `scripts/games` (Windows, old-style
+  Wine `wine32`), `DATA/DARKSOULS.exe` has no SteamStub; with the original `steam_api.dll` it loaded d3d9 and
+  exited with status 1 silently; with gbe x86 `steam_api.dll` + `steam_settings/` (app id, interfaces from the
+  original) it runs (Wine d3d9 -> wined3d/OpenGL). ~80% CPU of one core at the title screen.
 
 ## Very likely runs well, controller support
 
