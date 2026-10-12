@@ -740,7 +740,8 @@ Details before 2026-10-06 are in `docs/archive/`.
   (built with upstream `dxvk-gplasync-2.7.1-1.patch` in the gpd-dxvk chroot, DLLs in `~/vk13-test/dxvk271gpd`);
   on-screen test kit `~/vk13-test/darksouls-test.sh` (= `mesa/reports/r9/darksouls-test.sh`: variants stock /
   vk13-24 / vk13-24-reloc / vk13-27, swaps `DATA/d3d9.dll` only for the run and restores it; `r9/d3d9rb.c`,
-  `r9/dxvk32test.sh` for the headless 32-bit runs). The launcher and the game are unchanged.
+  `r9/dxvk32test.sh` for the headless 32-bit runs). The launcher and the game are unchanged. 32-bit matrix: 2.4.1/2.6.2
+  work on relocations and softpin, 2.7.1 only on softpin (BDA), all 0 hangs; vk13-27 enabled in the kit.
 - R9 32-bit matrix done (section 9.3): DXVK 2.7.1 x32 runs only on the patched (softpin) driver, correct in d3d9tex32
   and d3d9rb32, 0 GPU hangs; async readback needed and works on 2.7.1 too (lock 8.90 -> 0.05 ms/frame), but 2.7.1 is
   slower than 2.4.1 in the readback test (7.00 vs 3.60 ms/frame). Kit variant vk13-27 enabled (`~/vk13-test/vk13-27-ok`).
