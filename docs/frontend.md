@@ -143,7 +143,8 @@ when it's no longer wanted.
 - Measure pacing with `statistics_show = "true"` via `--appendconfig` (with
   `config_save_on_exit = "false"`) and a `grim` screenshot; `--max-frames` disables throttling.
 - `input_driver = wayland`, auto save/load state on, shader dir `~/.config/retroarch/shaders`
-  (Arch's default `/usr/share/libretro/shaders` doesn't exist). The `gl` driver uses GLSL (`shaders_glsl/`), the
+  (Arch's default `/usr/share/libretro/shaders` doesn't exist). Video driver `vulkan` since 2026-10-12 (Mesa 1.11; snes9x
+  fast-forward ~300 fps vs ~200 with `gl`; watch for DSI flashes, the crocus fix is GL-only). The `gl` driver uses GLSL (`shaders_glsl/`), the
   `vulkan` driver only slang (`shaders_slang/`, from the buildbot's `shaders_slang.zip` like the online updater,
   2026-10-12); each lists only its own kind. Global presets for both: `config/global.glslp` and `config/global.slangp`
   (both lcd3x). Light shaders only (sharp-bilinear, lcd3x, crt-easymode, fakelottes).
