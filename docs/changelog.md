@@ -713,3 +713,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   `gpd-launch.sh` (custom, 8 W / GPU pin), `gpd-launch-wined3d.sh` fallback, `Profiles` symlink to
   `~/.local/share/Psychonauts/Profiles` (existing saves). Details in docs/steam-library.md. Revert: delete the folder's
   added files / reinstall via `scripts/games`.
+- Psychonauts (Wine/DXVK launcher and its wined3d variant): 30 fps cap through MangoHud (`MANGOHUD_CONFIG=read_cfg,fps_limit=30`).
