@@ -793,3 +793,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - RetroArch: slang shaders for the Vulkan driver (GLSL ones only work with `gl`): buildbot `shaders_slang.zip`
   extracted to `~/.config/retroarch/shaders/shaders_slang/`, and `config/global.slangp` = lcd3x like `global.glslp`.
   Revert: delete both.
+- DXVK 2.6.2 (last release before 2.7's binding-model change) built with gplasync 2.6.2 + our async readback
+  (`dxvk/v262/`), DLL in Dark Souls' `dxvk-test/d3d9-gpd-2.6.2.dll` (not active). Headless on Mesa 1.11: correct, 0
+  hangs, but as slow as 2.7.1 in the readback micro test (6.93 vs 2.4.1's 3.60 ms/frame), so the slowdown came
+  between 2.4 and 2.6, not with 2.7.
