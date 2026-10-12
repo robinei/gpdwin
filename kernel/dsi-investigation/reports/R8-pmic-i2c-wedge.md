@@ -329,3 +329,16 @@ Kernel 7.2.9 extracted in this session's scratchpad
 `kernel/i915/build/src/drivers/gpu/drm/i915` differs from upstream only by our patches
 (`intel_dsi_vbt.c` identical, `vlv_dsi.c` = 0012-0014/0016-0018). Journal dumps of the failing boot were
 copied to the scratchpad (`logs/r8-kern.log`, `logs/r8-all.log`), nothing was written to the repo's data.
+
+## Addendum (main session, 2026-10-12 08:35): E5 result contradicts hypothesis 1
+
+DSDT dumped (`sudo cat /sys/firmware/acpi/tables/DSDT`, `iasl -d`): `\_SB.PCI0.I2C7` (`808622C1`, `_UID 7`) **has** a
+`_SEM` method, but it returns 1 only for `PMID == 1 || PMID == 2` (X-Powers `INT33F4` / TI `INT33F5`, devices PMI1/PMI2)
+and 0 otherwise. This GPD has the Whiskey Cove PMIC `INT34D3` (device PMI5, `_STA` = 0x0F only for `PMID == 3`), so the
+firmware deliberately declares the bus **not** shared with the P-Unit. Likewise I2C7's `_PS3` returns early (keeps the
+controller powered) only for PMID 1/2; for Whiskey Cove it really puts the controller in D3 (`PSAT |= 3`), i.e. the
+controller is runtime-suspended between transfers by design. So: the missing semaphore is not an omission, an SSDT
+`_SEM=1` overlay would contradict the firmware (not to be done), and a P-Unit collision on this bus is unlikely.
+Remaining candidates: something in the controller's runtime suspend/resume or the kernel side of the transfers
+(e.g. a lost controller interrupt around a resume), or the PMIC itself (Whiskey Cove) misbehaving under the panel
+power sequence. The failing boot shows no "nobody cared"/disabled IRQ. Experiments continue (E1 running).
