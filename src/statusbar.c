@@ -1,11 +1,15 @@
 /*
  * statusbar: the swaybar status line (i3bar JSON on stdout).
  *
- *   cpu 2.4G | gpu 400M | 6W | 55°C | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
+ *    2.4G | 󰢮 400M | 󱐋 6W | 󰔏 55° | 󰍛 0.6/3.7G | 󰤨 <ssid> 100% | 󰕾 50% | 󰂄 99% | Wed 07 Oct  15:29
  *
- * Battery: "bat 80%" on battery (yellow <=30%, red <=15%), "bat 80%+" charging, "bat full" when
- * charged to 100% with the charger connected, "bat 80% max" when held at the charge limit (docs/power.md),
- * "bat 80% not charging" (yellow) when connected but stuck.
+ * Icons: Symbols Nerd Font (ttf-nerd-fonts-symbols; Pango falls back to it from the bar's DejaVu Sans), Material
+ * Design and Octicons glyphs by name from nerd-fonts' glyphnames.json (ICON_* below).
+ *
+ * Battery: level icon + "80%" on battery (yellow <=30%, red <=15%), charging icon while charging, full icon at
+ * >= 99% with the charger, plug icon when held at the charge limit (docs/power.md), alert icon + "not charging"
+ * (yellow) when connected but stuck. Wi-Fi: strength icon (4 levels), network name and signal; crossed out when
+ * off. Volume: speaker by level, crossed out (dimmed) when muted.
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
  * "6W" is the package power limit (RAPL PL1), white at the firmware's 6 W, yellow while a game raised it
@@ -60,6 +64,48 @@
 #define YELLOW "#f9e2af"
 #define RED    "#f38ba8"
 #define GREEN  "#a6e3a1"
+
+/* Nerd Font glyphs (UTF-8), names as in nerd-fonts glyphnames.json */
+#define ICON_CPU     "\uf4bc"      /* oct-cpu */
+#define ICON_GPU     "\U000f08ae"  /* md-expansion_card */
+#define ICON_POWER   "\U000f140b"  /* md-lightning_bolt */
+#define ICON_TEMP    "\U000f050f"  /* md-thermometer */
+#define ICON_RAM     "\U000f035b"  /* md-memory */
+#define ICON_WIFIOFF "\U000f05aa"  /* md-wifi_off */
+#define ICON_VOLOFF  "\U000f075f"  /* md-volume_mute */
+#define ICON_BATCHG  "\U000f0084"  /* md-battery_charging */
+#define ICON_BATPLUG "\U000f06a5"  /* md-power_plug: held at the charge limit */
+#define ICON_BATWARN "\U000f0083"  /* md-battery_alert */
+
+/* one Unicode code point as UTF-8 (the level icons are computed) */
+static const char *glyph(unsigned cp)
+{
+    static char buf[8][5];
+    static int n;
+    char *b = buf[n++ % 8];
+    b[0] = 0xf0 | (cp >> 18), b[1] = 0x80 | ((cp >> 12) & 0x3f), b[2] = 0x80 | ((cp >> 6) & 0x3f);
+    b[3] = 0x80 | (cp & 0x3f), b[4] = 0;
+    return b;
+}
+
+/* md-battery_10..90 are U+F007A..U+F0082, md-battery (full) U+F0079 */
+static const char *battery_icon(int pct)
+{
+    return pct >= 95 ? glyph(0xf0079) : glyph(0xf007a + (pct < 10 ? 0 : pct / 10 - 1));
+}
+
+/* md-wifi_strength_1..4 */
+static const char *wifi_icon(int pct)
+{
+    static const unsigned cp[] = { 0xf091f, 0xf0922, 0xf0925, 0xf0928 };
+    return glyph(cp[pct < 25 ? 0 : pct < 50 ? 1 : pct < 75 ? 2 : 3]);
+}
+
+/* md-volume_low / medium / high */
+static const char *volume_icon(int pct)
+{
+    return glyph(pct < 34 ? 0xf057f : pct < 67 ? 0xf0580 : 0xf057e);
+}
 #define PEACH  "#fab387"
 
 /* seconds between reads of the slower values */
@@ -317,40 +363,42 @@ static void emit(void)
 
     len = 0;
     len += snprintf(out, sizeof out, "[");
-    block(st.cpu_turbo ? TEXT : DIM, LINE, "cpu %.1fG", st.cpu_ghz);
+    block(st.cpu_turbo ? TEXT : DIM, LINE, ICON_CPU " %.1fG", st.cpu_ghz);
     if (st.gpu_mhz > 0)
-        block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu %dM", st.gpu_mhz);
+        block(st.gpu_turbo ? TEXT : DIM, LINE, ICON_GPU " %dM", st.gpu_mhz);
     else
-        block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu idle");
+        block(st.gpu_turbo ? TEXT : DIM, LINE, ICON_GPU " idle");
     if (st.tdp_uw > 0)
-        block(st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, "%dW", (st.tdp_uw + 500000) / 1000000);
+        block(st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, ICON_POWER " %dW", (st.tdp_uw + 500000) / 1000000);
     if (st.temp_c >= 0)
-        block(st.temp_c >= 85 ? RED : st.temp_c >= 75 ? PEACH : GREEN, LINE, "%d°C", st.temp_c);
-    block(TEXT, LINE, "ram %.1f/%.1fG", st.ram_used, st.ram_total);
+        block(st.temp_c >= 85 ? RED : st.temp_c >= 75 ? PEACH : GREEN, LINE, ICON_TEMP " %d°", st.temp_c);
+    block(TEXT, LINE, ICON_RAM " %.1f/%.1fG", st.ram_used, st.ram_total);
     if (!st.wifi_up)
-        block(DIM, LINE, "wifi off");
+        block(DIM, LINE, ICON_WIFIOFF);
     else if (st.signal >= 0)
-        block(TEXT, LINE, "%s %d%%", st.ssid[0] ? st.ssid : "wifi", st.signal);
+        block(TEXT, LINE, "%s %s %d%%", wifi_icon(st.signal), st.ssid[0] ? st.ssid : "", st.signal);
     else
-        block(TEXT, LINE, "%s", st.ssid[0] ? st.ssid : "wifi");
+        block(TEXT, LINE, "%s %s", wifi_icon(100), st.ssid);
     if (st.volume < 0)
-        block(DIM, LINE, "vol ?");
+        block(DIM, LINE, "%s ?", volume_icon(0));
+    else if (st.muted)
+        block(DIM, LINE, ICON_VOLOFF " %d%%", st.volume);
     else
-        block(st.muted ? DIM : TEXT, LINE, "%s %d%%", st.muted ? "muted" : "vol", st.volume);
+        block(TEXT, LINE, "%s %d%%", volume_icon(st.volume), st.volume);
     if (st.battery < 0)
-        block(DIM, LINE, "bat ?");
+        block(DIM, LINE, "%s ?", battery_icon(0));
     else if (st.plugged && strcmp(st.charge, "Full") == 0 && st.battery >= 99)
-        block(TEXT, LINE, "bat full");
+        block(TEXT, LINE, "%s %d%%", battery_icon(100), st.battery);
     /* at the charge limit: the chip says "Full" there too (at ~89%), or above it "Charging"/"Not
      * charging" with no current going in */
     else if (st.plugged && (st.at_limit || strcmp(st.charge, "Full") == 0))
-        block(TEXT, LINE, "bat %d%% max", st.battery);
+        block(TEXT, LINE, ICON_BATPLUG " %d%%", st.battery);
     else if (st.plugged && strcmp(st.charge, "Charging") == 0)
-        block(TEXT, LINE, "bat %d%%+", st.battery);
+        block(TEXT, LINE, ICON_BATCHG " %d%%", st.battery);
     else if (st.plugged) /* connected but not charging: stuck charger */
-        block(YELLOW, LINE, "bat %d%% not charging", st.battery);
+        block(YELLOW, LINE, ICON_BATWARN " %d%% not charging", st.battery);
     else
-        block(st.battery <= 15 ? RED : st.battery <= 30 ? YELLOW : TEXT, LINE, "bat %d%%", st.battery);
+        block(st.battery <= 15 ? RED : st.battery <= 30 ? YELLOW : TEXT, LINE, "%s %d%%", battery_icon(st.battery), st.battery);
     block(TEXT, LAST, "%s", clock);
     len += snprintf(out + len, sizeof out - len, "],\n");
 

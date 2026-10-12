@@ -7,7 +7,7 @@ truth; this explains the choices.
   firmware sub-packages this hardware needs), `iwd`, `openssh`, `sudo`, `fish`, `vim`, `helix`,
   `wireless-regdb`, `iw`, `pacman-contrib` (checkupdates, pacdiff, paccache), `bc`, `strace` (debugging; installed 2026-10-11).
   `f2fs-tools` (installed 2026-10-12 for the planned f2fs root, ideas.md 14; `f2fs` is also in mkinitcpio MODULES).
-- Desktop: `sway swaybg swayidle foot fuzzel wob brightnessctl grim ttf-dejavu btop` (swayidle unused since
+- Desktop: `sway swaybg swayidle foot fuzzel wob brightnessctl grim ttf-dejavu ttf-nerd-fonts-symbols btop` (Nerd Font symbols: the bar's icons, 2026-10-12) (swayidle unused since
   2026-10-11: inputd does idle), seatd
   (sway dependency, `seatd.service` enabled, user in group `seat`).
 - Audio: `pipewire pipewire-pulse pipewire-alsa wireplumber alsa-ucm-conf` + `realtime-privileges`
