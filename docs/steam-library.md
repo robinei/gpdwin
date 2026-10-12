@@ -81,6 +81,10 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   `DSfix.ini` (original as `DSfix.ini.orig`) changed only in: renderWidth/Height 1920x1080 -> 1280x720
   (game's own is 1024x720), dofOverrideResolution 540 -> 0 and dofBlurAmount 1 -> 0 (game's original DoF),
   borderlessFullscreen 0 -> 1 (needs the in-game fullscreen setting off); enableVsync is already 0.
+  Still exactly 14.9 fps after that (also in a cheap close-up; GPU ~70% busy at ~420 MHz, no thread
+  saturated): a cap, not load. Suspects: vsync still on (DSfix lists enableVsync under "not yet ready") or the
+  game's own 30 fps limiter waiting for fixed 33 ms ticks. Set together (not yet tested): `DATA/dxvk.conf`
+  `d3d9.presentInterval = 0`, DSfix `unlockFPS 1` + `FPSlimit 30` (variable frame rate, capped at the original 30).
 
 ## Very likely runs well, controller support
 
