@@ -787,3 +787,6 @@ Details before 2026-10-06 are in `docs/archive/`.
   future Mesa builds (mesa/README.md). Dark Souls' saved 2.7.1 launcher no longer points at the removed driver.
 - Dark Souls: DSfix `FPSlimit` 30 -> 60, temporarily (Robin's request). Revert: `FPSlimit 30` in `DATA/DSfix.ini` (CRLF file).
 - Dark Souls: DSfix `FPSlimit` back to 30.
+- PPSSPP: Vulkan backend, VSync off, fps/speed display on (set by Robin in PPSSPP, captured). Fast-forward 165 fps
+  smooth vs OpenGL 145; with VSync on, Vulkan showed only ~50 of the frames (FIFO). Revert: Settings > Graphics in
+  PPSSPP (backend OpenGL / VSync on), then `scripts/sync capture ~/.config/ppsspp/PSP/SYSTEM/ppsspp.ini`.

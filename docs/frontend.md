@@ -98,6 +98,9 @@ One directory per collection under `~/Games`, each listed in `~/.config/pegasus-
 - `psp` (ISOs, not in the repo; metadata is a `copy` entry): standalone PPSSPP,
   `PPSSPPSDL --fullscreen "{file.path}"` (iso/cso/chd/pbp). Name ISOs as in No-Intro
   (`Disgaea - Afternoon of Darkness (USA).iso`) so `fetch-boxart.py` finds the box art.
+  Settings (2026-10-12): Vulkan backend with VSync off. Fast-forward: Vulkan 165 fps vs OpenGL 145, both smooth; with
+  VSync on, Vulkan's FIFO swapchain shows at most ~60 of the fast-forwarded frames (judder, "50/60"), while PPSSPP's GL
+  backend drops vsync for fast-forward itself. Status display shows fps + speed (`iShowStatusFlags = 6`).
 - `utils` (repo `pegasus/utils`, `x-shelf-kind: tools`): tools in `tools/*.sh`, 512x512 icons in
   `media/` (#11111b / #1e1e2e / #45475a / #89b4fa, DejaVu Sans Bold labels; keep them 8-bit).
   Terminal tools run `foot --app-id=shelf-tool`, fullscreen like everything on workspace 1.
