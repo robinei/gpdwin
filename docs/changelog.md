@@ -705,3 +705,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   get `GPD_TDP_W=8 GPD_GPU_PIN=1`. `dxvk/build.sh` now builds x32 and x64 (`~/Games/tools/dxvk/gpd/` on the GPD).
 - Saves: Dark Souls PTDE added to games/saves.json (Game Saves tool + ~/Saves backup; desktop path unverified).
 - statusbar: CPU temperature in the tdp block (`tdp 6W 55°C`, hottest core from coretemp every 5 s; red from 85 °C).
+- statusbar: power limit and temperature as separate blocks without prefixes (`6W` white/yellow, `56°C` green/peach from 75/red from 85).

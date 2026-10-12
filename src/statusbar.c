@@ -1,16 +1,16 @@
 /*
  * statusbar: the swaybar status line (i3bar JSON on stdout).
  *
- *   cpu 2.4G | gpu 400M | tdp 6W 55°C | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
+ *   cpu 2.4G | gpu 400M | 6W | 55°C | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
  *
  * Battery: "bat 80%" on battery (yellow <=30%, red <=15%), "bat 80%+" charging, "bat full" when
  * charged to 100% with the charger connected, "bat 80% max" when held at the charge limit (docs/power.md),
  * "bat 80% not charging" (yellow) when connected but stuck.
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
- * "tdp" is the package power limit (RAPL PL1), white at the firmware's 6 W, yellow while a game raised it
- * (scripts/game-wrap GPD_TDP_W, docs/power.md), with the hottest CPU core (coretemp); red from 85 C (the
- * chip throttles at 90 C).
+ * "6W" is the package power limit (RAPL PL1), white at the firmware's 6 W, yellow while a game raised it
+ * (scripts/game-wrap GPD_TDP_W, docs/power.md). "55°C" is the hottest CPU core (coretemp): green, peach from
+ * 75 C (normal in games at 8 W), red from 85 C (the chip throttles at 90 C).
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
  * when it spent most of the last second in RC6 (its frequency register keeps the last value).
  *
@@ -59,6 +59,8 @@
 #define DIM    "#7f849c"
 #define YELLOW "#f9e2af"
 #define RED    "#f38ba8"
+#define GREEN  "#a6e3a1"
+#define PEACH  "#fab387"
 
 /* seconds between reads of the slower values */
 #define RAM_EVERY     5
@@ -320,11 +322,10 @@ static void emit(void)
         block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu %dM", st.gpu_mhz);
     else
         block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu idle");
-    if (st.tdp_uw > 0 && st.temp_c >= 0)
-        block(st.temp_c >= 85 ? RED : st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, "tdp %dW %d°C",
-              (st.tdp_uw + 500000) / 1000000, st.temp_c);
-    else if (st.tdp_uw > 0)
-        block(st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, "tdp %dW", (st.tdp_uw + 500000) / 1000000);
+    if (st.tdp_uw > 0)
+        block(st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, "%dW", (st.tdp_uw + 500000) / 1000000);
+    if (st.temp_c >= 0)
+        block(st.temp_c >= 85 ? RED : st.temp_c >= 75 ? PEACH : GREEN, LINE, "%d°C", st.temp_c);
     block(TEXT, LINE, "ram %.1f/%.1fG", st.ram_used, st.ram_total);
     if (!st.wifi_up)
         block(DIM, LINE, "wifi off");
