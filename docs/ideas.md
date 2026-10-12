@@ -65,3 +65,21 @@ Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already
     game, keep an exclude list. Estimate (unmeasured): 2-4 GB of the 15 GB games plus a few GB of `/usr`.
     Larger clusters (`compress_log_size`, up to 1 MB) compress better but amplify small random reads; keep LZ4
     (zstd shrinks more but decompresses far slower on this CPU).
+15. Second device: ASUS ROG Ally (RC71L, Ryzen Z1 Extreme, Radeon 780M, 1080p 120 Hz VRR, no keyboard), same
+    bare Arch + sway + shelf setup from this repo, installed and maintained over ssh like the GPD (discussed
+    2026-10-12; Bazzite rejected: the point is our own minimal system).
+    1. Pad-only control, built and tested on the GPD first (useful there too):
+       - Gamepad shortcut layer in inputd: hold Guide + button, e.g. D-pad = workspace, B = close game,
+         shoulders = save/load state (sent as the emulator's keys), Start = screenshot.
+       - shelf: a per-game settings panel on a pad button (Y) for what T/G/W/P/L do now.
+       - On-screen keyboard `wvkbd` (layer-shell, small) on demand, for foot tools, search and Wi-Fi passwords.
+       - Gamepad navigation in `scripts/games` (item 8).
+    2. Per-device split: a device column in `manifest.tsv` (by hostname); per-device sections where hardware is
+       touched: `statusbar` (power limit, sensors), `game-wrap` and shelf's W steps (GPD 1-8 W via RAPL; Ally
+       ~9-30 W via asus-wmi `ppt_pl1_spl`/`ppt_pl2_sppt`/`ppt_fppt` or `asus-armoury`), GPU clock pin (amdgpu),
+       charge limit (Ally: `charge_control_end_threshold`), rotation and idle times. GPD-only: `mesa/`, `dxvk/`,
+       the bq24190 charge-limit service.
+    3. Ally specifics: its two extra buttons and back paddles come through `hid-asus` (map one to inputd's Menu
+       action, one to a quick menu); stock Mesa (radv) and Proton, so Windows games can go through Steam
+       instead of the GPD's Wine recipes; keep games on the internal SSD (the original Ally's SD reader is known
+       to fail from heat).
