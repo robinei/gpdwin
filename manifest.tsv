@@ -66,6 +66,7 @@ copy	system/etc/udev/rules.d/90-xhci-no-wakeup.rules	/etc/udev/rules.d/90-xhci-n
 copy	system/etc/udev/rules.d/90-txe-runtime-pm.rules	/etc/udev/rules.d/90-txe-runtime-pm.rules	root:root:0644
 copy	system/etc/udev/rules.d/90-charge-limit.rules	/etc/udev/rules.d/90-charge-limit.rules	root:root:0644
 copy	system/etc/systemd/system/charge-limit.service	/etc/systemd/system/charge-limit.service	root:root:0644
+copy	system/etc/systemd/system/turbo-perms.service	/etc/systemd/system/turbo-perms.service	root:root:0644
 copy	system/usr/local/bin/charge-limit	/usr/local/bin/charge-limit	root:root:0755
 copy	system/etc/tmpfiles.d/turbo.conf	/etc/tmpfiles.d/turbo.conf	root:root:0644
 copy	system/etc/modprobe.d/cfg80211.conf	/etc/modprobe.d/cfg80211.conf	root:root:0644

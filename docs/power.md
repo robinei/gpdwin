@@ -115,6 +115,9 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
   `exec .../game-wrap`: `export GPD_TDP_W=8 GPD_GPU_PIN=1`. game-wrap raises them for the game's lifetime and puts
   PL1 6.016 W and the GPU minimum (RPn) back when it ends; a detached guard (`tail --pid`) does it even if
   game-wrap is SIGKILLed (tested: normal exit, game segfault, wrapper SIGKILL). Used by Dark Souls.
+- Boot race (fixed 2026-10-12): tmpfiles applies turbo.conf at ~8 s, intel_rapl creates the powercap files at
+  ~13 s, so PL1 and energy_uj kept their root-only modes (GPD_TDP_W silently ineffective, MangoHud 0 W).
+  `turbo-perms.service` (enabled) waits for the files and runs tmpfiles for turbo.conf again.
 
 ## Measured power (2026-10-07, on battery, Pegasus idle, brightness 5%)
 | State | Current | Power |

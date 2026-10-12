@@ -714,3 +714,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   `~/.local/share/Psychonauts/Profiles` (existing saves). Details in docs/steam-library.md. Revert: delete the folder's
   added files / reinstall via `scripts/games`.
 - Psychonauts (Wine/DXVK launcher and its wined3d variant): 30 fps cap through MangoHud (`MANGOHUD_CONFIG=read_cfg,fps_limit=30`).
+- turbo-perms.service: re-applies turbo.conf once intel_rapl's files exist (boot race left PL1/energy_uj root-only: 8 W silently not applied, MangoHud 0 W).
