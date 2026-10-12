@@ -763,3 +763,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   driver) through the R9 kit, which now also shows DXVK's memory overlay and samples the process' address space and GPU
   memory every 2 s (`~/vk13-test/logs/ds-*.mem`). Revert: remove the entry from `pegasus/utils/metadata.pegasus.txt`
   and `pegasus/utils/tools/darksouls-test.sh`.
+- DXVK 2.7.1 crash found: R9 patch 0001 routed every buffer-device-address allocation into a 256 MiB client-visible
+  heap; DXVK 2.7 uses BDA for all memory and failed at 256 MiB. `mesa/vk13/0005` restricts that heap to capture/replay
+  allocations; lib32 `lib32-vulkan-intel-gpd 1:26.2.4-1.10` deployed to `~/Games/tools/mesa-vk13/` and `~/vk13-test/lib32`
+  (1.9 kept as `.so.1.9`; revert: move it back). Headless texture test OK; Dark Souls retest pending.

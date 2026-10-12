@@ -1,0 +1,19 @@
+--- a/src/intel/vulkan_hasvk/anv_device.c	2026-10-12 17:37:45.205792481 +0200
++++ b/src/intel/vulkan_hasvk/anv_device.c	2026-10-12 17:37:45.215812350 +0200
+@@ -3137,7 +3137,15 @@
+       }
+    }
+ 
+-   if (vk_flags & VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT)
++   /* Only capture/replay allocations need the client-visible heap (their
++    * addresses must be reproducible and must not collide with ordinary
++    * allocations on replay). Plain buffer-device-address memory can live
++    * anywhere: every softpinned BO has a fixed address. With the 32-bit
++    * layout on CHV the client-visible heap is only 256 MiB, and DXVK >= 2.7
++    * sets DEVICE_ADDRESS_BIT on every allocation, so routing all of them
++    * there ran out after 256 MiB.
++    */
++   if (vk_flags & VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT)
+       alloc_flags |= ANV_BO_ALLOC_CLIENT_VISIBLE_ADDRESS;
+ 
+    if ((export_info && export_info->handleTypes) ||

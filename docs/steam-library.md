@@ -145,6 +145,11 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     Diagnostic runs: Utilities > "Dark Souls Test" (temporary, `pegasus/utils/tools/darksouls-test.sh`) runs the R9 kit
     (`mesa/reports/r9/darksouls-test.sh`) with the DXVK log, `DXVK_HUD=memory,allocations` and a 2 s sampler of the
     process' VmSize/VmRSS and its GPU memory (fdinfo) into `~/vk13-test/logs/ds-*.mem`.
+    First diagnostic run (17:36): DXVK logged `Memory allocation failed` (23 KB) with exactly 256 MiB allocated of a
+    2752 MiB heap; process VmSize ~3.0 GB, GPU memory 287 MiB. Cause: R9 patch 0001's 32-bit layout has a 256 MiB
+    client-visible heap and hasvk put every `DEVICE_ADDRESS_BIT` allocation there; DXVK 2.7 sets that bit on all memory.
+    Fixed by `mesa/vk13/0005` (only capture/replay allocations use that heap); lib32 1.10 in `~/Games/tools/mesa-vk13/`
+    (1.9 kept as `.so.1.9`).
   - Power: the firmware sets the package power limit (RAPL PL1) to 6.0 W (1 s window; PL2 20 W / 10 s). With the GPU
     fully loaded the package sat at 6.07 W, the GPU fell to ~460 MHz despite the minimum-clock pin and the CPU
     clocked down (seen at 1.76 GHz); temperatures 62-71 C. PL1 8 W: 7.5-7.9 W drawn, GPU 600 MHz, CPU 2.4 GHz,
