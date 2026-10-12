@@ -62,7 +62,7 @@ Background (read when relevant): `docs/steam-library.md` (DRM recipes, Dark Soul
 - GPU busy ~100%: fewer pixels (game/mod resolution; 960x540 was the sweet spot for Dark Souls), cheaper effects
   (game options first; MSAA, motion blur, DoF). `INTEL_MEASURE` / `i915-perf-recorder` for per-pass costs.
 - Power and fps cap are per-game shelf settings, not launcher lines: in shelf, T CPU turbo, G GPU turbo, W power
-  limit (6/7/8 W; the firmware's 6 W throttled CPU and GPU together in Dark Souls, 8 W is about the useful
+  limit (2/4/6/8 W, default 6; the firmware's 6 W throttled CPU and GPU together in Dark Souls, 8 W is about the useful
   maximum: CPU 2.4 GHz + GPU 600 MHz draw ~7.9 W, 77-80 C), P GPU clock pin, L fps cap (MangoHud 30/60). Suggest
   values to the user; they press the keys (stored in ~/.config/pegasus-frontend/shelf-game-settings.txt).
 - Physics tied to frame rate: keep 30 fps games at 30.

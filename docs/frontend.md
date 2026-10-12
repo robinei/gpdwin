@@ -196,7 +196,7 @@ when it's no longer wanted.
   our DXVK build from `~/Games/tools/dxvk/gpd/x32|x64`, `dxvk/`), measuring and fixing the real limiter
   (vsync rounding, GPU stalls via the DXVK wait log, power), recording in steam-library.md.
 - Per-game performance in shelf (2026-10-12): on the selected game, T CPU turbo and G GPU turbo (default/on/off,
-  like Super+T/G), W power limit (default 6 W/7 W/8 W), P GPU clock pin (off/on), L fps cap through MangoHud
+  like Super+T/G), W power limit (default 6 W → 8 → 2 → 4 W), P GPU clock pin (off/on), L fps cap through MangoHud
   (off/30/60). The details panel shows the changed ones. Only changed values are stored, per game file path, in
   `~/.config/pegasus-frontend/shelf-game-settings.txt`; at launch shelf passes them as GPD_CPU_TURBO,
   GPD_GPU_TURBO, GPD_TDP_W, GPD_GPU_PIN and MANGOHUD_CONFIG, and scripts/game-wrap applies them for the game's

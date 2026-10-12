@@ -718,7 +718,7 @@ Details before 2026-10-06 are in `docs/archive/`.
 - Psychonauts: no raised power limit and no GPU clock pin (runs fine at 6 W with its 30 fps cap).
 
 ## 2026-10-12 — Per-game performance settings in shelf
-- shelf: on the selected game T CPU turbo, G GPU turbo, W power limit (6/7/8 W), P GPU clock pin, L fps cap
+- shelf: on the selected game T CPU turbo, G GPU turbo, W power limit (6 W default, 8, 2, 4 W), P GPU clock pin, L fps cap
   (MangoHud 30/60); shown in the details panel; only changed values stored in
   `~/.config/pegasus-frontend/shelf-game-settings.txt`; passed to scripts/game-wrap at launch, which now also
   handles CPU/GPU turbo and restores the previous turbo states. Launchers and the installer no longer set

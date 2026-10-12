@@ -9,7 +9,7 @@
 # game (keys T G W P L, src/shelf.c "Performance"); a launcher may also export them before the exec:
 #   GPD_CPU_TURBO=on|off  CPU turbo (intel_pstate no_turbo)
 #   GPD_GPU_TURBO=on|off  GPU maximum/boost clock RP0 (600 MHz) or RP1 (400 MHz)
-#   GPD_TDP_W=7|8         package power limit (RAPL PL1) in watts; the firmware's is 6.016 W
+#   GPD_TDP_W=2|4|8       package power limit (RAPL PL1) in watts; the firmware's is 6.016 W
 #   GPD_GPU_PIN=1         GPU minimum clock = its maximum (after GPD_GPU_TURBO)
 # They need the sysfs files writable by wheel (/etc/tmpfiles.d/turbo.conf, turbo-perms.service). Afterwards the
 # turbo states go back to what they were before the game (Super+T/G toggles), PL1 to 6.016 W and the GPU minimum
