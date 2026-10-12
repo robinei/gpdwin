@@ -104,6 +104,12 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - Workaround if it recurs: `echo 3000000 | sudo tee /sys/class/power_supply/bq24190-charger/input_current_limit`,
   or reboot.
 
+## Package power limit (RAPL)
+- Firmware: PL1 6.0 W (1 s), PL2 20 W (10 s) (`/sys/class/powercap/intel-rapl:0/constraint_*`). CPU and GPU share it:
+  in a GPU-heavy game the package sits at 6 W, and both clock down (GPU ~460 MHz, CPU down to 1.76 GHz) at only
+  62-71 C. 8 W raised Dark Souls 24 -> 28 fps, temperatures 77-80 C (docs/steam-library.md). PL1 and the GPU
+  minimum clock are wheel-writable (`/etc/tmpfiles.d/turbo.conf`) so a game launcher can raise them while it runs.
+
 ## Measured power (2026-10-07, on battery, Pegasus idle, brightness 5%)
 | State | Current | Power |
 |---|---|---|

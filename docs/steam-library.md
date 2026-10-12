@@ -135,7 +135,12 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     (10:40 stock driver, 12:32 with HiZ): cause unknown; `ssh ... sudo dmesg -w` to the desktop catches the next one.
   - Then: DSfix `FPSlimit 60` (unlockFPS was already 1; DSfix warns of physics/ladder glitches above 30), and the
     launcher pins the GPU minimum clock to its current maximum while the game runs (`rps_min_freq_mhz`, made
-    wheel-writable in `/etc/tmpfiles.d/turbo.conf`), back to RPn afterwards. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
+    wheel-writable in `/etc/tmpfiles.d/turbo.conf`), back to RPn afterwards.
+  - Power: the firmware sets the package power limit (RAPL PL1) to 6.0 W (1 s window; PL2 20 W / 10 s). With the GPU
+    fully loaded the package sat at 6.07 W, the GPU fell to ~460 MHz despite the minimum-clock pin and the CPU
+    clocked down (seen at 1.76 GHz); temperatures 62-71 C. PL1 8 W: 7.5-7.9 W drawn, GPU 600 MHz, CPU 2.4 GHz,
+    **24.3 -> 28.0 fps** in a heavy area; temperatures level at 77-80 C after 2 min (limit ~90 C). The launcher sets
+    8 W while the game runs and restores the previous value (6.016 W) after it; a reboot resets it too. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support

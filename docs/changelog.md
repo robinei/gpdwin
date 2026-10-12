@@ -693,3 +693,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   to the game's `DATA/d3d9.dll` and drop the variable from its launcher.
 - Dark Souls: DSfix frame cap 30 -> 60; its launcher pins the GPU minimum clock to the maximum while it runs
   (turbo.conf: `rps_min_freq_mhz` wheel-writable).
+- Package power limit: the firmware's 6 W PL1 throttled CPU and GPU together in games (not heat: 62-71 C). PL1 made
+  wheel-writable (turbo.conf); Dark Souls' launcher sets 8 W while it runs (24 -> 28 fps in a heavy area, 77-80 C).
