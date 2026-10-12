@@ -167,6 +167,12 @@ Battery disconnected ~5 min (gauge reset: cycle_count 2, charge_full back to des
 brightness 1.65 A (~6.0 W at 3.63 V; normal 0.59 A / 2.6 W), full brightness +0.25 A, package 1.15 W, temps
 38 -> 42 C over 4 min. So the extra load fell from ~12 W to ~3.5 W but didn't go away. Next: battery out
 overnight, then measure again.
+Board: WIN155-V1.0-160805 (date code 1640). Robin found the hottest area by touch: the power entry next to the
+battery connector (BAT): the charger IC (TI bq24292i, driven by the kernel's bq24190 driver), a large power
+inductor left of it and small regulators/MOSFETs; the USB-A, HDMI and microSD sockets sit just above. Unidentified
+yet which part. Since the load exists only while the device is on, a regulator in that cluster that the system
+switches on (e.g. a 5 V rail for USB-A/HDMI/fan) or a short on its output fits better than the charger, whose
+path is also live while off.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
