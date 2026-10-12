@@ -52,9 +52,10 @@ i915 DKMS stack unchanged (0001, 0011-0017). Open:
 - Mesa patch form: the installed one keeps readback staging snooped; unscoped (no snooping for any staging
   texture on non-LLC) measured faster for readback too (mesa/README.md) and is the better upstream candidate.
 - Upstream drafts for Robin to decide: i915 0001 and 0015, the crocus patch with the measurements.
-- R6 review (`mesa/reports/R6-patch-correctness.md`): i915 0015 has a residual race window of one irq handler
-  duration after the restore write (suggested: write mask, synchronize_irq, re-read, bounded loop); 0001 could mask
-  HS_TX_TIMEOUT to 24 bits. 0011-0017: no state-corrupting race (one possible spurious resync, benign).
+- R6 review (`mesa/reports/R6-patch-correctness.md`): i915 0015 had a residual race window of one irq handler
+  duration after the restore write; fixed 2026-10-12 (0015 now loops: synchronize, re-read, rewrite, bounded at 5).
+  0001 could mask HS_TX_TIMEOUT to 24 bits (cosmetic). 0011-0017: no state-corrupting race (one possible spurious
+  resync, benign). Test-only 0018 no longer applies on top of the new 0015 (rebase if needed).
 - Cleanup: /var/tmp/dsi-trace (~380 MB) and /tmp test files on the GPD; desktop
   `/etc/sudoers.d/90-robin-timestamp`; the desktop build chroots in /var/lib/archbuild/gpd-*.
 **Traced 2026-10-11:** every underrun comes ~0.5 ms after DevilutionX submits its per-frame GPU work; not the Punit's
