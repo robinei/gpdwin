@@ -24,7 +24,7 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   `inputd.sh` (keeps `~/.local/bin/inputd` running: restarted 1 s after it exits, until sway is
   gone), `for_window` rules making everything shelf starts
   fullscreen (dialogs float; shelf itself is a normal window with the bar visible),
-  `fullscreen-stack.sh` (whichever tiled window on workspace 1 gets focus becomes fullscreen, so
+  inputd's fullscreen stack (sway window events over IPC, was `fullscreen-stack.sh` until 2026-10-12: whichever tiled window on workspace 1 gets focus becomes fullscreen, so
   closing a game brings the window below back fullscreen; sway allows one fullscreen window per
   workspace). New floating X11 windows
   that aren't dialogs (fixed-size old games, e.g. native Psychonauts; sway floats them) are made
@@ -67,9 +67,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   activity (screen on, brightness back); screen on → `sudo -n systemctl suspend-then-hibernate`. Ignored while
   the lid is closed, within 3 s of a resume (`/run/resume-time`, uptime written by the sleep hook
   `resume-time`), and for 2 s after a handled press (several input devices report KEY_POWER).
-- After changing `autostart` rules or `fullscreen-stack.sh`: `swaymsg reload` (rules) and restart
-  the script (`pkill -f fullscreen-stack.sh; swaymsg exec ~/.config/sway/fullscreen-stack.sh`):
-  `exec` lines don't rerun on reload, and the running loop keeps its old patterns.
+- After changing `autostart` rules: `swaymsg reload`; after changing the fullscreen stack (inputd):
+  `scripts/sync install` and `pkill -x inputd` (inputd.sh restarts it).
 - `screen.sh off|on`: the one place for screen off/on, used only by inputd (lid closed, and the idle
   screen-off step on battery).
   `off`: SIGSTOP shelf and everything it started (the game's whole process tree, Wine included;

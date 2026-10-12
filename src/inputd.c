@@ -51,9 +51,20 @@
  * So "dark screen: hold ~1 s" always turns it on: hibernated/off (the hardware needs the hold),
  * asleep, or screen off.
  *
+ * Fullscreen stack (was dotfiles/sway/fullscreen-stack.sh): workspace 1 is a stack of fullscreen
+ * windows on top of shelf (which stays a normal window, so the bar shows). A workspace has only one
+ * fullscreen window, so a new one takes fullscreen from the one below, and sway doesn't give it back
+ * when the top window closes. So whenever a tiled window on workspace 1 other than shelf gets focus
+ * without being fullscreen, it is made fullscreen. Not while scripts/speaker-tune runs (its state
+ * file exists): it takes the game out of fullscreen on purpose so its value window can show.
+ * Old X11 games with a fixed window size (native Psychonauts) are floated by sway right after they
+ * open (a "new" event as tiled, then a "floating" event), which drops the fullscreen from the tiling
+ * rule in autostart, and shelf then hides them. So X11 windows on workspace 1 that become floating
+ * are made fullscreen too, unless they are dialogs (a parent window, or a dialog/menu/tooltip type).
+ *
  * Sleeps until there is something to do: poll() on the input devices, inotify on /dev/input (the
  * pad disconnects while the screen is off and across suspend), kernel uevents (charger), the
- * Wayland socket, and a timeout for the next idle step.
+ * Wayland socket, sway's window events (an IPC subscription), and a timeout for the next idle step.
  *
  * Built and installed by `scripts/sync install` (manifest "build" entry); started by sway through
  * dotfiles/sway/inputd.sh, which restarts it after a crash (input stays disabled if it dies with
@@ -103,6 +114,7 @@
 #define SLEEP_RETRY 60       /* seconds: still awake this long after asking to suspend: ask again */
 #define STEP_RETRY 5         /* seconds: after a failed step, try again (not on every pass) */
 #define BRIGHTNESS_SAVED "idle-brightness" /* in $XDG_RUNTIME_DIR: the level before dimming */
+#define TUNE_STATE "speaker-tune.json" /* in $XDG_RUNTIME_DIR while scripts/speaker-tune runs */
 #define MAX_POWER 8    /* input devices with KEY_POWER (here: 2x ACPI Power Button, gpio-keys, Intel HID, keyboard) */
 
 extern char **environ;
@@ -224,6 +236,114 @@ static int screen_dark(void)
 {
     char r[16384];
     return sway_ipc(3, "", r, sizeof r) && (strstr(r, "\"power\": false") || strstr(r, "\"power\":false"));
+}
+
+/* ---- fullscreen stack (see the top): sway's window events on a subscribed IPC connection. The
+ * commands go out on the same connection (sway allows that; their replies are skipped), so nothing
+ * blocks on sway and no process is started. */
+static char *ev_buf;
+static size_t ev_len, ev_cap;
+
+/* Subscribe to window events; the fd (non-blocking) or -1. */
+static int sway_subscribe(void)
+{
+    const char *sock = getenv("SWAYSOCK");
+    struct sockaddr_un addr = { .sun_family = AF_UNIX };
+    if (!sock || strlen(sock) >= sizeof addr.sun_path)
+        return -1;
+    strcpy(addr.sun_path, sock);
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fd < 0)
+        return -1;
+    const char *payload = "[\"window\"]";
+    uint32_t len = strlen(payload), type = 2; /* SUBSCRIBE */
+    char req[14 + 16] = "i3-ipc";
+    memcpy(req + 6, &len, 4);
+    memcpy(req + 10, &type, 4);
+    memcpy(req + 14, payload, len);
+    if (connect(fd, (struct sockaddr *)&addr, sizeof addr) < 0 || write(fd, req, 14 + len) != 14 + (ssize_t)len) {
+        close(fd);
+        return -1;
+    }
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+    return fd;
+}
+
+static void sway_command(int fd, const char *command)
+{
+    uint32_t len = strlen(command), type = 0; /* RUN_COMMAND */
+    char req[14 + 256] = "i3-ipc";
+    if (len > 256)
+        return;
+    memcpy(req + 6, &len, 4);
+    memcpy(req + 10, &type, 4);
+    memcpy(req + 14, command, len);
+    if (write(fd, req, 14 + len) != 14 + (ssize_t)len)
+        fprintf(stderr, "inputd: sway command not sent: %s\n", command);
+}
+
+/* One window event (JSON, as sway formats it: "key": value). */
+static void window_event(int fd, const char *ev)
+{
+    if (strstr(ev, "\"change\": \"focus\"") && strstr(ev, "\"fullscreen_mode\": 0")) {
+        char state[256];
+        snprintf(state, sizeof state, "%s/" TUNE_STATE, getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "/tmp");
+        if (access(state, F_OK) == 0 || strstr(ev, "\"app_id\": \"shelf\""))
+            return;
+        sway_command(fd, "[workspace=\"^1$\" con_id=__focused__ tiling] fullscreen enable");
+    } else if (strstr(ev, "\"change\": \"floating\"") && strstr(ev, "\"type\": \"floating_con\"") &&
+               strstr(ev, "\"transient_for\": null")) {
+        static const char *dialogs[] = { "dialog", "utility", "splash", "menu", "popup_menu",
+                                         "dropdown_menu", "tooltip", "notification" };
+        char want[64], cmd[96];
+        for (size_t i = 0; i < sizeof dialogs / sizeof *dialogs; i++) {
+            snprintf(want, sizeof want, "\"window_type\": \"%s\"", dialogs[i]);
+            if (strstr(ev, want))
+                return;
+        }
+        long id;
+        if (sscanf(ev, "{ \"change\": \"floating\", \"container\": { \"id\": %ld,", &id) == 1) {
+            snprintf(cmd, sizeof cmd, "[con_id=%ld workspace=\"^1$\"] fullscreen enable", id);
+            sway_command(fd, cmd);
+        }
+    }
+}
+
+/* Read what sway sent; handle complete window events. Returns 0 when the connection is gone. */
+static int sway_events(int fd)
+{
+    for (;;) {
+        if (ev_cap - ev_len < 65536) {
+            ev_cap = ev_cap ? ev_cap * 2 : 131072;
+            ev_buf = realloc(ev_buf, ev_cap);
+            if (!ev_buf)
+                return 0;
+        }
+        ssize_t n = read(fd, ev_buf + ev_len, ev_cap - ev_len - 1);
+        if (n == 0 || (n < 0 && errno != EAGAIN && errno != EINTR))
+            return 0;
+        if (n < 0)
+            break;
+        ev_len += n;
+    }
+    size_t off = 0;
+    while (ev_len - off >= 14) {
+        uint32_t len, type;
+        memcpy(&len, ev_buf + off + 6, 4);
+        memcpy(&type, ev_buf + off + 10, 4);
+        if (ev_len - off < 14 + (size_t)len)
+            break;
+        if (type == (0x80000000u | 3)) { /* the window event; replies to our commands are skipped */
+            char *p = ev_buf + off + 14, keep = p[len];
+            p[len] = 0;
+            window_event(fd, p);
+            p[len] = keep;
+        }
+        off += 14 + len;
+    }
+    memmove(ev_buf, ev_buf + off, ev_len - off);
+    ev_len -= off;
+    return 1;
 }
 
 static int open_pad(void)
@@ -618,14 +738,17 @@ int main(void)
     struct wl_display *dpy = idle_connect();
     if (!dpy)
         fprintf(stderr, "inputd: no idle handling (no Wayland connection)\n");
-    enum { F_INOTIFY, F_PAD, F_LID, F_UEVENT, F_WAYLAND, F_POWER }; /* F_POWER...: power/Menu keys */
+    enum { F_INOTIFY, F_PAD, F_LID, F_UEVENT, F_WAYLAND, F_SWAY, F_POWER }; /* F_POWER...: power/Menu keys */
     struct pollfd fds[F_POWER + MAX_POWER] = {
         [F_INOTIFY] = { .fd = watch, .events = POLLIN },
         [F_PAD] = { .fd = (pad_fd = open_pad()), .events = POLLIN },
         [F_LID] = { .fd = (lid_fd = open_named(LID_NAME)), .events = POLLIN },
         [F_UEVENT] = { .fd = uevent_socket(), .events = POLLIN },
         [F_WAYLAND] = { .fd = dpy ? wl_display_get_fd(dpy) : -1, .events = POLLIN },
+        [F_SWAY] = { .fd = sway_subscribe(), .events = POLLIN },
     };
+    if (fds[F_SWAY].fd < 0)
+        fprintf(stderr, "inputd: no fullscreen stack (no sway IPC)\n");
     fact.on_ac = charger_online();
     charger_stale = 0;
     activity();
@@ -665,6 +788,12 @@ int main(void)
         }
         if (r < 0)
             continue;
+
+        if (fds[F_SWAY].fd >= 0 && fds[F_SWAY].revents && !sway_events(fds[F_SWAY].fd)) {
+            fprintf(stderr, "inputd: sway IPC connection lost\n"); /* sway exiting: Wayland goes too */
+            close(fds[F_SWAY].fd);
+            fds[F_SWAY].fd = -1;
+        }
 
         if (fds[F_UEVENT].fd >= 0 && fds[F_UEVENT].revents) {
             char buf[8192];

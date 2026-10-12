@@ -4,8 +4,7 @@ exec ~/.config/shelf/run
 exec ~/.config/sway/inputd.sh
 
 # Workspace 1: shelf as a normal window (the bar stays visible), and whatever it starts (games,
-# Utilities tools) fullscreen on top of it. fullscreen-stack.sh restores fullscreen to the window
-# below when the top one closes, except for shelf. Floating windows (dialogs) are left alone. X11 windows have no app_id, hence two rules.
+# Utilities tools) fullscreen on top of it. inputd (src/inputd.c, "Fullscreen stack") restores fullscreen to
+# the window below when the top one closes, except for shelf. Floating windows (dialogs) are left alone. X11 windows have no app_id, hence two rules.
 for_window [workspace="^1$" tiling shell="xwayland"] fullscreen enable
 for_window [workspace="^1$" tiling app_id="^(?!shelf$)"] fullscreen enable
-exec ~/.config/sway/fullscreen-stack.sh

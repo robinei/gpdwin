@@ -658,3 +658,10 @@ Details before 2026-10-06 are in `docs/archive/`.
   (panel power steps, charger, LEDs) run unarbitrated against the P-Unit's own PMIC traffic; most likely a pre-existing
   collision exposed by the stress test (screen cycles + GPU idle/active churn). No mechanism found for i915 0015 or Mesa 1.5.
   Candidate fix: SSDT overlay with `_SEM=1`. Experiments not run yet.
+
+## 2026-10-12 — Fullscreen stack moved into inputd
+- `dotfiles/sway/fullscreen-stack.sh` (sh + swaymsg subscriber, 3 processes, a swaymsg per focus change)
+  is now part of inputd: a sway IPC subscription in its poll loop, commands sent on the same connection
+  (no process started, nothing blocks on sway). Same rules (focus on workspace 1 -> fullscreen except
+  shelf, floating non-dialog X11 windows -> fullscreen, stands aside for speaker-tune). Tested with
+  simulated events (socketpair). Revert: restore the script and its `exec` line in `sway/autostart`.

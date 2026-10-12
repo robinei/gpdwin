@@ -165,7 +165,7 @@ def main():
         store(st)
         # Out of fullscreen so the floating value window can show above it. shelf shares the workspace
         # (tiled behind the game, and sway won't resize that split): tabbed layout gives the focused game
-        # the whole workspace. fullscreen-stack.sh stands aside while STATE exists. sway ignores no_focus
+        # the whole workspace. inputd's fullscreen stack stands aside while STATE exists. sway ignores no_focus
         # for the new window, and games pause without focus (DevilutionX, RetroArch): hand it back.
         sway("fullscreen disable", "layout tabbed", 'mode "speaker-tune"',
              f"exec foot --app-id=speaker-tune -W {WIDTH}x{HEIGHT} {Path(__file__).resolve()} view")
