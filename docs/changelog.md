@@ -646,3 +646,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   upload/readback stress tests pass 64/32-bit. i915 0015 residual race window noted in FINDINGS open items.
 - Mesa 1:26.2.4-1.5 installed (`*-gpd`, 64/32-bit): + crocus patches 0003-0005 and the trimmed driconf (mesa/README.md).
   Sway picks it up at the next reboot. Revert to 1.4: rebuild from the previous commit, or `mesa/rollback.sh` for Arch's.
+- i915 DKMS rebuilt on the GPD with the reworked 0015 (srcversion 051DA60BA67259721D07E17, 552 s); active after reboot.

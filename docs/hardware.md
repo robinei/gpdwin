@@ -143,6 +143,8 @@ GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58
     off/on under GPU load) hits the race in ~5% of screen-ons; with 0015 all 14 of 300 were restored, no timeouts. Details: `kernel/dsi-investigation/FINDINGS.md`.
     Note: DKMS moves the replaced stock modules to `/var/lib/dkms/<pkg>/original_module/` (restored on
     uninstall), so `pacman -Qkk linux` reports them missing; expected.
+    2026-10-12: 0015 reworked after review R6 (a handler starting between the wait and the restore write could still
+    lose the mask): now a bounded synchronize / re-read / rewrite loop; DKMS module srcversion 051DA60BA67259721D07E17.
   - **Burst mode experiment (0014, in the DKMS build, off by default):** `i915.vlv_dsi_burst_pct=120` on the
     kernel command line runs the panel in burst mode (link 20% faster, idle between lines = slack against pipe
     hiccups). One-shot test with a desktop build: `kernel/i915/install-test.sh ~/i915-burst.ko.zst i915.vlv_dsi_burst_pct=120`. **Tested 2026-10-09 22:53-23:07: the panel works in burst mode (VIDEO_MODE_FORMAT 0x1f, link 440 Mbit/s/lane, 60.15 Hz, picture fine), but the underrun rate did not drop: 9 flashes + 1 lone (resynced) in ~12 min of DevilutionX (~0.8/min; non-burst ~0.5/min). No benefit: the pipe pauses are longer than the ~1 us per line burst slack.** Log: `data/trace-2026-10-09/burst-0014.log`.
