@@ -140,7 +140,7 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
     fully loaded the package sat at 6.07 W, the GPU fell to ~460 MHz despite the minimum-clock pin and the CPU
     clocked down (seen at 1.76 GHz); temperatures 62-71 C. PL1 8 W: 7.5-7.9 W drawn, GPU 600 MHz, CPU 2.4 GHz,
     **24.3 -> 28.0 fps** in a heavy area; temperatures level at 77-80 C after 2 min (limit ~90 C). The launcher sets
-    8 W while the game runs and restores the previous value (6.016 W) after it; a reboot resets it too. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
+    8 W while the game runs (now `GPD_TDP_W=8 GPD_GPU_PIN=1` for game-wrap, docs/power.md); a reboot resets it too. Offline: `DATA/steam_settings/configs.main.ini` (gbe) `[main::connectivity]` `offline=1`,
   `disable_networking=1`; in game also Settings > Network settings > Launch setting "Start offline". Also: GPU hangs (stopped heartbeat) happened with wined3d runs too (09:51, 09:53, 10:43).
 
 ## Very likely runs well, controller support

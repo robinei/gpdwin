@@ -108,7 +108,10 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 - Firmware: PL1 6.0 W (1 s), PL2 20 W (10 s) (`/sys/class/powercap/intel-rapl:0/constraint_*`). CPU and GPU share it:
   in a GPU-heavy game the package sits at 6 W, and both clock down (GPU ~460 MHz, CPU down to 1.76 GHz) at only
   62-71 C. 8 W raised Dark Souls 24 -> 28 fps, temperatures 77-80 C (docs/steam-library.md). PL1 and the GPU
-  minimum clock are wheel-writable (`/etc/tmpfiles.d/turbo.conf`) so a game launcher can raise them while it runs.
+  minimum clock are wheel-writable (`/etc/tmpfiles.d/turbo.conf`). Per game, opt in in the launcher before the
+  `exec .../game-wrap`: `export GPD_TDP_W=8 GPD_GPU_PIN=1`. game-wrap raises them for the game's lifetime and puts
+  PL1 6.016 W and the GPU minimum (RPn) back when it ends; a detached guard (`tail --pid`) does it even if
+  game-wrap is SIGKILLed (tested: normal exit, game segfault, wrapper SIGKILL). Used by Dark Souls.
 
 ## Measured power (2026-10-07, on battery, Pegasus idle, brightness 5%)
 | State | Current | Power |
