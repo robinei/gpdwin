@@ -173,6 +173,12 @@ inductor left of it and small regulators/MOSFETs; the USB-A, HDMI and microSD so
 yet which part. Since the load exists only while the device is on, a regulator in that cluster that the system
 switches on (e.g. a 5 V rail for USB-A/HDMI/fan) or a short on its output fits better than the charger, whose
 path is also live while off.
+Close-up of that area: charger bq24292i (QFN), its 1.0 uH inductor ("1R0"), the MAX17047 gauge ("17047"), the
+gauge's 10 mOhm sense resistor ("R010") at the battery connector, two small WLCSP chips (unidentified; one may be the
+fusb302) and passives; no 5 V converter there. So the hot area is the charger circuit itself. No visible burn
+marks. Candidates: the bq24292i failing (internal leakage; replaceable QFN-24 4x4 by a micro-soldering shop), or
+heat from the battery pack, which lies over this area when the cover is closed. Pinpointing needs a thermal camera
+or a careful fingertip test of the charger chip, inductor and gauge with the device on.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
