@@ -672,3 +672,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   `steam_api.dll.orig`; silent exit 1 without it). docs/steam-library.md.
 - Dark Souls PTDE: DXVK 1.10.3 as default (30 fps vs ~15 with wined3d). DXVK 2.6.2 + claim-1.3 driconf:
   device created but black picture (textured draws fail); recorded in mesa/reports/R5 and steam-library.md.
+- Dark Souls PTDE: DSfix 2.4 (vsync off, borderless, render 1280x720, original DoF); in-game 15 fps with
+  DXVK 1.10.3 measured as vsync-rounded ~55 ms frames, GPU 75% busy. docs/steam-library.md.

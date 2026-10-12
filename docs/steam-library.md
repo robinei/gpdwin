@@ -74,6 +74,13 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   only the frame-time graph (untextured lines) draws, not the text: textured draws fail. No GPU hang during
   that run. Wined3d launcher kept as `gpd-launch-wined3d.sh`; test kit in the game's `dxvk-test/` (README).
   Not yet known whether all of 2.x fails (2.0 would tell) or what in hasvk breaks (sampling/descriptors?).
+  In game DXVK 1.10.3 showed 15.0 fps (frames 56-92 ms): GPU 3D 75% busy at ~445 of 600 MHz, no CPU thread
+  saturated (game render thread 49%, main 25%, dxvk-cs 22%); pinning the GPU at 600 MHz changed nothing.
+  So frames take ~55 ms and vsync rounds them to 66.7 ms. DSfix 2.4 (Nexus, user-downloaded; zip sha256
+  `9566ef64...bedd1`) in `DATA/`: `DINPUT8.dll` (launchers add `dinput8=n,b`), `DSfixKeys.ini`, `dsfix/`,
+  `DSfix.ini` (original as `DSfix.ini.orig`) changed only in: renderWidth/Height 1920x1080 -> 1280x720
+  (game's own is 1024x720), dofOverrideResolution 540 -> 0 and dofBlurAmount 1 -> 0 (game's original DoF),
+  borderlessFullscreen 0 -> 1 (needs the in-game fullscreen setting off); enableVsync is already 0.
 
 ## Very likely runs well, controller support
 
