@@ -37,7 +37,7 @@ The user is Robin (they/them).
 
 ## sudo
 - The Bash tool has no TTY. `sudo -n` works only when the user has run `sudo -v` in a real
-  terminal recently (`timestamp_type=global`, ~5 min). `scripts/maintain` does this and keeps
+  terminal recently (`timestamp_type=global`, 2 h). `scripts/maintain` does this and keeps
   it alive while Claude runs. Otherwise ask the user to run `sudo -v` (e.g. `! sudo -v`).
 - Never pipe a password into `sudo -S` while stdin is also a heredoc script: three bad tries
   trigger pam_faillock (10 minute lockout of sudo and password logins).

@@ -651,3 +651,5 @@ Details before 2026-10-06 are in `docs/archive/`.
   reworked i915 0015 + Mesa 1.5: after ~4 cycles the PMIC I2C bus (i2c_designware 808622C1:05) timed out on every
   access (`mipi_exec_pmic failed, -110`, charger unreadable), panel black until a reboot. Never seen before
   (journal since 2026-10-06, incl. the 2026-10-10 300-cycle run). Under analysis (R8); no stress test until then.
+- GPD sudo: cached credentials now last 2 h (`/etc/sudoers.d/10-global-timestamp`: `timestamp_timeout=120`, was the
+  5 min default), at the user's request. Revert: drop the option and `scripts/sync install` the file.
