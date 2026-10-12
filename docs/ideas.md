@@ -74,7 +74,7 @@ Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already
        - shelf: a per-game settings panel on a pad button (Y) for what T/G/W/P/L do now.
        - On-screen keyboard `wvkbd` (layer-shell, small) on demand, for foot tools, search and Wi-Fi passwords.
        - Gamepad navigation in `scripts/games` (item 8).
-    2. Per-device split: a device column in `manifest.tsv` (by hostname); per-device sections where hardware is
+    2. Per-device split (superseded by the layer plan in `docs/repo-layout.md`): a device column in `manifest.tsv` (by hostname); per-device sections where hardware is
        touched: `statusbar` (power limit, sensors), `game-wrap` and shelf's W steps (GPD 1-8 W via RAPL; Ally
        ~9-30 W via asus-wmi `ppt_pl1_spl`/`ppt_pl2_sppt`/`ppt_fppt` or `asus-armoury`), GPU clock pin (amdgpu),
        charge limit (Ally: `charge_control_end_threshold`), rotation and idle times. GPD-only: `mesa/`, `dxvk/`,
