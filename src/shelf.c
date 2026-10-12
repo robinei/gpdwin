@@ -27,7 +27,7 @@
  *
  * Performance (per game, keys on the selected game, shown in the details): T CPU turbo and G GPU turbo
  * (like sway's Super+T/G), W power limit, P GPU clock pin, L fps cap. CPU turbo
- * (default/on/off), GPU turbo (default/on = 600 MHz/off = 400 MHz), power limit (default 6 W → 8 → 2 → 4 W),
+ * (default/on/off), GPU turbo (default/on = 600 MHz/off = 400 MHz), power limit (default 6 W → 8 → 1 → 2 → 4 W),
  * GPU clock pin (off/on), fps cap through MangoHud (off/30/60). Only changed values are stored; at launch
  * they go to the game as GPD_CPU_TURBO, GPD_GPU_TURBO, GPD_TDP_W, GPD_GPU_PIN and MANGOHUD_CONFIG, which
  * scripts/game-wrap applies for the game's lifetime and restores afterwards (docs/power.md).
@@ -1270,10 +1270,10 @@ static void save_favorites(Library *L, const char *cfg)
 enum { PERF_CPU, PERF_GPU, PERF_TDP, PERF_PIN, PERF_FPS, NPERF };
 static const char *const perf_key[NPERF] = { "cpu", "gpu", "tdp", "pin", "fps" };
 /* the values each setting cycles through; [0] is the default (0) */
-static const signed char perf_cycle[NPERF][5] = {
+static const signed char perf_cycle[NPERF][6] = {
     { 0, 1, 2, -1 },  /* cpu: default, on, off */
     { 0, 1, 2, -1 },  /* gpu: default, on, off */
-    { 0, 8, 2, 4, -1 }, /* tdp: default (firmware 6 W), 8 W, 2 W, 4 W */
+    { 0, 8, 1, 2, 4, -1 }, /* tdp: default (firmware 6 W), 8 W, 1 W, 2 W, 4 W */
     { 0, 1, -1 },     /* pin: off, on */
     { 0, 30, 60, -1 } /* fps: no cap, 30, 60 */
 };

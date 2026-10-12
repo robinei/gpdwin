@@ -725,3 +725,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   GPD_TDP_W / GPD_GPU_PIN / MANGOHUD fps caps; Dark Souls (8 W, pin) and Psychonauts (30 fps) moved to shelf.
 - statusbar: power limit green when a game lowered it (2/4 W), yellow when raised.
 - shelf: games with turbo/power/pin settings are started through game-wrap (emulator games had none: their settings weren't applied); nested game-wrap only runs the game.
+- shelf: power limit step 1 W added (6 → 8 → 1 → 2 → 4 W).
