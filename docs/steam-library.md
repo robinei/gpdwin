@@ -87,6 +87,11 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   `d3d9.presentInterval = 0`, DSfix `unlockFPS 1` + `FPSlimit 30` (variable frame rate, capped at the original 30).
   Also in DSfix.ini: `skipIntro 1`, `disableCursor 1`, `forceWindowed 1` (with borderless; the in-game fullscreen
   setting is off anyway). DSfix keys: Backspace toggles its 30 fps limit, RCtrl HUD, F6-F8 cursor/borderless.
+  Result: 18 fps at 1280x720 (so 15 was the fixed-tick rounding); now GPU-bound (3D 90% busy, ~570 of 600 MHz;
+  threads 49/31/17%). Then render 960x540 and `dofOverrideResolution 180`: DSfix has no DoF off switch, but its
+  source (`getDofRes`, d3d9dev.cpp) takes any height: 180 makes the DoF targets 320x180 and 160x90 instead of the
+  game's 512x360 and 256x180 (a quarter of the pixels, blurrier DoF). Untested values per the ini; back to 0 if
+  DoF looks broken.
 
 ## Very likely runs well, controller support
 
