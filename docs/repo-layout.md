@@ -75,6 +75,18 @@ Exact names get settled in step 1, when the code starts reading the file.
 - `README.md` at the top is for outsiders: what this is, "pick your device", the install path, and how to work with
   an agent. `CLAUDE.md` says which layers a session may change and where things go.
 
+## Formats
+- **Game library: Pegasus's format**, not our own: `metadata.pegasus.txt` per collection, `game_dirs.txt`,
+  `media/<file>/boxFront.png`, `stats.db` (play history). shelf already implements it (`docs/pegasus-format.md`),
+  so an existing Pegasus setup (EmuDeck offers Pegasus as a frontend) can try shelf on the same files and go back.
+  For adoption, shelf should also cover the parts marked "unused here" in that spec (`metafiles/`, `regex`,
+  multi-file games, ...), and check that EmuDeck's generated files load unchanged (not yet looked at).
+  Possibly later: ES-DE's `gamelist.xml`, EmuDeck's default frontend, read the way Pegasus reads it.
+- **Our own data**, where no standard exists: keep the simplest form that fits. Line-based `key=value` for
+  `device.conf` and the per-game settings (also readable from shell); JSON where there is nesting (`saves.json`,
+  game records). Per-game settings stay in their own file (only values that differ from the defaults), not as
+  `x-` keys in metadata, so the library files stay shareable and untouched.
+
 ## Agent playbooks
 The Claude playbooks are part of what others get: `/maintain`, `/setup-game`, and a new `/port-device`: boot Arch
 with ssh, the agent detects the hardware, writes `devices/<new>/` (device.conf, fixes, docs) and a `users/<you>/`
