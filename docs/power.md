@@ -152,6 +152,7 @@ circuit doesn't follow its control, a likely suspect for the extra load and the 
 batteries are a known GPD Win problem; the battery sits in the bottom cover (6 small Phillips screws, two cables:
 battery and fan), so it can be inspected without taking the board out. The gauge measured the 4 A through its
 sense resistor, so the load is outside the cell (an internal cell short would not show there).
+Robin: the heat came from the body (base), not the screen half; so the board or battery area, not the panel.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
