@@ -1,6 +1,7 @@
 # hasvk Vulkan 1.3 patches for Cherry Trail (R9, 2026-10-12)
 
-Not wired into `mesa/PKGBUILD`; see `mesa/reports/R9-vulkan13.md` for the design, test results and risks.
+Not wired into `mesa/PKGBUILD` (the system driver); Dark Souls alone uses a lib32 build with them
+(`~/Games/tools/mesa-vk13/`, `VK_DRIVER_FILES` in its launcher, docs/steam-library.md); see `mesa/reports/R9-vulkan13.md` for the design, test results and risks.
 They apply on top of Mesa 26.2.4 + `mesa/0001-0006` (they only touch `src/intel/vulkan_hasvk/`).
 
 | patch | what |

@@ -748,3 +748,11 @@ Details before 2026-10-06 are in `docs/archive/`.
 - R9 CTS queues finished (section 4.2): every sampled group identical to stock or better (push/glsl/pipeline/ssbo gain
   passes); the draw index-offset failures are nondeterministic on both drivers; `descriptor_indexing.storage_texel_buffer`
   fails with patch 4's claim (known limit, DXVK only uses samplers); 0 GPU hangs. The GPD is free again.
+
+## 2026-10-12 — Dark Souls on DXVK 2.7.1 + real Vulkan 1.3
+- Dark Souls PTDE now runs DXVK 2.7.1 (gplasync 2.7.1 + our async-readback port, `dxvk/vk13/`; `DATA/d3d9.dll` =
+  `dxvk-test/d3d9-gpd-2.7.1.dll`) on the R9 hasvk build: lib32 `libvulkan_intel_hasvk.so` from `lib32-vulkan-intel-gpd
+  1:26.2.4-1.9` (our Mesa patches + `mesa/vk13/0001-0004`) in `~/Games/tools/mesa-vk13/`, selected with `VK_DRIVER_FILES`
+  in the game's launcher, plus `hasvk_report_descriptor_indexing=true`. The system Mesa is unchanged (1.7). Why: try
+  current DXVK on genuine 1.3 in the real game (headless tests were clean, R9 section 9). Revert:
+  `cp dxvk-test/d3d9-gpd-2.4.1.dll DATA/d3d9.dll && cp dxvk-test/gpd-launch-2.4.1.sh gpd-launch.sh` in the game folder.

@@ -136,6 +136,13 @@ matched by Steam AppID; 362 games had no confirmed page, so this list is incompl
   - Then: DSfix `FPSlimit 60` tried and set back to 30 (the game's cap; DSfix warns of physics glitches above 30), and the
     launcher pins the GPU minimum clock to its current maximum while the game runs (`rps_min_freq_mhz`, made
     wheel-writable in `/etc/tmpfiles.d/turbo.conf`), back to RPn afterwards.
+  - **Now (2026-10-12, evening): DXVK 2.7.1 on real Vulkan 1.3.** `DATA/d3d9.dll` = `dxvk-test/d3d9-gpd-2.7.1.dll` (2.7.1 +
+    gplasync 2.7.1 + our async readback port, repo `dxvk/vk13/`); the launcher points `VK_DRIVER_FILES` at the R9 hasvk
+    build in `~/Games/tools/mesa-vk13/` (lib32 `lib32-vulkan-intel-gpd 1.9` = our Mesa 0001-0006 + `mesa/vk13/0001-0004`,
+    package kept next to it; only this game uses it) and sets `hasvk_report_descriptor_indexing=true` instead of the
+    claim-1.3 variable. Headless 32-bit tests: correct, 0 hangs; 2.7.1 slower than 2.4.1 in a CPU-bound micro test
+    (mesa/reports/R9-vulkan13.md section 9). Back to 2.4.1: `cp dxvk-test/d3d9-gpd-2.4.1.dll DATA/d3d9.dll && cp
+    dxvk-test/gpd-launch-2.4.1.sh gpd-launch.sh`.
   - Power: the firmware sets the package power limit (RAPL PL1) to 6.0 W (1 s window; PL2 20 W / 10 s). With the GPU
     fully loaded the package sat at 6.07 W, the GPU fell to ~460 MHz despite the minimum-clock pin and the CPU
     clocked down (seen at 1.76 GHz); temperatures 62-71 C. PL1 8 W: 7.5-7.9 W drawn, GPU 600 MHz, CPU 2.4 GHz,

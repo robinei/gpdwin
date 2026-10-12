@@ -1,4 +1,4 @@
-# DXVK 2.7.1 for the R9 Vulkan 1.3 experiment (not used by the installed games)
+# DXVK 2.7.1 for the R9 Vulkan 1.3 experiment (used by Dark Souls since 2026-10-12, docs/steam-library.md)
 
 - `dxvk-gplasync-2.7.1-1.patch`: unchanged from https://gitlab.com/Ph42oN/dxvk-gplasync `patches/`
   (sha256 `848956793ada245a94a14b930f1d24b5545d7214255df90d02ef2eee831280b9`, byte-identical to its `dxvk-gplasync-2.7-1.patch`).
@@ -16,4 +16,4 @@ meson setup b32 --cross-file build-win32.txt --buildtype release -Db_ndebug=true
 ninja -C b32 src/d3d9/d3d9.dll && i686-w64-mingw32-strip b32/src/d3d9/d3d9.dll        # x32 (b64 likewise with build-win64.txt)
 ```
 (mingw-w64-gcc 16.2, meson 1.12; `build-win32.txt`/`build-win64.txt` are DXVK's own cross files.) Result on the GPD:
-`~/vk13-test/dxvk271gpd/{x32,x64}/d3d9.dll` (x32 sha256 d78f8a5f6a60b222...). Not in `dxvk/build.sh`; Robin decides.
+`~/vk13-test/dxvk271gpd/{x32,x64}/d3d9.dll` (x32 sha256 d78f8a5f6a60b222...). Not in `dxvk/build.sh`. Dark Souls: `dxvk-test/d3d9-gpd-2.7.1.dll`, copied to `DATA/d3d9.dll`.
