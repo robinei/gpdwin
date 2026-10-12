@@ -60,3 +60,11 @@ Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already
        `gpd-stock-initramfs` (fsck hook then picks fsck.f2fs); check `lsinitcpio`.
     5. Reboot; check Wi-Fi, sway, shelf, a game, suspend and hibernate (swap partition unchanged). Update
        boot.md/packages.md. Rollback: same steps with mkfs.ext4 and the backup.
+    Later, for actual space savings: `f2fs_io release_cblocks FILE` frees the blocks compression saved; the file
+    is then read-only (read, rename, delete fine; `f2fs_io reserve_cblocks` before any write, needs the space).
+    Candidates: `/usr` (pacman replaces files by rename, so a periodic job re-releases new ones) and installed
+    games (`scripts/games` releases after install, reserves before an update; skip saves/settings). Not ROMs
+    (already compressed). Risk: Wine games may open data files read-write and fail on released ones: test per
+    game, keep an exclude list. Estimate (unmeasured): 2-4 GB of the 15 GB games plus a few GB of `/usr`.
+    Larger clusters (`compress_log_size`, up to 1 MB) compress better but amplify small random reads; keep LZ4
+    (zstd shrinks more but decompresses far slower on this CPU).
