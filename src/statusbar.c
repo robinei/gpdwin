@@ -1,13 +1,15 @@
 /*
  * statusbar: the swaybar status line (i3bar JSON on stdout).
  *
- *   cpu 2.4G | gpu 400M | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
+ *   cpu 2.4G | gpu 400M | tdp 6W | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
  *
  * Battery: "bat 80%" on battery (yellow <=30%, red <=15%), "bat 80%+" charging, "bat full" when
  * charged to 100% with the charger connected, "bat 80% max" when held at the charge limit (docs/power.md),
  * "bat 80% not charging" (yellow) when connected but stuck.
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
+ * "tdp" is the package power limit (RAPL PL1), dimmed at the firmware's 6 W, bright while a game raised it
+ * (scripts/game-wrap GPD_TDP_W, docs/power.md). The actual draw needs root (energy_uj), so it isn't shown.
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
  * when it spent most of the last second in RC6 (its frequency register keeps the last value).
  *
@@ -19,7 +21,7 @@
  *   every 60 s         battery (9 ms: I2C to the fuel gauge and the charger)
  *   kernel uevents     charger plugged in/out, battery events -> battery at once
  *   rtnetlink          WiFi link up/down -> link state and network name at once
- *   SIGUSR1            volume, turbo or charge limit changed (osd.sh, turbo.sh, charge.sh) -> at once
+ *   SIGUSR1            volume, turbo, power or charge limit changed (osd.sh, turbo.sh, game-wrap, charge.sh)
  *   SIGSTOP/SIGCONT    sent by the idle scripts while the screen is off: nothing runs then;
  *                      SIGCONT re-reads everything
  * A line is written only when the text changed, so swaybar redraws only on real changes.
@@ -47,6 +49,8 @@
 #define BATTERY  "/sys/class/power_supply/max170xx_battery/"
 #define CHARGER  "/sys/class/power_supply/bq24190-charger/"
 #define NO_TURBO "/sys/devices/system/cpu/intel_pstate/no_turbo"
+#define PL1 "/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw"
+#define PL1_DEFAULT 6016000
 #define WIFI     "wlan0"
 
 /* Colours from the sway theme (Catppuccin Mocha) */
@@ -70,6 +74,7 @@ static struct {
     int cpu_turbo;
     int gpu_mhz;
     int gpu_turbo;
+    int tdp_uw;                 /* package power limit, 0 = unknown */
     double ram_used, ram_total; /* GiB */
     int wifi_up;
     char ssid[64];
@@ -156,6 +161,7 @@ static void read_turbo(void)
 {
     st.cpu_turbo = read_int(NO_TURBO, 0) == 0;
     st.gpu_turbo = gpu_int("gt_max_freq_mhz") >= gpu_rp0;
+    st.tdp_uw = read_int(PL1, 0);
 }
 
 static void read_ram(void)
@@ -300,6 +306,8 @@ static void emit(void)
         block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu %dM", st.gpu_mhz);
     else
         block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu idle");
+    if (st.tdp_uw > 0)
+        block(st.tdp_uw > PL1_DEFAULT ? TEXT : DIM, LINE, "tdp %dW", (st.tdp_uw + 500000) / 1000000);
     block(TEXT, LINE, "ram %.1f/%.1fG", st.ram_used, st.ram_total);
     if (!st.wifi_up)
         block(DIM, LINE, "wifi off");

@@ -16,12 +16,13 @@ slug=$GPD_GAME            # a launcher that does not cd into its install folder 
 PL1=/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw
 PL1_DEFAULT=6016000
 GT=$(ls -d /sys/class/drm/card*/gt/gt0 2>/dev/null | head -1)
-restore_cmd="echo $PL1_DEFAULT > $PL1; [ -n '$GT' ] && cat '$GT/rps_RPn_freq_mhz' > '$GT/rps_min_freq_mhz'"
+restore_cmd="echo $PL1_DEFAULT > $PL1; [ -n '$GT' ] && cat '$GT/rps_RPn_freq_mhz' > '$GT/rps_min_freq_mhz'; pkill -USR1 -x statusbar"
 if [ -n "$GPD_TDP_W" ] || [ "$GPD_GPU_PIN" = 1 ]; then
     # guard first, so the defaults come back even if this wrapper is killed right after raising them
     setsid -f sh -c "tail --pid=$$ -f /dev/null; $restore_cmd" >/dev/null 2>&1 </dev/null
     [ -n "$GPD_TDP_W" ] && echo $((GPD_TDP_W * 1000000)) > "$PL1" 2>/dev/null
     [ "$GPD_GPU_PIN" = 1 ] && [ -n "$GT" ] && cat "$GT/rps_max_freq_mhz" > "$GT/rps_min_freq_mhz" 2>/dev/null
+    pkill -USR1 -x statusbar   # the bar's "tdp" at once
 fi
 [ -n "$slug" ] || case "$PWD/" in
     "$HOME"/Games/installed/*/) slug=${PWD#"$HOME"/Games/installed/}; slug=${slug%%/*} ;;

@@ -697,3 +697,4 @@ Details before 2026-10-06 are in `docs/archive/`.
   wheel-writable (turbo.conf); Dark Souls' launcher sets 8 W while it runs (24 -> 28 fps in a heavy area, 77-80 C).
 - Dark Souls: DSfix frame cap back to 30 (unlockFPS stays on: flexible limiter, no 15/20 fps rounding).
 - game-wrap: opt-in `GPD_TDP_W` / `GPD_GPU_PIN` for any launcher, defaults restored however the game ends (guard process); Dark Souls uses it.
+- statusbar: `tdp 6W` block (package power limit; dim at the firmware's 6 W, bright when a game raised it); game-wrap signals the bar when it changes it.
