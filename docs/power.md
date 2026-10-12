@@ -57,7 +57,10 @@ Only s2idle is available (`/sys/power/mem_sleep` = `[s2idle]`, no S3).
 
 ## Charge limit (2026-10-12)
 - The pack is a high-voltage Li-ion (MAX17047 `voltage_max` 4.4 V); the bq24292i charged it to
-  4.384 V (`constant_charge_voltage`, max 4400000). 279 cycles then, capacity still at/above design.
+  4.384 V (`constant_charge_voltage`, max 4400000). The battery is ~10 years old (bought new 2016, little used).
+  `max170xx_battery/cycle_count` is NOT cycles: the driver passes the MAX17047 `Cycles` register through, which
+  counts in 1% of a full cycle and resets when the gauge powers up (datasheet), so 279 = 2.79 cycles since the
+  gauge last lost power. `charge_full` (7.7 Ah > design 6.7 Ah) is a learned estimate, not a health figure.
 - `/usr/local/bin/charge-limit` sets 4.144 V (~80% on such cells) and makes the file wheel-writable;
   run by `charge-limit.service` at boot (enabled by hand, waits up to 60 s for the charger) and by
   `90-charge-limit.rules` when the driver (re)registers; both log to `journalctl -t charge-limit` /
