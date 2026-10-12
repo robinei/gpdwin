@@ -1,7 +1,7 @@
 /*
  * statusbar: the swaybar status line (i3bar JSON on stdout).
  *
- *   cpu 2.4G | gpu 400M | tdp 6W | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
+ *   cpu 2.4G | gpu 400M | tdp 6W 55°C | ram 0.6/3.7G | <ssid> 100% | vol 50% | bat 99%+ | Wed 07 Oct  15:29
  *
  * Battery: "bat 80%" on battery (yellow <=30%, red <=15%), "bat 80%+" charging, "bat full" when
  * charged to 100% with the charger connected, "bat 80% max" when held at the charge limit (docs/power.md),
@@ -9,14 +9,15 @@
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
  * "tdp" is the package power limit (RAPL PL1), white at the firmware's 6 W, yellow while a game raised it
- * (scripts/game-wrap GPD_TDP_W, docs/power.md). The actual draw needs root (energy_uj), so it isn't shown.
+ * (scripts/game-wrap GPD_TDP_W, docs/power.md), with the hottest CPU core (coretemp); red from 85 C (the
+ * chip throttles at 90 C).
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
  * when it spent most of the last second in RC6 (its frequency register keeps the last value).
  *
  * Everything happens in one poll() loop, so the program sleeps until something can have changed.
  * Each value is read only as often as it is worth (measured cost per read on this device):
  *   every 1 s          CPU and GPU clock (~0.15 ms), and the clock text
- *   every 5 s          RAM (0.05 ms)
+ *   every 5 s          RAM (0.05 ms), CPU temperature (coretemp, 4 sysfs reads)
  *   every 30 s         WiFi signal (2.3 ms: asks the WiFi firmware); turbo state as a fallback
  *   every 60 s         battery (9 ms: I2C to the fuel gauge and the charger)
  *   kernel uevents     charger plugged in/out, battery events -> battery at once
@@ -67,6 +68,7 @@
 #define VOLUME_RETRY  10 /* while PipeWire isn't up yet after login */
 
 static char gpu[64]; /* "/sys/class/drm/cardN/", found at start */
+static glob_t coretemp; /* the coretemp hwmon's temp*_input files, found at start */
 static int gpu_rp0;  /* the GPU's highest (turbo) clock, MHz */
 
 static struct {
@@ -75,6 +77,7 @@ static struct {
     int gpu_mhz;
     int gpu_turbo;
     int tdp_uw;                 /* package power limit, 0 = unknown */
+    int temp_c;                 /* hottest CPU core, -1 = unknown */
     double ram_used, ram_total; /* GiB */
     int wifi_up;
     char ssid[64];
@@ -85,7 +88,7 @@ static struct {
     int plugged;                /* charger connected */
     char charge[32];            /* the charger's status: "Charging", "Full", "Not charging"... */
     int at_limit;               /* battery at/above the charge voltage limit */
-} st = { .signal = -1, .volume = -1, .battery = -1 };
+} st = { .signal = -1, .volume = -1, .battery = -1, .temp_c = -1 };
 
 /* ---- small file helpers ---- */
 
@@ -162,6 +165,17 @@ static void read_turbo(void)
     st.cpu_turbo = read_int(NO_TURBO, 0) == 0;
     st.gpu_turbo = gpu_int("gt_max_freq_mhz") >= gpu_rp0;
     st.tdp_uw = read_int(PL1, 0);
+}
+
+static void read_temp(void)
+{
+    int max = -1;
+    for (size_t i = 0; i < coretemp.gl_pathc; i++) {
+        int t = read_int(coretemp.gl_pathv[i], -1);
+        if (t > max)
+            max = t;
+    }
+    st.temp_c = max < 0 ? -1 : (max + 500) / 1000;
 }
 
 static void read_ram(void)
@@ -306,7 +320,10 @@ static void emit(void)
         block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu %dM", st.gpu_mhz);
     else
         block(st.gpu_turbo ? TEXT : DIM, LINE, "gpu idle");
-    if (st.tdp_uw > 0)
+    if (st.tdp_uw > 0 && st.temp_c >= 0)
+        block(st.temp_c >= 85 ? RED : st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, "tdp %dW %d°C",
+              (st.tdp_uw + 500000) / 1000000, st.temp_c);
+    else if (st.tdp_uw > 0)
         block(st.tdp_uw > PL1_DEFAULT ? YELLOW : TEXT, LINE, "tdp %dW", (st.tdp_uw + 500000) / 1000000);
     block(TEXT, LINE, "ram %.1f/%.1fG", st.ram_used, st.ram_total);
     if (!st.wifi_up)
@@ -373,6 +390,7 @@ static int drain(int fd)
 static void read_all(void)
 {
     read_ram();
+    read_temp();
     read_turbo();
     read_battery();
     read_wifi_link();
@@ -388,6 +406,19 @@ int main(void)
                  g.gl_pathv[0]);
         globfree(&g);
         gpu_rp0 = gpu_int("gt_RP0_freq_mhz");
+    }
+    if (glob("/sys/class/hwmon/hwmon*/name", 0, NULL, &g) == 0) {
+        for (size_t i = 0; i < g.gl_pathc; i++) {
+            char name[32] = "", pat[300];
+            read_line(g.gl_pathv[i], name, sizeof name);
+            if (strcmp(name, "coretemp") == 0) {
+                snprintf(pat, sizeof pat, "%.*s/temp*_input", (int)(strrchr(g.gl_pathv[i], '/') - g.gl_pathv[i]),
+                         g.gl_pathv[i]);
+                glob(pat, 0, NULL, &coretemp);
+                break;
+            }
+        }
+        globfree(&g);
     }
 
     sigset_t sigs;
@@ -420,8 +451,10 @@ int main(void)
             uint64_t expirations;
             read(timer, &expirations, sizeof expirations);
             tick++;
-            if (tick % RAM_EVERY == 0)
+            if (tick % RAM_EVERY == 0) {
                 read_ram();
+                read_temp();
+            }
             if (tick % SIGNAL_EVERY == 0) {
                 read_signal();
                 if (st.wifi_up && !st.ssid[0]) /* iwd may name the network just after link up */
