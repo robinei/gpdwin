@@ -108,7 +108,7 @@ One directory per collection under `~/Games`, each listed in `~/.config/pegasus-
   Vulkan, 1x, 16:9, shader compilation "skip drawing" (no stutter, brief missing effects), VSync off,
   SDL pad mapped by position (A/B/X/Y, Z = right shoulder, L/R = triggers, C-stick = right stick), Esc
   stops. Wind Waker: Dolphin's own widescreen Gecko code and "Remove Distance Blur" enabled
-  (`~/.local/share/dolphin-emu/GameSettings/GZLE01.ini`). Tried 2026-10-12: Esc and save-state keys
+  (`~/.local/share/dolphin-emu/GameSettings/GZLE01.ini`). Tried 2026-10-12: the save-state keys
   (Shift+F1..F8) didn't reach Dolphin and sway's workspace keys didn't work while it was focused
   (cause not found yet). No speed figure yet: the test ended when the device overheated
   (docs/power.md).
