@@ -386,25 +386,30 @@ frames, 600 frames); `r9/run32matrix.sh` runs the matrix DLL x driver. Drivers: 
 (relocations), `vk13reloc` = patched lib32 build with `HASVK_USE_RELOCATIONS=1`, `vk13` = patched lib32 build (softpin).
 The patched lib32 driver loads in 32-bit Wine with the 32-bit softpin layout (DXVK logs `Memory Heap[0]: 2752 MiB`).
 
-Results at the time of writing (the matrix was still running; the complete table is in
-`~/vk13-test/logs/matrix32-*.txt` on the GPD, `grep -E '^###|d3d9rb:|textured|No adapters|!!!'`):
+Complete matrix (`~/vk13-test/logs/matrix32-163949.txt` on the GPD; d3d9rb32: 600 frames, K=20, ms/frame median,
+"lock" = time in the readback lock per frame):
 
-| DLL (x32) | driver | d3d9tex32 2400 frames | d3d9rb32 600 frames |
-|---|---|---|---|
-| 2.4.1-gpd (the game's) | stock | correct, 0 hangs | (pending) |
-| 2.6.2 | stock | **correct, 0 hangs** (R5 saw textures lost after ~300 frames with this DLL on driver 1.3/1.4; today's 1.7 has the HiZ patch, and this run is headless) | - |
-| 2.7.1-gpd | stock | n/a: `No adapters found` (no 1.3/BDA on the stock driver) | n/a |
-| 2.4.1-gpd | vk13reloc | correct, 0 hangs | (pending) |
-| 2.6.2 | vk13reloc | correct, 0 hangs | - |
-| 2.7.1-gpd | vk13reloc | n/a: `No adapters found` (relocation mode has no BDA, by design) | n/a |
-| 2.4.1-gpd | vk13 (softpin) | (pending; the 300-frame sanity run was correct) | **sanity run 200 frames: async=0 5.92 ms/frame, readback lock 4.84 ms/frame; async=1 4.15 ms/frame, lock 0.13 ms/frame, luminance read a frame late (mean 0.990), 0 bad checks, 0 hangs** |
-| 2.6.2 | vk13 | (pending) | - |
-| 2.7.1-gpd | vk13 | (pending) | (pending) |
+| DLL (x32) | driver | d3d9tex32 2400 frames | d3d9rb32 async=0 | d3d9rb32 async=1 |
+|---|---|---|---|---|
+| 2.4.1-gpd (the game's) | stock | correct | 6.08 ms, lock 5.13 | 3.63 ms, lock 0.03 |
+| 2.6.2 | stock | **correct** (R5 saw textures lost after ~300 frames with this DLL on driver 1.3/1.4; today's 1.7 has the HiZ patch, and this run is headless) | - | - |
+| 2.7.1-gpd | stock | n/a: `No adapters found` (no 1.3/BDA on the stock driver) | n/a | n/a |
+| 2.4.1-gpd | vk13reloc | correct | 6.04 ms, lock 5.19 | 3.65 ms, lock 0.03 |
+| 2.6.2 | vk13reloc | correct | - | - |
+| 2.7.1-gpd | vk13reloc | n/a: `No adapters found` (relocation mode has no BDA, by design) | n/a | n/a |
+| 2.4.1-gpd | vk13 (softpin) | correct | 6.22 ms, lock 5.27 | 3.60 ms, lock 0.03 |
+| 2.6.2 | vk13 | correct | - | - |
+| 2.7.1-gpd | vk13 | correct (Wine printed `wine client error:11c: write: Bad file descriptor` at exit, rc 0) | **9.32 ms, lock 8.90** | **7.00 ms, lock 0.05** |
 
-So far: **no GPU hang and no lost textures in any 32-bit run** (kernel log checked after each line, `grep -Eci`), and the
-async-readback effect reproduces in 32-bit on the patched driver (the per-frame lock drops from ~4.8 ms to 0.1 ms; the
-wait log shows the 16x16 R32F lock, `a=16 b=16 c=114`, waiting 3-15 ms without it). The vk13-27 variant of the Dark Souls
-kit stays **disabled** (marker `~/vk13-test/vk13-27-ok` not created) until the `2.7.1-gpd on vk13` d3d9tex32/d3d9rb32
-lines have passed; whoever reads the finished matrix first: if those two lines show correct pixels, 0 bad checks and
-0 hangs, `touch ~/vk13-test/vk13-27-ok`.
+All rb runs: 0 bad checks; luminance mean 1.000 (async=0) / 0.997 (async=1, a frame late). **0 GPU hangs in the whole
+matrix** (kernel count before/after each line). Conclusions:
+- 32-bit DXVK 2.7.1 works on the patched driver (softpin) and only there; no hang, no lost textures in these tests.
+- The async readback patch is needed on 2.7.1 too and works there (lock 8.90 -> 0.05 ms/frame).
+- **2.7.1 is slower than 2.4.1 in this test**: 7.00 vs 3.60 ms/frame with async readback (9.32 vs 6.22 without). Not
+  analysed; the test is CPU/submit-bound tiny draws, so it may or may not show in Dark Souls (GPU-bound at 30 fps). The
+  on-screen kit (`vk13-27` vs `vk13-24`) answers that.
+- Softpin vs relocations with 2.4.1: no difference beyond noise here.
+
+The vk13-27 variant of the Dark Souls kit is **enabled** (`~/vk13-test/vk13-27-ok` created 2026-10-12 16:47 after
+these lines passed).
 
