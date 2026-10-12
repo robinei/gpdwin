@@ -64,8 +64,9 @@ if [ "${ASYNC:-1}" = 1 ]; then export DXVK_GPD_ASYNC_READBACK=1; else unset DXVK
 stamp=$(date +%H%M%S)
 logdir="$T/logs/ds-$variant-$stamp"; log="$T/logs/ds-$variant-$stamp.log"; mkdir -p "$logdir"
 export DXVK_LOG_LEVEL=info DXVK_LOG_PATH="$logdir"
-# On-screen DXVK memory overlay (device memory allocated/used per heap) next to MangoHud; HUD=0 turns it off.
-[ "${HUD:-1}" = 1 ] && export DXVK_HUD=memory,allocations
+# On-screen DXVK overlay (fps, frame times, GPU load, device memory per heap; covers MangoHud, which is off then);
+# HUD=0 turns it off and MangoHud shows instead.
+[ "${HUD:-1}" = 1 ] && export DXVK_HUD=fps,frametimes,gpuload,memory
 settings=$(grep -F "$GAME/gpd-launch.sh" "$HOME/.config/pegasus-frontend/shelf-game-settings.txt" | cut -f2)
 for kv in $settings; do
   case $kv in
@@ -77,6 +78,8 @@ for kv in $settings; do
   esac
 done
 export MANGOHUD=1
+# with the DXVK overlay on, MangoHud stays loaded (fps cap) but hidden, so the two overlays do not overlap
+[ "${HUD:-1}" = 1 ] && export MANGOHUD_CONFIG="${MANGOHUD_CONFIG:-read_cfg},no_display"
 [ -e /usr/lib/mangohud/libMangoHud_shim.so ] && export LD_PRELOAD="/usr/\$LIB/mangohud/libMangoHud_shim.so"
 
 # --- report
