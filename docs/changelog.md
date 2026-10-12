@@ -797,3 +797,7 @@ Details before 2026-10-06 are in `docs/archive/`.
   (`dxvk/v262/`), DLL in Dark Souls' `dxvk-test/d3d9-gpd-2.6.2.dll` (not active). Headless on Mesa 1.11: correct, 0
   hangs, but as slow as 2.7.1 in the readback micro test (6.93 vs 2.4.1's 3.60 ms/frame), so the slowdown came
   between 2.4 and 2.6, not with 2.7.
+- DXVK reserves: `dxvk/build.sh [2.4.1|2.6.2|2.7.1]` (one script for all three, outputs `x32|x64`, `v262/`, `vk13/`).
+  On the GPD `~/Games/tools/dxvk/gpd-2.6.2/` and `gpd-2.7.1/` (x32 + x64, gplasync + async readback; texture test
+  correct on Mesa 1.11); `gpd/` stays 2.4.1, the default. Dark Souls' `dxvk-test/` 2.6.2/2.7.1 copies replaced by these
+  builds. setup-game playbook: the claim-1.3 variable is no longer needed, the old "no 32-bit DXVK >= 2.5" rule dropped.

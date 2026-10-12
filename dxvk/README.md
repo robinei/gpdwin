@@ -21,4 +21,12 @@ Why a build of our own (2026-10-12):
   `namespace dxvk` as upstream master does (2.4.1 no longer builds otherwise).
 
 `dxvk-gplasync-2.4-1.patch`: https://gitlab.com/Ph42oN/dxvk-gplasync `patches/`, unchanged (sha256 `2f80b7d7...`).
-`build.sh` builds `d3d9.dll` (x32) in an Arch chroot on the desktop (~2 min after the chroot exists).
+`build.sh [2.4.1|2.6.2|2.7.1]` builds `d3d9.dll` (x32 + x64) in an Arch chroot on the desktop (~2 min each after the
+chroot exists); 2.4.1 -> `x32/`, `x64/`, 2.6.2 -> `v262/`, 2.7.1 -> `vk13/` (patches and notes there).
+
+## Reserves (2026-10-12)
+On the GPD: `~/Games/tools/dxvk/gpd/` = 2.4.1 (the default for games), `gpd-2.6.2/` and `gpd-2.7.1/` (x32 + x64), all
+with gplasync + our async readback. Since Mesa 1.11 (real Vulkan 1.3) all three run in 32-bit without GPU hangs or lost
+textures (headless tests). 2.5+ costs more CPU per frame here (readback test 3.6 -> 6.9 ms/frame; the 2.5 allocator
+rewrite is the likely cause, not profiled; defragmentation is off on Intel Mesa anyway), so 2.4.1 stays the default.
+2.7+ also needs `hasvk_report_descriptor_indexing=true`.

@@ -12,7 +12,7 @@ cd build-262 && patch -Np1 < dxvk-gplasync-2.6.2-1.patch && patch -Np1 < 0001-gp
 meson setup b32 --cross-file build-win32.txt --buildtype release -Db_ndebug=true -Denable_d3d8=false -Denable_d3d10=false
 ninja -C b32 src/d3d9/d3d9.dll && i686-w64-mingw32-strip b32/src/d3d9/d3d9.dll
 ```
-Result: Dark Souls `dxvk-test/d3d9-gpd-2.6.2.dll` (sha256 `38105bfb80e4213d...`). Needs Vulkan 1.3 (Mesa 1.11 has it; no
+Result: Dark Souls `dxvk-test/d3d9-gpd-2.6.2.dll` (rebuilt with `build.sh 2.6.2`). Needs Vulkan 1.3 (Mesa 1.11 has it; no
 descriptor indexing claim needed).
 
 Headless 32-bit on Mesa 1.11 (`mesa/reports/r5/d3d9tex.c` 2400 frames, `r9/d3d9rb.c` 600 frames K=20):

@@ -36,10 +36,11 @@ Background (read when relevant): `docs/steam-library.md` (DRM recipes, Dark Soul
 
 ## 3. Renderer
 - **Direct3D 9: DXVK, our build** (`dxvk/`, on the device `~/Games/tools/dxvk/gpd/x32|x64/d3d9.dll`): copy next to
-  the exe, `WINEDLLOVERRIDES=...;d3d9=n`, `export hasvk_report_vk_1_3_version=true` (DXVK 2.x needs the claim),
-  `export DXVK_GPD_ASYNC_READBACK=1`, and `dxvk.conf` next to the exe with `dxvk.enableAsync = true`,
-  `d3d9.numBackBuffers = 3`, `d3d9.maxFrameLatency = 3`. Keep a Wine-d3d variant `gpd-launch-wined3d.sh`
-  (`d3d9=b`) and compare. Never 32-bit DXVK >= 2.5 (2.5: GPU hang, 2.6: textures go black).
+  the exe, `WINEDLLOVERRIDES=...;d3d9=n`, `export DXVK_GPD_ASYNC_READBACK=1`, and `dxvk.conf` next to the exe with
+  `dxvk.enableAsync = true`, `d3d9.numBackBuffers = 3`, `d3d9.maxFrameLatency = 3`. Keep a Wine-d3d variant
+  `gpd-launch-wined3d.sh` (`d3d9=b`) and compare. Reserves `~/Games/tools/dxvk/gpd-2.6.2/`, `gpd-2.7.1/` (same patches):
+  only if a game needs them; 2.5+ costs more CPU per frame here, 2.7+ needs `hasvk_report_descriptor_indexing=true`
+  (dxvk/README.md). Since Mesa 1.11 hasvk has real Vulkan 1.3, so `hasvk_report_vk_1_3_version` is no longer needed.
 - Direct3D 8: Wine's d3d8 first; DXVK route (d3d8to9 + DXVK) only if needed (docs/frontend.md "Sam & Max").
 - Direct3D 10/11/dxgi, OpenGL, Vulkan: Wine's own (wined3d / the GL driver crocus / hasvk) unless tested
   otherwise. DXVK d3d11 on this GPU is untested: try only with the user's OK, record the result.
