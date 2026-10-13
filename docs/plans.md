@@ -69,8 +69,7 @@ running when nothing needs it. On the GPD shelf avoided the client (DepotDownloa
 
 **Design so far:**
 - Library: read Steam's own files, no API: `libraryfolders.vdf` and `appmanifest_*.acf` (installed games,
-  size, last played), `librarycache/` art for box art; owned-but-not-installed games from the Web API as
-  `scripts/gamelib/sources/steam.py` does now. A "Steam" collection in shelf.
+  size, last played), `librarycache/` art for box art. Only installed games; a "Steam" collection in shelf.
 - Launch: start Steam in the background on demand (`steam -silent`), wait until it is logged in, then
   `steam -applaunch <appid>`; shelf tracks the game by its `steam_app_<appid>` window class (sway) and
   Steam's reaper process, for play time and for "game running" state. Steam shuts down (`steam -shutdown`)
