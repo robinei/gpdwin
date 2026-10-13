@@ -27,6 +27,13 @@ for the parts that are pure logic, and a structure that can grow.
   - one binary.
 - Port the behaviour, not the code: the C sources and docs are the spec; their tests are what was measured on
   the GPD (first frame ~40 ms after start, docs/frontend.md).
+- **No panics by construction**: workspace lints deny `unwrap`/`expect`/`panic!`/slice indexing
+  (`clippy::unwrap_used`, `expect_used`, `panic`, `indexing_slicing`) outside tests; errors are values,
+  handled where they occur (a bad file or a missing device degrades one feature, never the program); no
+  `unsafe` outside small reviewed FFI spots. Backstops for what lints can't catch (a dependency panicking,
+  a deadlock): the UI runs in its own thread, a panic there is caught (`catch_unwind`) and the UI restarted
+  while the input thread keeps forwarding the pad; locks recover from poisoning; a systemd watchdog
+  (`WatchdogSec`, pinged by the input thread) restarts a hung program; `Restart=always` last.
 - Programs that work on their own stay small and separate if they fit no better inside (statusbar, scripts).
 
 **Development before the Thor arrives (~a month):** on the desktop, nested sway with two outputs sized like
