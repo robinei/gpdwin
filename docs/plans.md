@@ -405,8 +405,10 @@ history. The GPD's driver patches could still be sent upstream from here.
    screen stays black (EDL, USB 05c6:9008). That happens before ABL runs, so it works with a broken ABL.
    Flash with Linaro's open `qdl` (no Windows/QFIL): `qdl --storage ufs --include . xbl_s_devprg_ns.melf
    rawprogram*.xml patch*.xml` (stop ModemManager first) and AYN's Thor firmware zip (programmer
-   `xbl_s_devprg_ns.melf`, signed by AYN). The guide links AYN's software page for the zip, but on 2026-10-14
-   that page listed no Thor download (maybe loaded by script; check in a browser, else ask AYN support). Get
+   `xbl_s_devprg_ns.melf`, signed by AYN). Not public (searched 2026-10-14): AYN's software page
+   (raw HTML checked) has only Loki drivers and Odin 1 packages; github.com/AYNTechnologies has only kernel,
+   u-boot, ALSA/AudioReach sources; XDA has a Thor OTA zip (`Thor_20251120_ota.zip`), which has no EDL
+   programmer. Ask AYN support for the Thor's EDL (QFIL) package. Get
    the zip onto the desktop and build `qdl` before flashing ROCKNIX ABL; root Android and
    dump every partition (`/dev/block/by-name/*`, both A/B slots) to the desktop; ROCKNIX ABL's
    install (checked 2026-10-14, `ROCKNIX/distribution` `packages/tools/rocknix-abl`: `backup_abl.sh`,
