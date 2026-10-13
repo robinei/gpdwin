@@ -193,7 +193,7 @@ worked on. Fresh history (none of this repo's personal data or old paths); MIT f
 - `docs/pegasus-format.md` (the spec for `library`), docs/frontend.md and docs/desktop.md as the behaviour
   spec for the new program; the C sources as reference only.
 
-**Arch, with the useful parts of NixOS (decided 2026-10-13: stay on Arch): base it on darch.**
+**Arch, with the useful parts of NixOS (decided 2026-10-13: stay on Arch). Proposal: base it on darch.**
 Robin's github.com/robinei/darch (Jan 2026, ~1600 lines Python, tested in QEMU only) already builds Arch
 declaratively: config in Python, each build an immutable generation in a btrfs subvolume (`/usr`, `/etc`,
 `/boot` and the pacman state), tmpfs root with symlinks through `/current`, persistent `@var` and `@home`,
