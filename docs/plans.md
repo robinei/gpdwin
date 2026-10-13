@@ -7,7 +7,7 @@ change gets a `docs/changelog.md` entry, and the section here is removed. Unsort
 
 ## Rust and a project structure for the system program
 
-**Goal:** write the system program (above) in Rust as a Cargo workspace, not as more single C files. The C
+**Goal:** write the system program ("One system program", below) in Rust as a Cargo workspace, not as more single C files. The C
 programs (shelf, inputd, statusbar; ~5200 lines) keep running until it replaces them.
 
 **Why:** a long-running program that owns input, power and the screen, with threads sharing one state, parsing
