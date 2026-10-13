@@ -373,6 +373,34 @@ in the loop.
   script (pacstrap ALARM + Pocknix + ours into a disk image with the ROCKNIX boot partition, swap, btrfs,
   first-boot setup) for others to flash; check the terms for the Qualcomm firmware in it before publishing.
 
+**Other Thor projects (checked 2026-10-14), to learn from:**
+- **Kettle Linux** (github.com/kettlelinux/kettlelinux, BSD-3, very detailed docs): SteamOS "deckard"
+  (Steam Frame) aarch64 userspace with **Valve's native arm64 Steam client**, mainline 7.2 + patch stack,
+  RAUC A/B updates. Its Thor findings (docs/THOR.md, BOOT.md, BOOTLOADER.md):
+  - **Boot without flashing ABL**: AYN's stock ABL fastboot menu can default to **"Loader"**, which starts
+    AYN's U-Boot from `loader_a/b` (an Android boot image), which offers EFI: `\EFI\BOOT\BOOTAA64.EFI` from
+    the SD card or internal storage, then GRUB (or systemd-boot) and the kernel. Needs an unlocked
+    bootloader. `loader_*` is recoverable from fastboot; only `abl_*` needs EDL. Their Thor runs with both
+    ABL slots stock. If the menu lacks "Loader" (older firmware?), ROCKNIX ABL v1.2 also starts
+    `BOOTAA64.EFI` first. **This changes our plan: prefer Loader mode, no ABL flash; a normal EFI boot
+    (systemd-boot, kernel + initramfs on an ESP) instead of mkbootimg images.**
+  - Connectors: top `DSI-2` (1080x1920, touch axes swapped: a libinput calibration matrix fixes it),
+    bottom `DSI-1`; bottom backlight renamed `bottom-panel` so tools pick the top one first.
+  - Thor's U-Boot reports DMI "AYN Odin 2"; audio card `ayn-AYNOdin2` under EFI.
+  - Bottom screen costs ~0.7 W at idle; the panel lists only 60 Hz, 30 Hz possible at half pixel clock
+    (60 Hz 1.55 W, 30 Hz 1.45 W with a still image).
+  - Suspend: 5-cycle s2idle soak fine (pad, touch, panel, Wi-Fi).
+  - In Game Mode it leases the bottom connector to a second gamescope with KWin/Plasma Mobile: heavy;
+    our sway setup drives both outputs directly.
+- **Armada** (github.com/armada-os/armada, ~1900 stars, GPL-2.0+): Fedora bootc image, ROCKNIX-derived device
+  support, ARM64 Steam + FEX + Proton. The biggest Thor community (Discord).
+- **Ratatoskr** (github.com/venatrix-ritz/Ratatoskr, MIT): Armada/Decky plugin making the bottom screen a
+  trackpad, keyboard (uinput), split, quick settings; grabs the bottom digitizer. Reference for our modes;
+  notes Steam dims only the top panel.
+- **Gleipnir** (github.com/venatrix-ritz/Gleipnir, MIT/GPL-2.0+): charge limit on the Thor by writing 0 to
+  `/sys/class/power_supply/battery/constant_charge_current` at 80 % and restoring it at 77 % (verified on one
+  Thor). The charger has no end threshold; our device layer can do the same.
+
 **Stays here (the archive):** `devices/gpd-win1` (kernel patches, Mesa, DXVK, docs), the C programs
 (`src/`), the GPD-specific dotfiles and scripts (speaker tuning, audio snapshots), `docs/changelog.md`, the
 history. The GPD's driver patches could still be sent upstream from here.
