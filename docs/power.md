@@ -197,6 +197,11 @@ and still rising. The same as right after the disconnect: the overnight rest cle
 USB meter cross-check (12 V PD, idle, battery charging at its 1.02 A setting): 10 W at the input, which fits
 the gauge (~6 W system incl. the fault + ~4.4 W into the battery). The gauge is trustworthy. While charging the
 battery current stays at the charge setting whatever the load, so load tests must run on battery.
+Load test (same boot, charging at 12 V, Robin reading the meter): idle ~10 W in; 4 cores at 2.4 GHz (package
+5.3 W) and Wind Waker in Dolphin (package 2-4.5 W, 90 s) peaked at ~16 W, i.e. input followed the package power
+plus converter losses and the extra load did not grow. DTS reached 60 C (CPU) and 64 C (Dolphin), against 85 C in
+the failing run on 2026-10-12. PNIT rose faster than the die (54 -> 75 C under CPU load), so it sits near the
+SoC or its regulators. Afterwards idle was back at the same level. The fault did not escalate under load today.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
