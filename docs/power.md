@@ -190,6 +190,10 @@ Timeline: earlier on 2026-10-12, Dark Souls ran for hours at 8 W (CPU and GPU tu
 test MangoHud showed ~4 W package yet the SoC sensors reached 85 C, hotter than Dark Souls at 8 W, so the extra load
 was probably already there when Dolphin started; the long hot sessions before it may have tipped an ageing part.
 No battery-current log exists from before 21:50 to show when it began.
+After the battery was out overnight (2026-10-13, cold boot on battery, 5% brightness, idle): 1.5-2.1 A from
+the first minute (typically ~1.6 A, ~5.8 W; normal 0.59 A), package 1.15-1.4 W, PNIT and DTS 34 -> 40 C in 2 min
+and still rising. The same as right after the disconnect: the overnight rest cleared nothing more. The extra
+~1 A (~3.5-4 W outside the package estimate) is there cold, so it is not heat-driven runaway.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
