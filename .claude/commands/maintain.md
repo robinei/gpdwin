@@ -36,10 +36,10 @@ informed in short lines; they are on a small screen with a keyboard.
      `/var/lib/dkms/gpd-i915/1.0/<kernel>/x86_64/log/make.log`. If it failed: the stock i915 is used (split pictures possible
      again); redo the patches in `devices/gpd-win1/kernel/i915/` against the new source (test-build on the desktop
      with `build.sh`, which also refuses fuzz), reinstall with `devices/gpd-win1/kernel/i915/install-dkms.sh`.
-   - Audio (`gpd-audio`): its sources are pinned (`devices/gpd-win1/kernel/prepare.sh`, `V=`), so a successful
+   - Audio and charging (`gpd-audio`, `gpd-usbpd`): their sources are pinned (`devices/gpd-win1/kernel/prepare.sh`, `V=`), so a successful
      DKMS build still means the old kernel's driver code. Re-pin: `devices/gpd-win1/kernel/prepare.sh --repin
-     <new version>` (downloads the new rt5645 and atom SST files, rewrites both `sources.sha256`
-     and `V=`, applies our two patches with `--fuzz=0`). If a patch no longer applies, redo it by
+     <new version>` (downloads the new rt5645, atom SST and chtwc_int33fe files, rewrites every `sources.sha256`
+     and `V=`, applies our patches with `--fuzz=0`). If a patch no longer applies, redo it by
      hand against the new file and regenerate it (`diff -u`, `a/`/`b/` paths). Review
      `git diff devices/gpd-win1/kernel/` (upstream changes to the pinned files are worth a look), then
      `devices/gpd-win1/kernel/install.sh` and commit.

@@ -856,3 +856,19 @@ before the layer split (docs/repo-layout.md): `docs/hardware.md` is now `devices
   `dxvk/build.sh` now downloads them and checks the sha256 of the tested copies, identical to upstream today) and
   `kernel/dsi-investigation/data/vbt.bin` (firmware extract; the LICENSE note says how to dump it). Both are
   still in the git history, which matters only for publishing (docs/repo-layout.md step 6).
+
+## 2026-10-13 — GPD Win: USB-PD charging at 5 V only (DKMS gpd-usbpd); DKMS packages via sync
+- Why: GPD specifies a 5 V / 2.5 A charger, but the kernel's `chtwc_int33fe` lets USB-PD chargers supply up to
+  12 V (they did: 9 and 12 V). devices/gpd-win1/docs/power.md "Charging voltage".
+- `devices/gpd-win1/kernel/usbpd/`: patch giving the driver a single sink PDO, 5 V / 2.5 A; pinned source
+  (kernel 7.2.9). `kernel/prepare.sh` now builds either package (`gpd-audio`, `gpd-usbpd`); `--repin` covers both.
+- `scripts/sync`: manifest kind `dkms` (prepare script, package/version, inputs): `check` reports a package that
+  is missing, outdated (patches or pinned sources changed) or not built for an installed kernel; `install`
+  builds the tree, copies it to /usr/src (stamped with the inputs' hash) and runs dkms add/install for every
+  kernel with headers. Both packages are now in devices/gpd-win1/manifest.tsv, so any GPD Win install gets
+  them; `kernel/install.sh` calls sync. The hand-installed gpd-audio on Robin's GPD has no stamp, so the next
+  `sync install` rebuilds it once.
+- Tested on the desktop: both trees build (`LLVM=1` against the desktop's clang kernel; the GPD's Arch kernel
+  uses gcc), `sync check` lists both. Not yet on the GPD (board out for repair): after `sync install`,
+  `sudo mkinitcpio -P`, reboot, check as in power.md. Revert: `kernel/uninstall.sh gpd-usbpd`, remove its
+  manifest line, `mkinitcpio -P`, reboot.

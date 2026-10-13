@@ -27,6 +27,7 @@ Measured on one device; details and evidence in `docs/` (hardware.md, power.md, 
 | Vulkan stuck at 1.2, slow depth | the same Mesa: hasvk with real Vulkan 1.3 and HiZ restored (up to 5x in fill tests) |
 | DXVK stalls in Dark Souls (readback every frame) | patched DXVK d3d9 (`dxvk/`, `DXVK_GPD_ASYNC_READBACK=1`) |
 | Quiet, distorting speakers | speaker-only compressor in PipeWire (`dotfiles/pipewire`, tuned with Super+C) |
+| USB-PD chargers supply 9-12 V (GPD specifies 5 V) | patched `chtwc_int33fe` asking for 5 V only (`kernel/usbpd/`, DKMS `gpd-usbpd`) |
 | Battery charged to 4.38 V (high-voltage cell) | charge limit 4.144 V, ~80 % (`charge-limit`; shelf Utilities toggles it) |
 | Firmware power limit 6 W | per-game limit 1-8 W in shelf (W key); see the board fault note below |
 | Bluetooth stack loads for a radio without firmware | blacklisted (`no-bluetooth.conf`) |
@@ -34,9 +35,10 @@ Measured on one device; details and evidence in `docs/` (hardware.md, power.md, 
 | ~25 s from power button to frontend | ~22 s: silent boot, getty without the idle wait, external ports off, GPU driver prefetch |
 
 ## Installing the parts that don't come from pacman
-- **Kernel modules** (sound after hibernate; split-screen resync): `kernel/install.sh` and
-  `kernel/i915/install-dkms.sh` on the device (DKMS rebuilds them for each kernel; the i915 one takes ~10 min on
-  the Atom). Without them the device works, minus those two fixes. The boot menu (hold Space) has a stock entry.
+- **Kernel modules** `gpd-audio` (sound after hibernate) and `gpd-usbpd` (5 V charging): installed by
+  `scripts/sync install` like the rest (DKMS, rebuilt for each kernel; needs kernel.org reachable once), then
+  `sudo mkinitcpio -P` and a reboot. The i915 patch (split-screen resync) is separate and experimental:
+  `kernel/i915/install-dkms.sh` (~10 min per kernel on the Atom). The boot menu (hold Space) has a stock entry.
 - **Mesa**: build on a faster x86_64 Arch machine with `mesa/build.sh` and `mesa/build.sh lib32` (needs `devtools`
   and sudo there), copy the packages over, `mesa/install.sh` on the device. `mesa/rollback.sh` returns to Arch's.
 - **DXVK**: `dxvk/build.sh` on the build machine; per game, see `.claude/commands/setup-game.md`.
@@ -44,5 +46,5 @@ Measured on one device; details and evidence in `docs/` (hardware.md, power.md, 
 ## Known problems
 - **2026-10-13: Robin's unit has a failed keyboard controller (SH61F83Q) drawing ~3 W and smelling burnt**
   (docs/power.md, "Overheating"). It followed days of running at 8 W with turbo and charging at 9-12 V USB-PD.
-  Possibly ageing alone, but until more is known, prefer the firmware's 6 W and a 5 V charger on this device.
+  Possibly ageing alone, but until more is known, prefer the firmware's 6 W; `gpd-usbpd` keeps charging at 5 V.
 - Display flashes are much rarer with the Mesa fixes but not gone (docs/hardware.md "Display").

@@ -1,0 +1,26 @@
+From: Robin <robinei@gmail.com>
+Subject: [PATCH] platform/x86: intel: chtwc_int33fe: GPD Win: request 5 V only from USB-PD chargers
+
+The GPD Win is specified for a 5 V / 2.5 A charger, but the sink PDOs also
+offer 5-12 V, so a USB-PD charger supplies 9 or 12 V. Sink one fixed 5 V PDO
+at up to 2.5 A instead. (Local patch: the GPD Pocket shares the DMI match and
+ships with a 12 V charger.)
+---
+--- a/drivers/platform/x86/intel/chtwc_int33fe.c
++++ b/drivers/platform/x86/intel/chtwc_int33fe.c
+@@ -98,9 +98,13 @@
+ 	PDO_FIXED(5000, 1500, PDO_FIXED_FLAGS),
+ };
+ 
++/*
++ * GPD Win: sink at 5 V only, up to 2.5 A (GPD's specification for this device: a 5 V / 2.5 A charger).
++ * Upstream also offers 5-12 V, so USB-PD chargers ran it at 9 or 12 V. The GPD Pocket, which shares
++ * this driver and DMI match, ships with a 12 V charger, so this stays a local GPD Win patch.
++ */
+ static const u32 snk_pdo[] = {
+-	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS),
+-	PDO_VAR(5000, 12000, 3000),
++	PDO_FIXED(5000, 2500, PDO_FIXED_FLAGS),
+ };
+ 
+ static const struct software_node pi3usb30532_node = {

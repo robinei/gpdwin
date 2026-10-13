@@ -16,6 +16,12 @@ Each manifest.tsv lists the files its layer manages:
                                                   a C source compiled to the live path
                                                       (rebuilt when the source is newer), linked
                                                       against the space-separated packages
+  dkms  <prepare script>  <package>/<version>  <input paths...>
+                                                  a DKMS kernel module package: `prepare script <package>` builds
+                                                      its source tree in dkms-tree/<package>-<version>/ next to the
+                                                      script; install copies it to /usr/src and builds it for every
+                                                      kernel with headers. Reinstalled when the script or the input
+                                                      paths (patches, pinned source lists) change.
 owner "user" means whoever runs sync. A copy whose repo file contains @USER@ or @ROOT_UUID@ gets the user name
 or the root file system's UUID put in on install (edit those in the repo; capture refuses them).
 
@@ -78,6 +84,10 @@ def manifest():
             elif f[0] == "build" and len(f) in (3, 4):
                 e = {"kind": "build", "repo": root / f[1], "live": expand(f[2]),
                      "pkgs": f[3].split() if len(f) == 4 else []}
+            elif f[0] == "dkms" and len(f) == 4 and "/" in f[2]:
+                name, ver = f[2].split("/", 1)
+                e = {"kind": "dkms", "repo": root / f[1], "name": name, "ver": ver,
+                     "inputs": [root / x for x in f[3].split()], "live": Path(f"/usr/src/{name}-{ver}")}
             elif f[0] in ("copy", "keep") and len(f) == 4:
                 owner, group, mode = f[3].split(":")
                 e = {"kind": "copy", "keep": f[0] == "keep", "repo": root / f[1], "live": expand(f[2]),
@@ -170,6 +180,53 @@ def build_ok(e):
     return e["live"].stat().st_mtime >= newest
 
 
+def dkms_inputs(e):
+    """sha256 over the prepare script and every file below the input paths: what the built tree depends on."""
+    h = hashlib.sha256()
+    files = [e["repo"]]
+    for p in e["inputs"]:
+        files += sorted(x for x in p.rglob("*") if x.is_file()) if p.is_dir() else [p]
+    for f in files:
+        h.update(str(rel(f)).encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+def dkms_kernels():
+    """Installed kernels that can build modules (headers present)."""
+    return sorted(p.name for p in Path("/usr/lib/modules").glob("*") if (p / "build").exists())
+
+
+def dkms_state(e):
+    """"ok", or why the package needs installing."""
+    stamp = e["live"] / ".gpd-inputs"
+    if not stamp.exists():
+        return "missing" if not e["live"].exists() else "installed by hand (no stamp)"
+    if stamp.read_text().strip() != dkms_inputs(e):
+        return "outdated (patches or sources changed)"
+    r = subprocess.run(["dkms", "status", "-m", e["name"], "-v", e["ver"]], capture_output=True, text=True)
+    built = {line.split(",")[1].strip() for line in r.stdout.splitlines()
+             if line.startswith(f"{e['name']}/{e['ver']},") and ": installed" in line}
+    missing = [k for k in dkms_kernels() if k not in built]
+    return f"not built for {', '.join(missing)}" if missing else "ok"
+
+
+def dkms_install(e):
+    name, ver = e["name"], e["ver"]
+    subprocess.run([str(e["repo"]), name], check=True)
+    tree = e["repo"].parent / "dkms-tree" / f"{name}-{ver}"
+    dest = str(e["live"])
+    sudo = ["sudo", "-n"]
+    subprocess.run(sudo + ["dkms", "remove", f"{name}/{ver}", "--all"], capture_output=True)
+    subprocess.run(sudo + ["rm", "-rf", dest], check=True)
+    subprocess.run(sudo + ["cp", "-a", str(tree), dest], check=True)
+    subprocess.run(sudo + ["tee", f"{dest}/.gpd-inputs"], input=dkms_inputs(e) + "\n", text=True,
+                   stdout=subprocess.DEVNULL, check=True)
+    subprocess.run(sudo + ["dkms", "add", f"{name}/{ver}"], check=True)
+    for k in dkms_kernels():
+        subprocess.run(sudo + ["dkms", "install", f"{name}/{ver}", "-k", k], check=True)
+    print(f"installed DKMS {name}/{ver} for {', '.join(dkms_kernels())}")
+
+
 def link_ok(e):
     return e["live"].is_symlink() and Path(os.readlink(e["live"])) == e["repo"]
 
@@ -228,6 +285,10 @@ def check(args):
             if not build_ok(e):
                 state = "outdated" if e["live"].exists() else "missing"
                 print(f"BUILD {state:12} {e['live']}"); drift += 1
+        elif e["kind"] == "dkms":
+            state = dkms_state(e)
+            if state != "ok":
+                print(f"DKMS {e['name']}/{e['ver']}: {state}"); drift += 1
         else:
             try:
                 live = read_live(e)
@@ -307,6 +368,12 @@ def install(args):
             live.parent.mkdir(parents=True, exist_ok=True)
             live.symlink_to(e["repo"])
             print(f"linked {live}")
+            continue
+        if e["kind"] == "dkms":
+            if dkms_state(e) == "ok":
+                continue
+            dkms_install(e)
+            hints.add("sudo mkinitcpio -P, then reboot: new kernel modules are used from the next boot")
             continue
         if e["kind"] == "build":
             if build_ok(e):

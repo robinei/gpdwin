@@ -24,3 +24,7 @@ copy	system/usr/local/bin/gpd-stock-initramfs	/usr/local/bin/gpd-stock-initramfs
 copy	system/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	root:root:0644
 link	device.conf	~/.config/gpd/device.conf
 link	dotfiles/sway.conf	~/.config/gpd/sway.d/10-device.conf
+# Patched kernel modules, built by DKMS for every kernel (kernel/prepare.sh; docs/hardware.md "Audio",
+# docs/power.md "Charging voltage"). Needs dkms and linux-headers (packages.txt) and kernel.org on install.
+dkms	kernel/prepare.sh	gpd-audio/1.0	kernel/rt5645 kernel/intel-sst
+dkms	kernel/prepare.sh	gpd-usbpd/1.0	kernel/usbpd

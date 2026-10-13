@@ -1,6 +1,6 @@
 # Licence of this folder
 
-The kernel patches here (`i915/`, `rt5645/`, `intel-sst/`, the DKMS files and what `prepare.sh` assembles from
+The kernel patches here (`i915/`, `rt5645/`, `intel-sst/`, `usbpd/`, the DKMS files and what `prepare.sh` assembles from
 kernel.org sources) modify the Linux kernel and are licensed like it: **GPL-2.0-only**
 (`LICENSES/GPL-2.0-only.txt` at the repo root). Copyright of the original code stays with its authors.
 

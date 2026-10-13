@@ -134,6 +134,20 @@ is the right "screen off" despite causing ~64 i915 irq/s while off (backlight-0 
 Method: average `max170xx_battery/current_now` every 2 s for 60 s after 20 s settling, swayidle
 paused, run via `swaymsg exec` (brightnessctl needs the session).
 
+## Charging voltage (USB-PD): 5 V only (2026-10-13)
+- GPD specifies a 5 V / 2.5 A charger. The kernel's `chtwc_int33fe` (the INT33FE Type-C setup for the GPD Win and
+  Pocket) gives tcpm the sink PDOs 5 V / 400 mA fixed and 5-12 V / 3 A variable, so a USB-PD charger supplied
+  9 or 12 V (seen on 2026-10-12/13: 9 V and 12 V, `tcpm-source-psy-i2c-fusb302` `voltage_now`). Whether that
+  played a part in the board fault below is unknown; nothing needs more than 5 V (2.5 W idle, ~8 W in games,
+  ~4.4 W charging).
+- Fix: DKMS package `gpd-usbpd` (`kernel/usbpd/`, built by `kernel/prepare.sh gpd-usbpd`, installed by
+  `scripts/sync install`): the same driver with one sink PDO, 5 V fixed at up to 2.5 A. It loads from
+  `/updates` instead of Arch's module (and from the initramfs after `mkinitcpio -P`). Not upstreamable as is:
+  the Pocket has the same DMI strings and ships a 12 V charger. The stock boot entry uses Arch's module (12 V).
+- Check after installing (not yet done, the board is out for repair): `modinfo -n intel_chtwc_int33fe` under
+  `updates/dkms/`; with a 12 V-capable PD charger `cat /sys/class/power_supply/tcpm-source-psy-i2c-fusb302/voltage_now`
+  = 5000000 and a USB meter at 5 V; the charger's `input_current_limit` should follow the 2.5 A contract (check).
+
 ## Overheating with a 4 A battery drain (2026-10-12, open)
 After ~10 min of Wind Waker in Dolphin (package limit 6 W, MangoHud showed ~4 W) the device got very hot.
 Dolphin stopped, charger unplugged, screen at 1%: package 1.3 W (normal), but the battery discharged at

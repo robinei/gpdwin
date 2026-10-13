@@ -11,6 +11,10 @@ changing the shared code for it. Read docs/repo-layout.md first; `devices/gpd-wi
    battery and charger names, `charge_control_end_threshold` or a charge voltage), CPU power and turbo
    controls (intel_pstate / RAPL, or amd-pstate / `cpufreq/boost`, asus-wmi or similar `ppt_*`), hwmon
    names (`coretemp`, `k10temp`), the journal of a boot for errors (`journalctl -b -p warning`).
+   **Charging**: the maker's specified charger (voltage, current) against what Linux negotiates
+   (`/sys/class/power_supply/*` of type USB / `tcpm-source-psy-*` `voltage_now`, the driver's sink PDOs). If
+   Linux asks USB-PD chargers for more than the maker specifies, make it ask for the specified voltage
+   (a DKMS module like `devices/gpd-win1/kernel/usbpd/`) or document why not.
 2. **Research**: the Arch wiki page for the model, kernel quirk tables (`drm_panel_orientation_quirks.c`,
    `hid-*`), known suspend/audio/firmware problems. Note sources in the device docs.
 3. **Write `devices/<name>/`**:

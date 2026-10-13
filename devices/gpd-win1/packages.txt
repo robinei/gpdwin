@@ -9,5 +9,5 @@ i2c-tools
 f2fs-tools
 # speaker compressor (dotfiles/pipewire 30-speaker-compressor.conf)
 swh-plugins
-# Not from pacman: our Mesa (devices/gpd-win1/mesa/, mesa/install.sh) and the patched kernel modules
-# (kernel/install.sh, kernel/i915/install-dkms.sh): see devices/gpd-win1/README.md.
+# Not from pacman: our Mesa (devices/gpd-win1/mesa/, mesa/install.sh) and the i915 patch
+# (kernel/i915/install-dkms.sh); the other patched modules come from the manifest's dkms entries. README.md.
