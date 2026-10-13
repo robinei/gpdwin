@@ -117,7 +117,7 @@ below (sudo, gotchas) are about that device.
   `docs/frontend.md` shelf, RetroArch, games · `docs/packages.md` package set and AUR policy ·
   `users/robin/docs/steam-library.md` owned DRM-free Steam games, tiered for this device ·
   `docs/saves.md` save locations GPD/desktop ·
-  `docs/ideas.md` not done yet · `docs/changelog.md` history ·
+  `docs/ideas.md` not done yet · `docs/plans.md` features being designed · `docs/changelog.md` history ·
   `devices/gpd-win1/docs/archive/` the original logs this repo was built from.
 - `scripts/`: `sync` (manifests, packages, services), `layers.py` (which layers: host file), `aur` (review/build), `update` (manual updates), `games`
   (game installer UI, `gamelib/`),

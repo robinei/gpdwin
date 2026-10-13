@@ -69,8 +69,7 @@ Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already
     bare Arch + sway + shelf setup from this repo, installed and maintained over ssh like the GPD (discussed
     2026-10-12; Bazzite rejected: the point is our own minimal system).
     1. Pad-only control, built and tested on the GPD first (useful there too):
-       - Gamepad shortcut layer in inputd: hold Guide + button, e.g. D-pad = workspace, B = close game,
-         shoulders = save/load state (sent as the emulator's keys), Start = screenshot.
+       - Gamepad shortcut layer in inputd: being designed in `docs/plans.md` ("Pad system layer").
        - shelf: a per-game settings panel on a pad button (Y) for what T/G/W/P/L do now.
        - On-screen keyboard `wvkbd` (layer-shell, small) on demand, for foot tools, search and Wi-Fi passwords.
        - Gamepad navigation in `scripts/games` (item 8).
