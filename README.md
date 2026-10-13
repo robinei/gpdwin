@@ -11,14 +11,56 @@ status bar above](docs/images/shelf.png)
 *shelf on the GPD Win 1 (1280x720), with the status bar above it: CPU and GPU clock, power limit, temperature,
 RAM, Wi-Fi, volume, battery.*
 
+## GPD Win 1: what this fixes
+
+Problems on a stock Arch install, and what the repo does about them. Measured on one unit; details in
+[devices/gpd-win1](devices/gpd-win1/README.md) and its `docs/`.
+
+| Problem on stock Arch | Fix |
+|---|---|
+| No backlight control (`Failed to get the SoC PWM chip`) | LPSS PWM driver loaded before i915 (`mkinitcpio.conf`) |
+| Portrait panel | console and sway rotated (`fbcon=rotate:1`, `output DSI-1 transform 90`) |
+| Suspend aborts (`xhci_hcd ... returns -16`) | USB3 controller wakeup off (udev rule) |
+| Lid wakes the device from sleep | `gpiolib_acpi.ignore_wake=INT33FF:00@35` |
+| No sound after hibernate: speaker silent, headphones static, jack dead | kernel patches to `rt5645` and the Atom SST driver (DKMS `gpd-audio`) |
+| Charging stuck at 500 mA after hibernate | the PMIC's charger registers restored (sleep hook) |
+| Backlight at minimum after hibernate | saved and restored around sleep |
+| USB-PD chargers negotiate 9-12 V; GPD specifies 5 V | patched `chtwc_int33fe` that asks for 5 V only (DKMS `gpd-usbpd`) |
+| Battery charged to 4.38 V | charge limit 4.144 V (~80 %), toggled in shelf |
+| Firmware power limit fixed at 6 W | per-game limit 1-8 W and turbo on/off in shelf |
+| Picture splits (bottom half on top) or flashes under GPU load | Mesa patches remove the trigger; patched i915 resyncs the panel (experimental); Super+F10 by hand |
+| Display frozen at screen-on after a long screen-off (vblank and flip timeouts) | i915 patch for a lost interrupt-enable race (in the experimental i915 build) |
+| Vulkan 1.2 only; no depth HiZ on hasvk since Mesa 23.0 | patched Mesa: hasvk reports Vulkan 1.3, HiZ restored (depth fill up to 5x faster, DXVK D3D9 test 35 -> 182 fps) |
+| Slow OpenGL texture uploads (uncached CPU copies) | patched crocus: uploads 3.7 -> 1.1 ms; build without LLVM, ~40 % faster GL start |
+| 32-bit DXVK >= 2.5 broken on hasvk; Dark Souls stalls on a readback every frame | DXVK 2.4.1 with a d3d9 patch: Dark Souls 19-24 -> 30 fps (its cap) |
+| Quiet, distorting speakers | speaker-only compressor in PipeWire |
+| Bluetooth stack loads for a radio without firmware | blacklisted |
+| ~25 s from power button to the game list | ~22 s |
+
+### Driver patches
+None are submitted upstream yet. Each patch's message explains the bug and how it was found.
+
+| Patch | Driver | What it does |
+|---|---|---|
+| [rt5645 0001](devices/gpd-win1/kernel/rt5645/) | ASoC rt5645 codec | restores the codec's private and jack-detect registers after hibernation |
+| [intel-sst 0001](devices/gpd-win1/kernel/intel-sst/) | ASoC Atom SST | hibernation PM callbacks: save and restore the DSP firmware |
+| [usbpd 0001](devices/gpd-win1/kernel/usbpd/) | `intel_chtwc_int33fe` | GPD Win sink PDO 5 V / 2.5 A only (kept local: the DMI match also covers the GPD Pocket, which ships a 12 V charger) |
+| [i915 0001](devices/gpd-win1/kernel/i915/) | i915 DSI | u16 overflow of `MIPI_HS_TX_TIMEOUT` on VLV/CHV (any panel over 65535 pixels per frame) |
+| [i915 0015](devices/gpd-win1/kernel/i915/) | i915 VLV/CHV irq | `VLV_IER` lost to a racing irq handler: display interrupts off until the next power-well cycle |
+| [i915 0002-0014, 0016-0019](devices/gpd-win1/kernel/i915/) | i915 DSI | experiments and diagnostics for the DPI FIFO underruns behind the split picture; the DKMS build `gpd-i915` applies 0001 and 0011-0017 (0012: resync after a lone underrun) |
+| [mesa 0001-0005](devices/gpd-win1/mesa/) | crocus (Gfx7/8 OpenGL) | no snooping for staging textures, GPU blits for large tiled uploads and readbacks on non-LLC parts |
+| [mesa 0006](devices/gpd-win1/mesa/) | hasvk (Gfx7/8 Vulkan) | restores HiZ, dropped by accident in Mesa 23.0 |
+| [mesa 0007-0011](devices/gpd-win1/mesa/) | hasvk | Vulkan 1.3 on Cherry Trail: softpin with a 32-bit layout, 256-byte push constants, `VK_KHR_pipeline_library`, no spin on a full state pool |
+| [dxvk 0001](devices/gpd-win1/dxvk/) | DXVK d3d9 | optional async readback of small SYSTEMMEM images; a log of GPU waits |
+
+The audio and USB-PD modules install with `scripts/sync install` (DKMS). The i915, Mesa and DXVK builds are
+separate steps ([devices/gpd-win1](devices/gpd-win1/README.md), "Installing the parts that don't come from
+pacman").
+
 ## Contents
 
-**Device fixes.** Each device folder lists problems on stock Arch, the fix, and measurements. GPD Win 1
-([devices/gpd-win1](devices/gpd-win1/README.md)):
-- backlight control, panel rotation, suspend and hibernate (sound, charging and brightness restored after resume);
-- a patched i915 driver that resyncs the panel when the picture splits;
-- a Mesa build with fewer display flashes, Vulkan 1.3 and HiZ on hasvk;
-- a speaker compressor, a battery charge limit, boot to the game list in about 22 s.
+**Device fixes**: one folder per device, listing the problems on stock Arch, the fix and the measurements
+(above for the GPD Win 1).
 
 **shelf** (`src/shelf.c`), a game frontend:
 - one C file using SDL3, native Wayland; no sway-specific code, but only tested under sway (sway rules put
