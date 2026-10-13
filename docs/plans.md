@@ -208,6 +208,15 @@ second desktop to manage by hand.
   (then it hides, or moves to the main screen only if asked). Its data comes from the program's own state
   (clock, battery, power, temperatures, Wi-Fi, volume), so no separate status program and no i3bar protocol.
   The main screen stays free of bars.
+- **Switching modes**:
+  - touch: the status bar is the mode switcher, always on screen: a tap on its mode icons (follow,
+    launcher, keyboard, touchpad, sysinfo) switches; tapping the current mode's icon returns to follow;
+  - pad: the system button + a button (Y keyboard, ...; see "Pad system layer"); holding the system button
+    also shows the bar and the bindings when an emulator has the second screen and the bar is hidden;
+  - automatic: the keyboard appears when a text field gets focus and goes when it loses it: the program is
+    an input method (`zwp_input_method_v2`, which sway supports with `text-input-v3` clients; GTK, Qt, SDL3
+    use it). Apps without text-input still need the manual toggle;
+  - when focus on the main screen changes, an override stays (it was asked for), except automatic keyboard.
 - Touch on the second screen goes only to the companion or the second window (`map_to_output`), so a touch
   never lands in the game by accident.
 - Power: OLED black costs little, but powering the panel off when it shows nothing saves more. Measure both.
