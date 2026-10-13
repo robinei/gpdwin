@@ -400,9 +400,12 @@ history. The GPD's driver patches could still be sent upstream from here.
 2. Bring over the layer setup and base configs; set up the desktop for development (nested and headless sway,
    two outputs).
 3. The system program: `core` and `library` first (unit tests), then `policy`, then `ui`.
-4. The Thor arrives. Recovery first: download AYN's EDL firmware package for the Thor and check the EDL key
-   combination (Snapdragon boot-ROM recovery mode, can rewrite every partition) before flashing ROCKNIX ABL
-   (back up the original ABL); make a rescue SD card with a working Linux (ABL can boot it past a broken
+4. The Thor arrives. Recovery first (checked 2026-10-14: AYN publishes no Thor firmware package; its
+   download page has only the Odin and Loki. The Odin 2 enters EDL from its ABL menu, Vol- + Power >
+   "Emergency Mode", then QFIL with AYN's package; the Thor probably the same, which does not help once ABL is
+   broken): before flashing ROCKNIX ABL, ask AYN support for the Thor's EDL (QFIL) package; root Android and
+   dump every partition (`/dev/block/by-name/*`, both A/B slots) to the desktop; find out whether the
+   ROCKNIX ABL install writes one slot or both, and keep a known-good ABL in the other slot if possible; make a rescue SD card with a working Linux (ABL can boot it past a broken
    internal install; repair with btrfs snapshots or the previous kernel package). Then device layer, install,
    the device tests (hibernate, latency, power).
 5. Archive this repo: README status, link to the new repo.
