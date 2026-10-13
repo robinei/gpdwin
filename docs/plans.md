@@ -200,8 +200,19 @@ history. The GPD's driver patches could still be sent upstream from here.
 **Open questions:**
 - Name of the new repo and the program.
 - Whether the device layers live in the new repo or each in its own (one repo is simpler while there are two).
-- Thor install path: SD image built by a script (like Thorch) or the install playbook on an Arch Linux ARM
-  rootfs; and its kernel: ROCKNIX's, or `linux-aarch64` + a DKMS package for the out-of-tree drivers.
+- Thor install path: plain Arch Linux ARM plus the device packages from another project's repo (checked
+  2026-10-13; ROCKNIX itself is not Arch and has no pacman packages):
+  - **Pocknix** (github.com/shuuri-labs/pocknix-os, GPL-2.0, ~260 stars, active): its own pacman repo (a
+    snapshot of ALARM plus its packages; "rolling mode" points the rest at ALARM). Device packages:
+    `linux-pocknix-sm8550` (7.2.10, ROCKNIX's patch stack + Pocknix's suspend/UFS/PCIe fixes, all board
+    dtbs), `pocknix-firmware-sm8550`, `pocknix-bootloader-sm8550`, `pocknix-bsp-sm8550` (InputPlumber maps
+    incl. the Thor's), a Mesa build, FEX, gamescope. PKGBUILDs public; the kernel package is "thin" (it
+    packages their `make kernel` output).
+  - **Thorch** (github.com/thorch-os/thorch): `linux-thorch`, `thorch-firmware-rocknix`, `thorch-mesa`,
+    `thorch-fex-bin`, InputPlumber packages; SD image builder.
+  Plan: ALARM `core`/`extra`/`alarm` + Pocknix's repo for the kernel, firmware, bootloader and BSP only (check
+  their dependencies and package signing first); our layers on top. Fallback: build their PKGBUILDs
+  ourselves into our own repo.
 - When to archive this repo: after the README says so and points to the new one.
 
 **Steps:**
