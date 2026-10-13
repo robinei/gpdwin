@@ -75,8 +75,9 @@ running when nothing needs it. On the GPD shelf avoided the client (DepotDownloa
   `steam -applaunch <appid>`; shelf tracks the game by its `steam_app_<appid>` window class (sway) and
   Steam's reaper process, for play time and for "game running" state. Steam shuts down (`steam -shutdown`)
   some minutes after the last Steam game exits, unless kept.
-- Install / uninstall from shelf: `steam://install/<appid>`, `steam://uninstall/<appid>` (Steam shows its
-  own dialog; or headless via `steamcmd`-style commands if the client allows).
+- Installing and uninstalling: in Steam itself (decided 2026-10-13). shelf has an entry that opens Steam's UI
+  (Big Picture, or the library) for that; shelf lists only installed games, and picks up changes from the
+  manifests.
 - Windows: sway rules put `steam_app_*` fullscreen on the main screen; Steam's own windows (login, dialogs,
   overlay) are allowed but placed on the main screen and closed or hidden when done.
 - Input: Steam Input sees our virtual Xbox pad ("Owning the input path"); keep Steam Input off for it by
@@ -90,7 +91,7 @@ running when nothing needs it. On the GPD shelf avoided the client (DepotDownloa
 - Proton on ARM: Steam's own Proton under FEX, or ARM builds (Pocknix ships `proton-cachyos`/`proton-ge`
   with DXVK); whether Steam can be told to use them.
 - Non-Steam games through Steam (for its overlay or Steam Input): not wanted by default.
-- Steam's Big Picture/gamepad UI as an optional launcher from shelf's Utilities, for the store and settings.
+- Which Steam UI the shelf entry opens: Big Picture (pad-friendly) or the desktop client.
 
 ## One system program
 
