@@ -29,6 +29,11 @@ for the parts that are pure logic, and a structure that can grow.
   the GPD (first frame ~40 ms after start, docs/frontend.md).
 - Programs that work on their own stay small and separate if they fit no better inside (statusbar, scripts).
 
+**Development before the Thor arrives (~a month):** on the desktop, nested sway with two outputs sized like
+the Thor's panels (`WLR_WL_OUTPUTS=2`), headless sway + `grim` for automated checks, a uinput virtual pad,
+sysfs under a configurable root with fake trees for lid, battery and charger, unit tests for `core`. Needs
+`sway grim foot` on the desktop (not installed yet; planning only for now).
+
 **Open questions:**
 - **Building on the device** (less pressing now: the GPD unit is probably retired, 2026-10-13, and the Thor
   and the Ally build Rust fine). `scripts/sync` compiles the C programs on the device in seconds. A Rust release
@@ -36,10 +41,9 @@ for the parts that are pure logic, and a structure that can grow.
   device anyway where it is fast (the Thor), cross-compile on a desktop and copy the binary (sync kind
   `cargo`, building where `cargo` is fast), or prebuilt binaries per architecture (x86_64, aarch64) from a
   release. Decide before porting.
-- Drawing: CPU or GPU. shelf uses SDL3's renderer now; SDL3 also works from Rust (`sdl3` crate) and would keep
-  the current look and timing, at the cost of mixing SDL's window with our own layer-shell surfaces.
-- Its own repository: the program is useful without this repo's configs (any sway handheld). It could live in
-  its own repo, packaged for Arch (PKGBUILD), with this repo installing it like any other package.
+- ~~Drawing~~ decided 2026-10-13: own Wayland surfaces (`smithay-client-toolkit`) and a CPU renderer, no SDL.
+- Repository, decided 2026-10-13: not this repo. Robin wants to stop using this repo; what moves to the new
+  one (only the program, or the program plus configs and device layers) is still open.
 - Order: build the new program against the new device (the Thor) first, where the second screen and the pad
   layer are needed. The C programs stay for devices/gpd-win1 (other GPD owners) until the new one covers them.
 
