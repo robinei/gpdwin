@@ -55,6 +55,10 @@ sysfs under a configurable root with fake trees for lid, battery and charger, un
 
 ## One system program
 
+**Scope (2026-10-13): a program for the AYN Thor.** Built for its two screens, its pad and buttons, its
+sysfs paths; no generality for other devices or single-screen fallbacks. Anything device-specific stays in
+one module so a later device is a port, not a design constraint now.
+
 **Goal:** one program instead of inputd, shelf, the companion and the on-screen keyboard: one in-memory state
 (focus, selected game, layer and override modes, lid, idle, power) that every part sees at once, with no IPC
 or state files between them. It has 0, 1 or 2 windows: none while a game has the screen (only the input and
@@ -124,13 +128,11 @@ per-game profiles, deadzones and calibration, chords. The pad system layer becom
 
 ## Pad system layer (inputd)
 
-**Goal:** control the system without a keyboard: workspaces, terminal, on-screen keyboard, windows, power. For
-devices without a keyboard (ROG Ally, AYN Thor) and for the GPD with the pad in hand. Started as
-`docs/ideas.md` item 15.1.
+**Goal:** control the system without a keyboard: workspaces, terminal, on-screen keyboard, windows, power. The Thor
+has no keyboard. Started as `docs/ideas.md` item 15.1.
 
 **Design so far:**
-- One button is the **system button**, named per device in `device.conf` (new key, e.g. `layer_key=`, a key
-  code, and the input device it comes from if not the pad). A tap does what the Menu key does now (shelf);
+- One of the Thor's extra buttons (Home or Back) is the **system button**. A tap does what the Menu key does now (shelf);
   **holding** it turns on the layer.
 - While the layer is on, inputd **grabs the pad** (`EVIOCGRAB`, as it already does with the lid closed), so the
   game sees none of these presses. Releasing the system button ungrabs it.
@@ -157,9 +159,7 @@ devices without a keyboard (ROG Ally, AYN Thor) and for the GPD with the pad in 
   (ideas.md 15.1).
 
 **Open questions:**
-- Which button per device. GPD Win 1: the Guide button sends nothing in the pad's mouse mode
-  (devices/gpd-win1/docs/hardware.md); check gamepad mode. ROG Ally: one of its extra buttons (`hid-asus`).
-  AYN Thor: Home or Back (check what the `rsinput` driver reports).
+- Which button: Home or Back (check what the `rsinput` driver reports for each).
 - Tap versus hold: a hold threshold (~300 ms?) delays the tap action; or tap = shelf only on release without
   another button pressed.
 - Release must be robust: whatever happens (crash, button lost on suspend), the pad is ungrabbed. The kernel
@@ -177,8 +177,7 @@ devices without a keyboard (ROG Ally, AYN Thor) and for the GPD with the pad in 
 second desktop to manage by hand.
 
 **Design so far:**
-- `device.conf` names the outputs (new keys, e.g. `main_output=DSI-2`, `second_output=DSI-1`). Without
-  `second_output` nothing here runs, and the override modes fall back to popups on the main screen.
+- The Thor's outputs: main `DSI-2` (top, rotated), second `DSI-1` (bottom, touch).
 - A small **companion** program owns the second screen (a layer-shell surface on that output, like a panel).
   It follows sway's focus (IPC window events) and shelf's state, and draws what fits:
 
@@ -208,7 +207,7 @@ second desktop to manage by hand.
   second screen, always visible over every mode, except when an emulator's second window takes the screen
   (then it hides, or moves to the main screen only if asked). Its data comes from the program's own state
   (clock, battery, power, temperatures, Wi-Fi, volume), so no separate status program and no i3bar protocol.
-  The main screen stays free of bars. On a device without a second screen: a bar on the main screen, as now.
+  The main screen stays free of bars.
 - Touch on the second screen goes only to the companion or the second window (`map_to_output`), so a touch
   never lands in the game by accident.
 - Power: OLED black costs little, but powering the panel off when it shows nothing saves more. Measure both.
