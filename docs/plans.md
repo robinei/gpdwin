@@ -102,7 +102,7 @@ devices without a keyboard (ROG Ally, AYN Thor) and for the GPD with the pad in 
   | X | shelf |
   | D-pad left / right | previous / next workspace |
   | D-pad up / down | focus the other output (dual screen) |
-  | right stick, R1 / L1 | mouse pointer and clicks (uinput mouse) |
+  | right stick, R1 / L1 | mouse pointer and clicks (virtual-pointer protocol, as the touchpad mode) |
   | left stick | scroll |
   | L2 / R2 | brightness (or volume) down / up |
   | Start | power menu: suspend, hibernate, power off |
@@ -151,6 +151,12 @@ second desktop to manage by hand.
   - sysinfo: clock, battery and charge rate, temperatures, CPU/GPU clock and power limit, Wi-Fi (the status
     line's data, larger, maybe with short graphs);
   - pad layer: while the system button is held, its bindings (see "Pad system layer");
+  - touchpad: the second screen as a trackpad for the main one. The program gets the touches on its own
+    surface (`wl_touch`) and moves the pointer through sway's virtual-pointer protocol
+    (`zwlr_virtual_pointer_v1`; no uinput or root needed). Gestures: one finger moves (with acceleration), tap
+    = left click, two-finger tap = right click, two fingers scroll, tap-and-drag = drag, three-finger swipe =
+    workspace. Maybe an absolute mode too (the second screen maps onto the main one) and a strip of buttons
+    or keys along an edge. Combines with the keyboard mode (keyboard below, touchpad above) for desktop use.
   - off: the panel powered down (`output … power off`).
   An override lasts until it is dismissed, then follow mode returns.
 - Touch on the second screen goes only to the companion or the second window (`map_to_output`), so a touch
