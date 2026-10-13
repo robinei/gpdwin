@@ -202,6 +202,13 @@ Load test (same boot, charging at 12 V, Robin reading the meter): idle ~10 W in;
 plus converter losses and the extra load did not grow. DTS reached 60 C (CPU) and 64 C (Dolphin), against 85 C in
 the failing run on 2026-10-12. PNIT rose faster than the die (54 -> 75 C under CPU load), so it sits near the
 SoC or its regulators. Afterwards idle was back at the same level. The fault did not escalate under load today.
+Clock/voltage test on battery (same boot, unplugged, 5% brightness; "rest" = battery power minus RAPL package):
+idle 5.95 W (pkg 1.28, rest 4.68); 1 core at 480 MHz, GPU 200 MHz 5.85 W (rest 4.42); 4 cores busy at 480 MHz 6.34 W
+(rest 4.98); 4 cores busy at 2.4 GHz 10.98 W (pkg 5.37, rest 5.61); restored idle 5.88 W (rest 4.66). Normal
+idle rest is ~1.4 W (2.56 W battery, 1.2 W package), so the fault is ~3.2 W. It did not move with the CPU's
+clock or voltage: the +0.9 W in rest at 2.4 GHz is about the regulator loss and memory traffic of 4 W more package
+power. So probably not SoC leakage: a part on another rail (PMIC output, memory, a regulator or a capacitor on
+a rail switched on with the system), near PNIT. Next step is hardware (thermal camera or repair shop).
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
