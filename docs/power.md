@@ -211,6 +211,13 @@ power. So probably not SoC leakage: a part on another rail (PMIC output, memory,
 a rail switched on with the system), near PNIT. Next step is hardware (thermal camera or repair shop).
 Robin (2026-10-13): a faint burnt smell from the photographed side (BAT area), also noticed on 2026-10-12. So a
 part has overheated, not just aged. Decision: don't use or charge it; battery disconnected until repaired.
+Far side of the hot area (Robin's photo, 2026-10-13), identification from markings, unconfirmed: HC3F3210A
+(LQFP-64, HDSC logo, a microcontroller with its crystal; probably the gamepad controller), SH61F83Q (Sinowealth
+QFN-48 microcontroller, probably the keyboard), two "3401" SOT-23 (P-channel MOSFET, e.g. AO3401: load switches or
+rumble drivers), a "263DC" SOT-23-5 (probably the regulator for these chips). This is the input board area, on a
+rail powered only while the system is on, and none of it is the SoC: matches the clock test. A microcontroller in
+latch-up (high current, cleared by removing power, can leave lasting leakage) would fit the 4 A -> 1.6 A drop after
+the battery disconnect. No burn mark visible in the photo; the pad by MIC+/MIC- is worth a close look.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
