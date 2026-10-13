@@ -174,7 +174,7 @@ def read_live(e):
 
 def build_ok(e):
     """Built and newer than its source and the headers next to it (src/devconf.h)."""
-    if not e["live"].exists():
+    if not e["live"].exists() or e["live"].stat().st_size == 0:  # 0 bytes: a build cut off by a power loss
         return False
     newest = max([e["repo"].stat().st_mtime] + [h.stat().st_mtime for h in e["repo"].parent.glob("*.h")])
     return e["live"].stat().st_mtime >= newest
