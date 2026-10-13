@@ -5,6 +5,43 @@ When one is built, its description moves to the topic doc (`docs/desktop.md`, `d
 change gets a `docs/changelog.md` entry, and the section here is removed. Unsorted ideas stay in
 `docs/ideas.md`.
 
+## Rust and a project structure for the system program
+
+**Goal:** write the system program (above) in Rust as a Cargo workspace, not as more single C files. The C
+programs (shelf, inputd, statusbar; ~5200 lines) keep running until it replaces them.
+
+**Why:** a long-running program that owns input, power and the screen, with threads sharing one state, parsing
+untrusted files (Pegasus metadata, images, Steam data). Rust gives memory and thread safety there, `cargo test`
+for the parts that are pure logic, and a structure that can grow.
+
+**Design so far:**
+- A workspace in its own folder (name to pick; not `system/`, which is the repo's system files):
+  - `core`: the state and its rules (idle, lid, modes, focus), no I/O, unit-tested;
+  - `policy`: evdev (`evdev` crate), logind inhibitor locks and sleep (`zbus`), sway IPC, uinput, sysfs
+    (power, backlight, charger), device.conf;
+  - `library`: Pegasus format, `stats.db` (`rusqlite`), the user layer's games (docs/pegasus-format.md is the
+    spec; the C shelf the reference implementation);
+  - `ui`: Wayland surfaces (`smithay-client-toolkit`: xdg toplevel, layer-shell, virtual keyboard), drawing
+    (CPU: `tiny-skia` + a text crate; or GPU, if the Atom's Mesa startup cost allows), the shelf, companion
+    and keyboard views;
+  - one binary.
+- Port the behaviour, not the code: the C sources and docs are the spec; their tests are what was measured on
+  the GPD (first frame ~40 ms after start, docs/frontend.md).
+- Programs that work on their own stay small and separate if they fit no better inside (statusbar, scripts).
+
+**Open questions:**
+- **Building on the device.** `scripts/sync` compiles the C programs on the device in seconds. A Rust release
+  build on the GPD's Atom (4 GB) would take a long time and may run out of memory. Options: build on the
+  device anyway where it is fast (the Thor), cross-compile on a desktop and copy the binary (sync kind
+  `cargo`, building where `cargo` is fast), or prebuilt binaries per architecture (x86_64, aarch64) from a
+  release. Decide before porting.
+- Drawing: CPU or GPU. shelf uses SDL3's renderer now; SDL3 also works from Rust (`sdl3` crate) and would keep
+  the current look and timing, at the cost of mixing SDL's window with our own layer-shell surfaces.
+- Its own repository: the program is useful without this repo's configs (any sway handheld). It could live in
+  its own repo, packaged for Arch (PKGBUILD), with this repo installing it like any other package.
+- Order: build the new program against the new device (the Thor) first, where the second screen and the pad
+  layer are needed, and move the GPD to it once it does everything the C programs do.
+
 ## One system program
 
 **Goal:** one program instead of inputd, shelf, the companion and the on-screen keyboard: one in-memory state
