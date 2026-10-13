@@ -222,7 +222,7 @@ second desktop to manage by hand.
 
 ## New repository (decided 2026-10-13)
 
-**Goal:** a fresh repo for the next devices (AYN Thor first, ROG Ally later): the system program and the
+**Goal:** a fresh repo for the AYN Thor (the ROG Ally stays on Windows, 2026-10-13): the system program and the
 setup around it. This repo becomes the GPD Win 1 archive: public, still usable by GPD owners, no longer
 worked on. Fresh history (none of this repo's personal data or old paths); MIT for our work as here.
 

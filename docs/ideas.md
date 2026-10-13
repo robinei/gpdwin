@@ -65,7 +65,7 @@ Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already
     game, keep an exclude list. Estimate (unmeasured): 2-4 GB of the 15 GB games plus a few GB of `/usr`.
     Larger clusters (`compress_log_size`, up to 1 MB) compress better but amplify small random reads; keep LZ4
     (zstd shrinks more but decompresses far slower on this CPU).
-15. Second device: ASUS ROG Ally (RC71L, Ryzen Z1 Extreme, Radeon 780M, 1080p 120 Hz VRR, no keyboard), same
+15. (Dropped 2026-10-13: the Ally stays on Windows; the next device is the AYN Thor, docs/plans.md.) Second device: ASUS ROG Ally (RC71L, Ryzen Z1 Extreme, Radeon 780M, 1080p 120 Hz VRR, no keyboard), same
     bare Arch + sway + shelf setup from this repo, installed and maintained over ssh like the GPD (discussed
     2026-10-12; Bazzite rejected: the point is our own minimal system).
     1. Pad-only control, built and tested on the GPD first (useful there too):
