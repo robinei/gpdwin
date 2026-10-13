@@ -25,6 +25,8 @@ accepts root with that password. Then copy your ssh key over (`ssh-copy-id`) so 
 ## 2. Choices (ask once, all together; defaults in brackets)
 - Components [all: `base desktop inputd shelf`]. `base` is always needed; `desktop` = the sway session;
   `inputd` = idle/lid/power-button policy and the menu key; `shelf` = the game frontend (needs desktop).
+  `none` = only the device fixes (with `user=none`): they bring their own desktop; still install the
+  packages in the device's `packages.txt` and a bootloader the device layer expects.
 - User name, host name, time zone, Wi-Fi country (for `cfg80211`), keyboard layout if not US.
 - Their user layer: start from `users/example` (copied to `users/<name>`), or an existing one (path or repo).
 - Which target disk (from `lsblk`; the device README says which is internal) and whether to wipe it all.

@@ -2,9 +2,10 @@
 
 The host file ~/.config/gpd/host (not in the repo; key=value, # comments) says:
   device=gpd-win1                    devices/<device> in the repo
-  user=robin                         users/<user> in the repo ...
+  user=robin                         users/<user> in the repo ("none": no user layer) ...
   user_dir=~/gpd-user                ... or a user layer kept elsewhere (e.g. a private repo); wins over user=
-  components=base desktop inputd shelf   components/<name>, applied in this order (default: all of DEFAULT)
+  components=base desktop inputd shelf   components/<name>, applied in this order (default: all of DEFAULT;
+                                     "none": only the device and user layers, i.e. just the device fixes)
 
 Without a host file (or a key in it) the user layer is the only users/* other than users/example, and the
 device is unknown (sync refuses to install then). GPD_USER_DIR in the environment overrides the user layer.
@@ -42,6 +43,8 @@ def user_dir():
     h = host()
     if h.get("user_dir"):
         return Path(h["user_dir"]).expanduser()
+    if h.get("user") == "none":
+        return None
     if h.get("user"):
         return REPO / "users" / h["user"]
     found = [p for p in (REPO / "users").glob("*") if p.is_dir() and p.name != "example"]
@@ -58,7 +61,9 @@ def user_file(rel):
 
 def components():
     c = host().get("components")
-    return c.split() if c else list(DEFAULT)
+    if c is None or not c.strip():
+        return list(DEFAULT)
+    return [] if c.strip() == "none" else c.split()
 
 
 def layers():

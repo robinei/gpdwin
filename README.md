@@ -1,9 +1,19 @@
 # Handheld Arch
 
-Configuration, fixes and small programs for running Arch Linux on handheld gaming PCs, applied on top of a
-standard Arch install. The session is **sway** (Wayland), and inputd and the status bar are written for it.
-Supported device: **GPD Win 1** (2016, Intel Atom x7-Z8700). Other devices can be added
-as a device layer (see "Adding a device").
+Fixes and an optional game-console setup for Arch Linux on handheld gaming PCs, applied on top of a
+standard Arch install. Supported device: **GPD Win 1** (2016, Intel Atom x7-Z8700). Other devices can be
+added as a device layer (see "Adding a device").
+
+There are three levels; take only the first if that is all you want:
+
+1. **Device fixes.** Kernel modules, boot and initramfs settings, udev rules, sleep hooks, a charge limit,
+   patched Mesa. They work under any desktop or none. Host file `components=none` (see "How to use it"),
+   or copy the fixes by hand from the device folder.
+2. **The handheld session**, on top of the fixes: sway with swaybar and our status line, **inputd** (idle,
+   lid and power-button policy) and **shelf** (a game frontend). The device boots straight to the game list,
+   and per-game power and turbo settings are applied at launch. This level is built for sway.
+3. **Extras**, all optional: a game installer (Steam and DRM-free), save backup and sync with a desktop PC,
+   and agent playbooks for installs and maintenance.
 
 ![shelf on the GPD Win 1: collection tabs, the game list with box art, details of the selected game, and the
 status bar above](docs/images/shelf.png)
@@ -59,6 +69,8 @@ pacman").
 
 ## Contents
 
+The parts in more detail.
+
 **Device fixes**: one folder per device, listing the problems on stock Arch, the fix and the measurements
 (above for the GPD Win 1).
 
@@ -77,21 +89,20 @@ shelf. Gamepad input counts as activity. Uses sway's IPC, so it needs sway.
 **statusbar** (`src/statusbar.c`): status line for swaybar (i3bar protocol) (CPU/GPU clock, power limit, temperature, RAM,
 Wi-Fi, volume, battery), event-driven.
 
-**Game tooling:**
+**Game tooling** (optional extras):
 - `scripts/games`: installer for DRM-free and Steam games (DepotDownloader; Wine or native builds);
 - save backups after each game, and sync with a desktop PC's Steam saves (`docs/saves.md`);
 - `.claude/commands/setup-game.md`: procedure for getting a Windows game running on the device.
 
-**Maintenance:**
+**Maintenance** (optional extras):
 - every change is recorded in the repo with a changelog entry;
 - `scripts/sync` reports when a live file differs from the repo;
 - AUR packages are built only after their diff since the last review is read (`scripts/aur`);
 - `/maintain`: an agent procedure for updates, Arch news and checks.
 
-The shared parts are split into **components**: `base` (system: network, sudo, firewall, pacman), `desktop`
-(sway, foot, the status bar, audio), `inputd` (needs `desktop`), `shelf` (expects `desktop`). Each is optional
-except `base`; without `desktop` you bring your own session, and only the device fixes, `base` and the game
-tooling apply.
+The shared parts are split into **components**, chosen in the host file: `base` (system: network, sudo,
+firewall, pacman, fish), `desktop` (sway, foot, the status bar, audio), `inputd` (needs `desktop`), `shelf`
+(expects `desktop`). `components=none` applies only the device layer (level 1).
 
 ## How to use it
 
@@ -119,6 +130,9 @@ sudo pacman -S --needed $(~/gpd/scripts/sync packages)
 sudo -v && ~/gpd/scripts/sync install              # links configs, installs system files, builds the programs
 sudo systemctl enable $(~/gpd/scripts/sync services | grep -v '^user ')
 ```
+- **Device fixes only**: `user=none` and `components=none` in the host file, and skip the user layer.
+  The device layer still replaces some system files (for the GPD: `/etc/mkinitcpio.conf` and the
+  systemd-boot entry); `scripts/sync list` shows all of them before you install.
 - `scripts/sync install` renames files it would replace to `*.pre-gpd`. Settings files that programs rewrite
   are only replaced with `--force`.
 - `scripts/sync check` shows drift; `scripts/sync list` shows which layer each file comes from.

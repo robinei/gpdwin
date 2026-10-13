@@ -43,8 +43,8 @@ A file belongs to the lowest layer that is true for it: if every device and pers
 ## How the layers combine
 - **Host file** `~/.config/gpd/host` (not in the repo; `scripts/layers.py`):
   `device=gpd-win1`, `user=robin` (or `user_dir=<path>` for a user layer kept elsewhere, e.g. a private
-  repo), `components=base desktop inputd shelf` (default: all four). Without `user=` the only users/* other
-  than example is used; without `device=` `sync install` refuses (it would leave out the hardware fixes).
+  repo), `components=base desktop inputd shelf` (default: all four; `none`: no component, only the device fixes).
+  `user=none`: no user layer. Without `user=` the only users/* other than example is used; without `device=` `sync install` refuses (it would leave out the hardware fixes).
 - **Manifests:** `scripts/sync` reads each component's `manifest.tsv` in the listed order, then the device's,
   then the user's. Repo paths are relative to the layer's root (the repo root for components). A later layer
   may name the same live path and wins. `sync list` shows each live file's layer. Owner `user` = whoever runs

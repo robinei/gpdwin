@@ -872,3 +872,10 @@ before the layer split (docs/repo-layout.md): `docs/hardware.md` is now `devices
   uses gcc), `sync check` lists both. Not yet on the GPD (board out for repair): after `sync install`,
   `sudo mkinitcpio -P`, reboot, check as in power.md. Revert: `kernel/uninstall.sh gpd-usbpd`, remove its
   manifest line, `mkinitcpio -P`, reboot.
+
+## 2026-10-13 — device fixes on their own
+- `scripts/layers.py`: `components=none` and `user=none` in the host file apply only the device layer, for
+  people who want the hardware fixes under their own desktop. README opens with the three levels (device
+  fixes; the sway/inputd/statusbar/shelf session; optional extras); `/install` offers `none`. Tested with a
+  scratch host file: `sync list` shows only the device's 22 entries, `sync services` only charge-limit.
+  Existing host files behave as before. Revert: git revert.
