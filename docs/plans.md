@@ -60,6 +60,38 @@ sysfs under a configurable root with fake trees for lid, battery and charger, un
 - Order: build the new program against the new device (the Thor) first, where the second screen and the pad
   layer are needed. The C programs stay for devices/gpd-win1 (other GPD owners) until the new one covers them.
 
+## Steam in shelf (Thor)
+
+**Goal:** shelf lists and starts Steam games next to everything else, with Steam doing what it does best
+(downloads, Proton, cloud saves, achievements, DRM), but never in the way: no Steam UI unless asked, not
+running when nothing needs it. On the GPD shelf avoided the client (DepotDownloader, gbe emulator,
+`scripts/games`); on the Thor the client is affordable (16 GB) and Valve's ARM work (FEX, Proton) assumes it.
+
+**Design so far:**
+- Library: read Steam's own files, no API: `libraryfolders.vdf` and `appmanifest_*.acf` (installed games,
+  size, last played), `librarycache/` art for box art; owned-but-not-installed games from the Web API as
+  `scripts/gamelib/sources/steam.py` does now. A "Steam" collection in shelf.
+- Launch: start Steam in the background on demand (`steam -silent`), wait until it is logged in, then
+  `steam -applaunch <appid>`; shelf tracks the game by its `steam_app_<appid>` window class (sway) and
+  Steam's reaper process, for play time and for "game running" state. Steam shuts down (`steam -shutdown`)
+  some minutes after the last Steam game exits, unless kept.
+- Install / uninstall from shelf: `steam://install/<appid>`, `steam://uninstall/<appid>` (Steam shows its
+  own dialog; or headless via `steamcmd`-style commands if the client allows).
+- Windows: sway rules put `steam_app_*` fullscreen on the main screen; Steam's own windows (login, dialogs,
+  overlay) are allowed but placed on the main screen and closed or hidden when done.
+- Input: Steam Input sees our virtual Xbox pad ("Owning the input path"); keep Steam Input off for it by
+  default (our layer and profiles do that job), on per game if a game needs Steam's remapping.
+- Bottom screen during a Steam game: the same follow mode (controls, per-game settings, bar).
+
+**Open questions:**
+- How Steam runs on the Thor: the x86 client under FEX (what Pocknix does, with `pocknix-steamos-shim`), or
+  an ARM64 client if Valve releases one beyond the Steam Frame. Measure its idle cost under FEX
+  (`steam -silent`: RAM, CPU, battery).
+- Proton on ARM: Steam's own Proton under FEX, or ARM builds (Pocknix ships `proton-cachyos`/`proton-ge`
+  with DXVK); whether Steam can be told to use them.
+- Non-Steam games through Steam (for its overlay or Steam Input): not wanted by default.
+- Steam's Big Picture/gamepad UI as an optional launcher from shelf's Utilities, for the store and settings.
+
 ## One system program
 
 **Scope (2026-10-13): a program for the AYN Thor.** Built for its two screens, its pad and buttons, its
