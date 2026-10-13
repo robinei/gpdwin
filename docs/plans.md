@@ -193,6 +193,17 @@ worked on. Fresh history (none of this repo's personal data or old paths); MIT f
 - `docs/pegasus-format.md` (the spec for `library`), docs/frontend.md and docs/desktop.md as the behaviour
   spec for the new program; the C sources as reference only.
 
+**Arch, with the useful parts of NixOS (decided 2026-10-13: stay on Arch):**
+- Rollback: btrfs root with a snapshot before and after each pacman transaction (`snap-pac`, or Pocknix's
+  `pocknix-snapshots`); a known-good boot image kept next to the current one, since ROCKNIX ABL has no
+  generation menu.
+- Declarative packages: `sync` also reports explicitly installed packages that no layer lists
+  (`pacman -Qqe` against `sync packages`), and can remove them with confirmation.
+- Declarative files: as now (manifests, drift check); add a check for unowned files in `/etc` that no layer
+  and no package accounts for (`pacman -Qkk`, `pacman -Qo`).
+- Pinning: a dated snapshot of the repos for the base (ALARM has no Arch Linux Archive; Pocknix's locked mode is
+  one) so an install can be reproduced and an update tried and rolled back as a unit.
+
 **Stays here (the archive):** `devices/gpd-win1` (kernel patches, Mesa, DXVK, docs), the C programs
 (`src/`), the GPD-specific dotfiles and scripts (speaker tuning, audio snapshots), `docs/changelog.md`, the
 history. The GPD's driver patches could still be sent upstream from here.
