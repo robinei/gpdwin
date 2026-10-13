@@ -91,6 +91,14 @@ No tiling, borders, title bars or workspace names ever visible.
   app's windows as tabs in the switcher.
 - Games that resize or leave fullscreen themselves: re-assert fullscreen, or respect it.
 - Xwayland windows without proper transient hints that should be dialogs.
+- Compositor choice (2026-10-13): sway, for now. ROCKNIX runs sway on the Thor (both panels, touch, rotation
+  tested on this hardware); it has every protocol needed (layer-shell, input-method-v2, virtual pointer and
+  keyboard, tearing control, direct scanout) and IPC enough to impose this model. Alternatives considered:
+  gamescope (games only, one output, no layer-shell: wrong for two screens), cage (one app), river 0.4 (an
+  external window manager over a protocol: our program could be the window manager; young, check its
+  Wayland protocol support), our own compositor on Smithay (full control, but a compositor crash kills every
+  app, and a big project). Keep the window-model code in one module so moving to river or our own compositor
+  later stays possible.
 
 ## Steam in shelf (Thor)
 
