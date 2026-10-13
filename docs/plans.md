@@ -79,6 +79,36 @@ power policy run), shelf on the main screen, the companion or keyboard on the se
   already uses Wayland protocols directly, `src/vendor/`).
 - Does a sway or GPU reset (DSI resync, Super+F10) disturb the surfaces; the policy thread must not care.
 
+## Owning the input path
+
+**Goal:** all gamepad input passes through the system program, so it can transform it: a mouse mode (sticks
+move the pointer, triggers click, for desktop apps and mouse-only games), the system layer, remaps and
+per-game profiles, deadzones and calibration, chords. The pad system layer becomes one use of this.
+
+**Design so far:**
+- The program grabs the real pad for good (`EVIOCGRAB`) and creates a **virtual pad** through uinput that games
+  see instead. In normal mode events are copied straight through (same thread, no queue: well under 1 ms);
+  in other modes they become pointer, keyboard or system actions, or are remapped first.
+- The virtual pad looks like a well-known controller (Xbox 360/One vendor and product ids, standard button and
+  axis codes), so SDL and Wine games map it without configuration whatever the device's own pad is.
+- Mouse and keyboard output: sway's virtual-pointer and virtual-keyboard protocols where a Wayland client is
+  enough; a uinput mouse/keyboard where something outside Wayland needs it (Xwayland games read them anyway).
+- Force feedback: games upload rumble effects to the virtual pad; the program forwards them to the real one
+  (uinput FF upload/erase callbacks, as InputPlumber does). Needed for rumble to keep working.
+- Per-game profiles: shelf already starts the games, so it knows which profile applies.
+- Safety, as for the system program: if the program dies the grab ends and the real pad works directly again.
+
+**Open questions:**
+- Use **InputPlumber** (Rust, ShadowBlip; ChimeraOS/Bazzite; Pocknix and Thorch ship Thor maps for it) and
+  drive it over D-Bus (it has profiles and an "intercept" mode for exactly a system button), or do it in the
+  system program. Own: one process, one state, no D-Bus, minimal; InputPlumber: device maps, FF and edge cases
+  already solved. Read its Thor config either way.
+- Games reading the pad through hidraw (SDL HIDAPI, Steam Input) see the real pad and bypass the grab: hide
+  the real pad's hidraw node (udev: root-only) once we own the path. The Thor's pad is a UART MCU (`rsinput`),
+  so it probably has no hidraw node at all; Bluetooth/USB pads would.
+- Permissions: `/dev/uinput` and the event devices for the program's user (udev rule, `input` group).
+- Gyro, if a device has one (the Thor may: check), as mouse or stick input in the mouse mode.
+
 ## Pad system layer (inputd)
 
 **Goal:** control the system without a keyboard: workspaces, terminal, on-screen keyboard, windows, power. For
