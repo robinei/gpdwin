@@ -39,6 +39,8 @@
 Seconds after kernel start, 2026-10-11 (one boot each): autologin session 11.93 -> 10.34, sway
 12.66 -> 11.24, shelf 15.56 -> 12.90. Power button to shelf ~22 s (was ~25), of which firmware and
 loader ~8.9 s.
+Both measured with shelf. Pegasus Frontend, the frontend before it, took about 3 s more to show its list
+(Robin's estimate, not timed); shelf draws its first frame ~40 ms after it starts (docs/frontend.md).
 
 The override saves ~2.7s on the login path (iwd no longer in getty's critical chain). The initrd
 drop in that row is probably noise; firmware varies ~0.8s between boots. Sway now starts ~13s

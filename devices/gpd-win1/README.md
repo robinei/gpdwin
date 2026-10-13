@@ -32,7 +32,7 @@ Measured on one device; details and evidence in `docs/` (hardware.md, power.md, 
 | Firmware power limit 6 W | per-game limit 1-8 W in shelf (W key); see the board fault note below |
 | Bluetooth stack loads for a radio without firmware | blacklisted (`no-bluetooth.conf`) |
 | Lid wakes the device from sleep | `gpiolib_acpi.ignore_wake=INT33FF:00@35` |
-| ~25 s from power button to frontend | ~22 s: silent boot, getty without the idle wait, external ports off, GPU driver prefetch |
+| ~25 s from power button to frontend (shelf; Pegasus Frontend took about 3 s more, not timed) | ~22 s: silent boot, getty without the idle wait, external ports off, GPU driver prefetch; shelf's first frame ~40 ms after start |
 
 ## Installing the parts that don't come from pacman
 - **Kernel modules** `gpd-audio` (sound after hibernate) and `gpd-usbpd` (5 V charging): installed by

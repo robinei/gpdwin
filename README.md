@@ -35,7 +35,7 @@ Problems on a stock Arch install, and what the repo does about them. Measured on
 | 32-bit DXVK >= 2.5 broken on hasvk; Dark Souls stalls on a readback every frame | DXVK 2.4.1 with a d3d9 patch: Dark Souls 19-24 -> 30 fps (its cap) |
 | Quiet, distorting speakers | speaker-only compressor in PipeWire |
 | Bluetooth stack loads for a radio without firmware | blacklisted |
-| ~25 s from power button to the game list | ~22 s |
+| ~25 s from power button to the game list with shelf, about 3 s more with Pegasus Frontend (estimated, not timed) | ~22 s: boot tweaks; shelf shows its first frame ~40 ms after it starts |
 
 ### Driver patches
 None are submitted upstream yet. Each patch's message explains the bug and how it was found.
