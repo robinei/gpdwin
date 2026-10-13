@@ -60,6 +60,38 @@ sysfs under a configurable root with fake trees for lid, battery and charger, un
 - Order: build the new program against the new device (the Thor) first, where the second screen and the pad
   layer are needed. The C programs stay for devices/gpd-win1 (other GPD owners) until the new one covers them.
 
+## Window model: sway without tiling (Thor)
+
+**Goal:** sway for its capabilities (wlroots, Wayland protocols, IPC, outputs, input), never as a tiling
+window manager: every app is full screen, one at a time on the main screen, switched from the second screen.
+No tiling, borders, title bars or workspace names ever visible.
+
+**Design so far:**
+- **One hidden workspace per app on the main screen.** When a window opens (sway IPC `window::new`), the
+  system program moves it to its own workspace (named by the window, never shown) and makes it fullscreen.
+  Switching apps = switching workspace. Each workspace holds exactly one app, so sway's one-fullscreen-per-
+  workspace rule never bites (on the GPD all apps shared workspace 1 and inputd re-fullscreened whichever
+  got focus, docs/desktop.md "fullscreen stack"; this replaces that). Fullscreen also gives direct scanout.
+- Dialogs and popups (transient/floating windows) stay on their parent's workspace and float centred over it
+  (`popup_during_fullscreen smart`).
+- shelf is one of these apps (its own workspace), the one shown when nothing else is.
+- Closing an app: its workspace disappears; the previous app (most recently used) comes back, else shelf.
+- No sway key bindings for tiling, layouts, splits or workspaces at all; `default_border none`, no swaybar.
+  Everything the user does goes through the system program.
+- **Second screen**: one workspace, normally empty under the program's layer-shell views; an emulator's
+  second window goes there ("Second screen" below).
+- **App switcher**: a second-screen mode (and a pad-layer binding: D-pad left/right = previous/next app,
+  most recently used order): the open apps as a list or grid with icon and title, tap to switch, a close
+  button (polite close, then kill after a timeout for hung games). Thumbnails later, if sway can capture
+  single windows (`ext-image-copy-capture` with toplevel sources; check the sway version).
+
+**Open questions:**
+- Apps that open several top-level windows (Steam, some emulators' settings windows, Wine launchers): one
+  workspace per window, or group by app (`app_id`/pid) with the newest shown. Probably group by app, with the
+  app's windows as tabs in the switcher.
+- Games that resize or leave fullscreen themselves: re-assert fullscreen, or respect it.
+- Xwayland windows without proper transient hints that should be dialogs.
+
 ## Steam in shelf (Thor)
 
 **Goal:** shelf lists and starts Steam games next to everything else, with Steam doing what it does best
