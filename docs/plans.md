@@ -400,10 +400,14 @@ history. The GPD's driver patches could still be sent upstream from here.
 2. Bring over the layer setup and base configs; set up the desktop for development (nested and headless sway,
    two outputs).
 3. The system program: `core` and `library` first (unit tests), then `policy`, then `ui`.
-4. The Thor arrives. Recovery first (checked 2026-10-14: AYN publishes no Thor firmware package; its
-   download page has only the Odin and Loki. The Odin 2 enters EDL from its ABL menu, Vol- + Power >
-   "Emergency Mode", then QFIL with AYN's package; the Thor probably the same, which does not help once ABL is
-   broken): before flashing ROCKNIX ABL, ask AYN support for the Thor's EDL (QFIL) package; root Android and
+4. The Thor arrives. Recovery first. EDL on the Thor (github.com/nathanwongg/ayn-thor-flash-guide-on-macOS,
+   tested on a Thor): power off, hold Volume Down (or Vol+ and Vol-) and plug USB into the computer; the
+   screen stays black (EDL, USB 05c6:9008). That happens before ABL runs, so it works with a broken ABL.
+   Flash with Linaro's open `qdl` (no Windows/QFIL): `qdl --storage ufs --include . xbl_s_devprg_ns.melf
+   rawprogram*.xml patch*.xml` (stop ModemManager first) and AYN's Thor firmware zip (programmer
+   `xbl_s_devprg_ns.melf`, signed by AYN). The guide links AYN's software page for the zip, but on 2026-10-14
+   that page listed no Thor download (maybe loaded by script; check in a browser, else ask AYN support). Get
+   the zip onto the desktop and build `qdl` before flashing ROCKNIX ABL; root Android and
    dump every partition (`/dev/block/by-name/*`, both A/B slots) to the desktop; ROCKNIX ABL's
    install (checked 2026-10-14, `ROCKNIX/distribution` `packages/tools/rocknix-abl`: `backup_abl.sh`,
    `flash_abl.sh`, `restore_backup_abl.sh`) `dd`s the same image to **both** `abl_a` and `abl_b`, with no checksum
