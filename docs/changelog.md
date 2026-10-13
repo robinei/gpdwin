@@ -848,3 +848,11 @@ before the layer split (docs/repo-layout.md): `docs/hardware.md` is now `devices
   (re-points the moved links, installs the changed sudoers/autologin/system files, rebuilds the programs), then
   `scripts/sync check`, `swaymsg reload`, restart inputd (`pkill -x inputd`), statusbar and shelf
   (`scripts/restart-shelf`). Revert: `git revert` this commit, then the same install.
+
+## 2026-10-13 — licence
+- MIT for our work (`LICENSE`), licence texts in `LICENSES/`, a note per folder with third-party code
+  (devices/gpd-win1/kernel GPL-2.0-only, mesa MIT/0BSD, dxvk zlib, aur 0BSD) and a table in README "Licence".
+- Removed from the repo (kept locally, gitignored): the three dxvk-gplasync patches (no licence upstream;
+  `dxvk/build.sh` now downloads them and checks the sha256 of the tested copies, identical to upstream today) and
+  `kernel/dsi-investigation/data/vbt.bin` (firmware extract; the LICENSE note says how to dump it). Both are
+  still in the git history, which matters only for publishing (docs/repo-layout.md step 6).

@@ -1,3 +1,5 @@
 d3d9.dll
 x32/
 x64/
+# downloaded by build.sh (no licence upstream, so not redistributed here)
+dxvk-gplasync-*.patch

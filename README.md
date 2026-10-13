@@ -116,5 +116,20 @@ facts from `device.conf` or detect them, so a new device normally needs no code 
 - **GPD Win 1:** in daily use since October 2026 on one unit; the docs record what was measured on it. That
   unit currently has a hardware fault ([devices/gpd-win1](devices/gpd-win1/README.md), "Known problems").
 - **ROG Ally (Z1 Extreme):** planned (`docs/ideas.md` item 15).
-- **Licence:** not chosen yet. The collection logos in `shelf/logos` come from Pegasus' grid theme
-  (CC BY-NC-SA), and vendored code keeps its own licences.
+
+## Licence
+Our own work (programs, scripts, configs, docs, playbooks) is under the **MIT licence** ([LICENSE](LICENSE)).
+Parts that modify or come from other projects keep those projects' licences; each folder has a note:
+
+| Part | Licence |
+|---|---|
+| `devices/gpd-win1/kernel/`: Linux kernel patches | GPL-2.0-only ([note](devices/gpd-win1/kernel/LICENSE.md)) |
+| `devices/gpd-win1/mesa/`: Mesa patches; Arch's packaging | MIT; 0BSD ([note](devices/gpd-win1/mesa/LICENSE.md)) |
+| `devices/gpd-win1/dxvk/`: DXVK patches | zlib ([note](devices/gpd-win1/dxvk/LICENSE.md)) |
+| `aur/pkgbuilds/`: AUR build files | 0BSD ([note](aur/LICENSE.md)) |
+| `src/vendor/`: Wayland protocol code | MIT (in the files) |
+| `system/etc/systemd/system/systemd-user-sessions.service`: changed copy of systemd's unit | LGPL-2.1-or-later (in the file) |
+| `shelf/logos/`: Pegasus grid theme logos | CC BY-NC-SA 4.0, non-commercial ([README](shelf/logos/README.md)) |
+
+The licence texts are in `LICENSES/`. Not included: the dxvk-gplasync patches (no licence stated upstream;
+`build.sh` downloads them) and the GPD Win's firmware video table.

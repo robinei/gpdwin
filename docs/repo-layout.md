@@ -121,8 +121,10 @@ ssh make it yours" is the intended entry point, rather than an image to flash.
 ## Public vs private
 - Public repo: the common layer, `devices/`, `users/example/`. Private: `users/robin/` as its own repo, cloned next to it
   (the host file points at it), so personal files never enter public history.
-- Licence for our own code to be chosen. The grid-theme logos are CC BY-NC-SA (non-commercial): ship them with
-  that note or fetch them at install. Vendored code keeps its licences.
+- Licence (2026-10-13): MIT for our work (`LICENSE`); third-party parts keep theirs, noted per folder and in
+  README "Licence" (kernel patches GPL-2.0-only, Mesa MIT, DXVK zlib, AUR/Arch packaging 0BSD, logos CC BY-NC-SA).
+  Material without a licence or from firmware is kept out (dxvk-gplasync patches are downloaded by `build.sh`;
+  the GPD's `vbt.bin` stays local). New third-party files need the same check before they are committed.
 - Start the public repo from the layered tree (fresh history) or audit the history first: it has paths, game
   lists and save details, never secrets (the sudo password and Steam key were never committed; check anyway).
 - Rename from `gpdwin` to something device-neutral.
@@ -136,4 +138,5 @@ ssh make it yours" is the intended entry point, rather than an image to flash.
    packages and services per layer; `/install` and `/port-device` playbooks; README for outsiders.
 4. Open: `users/robin/` into its own private repo (`user_dir=`), once the public repo exists.
 5. Open: the Ally as the second device (`devices/rog-ally/`, via `/port-device`): the real test of the split.
-6. Open: licence, rename from `gpdwin`, history audit, go public.
+6. Licence done (2026-10-13). Open: rename from `gpdwin`, history audit (the removed files are still in the
+   history: start the public repo fresh or rewrite it), go public.

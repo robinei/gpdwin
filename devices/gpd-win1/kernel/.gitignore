@@ -1,2 +1,4 @@
 build/
 dkms-tree/
+# extracted from the GPD Win firmware (i915_vbt); kept locally, not redistributed
+dsi-investigation/data/vbt.bin

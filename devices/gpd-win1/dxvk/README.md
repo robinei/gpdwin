@@ -20,7 +20,8 @@ Why a build of our own (2026-10-12):
 - `d3d9_include.h`: newer mingw-w64 headers define `D3DDEVINFO_RESOURCEMANAGER`; put DXVK's own definition in
   `namespace dxvk` as upstream master does (2.4.1 no longer builds otherwise).
 
-`dxvk-gplasync-2.4-1.patch`: https://gitlab.com/Ph42oN/dxvk-gplasync `patches/`, unchanged (sha256 `2f80b7d7...`).
+`dxvk-gplasync-2.4-1.patch`: https://gitlab.com/Ph42oN/dxvk-gplasync `patches/`, unchanged (sha256 `2f80b7d7...`). Not in the repo
+(no licence stated upstream): `build.sh` downloads it and checks the hash.
 `build.sh [2.4.1|2.6.2|2.7.1]` builds `d3d9.dll` (x32 + x64) in an Arch chroot on the desktop (~2 min each after the
 chroot exists); 2.4.1 -> `x32/`, `x64/`, 2.6.2 -> `v262/`, 2.7.1 -> `vk13/` (patches and notes there).
 

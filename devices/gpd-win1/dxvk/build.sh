@@ -18,11 +18,20 @@ if [ ! -d "$CHROOT/root" ]; then
 fi
 ver=${1:-2.4.1}
 case $ver in
-    2.4.1) out=. gpl=dxvk-gplasync-2.4-1.patch gpd=0001-gpd-d3d9-async-readback-and-wait-log.patch ;;
-    2.6.2) out=v262 gpl=v262/dxvk-gplasync-2.6.2-1.patch gpd=vk13/0001-gpd-d3d9-async-readback-and-wait-log-2.7.1.patch ;;
-    2.7.1) out=vk13 gpl=vk13/dxvk-gplasync-2.7.1-1.patch gpd=vk13/0001-gpd-d3d9-async-readback-and-wait-log-2.7.1.patch ;;
+    2.4.1) out=. gpl=dxvk-gplasync-2.4-1.patch gpd=0001-gpd-d3d9-async-readback-and-wait-log.patch
+           sum=2f80b7d7e60bfbea9ecc28ddd1e5409d70817eb13d9858a4032b900026a7ada9 ;;
+    2.6.2) out=v262 gpl=v262/dxvk-gplasync-2.6.2-1.patch gpd=vk13/0001-gpd-d3d9-async-readback-and-wait-log-2.7.1.patch
+           sum=8d3ad87f958337c7cec614cec620a9430077c1532b9b14b04f2653e7a34687d7 ;;
+    2.7.1) out=vk13 gpl=vk13/dxvk-gplasync-2.7.1-1.patch gpd=vk13/0001-gpd-d3d9-async-readback-and-wait-log-2.7.1.patch
+           sum=848956793ada245a94a14b930f1d24b5545d7214255df90d02ef2eee831280b9 ;;
     *) echo "usage: $0 [2.4.1|2.6.2|2.7.1]"; exit 1 ;;
 esac
+# The gplasync patch (Ph42oN, https://gitlab.com/Ph42oN/dxvk-gplasync) states no licence, so it isn't in this
+# repo: downloaded once and checked against the hash of the copy we tested.
+if [ ! -f "$gpl" ]; then
+    curl -fsSL -o "$gpl" "https://gitlab.com/Ph42oN/dxvk-gplasync/-/raw/main/patches/$(basename "$gpl")"
+fi
+echo "$sum  $gpl" | sha256sum -c --quiet || { echo "$gpl: checksum mismatch (upstream changed?)"; exit 1; }
 sudo rm -rf "$CHROOT/root/build"
 sudo git clone -q --branch "v$ver" --depth 1 --recurse-submodules --shallow-submodules \
     https://github.com/doitsujin/dxvk "$CHROOT/root/build"

@@ -48,6 +48,9 @@ below (sudo, gotchas) are about that device.
     edit those in the repo (capture skips them).
   - `scripts/sync check` must report no drift when you finish.
 - Never store passwords or keys in the repo.
+- Licences (README "Licence"): our work is MIT. Before committing third-party files (patches from other projects,
+  vendored code, assets, firmware dumps), check their licence and add them to the folder's LICENSE.md note; keep
+  out what has no licence or isn't redistributable (download it at build time with a pinned hash instead).
 - Keep docs factual and current; remove things that are no longer true rather than appending
   contradictions. Findings that cost time to discover belong in the docs.
 - Don't reboot, suspend, or restart sway/shelf without asking; the user may be playing.
