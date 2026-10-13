@@ -218,6 +218,13 @@ rumble drivers), a "263DC" SOT-23-5 (probably the regulator for these chips). Th
 rail powered only while the system is on, and none of it is the SoC: matches the clock test. A microcontroller in
 latch-up (high current, cleared by removing power, can leave lasting leakage) would fit the 4 A -> 1.6 A drop after
 the battery disconnect. No burn mark visible in the photo; the pad by MIC+/MIC- is worth a close look.
+Close-ups (Robin, 2026-10-13): the SH61F83Q has an irregular dark pit/blister on its top, over the date code
+("1625"), off-centre and unlike the moulded pin-1 dot. That is what a die that overheated locally looks like
+(the package blisters over the hot spot). Next to its left side a cracked translucent blob on the board between
+the chip and the capacitors (melted residue or flux; not seen elsewhere). HC3F3210A, both 3401s, 263DC and the MIC
+area (an empty 8-pad footprint there is unpopulated, not burnt) look normal. Main suspect: the SH61F83Q
+(Sinowealth microcontroller), shorted or latched internally. Replacement needs a chip programmed with GPD's
+firmware (or a donor board); removing it would stop the drain at the cost of what it drives.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
