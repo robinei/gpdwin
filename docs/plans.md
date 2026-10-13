@@ -97,6 +97,12 @@ per-game profiles, deadzones and calibration, chords. The pad system layer becom
   (uinput FF upload/erase callbacks, as InputPlumber does). Needed for rumble to keep working.
 - Per-game profiles: shelf already starts the games, so it knows which profile applies.
 - Safety, as for the system program: if the program dies the grab ends and the real pad works directly again.
+- **Hide the real pad**: a grab only stops its events; the device stays visible, so games would list a silent
+  real pad next to the virtual one (and may pick it as player 1). A udev rule makes the real pad's event node
+  accessible only to the program (its group) and drops `ID_INPUT_JOYSTICK` for everyone else; the game
+  launcher also sets SDL's ignore list (`SDL_GAMECONTROLLER_IGNORE_DEVICES`, SDL3's equivalent) with its
+  vendor/product id. Then games, Wine and Steam see exactly one pad: the virtual one. If the program is not
+  running, the real pad is hidden too: the service must be up for any pad input (acceptable: it restarts).
 
 **Open questions:**
 - Use **InputPlumber** (Rust, ShadowBlip; ChimeraOS/Bazzite; Pocknix and Thorch ship Thor maps for it) and
