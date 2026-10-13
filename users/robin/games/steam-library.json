@@ -1260,7 +1260,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Awesomenauts",
-   "windows": true
+   "windows": true,
+   "size_mb": 3584
   },
   {
    "source": "steam",
@@ -1944,7 +1945,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Borderlands 2",
-   "windows": true
+   "windows": true,
+   "size_mb": 13312
   },
   {
    "source": "steam",
@@ -1968,7 +1970,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Borderlands",
-   "windows": true
+   "windows": true,
+   "size_mb": 8192
   },
   {
    "source": "steam",
@@ -1980,7 +1983,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Borderlands: Game of the Year Enhanced",
-   "windows": true
+   "windows": true,
+   "size_mb": 25600
   },
   {
    "source": "steam",
@@ -1992,7 +1996,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Borderlands: The Pre-Sequel",
-   "windows": true
+   "windows": true,
+   "size_mb": 13312
   },
   {
    "source": "steam",
@@ -2016,7 +2021,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Braid",
-   "windows": true
+   "windows": true,
+   "size_mb": 200
   },
   {
    "source": "steam",
@@ -2473,7 +2479,8 @@
    "linux": false,
    "tier": null,
    "pcgw": "Carmageddon: Max Damage",
-   "windows": true
+   "windows": true,
+   "size_mb": 20480
   },
   {
    "source": "steam",
@@ -2484,7 +2491,8 @@
    "controller": true,
    "linux": null,
    "tier": null,
-   "pcgw": "Carmageddon: Reincarnation"
+   "pcgw": "Carmageddon: Reincarnation",
+   "size_mb": null
   },
   {
    "source": "steam",
@@ -2620,7 +2628,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Children of Morta",
-   "windows": true
+   "windows": true,
+   "size_mb": 2048
   },
   {
    "source": "steam",
@@ -3631,7 +3640,8 @@
    "linux": true,
    "tier": null,
    "pcgw": "Dead Cells",
-   "windows": true
+   "windows": true,
+   "size_mb": 2010
   },
   {
    "source": "steam",
