@@ -225,6 +225,12 @@ the chip and the capacitors (melted residue or flux; not seen elsewhere). HC3F32
 area (an empty 8-pad footprint there is unpopulated, not burnt) look normal. Main suspect: the SH61F83Q
 (Sinowealth microcontroller), shorted or latched internally. Replacement needs a chip programmed with GPD's
 firmware (or a donor board); removing it would stop the drain at the cost of what it drives.
+Web (2026-10-13): SH61F83 = Sinowealth low-speed USB microcontroller (8051 core, QFN-48, for USB keyboards),
+runs from 4.4-5.25 V, i.e. the 5 V rail, with its own 3.3 V regulator out. So it is the keyboard controller.
+Win 1 forum reports: keyboards dying on Z8750 units; one "keyboard, fan and USB port stopped working overnight"
+(gbatemp 480885), one keyboard that worked again only after changing the fan setting (pyra-handheld GPD Win
+thread p. 92), metallic thermal paste near resistors blamed for shorts. Suggests keyboard, fan and USB-A share
+a 5 V switch on this board (the 3401s?). No report of this chip burning found.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
