@@ -30,7 +30,8 @@ for the parts that are pure logic, and a structure that can grow.
 - Programs that work on their own stay small and separate if they fit no better inside (statusbar, scripts).
 
 **Open questions:**
-- **Building on the device.** `scripts/sync` compiles the C programs on the device in seconds. A Rust release
+- **Building on the device** (less pressing now: the GPD unit is probably retired, 2026-10-13, and the Thor
+  and the Ally build Rust fine). `scripts/sync` compiles the C programs on the device in seconds. A Rust release
   build on the GPD's Atom (4 GB) would take a long time and may run out of memory. Options: build on the
   device anyway where it is fast (the Thor), cross-compile on a desktop and copy the binary (sync kind
   `cargo`, building where `cargo` is fast), or prebuilt binaries per architecture (x86_64, aarch64) from a
@@ -40,7 +41,7 @@ for the parts that are pure logic, and a structure that can grow.
 - Its own repository: the program is useful without this repo's configs (any sway handheld). It could live in
   its own repo, packaged for Arch (PKGBUILD), with this repo installing it like any other package.
 - Order: build the new program against the new device (the Thor) first, where the second screen and the pad
-  layer are needed, and move the GPD to it once it does everything the C programs do.
+  layer are needed. The C programs stay for devices/gpd-win1 (other GPD owners) until the new one covers them.
 
 ## One system program
 
