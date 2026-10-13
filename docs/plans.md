@@ -42,8 +42,7 @@ sysfs under a configurable root with fake trees for lid, battery and charger, un
   `cargo`, building where `cargo` is fast), or prebuilt binaries per architecture (x86_64, aarch64) from a
   release. Decide before porting.
 - ~~Drawing~~ decided 2026-10-13: own Wayland surfaces (`smithay-client-toolkit`) and a CPU renderer, no SDL.
-- Repository, decided 2026-10-13: not this repo. Robin wants to stop using this repo; what moves to the new
-  one (only the program, or the program plus configs and device layers) is still open.
+- Repository, decided 2026-10-13: a new repo for everything (see "New repository" below).
 - Order: build the new program against the new device (the Thor) first, where the second screen and the pad
   layer are needed. The C programs stay for devices/gpd-win1 (other GPD owners) until the new one covers them.
 
@@ -165,3 +164,50 @@ second desktop to manage by hand.
 - One program for the companion and the override modes, or the companion plus `wvkbd` as a separate client.
 - Which game info is worth showing (controls per emulator system? notes per game in the user layer?).
 - Idle: inputd dims and turns off both outputs; the second one could go dark sooner.
+
+## New repository (decided 2026-10-13)
+
+**Goal:** a fresh repo for the next devices (AYN Thor first, ROG Ally later): the system program and the
+setup around it. This repo becomes the GPD Win 1 archive: public, still usable by GPD owners, no longer
+worked on. Fresh history (none of this repo's personal data or old paths); MIT for our work as here.
+
+**Structure (proposal):**
+- the system program: a Cargo workspace (`core`, `policy`, `library`, `ui`; "Rust and a project structure"
+  above) at the root or in one folder, with an Arch PKGBUILD for x86_64 and aarch64;
+- `components/`, `devices/`, `users/example/` and `scripts/sync` + `layers.py`: the layer setup as here
+  (docs/repo-layout.md), with the system program as a component replacing `inputd` and `shelf`;
+- the user layer in a private repo (`user_dir=`), from the start;
+- `docs/`, `CLAUDE.md`, `.claude/commands/` (install, port-device, maintain, setup-game, aur-add).
+
+**Carry over (adapted, not copied blindly):**
+- the layer design: `scripts/sync` (link/copy/keep/build/dkms, templates, drift check), `scripts/layers.py`,
+  `src/devconf.h`'s device.conf keys (as a Rust module), packages.txt/services.txt;
+- the rules in CLAUDE.md: changelog per change, ask before risky steps, licence checks, AUR review
+  (`scripts/aur`), no secrets in the repo;
+- the playbooks, made device-neutral (install from the install medium; on the Thor an SD image instead:
+  ROCKNIX ABL, Arch Linux ARM);
+- `components/base` and `desktop` configs that are not GPD-specific (sway, foot, fish, PipeWire, iwd,
+  nftables, sudoers, journald, sysctl); `pacman.conf` per architecture (Arch Linux ARM has no multilib);
+- game tooling as an optional component: `scripts/games` + `gamelib`, saves backup and sync, `fetch-boxart`,
+  Steam library; check what still applies on aarch64 (FEX for x86 games, native Linux builds need arm64);
+- `docs/pegasus-format.md` (the spec for `library`), docs/frontend.md and docs/desktop.md as the behaviour
+  spec for the new program; the C sources as reference only.
+
+**Stays here (the archive):** `devices/gpd-win1` (kernel patches, Mesa, DXVK, docs), the C programs
+(`src/`), the GPD-specific dotfiles and scripts (speaker tuning, audio snapshots), `docs/changelog.md`, the
+history. The GPD's driver patches could still be sent upstream from here.
+
+**Open questions:**
+- Name of the new repo and the program.
+- Whether the device layers live in the new repo or each in its own (one repo is simpler while there are two).
+- Thor install path: SD image built by a script (like Thorch) or the install playbook on an Arch Linux ARM
+  rootfs; and its kernel: ROCKNIX's, or `linux-aarch64` + a DKMS package for the out-of-tree drivers.
+- When to archive this repo: after the README says so and points to the new one.
+
+**Steps:**
+1. Pick names; create the new repo (private until it has a first working state).
+2. Bring over the layer setup and base configs; set up the desktop for development (nested and headless sway,
+   two outputs).
+3. The system program: `core` and `library` first (unit tests), then `policy`, then `ui`.
+4. The Thor arrives: device layer, install, the device tests (hibernate, latency, power).
+5. Archive this repo: README status, link to the new repo.
