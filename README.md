@@ -1,7 +1,8 @@
 # Handheld Arch
 
 Configuration, fixes and small programs for running Arch Linux on handheld gaming PCs, applied on top of a
-standard Arch install. Supported device: **GPD Win 1** (2016, Intel Atom x7-Z8700). Other devices can be added
+standard Arch install. The session is **sway** (Wayland), and inputd and the status bar are written for it.
+Supported device: **GPD Win 1** (2016, Intel Atom x7-Z8700). Other devices can be added
 as a device layer (see "Adding a device").
 
 ## Contents
@@ -14,7 +15,8 @@ as a device layer (see "Adding a device").
 - a speaker compressor, a battery charge limit, boot to the game list in about 22 s.
 
 **shelf** (`src/shelf.c`), a game frontend:
-- one C file using SDL3, native Wayland;
+- one C file using SDL3, native Wayland; no sway-specific code, but only tested under sway (sway rules put
+  games fullscreen on top of it);
 - reads gamepads through evdev;
 - library in Pegasus Frontend's format (`metadata.pegasus.txt`, `game_dirs.txt`, `media/`, `stats.db`), so
   Pegasus collections, including those EmuDeck generates for Pegasus, can be used unchanged
@@ -22,9 +24,9 @@ as a device layer (see "Adding a device").
 - per-game settings for CPU/GPU turbo, a package power limit and a frame-rate cap; play time and favourites.
 
 **inputd** (`src/inputd.c`): idle policy (dim, screen off, suspend), lid, power button, and a key that opens
-shelf. Gamepad input counts as activity.
+shelf. Gamepad input counts as activity. Uses sway's IPC, so it needs sway.
 
-**statusbar** (`src/statusbar.c`): status line for swaybar (CPU/GPU clock, power limit, temperature, RAM,
+**statusbar** (`src/statusbar.c`): status line for swaybar (i3bar protocol) (CPU/GPU clock, power limit, temperature, RAM,
 Wi-Fi, volume, battery), event-driven.
 
 **Game tooling:**
@@ -38,8 +40,10 @@ Wi-Fi, volume, battery), event-driven.
 - AUR packages are built only after their diff since the last review is read (`scripts/aur`);
 - `/maintain`: an agent procedure for updates, Arch news and checks.
 
-The shared parts are split into **components** (`base`, `desktop`, `inputd`, `shelf`), each optional except
-`base`.
+The shared parts are split into **components**: `base` (system: network, sudo, firewall, pacman), `desktop`
+(sway, foot, the status bar, audio), `inputd` (needs `desktop`), `shelf` (expects `desktop`). Each is optional
+except `base`; without `desktop` you bring your own session, and only the device fixes, `base` and the game
+tooling apply.
 
 ## How to use it
 

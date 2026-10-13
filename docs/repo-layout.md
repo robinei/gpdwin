@@ -62,8 +62,8 @@ A file belongs to the lowest layer that is true for it: if every device and pers
 |---|---|---|
 | base | shell, sudo rules (group wheel), network (iwd, resolved), firewall, sshd, pacman, logging, low-battery hibernate | - |
 | desktop | autologin into sway, foot, fuzzel, wob, status bar, PipeWire defaults, GPU driver prefetch | base |
-| inputd | idle dim/off/sleep, lid, power button, menu key; logind leaves those to it | desktop |
-| shelf | the frontend, Utilities collection, per-game performance (turbo/power/fps), MangoHud, save backup timer | desktop |
+| inputd | idle dim/off/sleep, lid, power button, menu key; logind leaves those to it | desktop (sway IPC) |
+| shelf | the frontend, Utilities collection, per-game performance (turbo/power/fps), MangoHud, save backup timer | desktop (plain Wayland; the fullscreen rules are sway's) |
 
 Without inputd, logind's defaults handle the lid and power button and nothing dims the screen (add swayidle in
 a user sway snippet). Without shelf, nothing starts on workspace 1.
