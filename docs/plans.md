@@ -77,7 +77,7 @@ power policy run), shelf on the main screen, the companion or keyboard on the se
     restart never kills a running game, and the restarted program finds it again.
 - Memory: while a game runs, shelf's textures and fonts are freed or kept small (the game needs the RAM on a
   4 GB device).
-- statusbar can stay separate (swaybar runs it), or become a source of the same state for the sysinfo mode.
+- statusbar: built in (see "Second screen": the bar on the second screen); swaybar is then not needed.
 
 **Open questions:**
 - Migration: grow shelf into it (it has the window and the state), then move inputd's policy in as a thread;
@@ -201,7 +201,14 @@ second desktop to manage by hand.
     workspace. Maybe an absolute mode too (the second screen maps onto the main one) and a strip of buttons
     or keys along an edge. Combines with the keyboard mode (keyboard below, touchpad above) for desktop use.
   - off: the panel powered down (`output … power off`).
+  - launcher: a grid of apps and tools (desktop entries, shelf's Utilities, terminal, settings), started
+    on the main screen by touch or the pad; recent and pinned first.
   An override lasts until it is dismissed, then follow mode returns.
+- **Built-in status bar** on the second screen, replacing swaybar + statusbar: a strip along one edge of the
+  second screen, always visible over every mode, except when an emulator's second window takes the screen
+  (then it hides, or moves to the main screen only if asked). Its data comes from the program's own state
+  (clock, battery, power, temperatures, Wi-Fi, volume), so no separate status program and no i3bar protocol.
+  The main screen stays free of bars. On a device without a second screen: a bar on the main screen, as now.
 - Touch on the second screen goes only to the companion or the second window (`map_to_output`), so a touch
   never lands in the game by accident.
 - Power: OLED black costs little, but powering the panel off when it shows nothing saves more. Measure both.
