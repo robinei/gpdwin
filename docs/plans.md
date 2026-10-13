@@ -48,7 +48,14 @@ sysfs under a configurable root with fake trees for lid, battery and charger, un
   device anyway where it is fast (the Thor), cross-compile on a desktop and copy the binary (sync kind
   `cargo`, building where `cargo` is fast), or prebuilt binaries per architecture (x86_64, aarch64) from a
   release. Decide before porting.
-- ~~Drawing~~ decided 2026-10-13: own Wayland surfaces (`smithay-client-toolkit`) and a CPU renderer, no SDL.
+- Drawing, decided 2026-10-13: own Wayland surfaces (`smithay-client-toolkit`), no SDL; CPU rendering into
+  shm buffers to start (sway still composites them on the GPU). Why CPU: no GPU context of our own that
+  competes with the game while the bar and second screen keep updating, nothing to lose when a game hangs or
+  resets the GPU, instant start, small dependencies; the second screen redraws little (the bar once a
+  second, damage regions only). Open: shelf's full-screen view on the main screen (1080x1920, 120 Hz,
+  scrolling, box art) may be too much for the CPU at full rate: measure on the desktop with the Thor's sizes;
+  if it is, draw that view with the GPU (Vulkan/GLES through Turnip, or `wgpu`) behind the same drawing
+  interface, and keep the second screen on the CPU.
 - Repository, decided 2026-10-13: a new repo for everything (see "New repository" below).
 - Order: build the new program against the new device (the Thor) first, where the second screen and the pad
   layer are needed. The C programs stay for devices/gpd-win1 (other GPD owners) until the new one covers them.
