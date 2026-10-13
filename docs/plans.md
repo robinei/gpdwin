@@ -351,6 +351,27 @@ the effort goes into the device and the system program. Not NixOS, not darch (gi
 generations and a tmpfs root; considered and set aside). Cheap additions worth having: btrfs snapshots around
 pacman transactions for rollback, and `sync` reporting installed packages that no layer lists.
 
+**Proposal (2026-10-13): deliver everything as packages from our own repo, and a flashable image.**
+Replaces `sync` as the way things get onto the device (supersedes "System management ... as on the GPD"
+if accepted):
+- Our own pacman repo (static files: the repo database plus packages, signed with our GPG key), hosted on
+  GitHub Releases or Pages. Packages: the system program; `thor-config` (sway config, PipeWire, udev,
+  sleep hooks, systemd units and presets, defaults in `/usr/share` and `/etc/xdg` so the home directory starts
+  empty); `thor-base` (a meta package depending on everything); the device packages (kernel, firmware,
+  bootloader, BSP) either from Pocknix's repo or rebuilt from their PKGBUILDs into ours.
+- Builds on the desktop (or CI): Rust cross-compiled to aarch64; other packages in an aarch64 chroot through
+  qemu-user (slow for big C++ like Mesa) or on GitHub's arm64 runners (free for public repos). Updates on the
+  device: `pacman -Syu`.
+- An image script: pacstrap from ALARM + our repo into a disk image with the ROCKNIX boot partition, swap and
+  btrfs, first-boot setup (user, Wi-Fi, keys). Others flash it to an SD card (or install internally with the
+  same script) and stay current with pacman.
+- Experimenting stays easy: a dev override, as `sync` did, where files from a checkout are linked over the
+  packaged ones (pacman-owned paths are diverted, e.g. configs read `/etc/thor/override/` first); `sync check`
+  becomes "what differs from the packages" (`pacman -Qkk`), and a change is done when it is in a package.
+- Licences: kernel binaries need their source offered (publish the patched source with each build); the
+  Qualcomm firmware in an image is redistribution of vendor blobs (ROCKNIX and Pocknix do it; check the terms
+  before publishing an image).
+
 **Stays here (the archive):** `devices/gpd-win1` (kernel patches, Mesa, DXVK, docs), the C programs
 (`src/`), the GPD-specific dotfiles and scripts (speaker tuning, audio snapshots), `docs/changelog.md`, the
 history. The GPD's driver patches could still be sent upstream from here.
