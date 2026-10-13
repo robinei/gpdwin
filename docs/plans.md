@@ -404,8 +404,14 @@ history. The GPD's driver patches could still be sent upstream from here.
    download page has only the Odin and Loki. The Odin 2 enters EDL from its ABL menu, Vol- + Power >
    "Emergency Mode", then QFIL with AYN's package; the Thor probably the same, which does not help once ABL is
    broken): before flashing ROCKNIX ABL, ask AYN support for the Thor's EDL (QFIL) package; root Android and
-   dump every partition (`/dev/block/by-name/*`, both A/B slots) to the desktop; find out whether the
-   ROCKNIX ABL install writes one slot or both, and keep a known-good ABL in the other slot if possible; make a rescue SD card with a working Linux (ABL can boot it past a broken
+   dump every partition (`/dev/block/by-name/*`, both A/B slots) to the desktop; ROCKNIX ABL's
+   install (checked 2026-10-14, `ROCKNIX/distribution` `packages/tools/rocknix-abl`: `backup_abl.sh`,
+   `flash_abl.sh`, `restore_backup_abl.sh`) `dd`s the same image to **both** `abl_a` and `abl_b`, with no checksum
+   check in the Android script, so there is no fallback slot. A slot can't be switched for ABL alone (A/B
+   switches every partition), so keep it simple and careful: check the image's sha256 against the release
+   (v1.2 `abl_signed-SM8550.elf`, 258048 bytes, `8c27a709…7e398c`), back up both slots and copy the backups
+   off the device, flash, read both partitions back and compare before rebooting. Batocera's wiki says the
+   Thor's stock ABL has no Linux boot mode, so the flash is needed; make a rescue SD card with a working Linux (ABL can boot it past a broken
    internal install; repair with btrfs snapshots or the previous kernel package). Then device layer, install,
    the device tests (hibernate, latency, power).
 5. Archive this repo: README status, link to the new repo.
