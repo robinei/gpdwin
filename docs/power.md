@@ -231,6 +231,9 @@ Win 1 forum reports: keyboards dying on Z8750 units; one "keyboard, fan and USB 
 (gbatemp 480885), one keyboard that worked again only after changing the fan setting (pyra-handheld GPD Win
 thread p. 92), metallic thermal paste near resistors blamed for shorts. Suggests keyboard, fan and USB-A share
 a 5 V switch on this board (the 3401s?). No report of this chip burning found.
+Smell test by a second person (2026-10-13): the SH61F83Q smells most burnt of all parts. Culprit taken as found.
+Plan: no more powering up as is; a repair shop removes the chip (and checks its 5 V supply parts), then test the
+drain; a programmed replacement chip from GPD or a donor board for the built-in keyboard.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
