@@ -53,3 +53,40 @@ devices without a keyboard (ROG Ally, AYN Thor) and for the GPD with the pad in 
 - On-screen keyboard: `wvkbd` (layer-shell, wlroots) is the candidate; size and position per device
   (bottom screen on a dual-screen device, bottom half otherwise). It types through the virtual-keyboard
   protocol, which sway supports.
+
+## Second screen (dual-screen devices, e.g. AYN Thor)
+
+**Goal:** the second screen follows what is on the main screen, with override modes on demand. It is never a
+second desktop to manage by hand.
+
+**Design so far:**
+- `device.conf` names the outputs (new keys, e.g. `main_output=DSI-2`, `second_output=DSI-1`). Without
+  `second_output` nothing here runs, and the override modes fall back to popups on the main screen.
+- A small **companion** program owns the second screen (a layer-shell surface on that output, like a panel).
+  It follows sway's focus (IPC window events) and shelf's state, and draws what fits:
+
+  | On the main screen | Second screen (follow mode) |
+  |---|---|
+  | shelf | the selected game: art, description, play time, last played, its per-game settings (touch to change) |
+  | a game started from shelf | its info: controls, per-game settings, maybe a small performance line; dark otherwise |
+  | an emulator with two screens (DS, 3DS, Wii U) | the emulator's second window, moved there by sway rules; the companion stands aside |
+  | a terminal or desktop app | dark, or workspace and window list |
+
+- **Override modes**, chosen from the pad system layer (one button cycles them, or a binding each) or by touch:
+  - keyboard: `wvkbd` on the second screen, typing into the main screen's focused window;
+  - sysinfo: clock, battery and charge rate, temperatures, CPU/GPU clock and power limit, Wi-Fi (the status
+    line's data, larger, maybe with short graphs);
+  - pad layer: while the system button is held, its bindings (see "Pad system layer");
+  - off: the panel powered down (`output … power off`).
+  An override lasts until it is dismissed, then follow mode returns.
+- Touch on the second screen goes only to the companion or the second window (`map_to_output`), so a touch
+  never lands in the game by accident.
+- Power: OLED black costs little, but powering the panel off when it shows nothing saves more. Measure both.
+
+**Open questions:**
+- How shelf shares its state: the selected game and its settings (a state file it already writes,
+  `~/.local/state/shelf/last`, or a small socket/IPC). Or shelf draws the second screen itself as a second
+  window while it has the focus, and the companion only handles the rest.
+- One program for the companion and the override modes, or the companion plus `wvkbd` as a separate client.
+- Which game info is worth showing (controls per emulator system? notes per game in the user layer?).
+- Idle: inputd dims and turns off both outputs; the second one could go dark sooner.
