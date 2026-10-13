@@ -5,6 +5,39 @@ When one is built, its description moves to the topic doc (`docs/desktop.md`, `d
 change gets a `docs/changelog.md` entry, and the section here is removed. Unsorted ideas stay in
 `docs/ideas.md`.
 
+## One system program
+
+**Goal:** one program instead of inputd, shelf, the companion and the on-screen keyboard: one in-memory state
+(focus, selected game, layer and override modes, lid, idle, power) that every part sees at once, with no IPC
+or state files between them. It has 0, 1 or 2 windows: none while a game has the screen (only the input and
+power policy run), shelf on the main screen, the companion or keyboard on the second.
+
+**Design so far:**
+- Wayland client with up to two surfaces: shelf's window (xdg toplevel, so sway rules still place it) and
+  layer-shell surfaces for the second screen, the keyboard and popups. The keyboard types through
+  `zwp_virtual_keyboard_v1` (as wvkbd does), so no separate keyboard program.
+- Crash isolation, since a bug in drawing must not take the input and power policy with it:
+  - the policy (evdev, lid, idle, power button, charger, pad grab) runs in its own thread with no SDL or image
+    code, and owns the state; the UI thread reads it under a lock and sends it commands;
+  - **lid and power button fall back to logind**: instead of `HandleLidSwitch=ignore` /
+    `HandlePowerKey=ignore` (system/etc/systemd/logind.conf.d/handheld.conf), the program holds logind
+    inhibitor locks (`handle-lid-switch`, `handle-power-key`); if it dies the locks go and logind suspends or
+    hibernates as configured;
+  - a systemd user service with `Restart=always`; state that must survive a restart (the last selection,
+    modes) is saved as now;
+  - games run in their own scope (`systemd-run --user --scope` or `setsid` with a pid file), so a crash or
+    restart never kills a running game, and the restarted program finds it again.
+- Memory: while a game runs, shelf's textures and fonts are freed or kept small (the game needs the RAM on a
+  4 GB device).
+- statusbar can stay separate (swaybar runs it), or become a source of the same state for the sysinfo mode.
+
+**Open questions:**
+- Migration: grow shelf into it (it has the window and the state), then move inputd's policy in as a thread;
+  keep inputd buildable until the merged program has run for a while.
+- Whether SDL3 can give the layer-shell surfaces, or those use plain Wayland next to SDL's window (shelf
+  already uses Wayland protocols directly, `src/vendor/`).
+- Does a sway or GPU reset (DSI resync, Super+F10) disturb the surfaces; the policy thread must not care.
+
 ## Pad system layer (inputd)
 
 **Goal:** control the system without a keyboard: workspaces, terminal, on-screen keyboard, windows, power. For
