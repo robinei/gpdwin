@@ -7,14 +7,14 @@
  * Design and Octicons glyphs by name from nerd-fonts' glyphnames.json (ICON_* below).
  *
  * Battery: level icon + "80%" on battery (yellow <=30%, red <=15%), charging icon while charging, full icon at
- * >= 99% with the charger, plug icon when held at the charge limit (docs/power.md), alert icon + "not charging"
+ * >= 99% with the charger, plug icon when held at the charge limit (devices/gpd-win1/docs/power.md), alert icon + "not charging"
  * (yellow) when connected but stuck. Wi-Fi: strength icon (4 levels), network name and signal; crossed out when
  * off. Volume: speaker by level, crossed out (dimmed) when muted.
  *
  * CPU/GPU show the current clock and are dimmed while turbo is capped (~/.config/sway/turbo.sh).
  * "6W" is the package power limit (RAPL PL1), white at the firmware's 6 W, yellow while a game raised it,
  * green while a game lowered it
- * (scripts/game-wrap GPD_TDP_W, docs/power.md). "55°C" is the hottest CPU core (coretemp): green, peach from
+ * (scripts/game-wrap GPD_TDP_W, devices/gpd-win1/docs/power.md). "55°C" is the hottest CPU core (coretemp, or k10temp on AMD; device.conf temp_hwmon): green, peach from
  * 75 C (normal in games at 8 W), red from 85 C (the chip throttles at 90 C).
  * CPU is the fastest core (/proc/cpuinfo, sampled by the kernel on its timer tick). GPU is "idle"
  * when it spent most of the last second in RC6 (its frequency register keeps the last value).
@@ -31,6 +31,9 @@
  *   SIGSTOP/SIGCONT    sent by the idle scripts while the screen is off: nothing runs then;
  *                      SIGCONT re-reads everything
  * A line is written only when the text changed, so swaybar redraws only on real changes.
+ *
+ * Hardware paths come from device.conf or are found at start (find_hardware, src/devconf.h), so the same
+ * program runs on every device; a part that isn't there (no i915 GPU, no RAPL) just leaves its block out.
  *
  * Built and installed by `scripts/sync install` (manifest "build" entry).
  */
@@ -52,12 +55,14 @@
 #include <time.h>
 #include <unistd.h>
 
-#define BATTERY  "/sys/class/power_supply/max170xx_battery/"
-#define CHARGER  "/sys/class/power_supply/bq24190-charger/"
-#define NO_TURBO "/sys/devices/system/cpu/intel_pstate/no_turbo"
-#define PL1 "/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw"
-#define PL1_DEFAULT 6016000
-#define WIFI     "wlan0"
+#include "devconf.h"
+
+/* Hardware paths, set at start from device.conf (src/devconf.h) or found: battery, charger, Wi-Fi interface,
+ * CPU turbo switch (intel_pstate no_turbo, or cpufreq boost, which counts the other way round), package power
+ * limit (Intel RAPL PL1) and its normal value (power_default_w; else the value at start, before any game). */
+static char BATTERY[300], CHARGER[300], WIFI[32], NO_TURBO[96], PL1[96];
+static int turbo_inverted; /* NO_TURBO is cpufreq/boost: 1 = turbo on */
+static int PL1_DEFAULT;
 
 /* Colours from the sway theme (Catppuccin Mocha) */
 #define TEXT   "#cdd6f4"
@@ -211,7 +216,7 @@ static void read_gpu(void)
 
 static void read_turbo(void)
 {
-    st.cpu_turbo = read_int(NO_TURBO, 0) == 0;
+    st.cpu_turbo = NO_TURBO[0] ? (read_int(NO_TURBO, 0) != 0) == turbo_inverted : 1;
     st.gpu_turbo = gpu_int("gt_max_freq_mhz") >= gpu_rp0;
     st.tdp_uw = read_int(PL1, 0);
 }
@@ -246,15 +251,27 @@ static void read_ram(void)
 }
 
 /* The cable is read from the charger's "online": its status says "Full" rather than "Charging"
- * once the battery is topped up, and "Not charging" when it is stuck (docs/power.md). */
+ * once the battery is topped up, and "Not charging" when it is stuck (devices/gpd-win1/docs/power.md). */
 static void read_battery(void)
 {
-    st.battery = read_int(BATTERY "capacity", -1);
-    st.plugged = read_int(CHARGER "online", 0) == 1;
-    read_line(CHARGER "status", st.charge, sizeof st.charge);
+    char path[400];
+    snprintf(path, sizeof path, "%scapacity", BATTERY);
+    st.battery = BATTERY[0] ? read_int(path, -1) : -1;
+    snprintf(path, sizeof path, "%sonline", CHARGER);
+    st.plugged = CHARGER[0] && read_int(path, 0) == 1;
+    /* the charger's own status where it has one (bq24190), else the battery's (most laptops) */
+    snprintf(path, sizeof path, "%sstatus", CHARGER);
+    read_line(path, st.charge, sizeof st.charge);
+    if (!st.charge[0]) {
+        snprintf(path, sizeof path, "%sstatus", BATTERY);
+        read_line(path, st.charge, sizeof st.charge);
+    }
     /* Above the limit (charge-limit) the charger says "Not charging", or "Charging" with no current
      * going in: neither is right. Within 100 mV of it counts, the chip's own recharge threshold. */
-    int volt = read_int(BATTERY "voltage_now", 0), limit = read_int(CHARGER "constant_charge_voltage", 0);
+    snprintf(path, sizeof path, "%svoltage_now", BATTERY);
+    int volt = read_int(path, 0);
+    snprintf(path, sizeof path, "%sconstant_charge_voltage", CHARGER);
+    int limit = read_int(path, 0);
     st.at_limit = volt > 0 && limit > 0 && volt >= limit - 100000;
 }
 
@@ -268,7 +285,9 @@ static void read_signal(void)
     if (!f)
         return;
     while (fgets(line, sizeof line, f)) {
-        if (sscanf(line, " " WIFI ": %*s %*f %f", &dbm) == 1) {
+        char fmt[64];
+        snprintf(fmt, sizeof fmt, " %s: %%*s %%*f %%f", WIFI);
+        if (WIFI[0] && sscanf(line, fmt, &dbm) == 1) {
             int pct = (int)(dbm + 90) * 100 / 60;
             st.signal = pct < 0 ? 0 : pct > 100 ? 100 : pct;
         }
@@ -279,7 +298,9 @@ static void read_signal(void)
 /* Network name from iwd. Runs iwctl, so only at start and when the link changes. */
 static void read_ssid(void)
 {
-    FILE *p = popen("iwctl station " WIFI " show 2>/dev/null", "r");
+    char cmd[96];
+    snprintf(cmd, sizeof cmd, "iwctl station %s show 2>/dev/null", WIFI);
+    FILE *p = popen(cmd, "r");
     char line[256];
     st.ssid[0] = 0;
     if (!p)
@@ -303,7 +324,9 @@ static void read_ssid(void)
 static void read_wifi_link(void)
 {
     char state[32];
-    read_line("/sys/class/net/" WIFI "/operstate", state, sizeof state);
+    char path[96];
+    snprintf(path, sizeof path, "/sys/class/net/%s/operstate", WIFI);
+    read_line(path, state, sizeof state);
     int up = strcmp(state, "up") == 0;
     if (up && (!st.wifi_up || !st.ssid[0]))
         read_ssid();
@@ -365,11 +388,13 @@ static void emit(void)
     len = 0;
     len += snprintf(out, sizeof out, "[");
     block(st.cpu_turbo ? TEXT : DIM, LINE, ICON_CPU " %.1fG", st.cpu_ghz);
-    if (st.gpu_mhz > 0)
+    if (!gpu[0])
+        ; /* no i915 GPU clock files (another GPU driver): no GPU block */
+    else if (st.gpu_mhz > 0)
         block(st.gpu_turbo ? TEXT : DIM, LINE, ICON_GPU " %dM", st.gpu_mhz);
     else
         block(st.gpu_turbo ? TEXT : DIM, LINE, ICON_GPU " idle");
-    if (st.tdp_uw > 0)
+    if (st.tdp_uw > 0 && PL1_DEFAULT > 0)
         block(st.tdp_uw > PL1_DEFAULT + 100000 ? YELLOW : st.tdp_uw < PL1_DEFAULT - 100000 ? GREEN : TEXT, LINE,
               ICON_POWER " %dW", (st.tdp_uw + 500000) / 1000000);
     if (st.temp_c >= 0)
@@ -387,7 +412,9 @@ static void emit(void)
         block(DIM, LINE, ICON_VOLOFF " %d%%", st.volume);
     else
         block(TEXT, LINE, "%s %d%%", volume_icon(st.volume), st.volume);
-    if (st.battery < 0)
+    if (!BATTERY[0])
+        ; /* no battery (a desktop): no block */
+    else if (st.battery < 0)
         block(DIM, LINE, "%s ?", battery_icon(0));
     else if (st.plugged && strcmp(st.charge, "Full") == 0 && st.battery >= 99)
         block(TEXT, LINE, "%s %d%%", battery_icon(100), st.battery);
@@ -449,9 +476,36 @@ static void read_all(void)
     read_volume();
 }
 
+/* Fill in the hardware paths (top of file). */
+static void find_hardware(void)
+{
+    glob_t g;
+    devconf_battery_dir(BATTERY, sizeof BATTERY);
+    devconf_charger_dir(CHARGER, sizeof CHARGER);
+    const char *w = devconf("wifi", NULL);
+    if (w)
+        snprintf(WIFI, sizeof WIFI, "%s", w);
+    else if (glob("/sys/class/net/*/wireless", 0, NULL, &g) == 0) {
+        char *dir = g.gl_pathv[0] + strlen("/sys/class/net/");
+        snprintf(WIFI, sizeof WIFI, "%.*s", (int)(strchr(dir, '/') - dir), dir);
+        globfree(&g);
+    }
+    if (access("/sys/devices/system/cpu/intel_pstate/no_turbo", F_OK) == 0)
+        snprintf(NO_TURBO, sizeof NO_TURBO, "/sys/devices/system/cpu/intel_pstate/no_turbo");
+    else if (access("/sys/devices/system/cpu/cpufreq/boost", F_OK) == 0) {
+        snprintf(NO_TURBO, sizeof NO_TURBO, "/sys/devices/system/cpu/cpufreq/boost");
+        turbo_inverted = 1;
+    }
+    snprintf(PL1, sizeof PL1, "%s", devconf("power_limit", "/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw"));
+    PL1_DEFAULT = (int)(devconf_num("power_default_w", 0) * 1000000);
+    if (PL1_DEFAULT <= 0)
+        PL1_DEFAULT = read_int(PL1, 0);
+}
+
 int main(void)
 {
     glob_t g;
+    find_hardware();
     if (glob("/sys/class/drm/card*/gt_act_freq_mhz", 0, NULL, &g) == 0) {
         snprintf(gpu, sizeof gpu, "%.*s", (int)(strrchr(g.gl_pathv[0], '/') - g.gl_pathv[0] + 1),
                  g.gl_pathv[0]);
@@ -462,7 +516,8 @@ int main(void)
         for (size_t i = 0; i < g.gl_pathc; i++) {
             char name[32] = "", pat[300];
             read_line(g.gl_pathv[i], name, sizeof name);
-            if (strcmp(name, "coretemp") == 0) {
+            if (strcmp(name, devconf("temp_hwmon", "coretemp")) == 0 ||
+                (!devconf("temp_hwmon", NULL) && strcmp(name, "k10temp") == 0)) {
                 snprintf(pat, sizeof pat, "%.*s/temp*_input", (int)(strrchr(g.gl_pathv[i], '/') - g.gl_pathv[i]),
                          g.gl_pathv[i]);
                 glob(pat, 0, NULL, &coretemp);

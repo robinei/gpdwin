@@ -1,7 +1,8 @@
 # Changelog
 
 Newest last. Each entry: what changed, why, and how to revert if it isn't obvious.
-Details before 2026-10-06 are in `docs/archive/`.
+Details before 2026-10-06 are in `devices/gpd-win1/docs/archive/`. Paths in entries before 2026-10-13 are from
+before the layer split (docs/repo-layout.md): `docs/hardware.md` is now `devices/gpd-win1/docs/hardware.md`, etc.
 
 ## 2026-10-06 — install and setup (installer session, remote over ssh)
 - Wiped the eMMC (old Arch install), new GPT: 512 MiB ESP / 4 GiB swap / ext4. Installed a
@@ -816,3 +817,34 @@ Details before 2026-10-06 are in `docs/archive/`.
   drop the `ngc` lines from game_dirs.txt and manifest.tsv.
 - The device overheated during the test: ~14 W battery drain with the SoC idle (docs/power.md
   "Overheating with a 4 A battery drain"). Powered off.
+
+## 2026-10-13 — repo in layers: shareable, ready for more devices (desktop session; not yet on the GPD)
+- Why: the Ally is coming, others should be able to use this, and a fresh install should be "boot the
+  Arch ISO, start ssh, point an agent at it". docs/repo-layout.md has the design; README.md is new, for others.
+- Layout: common stays at the repo root, split into components (`components/{base,desktop,inputd,shelf}`:
+  manifest, packages, services, sway snippet); the GPD's files moved to `devices/gpd-win1/` (kernel/, mesa/,
+  dxvk/, its system files, speaker tuning, docs hardware/power/boot/archive, README of what is fixed); Robin's to
+  `users/robin/` (collections, emulator settings, saves.json, steam-library.json/.md, zelda3.ini, Wi-Fi
+  country). `users/example/` as a template. `manifest.tsv` split into the layers' manifests.
+- `scripts/sync`: reads the layers from `~/.config/gpd/host` (`scripts/layers.py`); `list`, `packages`,
+  `services`; owner `user`; templates `@USER@` (autologin, example game_dirs) and `@ROOT_UUID@` (boot entry);
+  re-points links that still lead to an old repo path; rebuilds programs when `src/*.h` changes.
+- Programs: `src/devconf.h` reads `~/.config/gpd/device.conf` (`devices/gpd-win1/device.conf`). statusbar finds
+  battery, charger, Wi-Fi, temperature sensor, turbo switch and power limit (and leaves out blocks for hardware
+  that isn't there); inputd takes the charger, menu key and pad name from it; shelf the W steps; game-wrap the
+  power limit and its default, and cpufreq boost where there is no intel_pstate (also turbo.sh); lid.sh does
+  nothing without i915/intel_pstate. On the GPD all values are the same as before.
+- Sway: device outputs, Super+F10, Super+C speaker mode moved to the device snippet; shelf's and inputd's
+  autostart to component snippets; all linked into `~/.config/gpd/sway.d/`.
+- sudoers 20-power, 21-firmware-setup, 23-wifi-reset: `%wheel` instead of `robin` (same effect here).
+  low-battery-hibernate finds the battery itself.
+- Python scripts find saves.json and steam-library.json in the user layer.
+- Playbooks: `/install` (from the install medium) and `/port-device`.
+- Tested on the desktop: sync list/check/install in a scratch home (86 entries, same as before), stale link
+  re-pointing, templates, a host without inputd, statusbar/shelf/inputd build without warnings, statusbar
+  output with and without device.conf, game-wrap's values. Not tested on the GPD (it is off: board fault).
+- **On the GPD after this** (once repaired): `git pull`, then create `~/.config/gpd/host` with
+  `device=gpd-win1`, `user=robin` (sync install refuses without it), `sudo -v && scripts/sync install`
+  (re-points the moved links, installs the changed sudoers/autologin/system files, rebuilds the programs), then
+  `scripts/sync check`, `swaymsg reload`, restart inputd (`pkill -x inputd`), statusbar and shelf
+  (`scripts/restart-shelf`). Revert: `git revert` this commit, then the same install.

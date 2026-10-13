@@ -22,7 +22,7 @@ informed in short lines; they are on a small screen with a keyboard.
    warnings, failed hooks and `.pacnew` notices. If the kernel or `linux-firmware-*` changed,
    tell the user a reboot is needed (don't reboot yourself).
    **Before `pacman -Syu`, if `checkupdates` lists `linux`:** warn the user and ask (AskUserQuestion)
-   whether to update the kernel now. The patched display driver (DKMS `gpd-i915`, docs/hardware.md
+   whether to update the kernel now. The patched display driver (DKMS `gpd-i915`, devices/gpd-win1/docs/hardware.md
    "Display") is rebuilt on the device during the update: ~10-15 min of full CPU load (download
    ~150 MB + compile), not while a game is running. If they decline, run
    `sudo -n pacman -Syu --noconfirm --ignore linux,linux-headers` instead and note the held kernel.
@@ -34,20 +34,20 @@ informed in short lines; they are on a small screen with a keyboard.
      it shows each `gpd-i915: applying NNNN` with patch's "Hunk ... succeeded at N (offset M
      lines)" notes (fine, but say so) or the failure; compile errors are in
      `/var/lib/dkms/gpd-i915/1.0/<kernel>/x86_64/log/make.log`. If it failed: the stock i915 is used (split pictures possible
-     again); redo the patches in `kernel/i915/` against the new source (test-build on the desktop
-     with `build.sh`, which also refuses fuzz), reinstall with `kernel/i915/install-dkms.sh`.
-   - Audio (`gpd-audio`): its sources are pinned (`kernel/prepare.sh`, `V=`), so a successful
-     DKMS build still means the old kernel's driver code. Re-pin: `kernel/prepare.sh --repin
+     again); redo the patches in `devices/gpd-win1/kernel/i915/` against the new source (test-build on the desktop
+     with `build.sh`, which also refuses fuzz), reinstall with `devices/gpd-win1/kernel/i915/install-dkms.sh`.
+   - Audio (`gpd-audio`): its sources are pinned (`devices/gpd-win1/kernel/prepare.sh`, `V=`), so a successful
+     DKMS build still means the old kernel's driver code. Re-pin: `devices/gpd-win1/kernel/prepare.sh --repin
      <new version>` (downloads the new rt5645 and atom SST files, rewrites both `sources.sha256`
      and `V=`, applies our two patches with `--fuzz=0`). If a patch no longer applies, redo it by
      hand against the new file and regenerate it (`diff -u`, `a/`/`b/` paths). Review
-     `git diff kernel/` (upstream changes to the pinned files are worth a look), then
-     `kernel/install.sh` and commit.
+     `git diff devices/gpd-win1/kernel/` (upstream changes to the pinned files are worth a look), then
+     `devices/gpd-win1/kernel/install.sh` and commit.
    - After the user has rebooted (ask them to; next maintenance run at the latest): `dkms status`
      lists both packages installed for the running kernel; `modinfo -n i915 snd_soc_rt5645
      snd_intel_sst_core` all under `updates/`; `journalctl -b -k -p err` has nothing new from i915
      or SST. Audio after hibernate (the reason for the audio patches): ask the user to hibernate
-     once (`sudo systemctl hibernate`), power on, and play a sound; compare with docs/hardware.md
+     once (`sudo systemctl hibernate`), power on, and play a sound; compare with devices/gpd-win1/docs/hardware.md
      "Audio after hibernation" if it is silent. Display: ask whether the picture is fine after
      a few screen off/on cycles.
 
@@ -86,11 +86,11 @@ informed in short lines; they are on a small screen with a keyboard.
 
 5. **pacnew/pacsave.** `pacdiff -o`. For each, diff against the live file, merge sensibly (keep
    our changes, take upstream's new defaults), install the result with sudo, delete the .pacnew,
-   and `scripts/sync capture <file>` if it is in `manifest.tsv`.
+   and `scripts/sync capture <file>` if a layer manages it (`scripts/sync list`).
 
 6. **Housekeeping.** Orphans: `pacman -Qdtq` (list, ask before removing). Disk: `df -h /` and
    `du -sh ~/.cache/*`. Failed units: `systemctl --failed`. Recent errors: `journalctl -b -p err`
-   (compare with known-harmless messages in docs/hardware.md).
+   (compare with known-harmless messages in devices/gpd-win1/docs/hardware.md).
    Firewall loaded: `sudo -n nft list ruleset` shows `table inet filter` with `policy drop`.
    Audio paths still intact: `pacman -Q pipewire-pulse pipewire-alsa`, `pactl info` shows
    "PulseAudio (on PipeWire)", and `/etc/alsa/conf.d/99-pipewire-default.conf` exists.

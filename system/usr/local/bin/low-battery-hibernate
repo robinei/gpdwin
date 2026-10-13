@@ -1,5 +1,10 @@
 #!/bin/sh
-b=/sys/class/power_supply/max170xx_battery
+# Hibernate when the battery is nearly empty (low-battery.timer). The battery is the first power supply of
+# type Battery (the GPD Win's max170xx_battery; laptops' BAT0).
+for b in /sys/class/power_supply/*; do
+    [ "$(cat "$b/type" 2>/dev/null)" = Battery ] && break
+done
+[ "$(cat "$b/type" 2>/dev/null)" = Battery ] || exit 0
 [ "$(cat $b/status)" = Discharging ] || exit 0
 [ "$(cat $b/capacity)" -le 5 ] && exec systemctl hibernate
 exit 0

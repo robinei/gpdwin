@@ -34,6 +34,7 @@ HOME = Path.home()
 INSTALLED = HOME / "Games/installed"
 MANIFEST = HOME / ".config/ludusavi/manifest.yaml"
 sys.path.insert(0, str(REPO / "scripts"))
+import layers  # noqa: E402
 
 
 def load_blocks():
@@ -164,7 +165,7 @@ def main():
         return 0
     apply = "--apply" in args
     wanted = [a for a in args if not a.startswith("--")]
-    cfgp = REPO / "games/saves.json"
+    cfgp = layers.user_file("games/saves.json")
     cfg = json.loads(cfgp.read_text())
     blocks = load_blocks()
     ids = {}

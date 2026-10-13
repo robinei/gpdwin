@@ -3,12 +3,12 @@
  * frontend); idle dims, turns the screen off and suspends; the lid, the power button and the
  * charger feed into that.
  *
- * The Menu key (bottom right of the keyboard, KEY_COMPOSE) starts shelf if it isn't running, closes
+ * The Menu key (bottom right of the keyboard, KEY_COMPOSE; another key on other devices: device.conf menu_key) starts shelf if it isn't running, closes
  * it if it has the focus, or else switches to its workspace. While a game started from shelf runs
  * (a child process of it), the key is left to the game. The pad's Guide button is not used: it
- * sends nothing in the pad's mouse mode (docs/hardware.md).
+ * sends nothing in the pad's mouse mode (devices/gpd-win1/docs/hardware.md).
  *
- * Idle (docs/power.md; the times are the "Idle policy" defines below). Idle time runs from the
+ * Idle (devices/gpd-win1/docs/power.md; the times are the "Idle policy" defines below). Idle time runs from the
  * last activity:
  *   2 min        brightness to a third (min 1%; the level before is saved and restored)
  *   3 min        lowest visible level (on AC: 10 min)
@@ -36,7 +36,7 @@
  * opening it undoes that and counts as activity. While closed, idle runs from the close (or a later
  * unplug or wake) and ignores idle inhibitors (the game is frozen), and only the suspend step
  * applies. Brightness is left alone (level 0 doesn't turn this panel off). logind ignores the lid,
- * see docs/power.md.
+ * see devices/gpd-win1/docs/power.md.
  *
  * Power button (logind ignores it, HandlePowerKey=ignore), acted on at release, by the screen
  * state at the press (sway counts the press as activity, so the screen may be back on by the
@@ -93,6 +93,7 @@
 #include <wayland-client.h>
 #include "vendor/ext-idle-notify-v1-client-protocol.h"
 #include "vendor/ext-idle-notify-v1-protocol.c"
+#include "devconf.h"
 
 /* ---- Idle policy: seconds of idle before each step, on battery and on AC (0: never). After a
  * change: `scripts/sync install` and `pkill -x inputd` (dotfiles/sway/inputd.sh restarts it). */
@@ -105,11 +106,14 @@
 #define SLEEP_AFTER_BATTERY 1800 /* suspend-then-hibernate (with the lid closed: from the close) */
 #define SLEEP_AFTER_AC 0
 
-#define PAD_NAME "Microsoft X-Box 360 pad"
+/* Device facts (device.conf, src/devconf.h; the defaults are the GPD Win's), set in main: the built-in pad's
+ * input name, the key that opens shelf, the charger's "online" file */
+static const char *PAD_NAME = "Microsoft X-Box 360 pad";
+static int MENU_KEY = KEY_COMPOSE;
+static char CHARGER_ONLINE[320];
 #define LID_NAME "Lid Switch"
 #define RESUME_GUARD 3.0 /* seconds after a resume in which the power button is ignored */
 #define RESUME_FILE "/run/resume-time"
-#define CHARGER_ONLINE "/sys/class/power_supply/bq24190-charger/online"
 #define STEP_TIMEOUT "5"     /* seconds a shell step (screen.sh, lid.sh, brightnessctl) may take */
 #define SLEEP_RETRY 60       /* seconds: still awake this long after asking to suspend: ask again */
 #define STEP_RETRY 5         /* seconds: after a failed step, try again (not on every pass) */
@@ -161,7 +165,7 @@ static int open_power(int *fds, int max)
         ioctl(fd, EVIOCGNAME(sizeof name - 1), name);
 #define HAS(k) (keys[(k) / (8 * sizeof(long))] >> ((k) % (8 * sizeof(long))) & 1)
         if (strcmp(name, PAD_NAME) != 0 && ioctl(fd, EVIOCGBIT(EV_KEY, sizeof keys), keys) >= 0 &&
-            (HAS(KEY_POWER) || HAS(KEY_COMPOSE))) {
+            (HAS(KEY_POWER) || HAS(MENU_KEY))) {
 #undef HAS
             fds[n++] = fd;
         } else {
@@ -730,6 +734,11 @@ static void on_menu(void)
 
 int main(void)
 {
+    PAD_NAME = devconf("pad_name", PAD_NAME);
+    MENU_KEY = (int)devconf_num("menu_key", KEY_COMPOSE);
+    devconf_charger_dir(CHARGER_ONLINE, sizeof CHARGER_ONLINE - 8);
+    if (CHARGER_ONLINE[0])
+        strcat(CHARGER_ONLINE, "online");
     const char *run = getenv("XDG_RUNTIME_DIR");
     snprintf(tune_state, sizeof tune_state, "%s/" TUNE_STATE, run ? run : "/tmp");
 
@@ -847,7 +856,7 @@ int main(void)
             if (!fds[i].revents)
                 continue;
             while ((n = read(fds[i].fd, &ev, sizeof ev)) == sizeof ev) {
-                if (ev.type == EV_KEY && ev.code == KEY_COMPOSE) { /* the Menu key */
+                if (ev.type == EV_KEY && ev.code == MENU_KEY) { /* the Menu key */
                     if (ev.value == 1 && !fact.lid_closed)
                         on_menu();
                     continue;

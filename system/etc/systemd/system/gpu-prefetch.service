@@ -1,5 +1,5 @@
 # Read the GPU driver (Mesa's libgallium and the LLVM it links, ~0.5 s cold from the eMMC) into the
-# page cache early in boot, so sway finds it there (docs/boot.md). The dynamic loader maps and
+# page cache early in boot, so sway finds it there (devices/gpd-win1/docs/boot.md). The dynamic loader maps and
 # relocates exactly what sway's EGL setup will touch, then runs `true`. Nothing waits for this:
 # no Before=, nothing is ordered after it, and it runs at low CPU/IO priority.
 [Unit]

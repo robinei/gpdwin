@@ -1,9 +1,25 @@
-# GPD Win 1 handheld — maintenance repo
+# Handheld Arch — maintenance repo
 
-This repo (`~/gpd`) is the single source of truth for how this device is set up. It is a
-dedicated Arch Linux gaming handheld: GPD Win 1 (Atom x7-Z8700 Cherry Trail, 3.7 GB RAM, 58 GB
-eMMC, 5.5" 1280x720 panel that is natively portrait), running sway + shelf (our own frontend, `src/shelf.c`) + RetroArch.
-The user is Robin (they/them).
+This repo (`~/gpd`) is the single source of truth for how the handhelds it covers are set up: Arch Linux
+gaming handhelds running sway + shelf (our own frontend, `src/shelf.c`) + RetroArch. It is in layers
+(docs/repo-layout.md): **common** (repo root; optional parts as `components/<name>/`), **device**
+(`devices/<name>/`), **user** (`users/<name>/`). `~/.config/gpd/host` on each machine names its device,
+user and components (`python3 scripts/layers.py` prints them). README.md is the entry point for others.
+
+Robin's device: GPD Win 1 (`devices/gpd-win1`: Atom x7-Z8700 Cherry Trail, 3.7 GB RAM, 58 GB eMMC, 5.5"
+1280x720 panel that is natively portrait), user layer `users/robin`. Robin uses they/them. Most of the notes
+below (sudo, gotchas) are about that device.
+
+## Where things go
+- The lowest layer that is true for it: something every device and person would want is common (a
+  component's manifest, `src/`, `scripts/`); something about the hardware goes in the device layer; a
+  personal choice (games, emulator settings, Wi-Fi country) in the user layer.
+- Programs never ask which device they run on: they read `~/.config/gpd/device.conf` (the device's
+  `device.conf`, `src/devconf.h`) or detect the hardware, with the GPD Win's values as defaults where
+  detection can't work. A new hardware fact = a new device.conf key, documented in docs/repo-layout.md.
+- Docs follow the same split: hardware findings in `devices/<name>/docs/`, personal notes in
+  `users/<name>/docs/`, the rest in `docs/`. Paths in docs are from the repo root (inside
+  `devices/gpd-win1/{kernel,mesa,dxvk}` they are relative to `devices/gpd-win1`).
 
 ## Rules
 - The repo is cloned on the GPD (`~/gpd`) and the desktop (`~/Code/gpdwin`); both push to
@@ -12,7 +28,8 @@ The user is Robin (they/them).
   `docs/changelog.md` (date, what, why, how to revert) and update the topic doc in `docs/`.
   Commit when a piece of work is done (`git add -A && git commit`), then `git push`
   (remote `origin` = github.com:robinei/gpdwin, deploy key `~/.ssh/id_ed25519`).
-- Files listed in `manifest.tsv` are managed:
+- Files listed in the layers' manifests are managed (`components/*/manifest.tsv`, `devices/<device>/manifest.tsv`,
+  `users/<user>/manifest.tsv`; repo paths relative to the layer; `scripts/sync list` shows all with their layer):
   - `link` entries: the live path is a symlink into the repo. Edit the file in the repo.
   - `copy` entries (root files): edit the live file and run `scripts/sync capture <path>`, or edit
     the repo copy and run `scripts/sync install <path>`.
@@ -25,7 +42,10 @@ The user is Robin (they/them).
     closed, keeping both sides' intended changes, then capture), and apply only after they agree.
     Ignore pure churn (recent-file lists, window positions) in the explanation but still capture it.
     To change a setting yourself: edit the live file with the program closed, then capture.
-  - New config you create: add it to `manifest.tsv` (`scripts/sync adopt` moves+links user files).
+  - New config you create: add it to the right layer's manifest (`scripts/sync adopt` moves+links user files),
+    and new packages/services to that layer's `packages.txt`/`services.txt` (`scripts/sync packages|services`).
+  - Templates: a copied file containing `@USER@` or `@ROOT_UUID@` gets the user name / root UUID on install;
+    edit those in the repo (capture skips them).
   - `scripts/sync check` must report no drift when you finish.
 - Never store passwords or keys in the repo.
 - Keep docs factual and current; remove things that are no longer true rather than appending
@@ -65,15 +85,15 @@ The user is Robin (they/them).
 - The device is `gpdwin.lan`, the desktop `desktop.lan`. Firewall is on (nftables): new
   listening services need a rule in `system/etc/nftables.conf`.
 - **"Sound is gone/broken" → first check `modinfo -n snd_soc_rt5645`**: it must be under `.../updates/dkms/`
-  (our patched audio modules, DKMS package `gpd-audio`, `kernel/`, docs/hardware.md "Audio after
+  (our patched audio modules, DKMS package `gpd-audio`, `devices/gpd-win1/kernel/`, devices/gpd-win1/docs/hardware.md "Audio after
   hibernation"). The stock modules lose the sound after every hibernate (codec/DSP not restored);
   if they are in use (kernel update whose DKMS build failed: `dkms status`), reboot into patched ones
   after fixing the build. Otherwise run `scripts/audio-speaker` (no sudo; forces the speaker profile
   and default sink, `auto` undoes it) for a falsely reported headphone plug.
 - **Mesa is our own build**: packages `mesa-gpd`, `vulkan-intel-gpd`, ... (+ `lib32-`), provide/conflict Arch's
-  names so repo updates don't touch them (docs/packages.md "Own Mesa", `mesa/README.md`). `scripts/aur check`
-  says REBUILD when Arch is newer: update `mesa/PKGBUILD` from Arch's, `mesa/build.sh` (+ `lib32`) on the desktop
-  (needs desktop sudo), `mesa/install.sh` on the GPD. **"Display flashes/splits again" → check `pacman -Q mesa-gpd`.**
+  names so repo updates don't touch them (docs/packages.md "Own Mesa", `devices/gpd-win1/mesa/README.md`). `scripts/aur check`
+  says REBUILD when Arch is newer: update `devices/gpd-win1/mesa/PKGBUILD` from Arch's, `devices/gpd-win1/mesa/build.sh` (+ `lib32`) on the desktop
+  (needs desktop sudo), `devices/gpd-win1/mesa/install.sh` on the GPD. **"Display flashes/splits again" → check `pacman -Q mesa-gpd`.**
   hasvk (Vulkan) uses softpin with our 32-bit address layout since 1.11 (real Vulkan 1.3): a Vulkan game that breaks →
   try `HASVK_USE_RELOCATIONS=1` in its launcher (old relocation driver, Vulkan 1.2; then `hasvk_report_vk_1_3_version=true` for DXVK 2.x).
 - Never unload/unbind the sound codec at runtime (`rmmod snd_soc_rt5645`, unbinding `i2c-10EC5645:00`):
@@ -89,20 +109,26 @@ The user is Robin (they/them).
   have CRLF line endings (`/opt/zelda3-git/zelda3.ini`), so `sed` patterns ending in `$` miss.
 
 ## Map
-- `docs/hardware.md` quirks and fixes · `docs/power.md` sleep/idle/battery/turbo ·
-  `docs/boot.md` boot chain and timings · `docs/desktop.md` sway/bar/OSD/terminal ·
+- `devices/gpd-win1/docs/hardware.md` quirks and fixes · `devices/gpd-win1/docs/power.md` sleep/idle/battery/turbo ·
+  `devices/gpd-win1/docs/boot.md` boot chain and timings · `docs/desktop.md` sway/bar/OSD/terminal ·
   `docs/frontend.md` shelf, RetroArch, games · `docs/packages.md` package set and AUR policy ·
-  `docs/steam-library.md` owned DRM-free Steam games, tiered for this device ·
+  `users/robin/docs/steam-library.md` owned DRM-free Steam games, tiered for this device ·
   `docs/saves.md` save locations GPD/desktop ·
   `docs/ideas.md` not done yet · `docs/changelog.md` history ·
-  `docs/archive/` the original logs this repo was built from.
-- `scripts/`: `sync` (manifest), `aur` (review/build), `update` (manual updates), `games`
+  `devices/gpd-win1/docs/archive/` the original logs this repo was built from.
+- `scripts/`: `sync` (manifests, packages, services), `layers.py` (which layers: host file), `aur` (review/build), `update` (manual updates), `games`
   (game installer UI, `gamelib/`),
   `maintain` (Claude maintenance launcher), `news`, `fetch-boxart.py`.
 - `src/`: single-file C programs (`statusbar` = swaybar status line, `inputd` = Menu key, pad activity, lid, power button),
   built to `~/.local/bin` by `scripts/sync install` (manifest `build`). See docs/desktop.md.
 - `aur/`: `reviewed.tsv`, `pkgbuilds/` (vendored build files), `patches/` (our changes).
 - `.claude/commands/maintain.md` is the routine maintenance procedure (`/maintain`);
-  `.claude/commands/aur-add.md` installs a new AUR package the reviewed, vendored way (`/aur-add`).
+  `.claude/commands/aur-add.md` installs a new AUR package the reviewed, vendored way (`/aur-add`);
+  `install.md` installs everything on a device booted from the Arch ISO (`/install`); `port-device.md` adds a
+  device layer (`/port-device`); `setup-game.md` tunes one game (`/setup-game`).
+- `components/<name>/`: what each optional part installs (base, desktop, inputd, shelf) and its sway snippet.
+- `devices/gpd-win1/`: README (what is fixed), `device.conf`, manifest, `docs/` (hardware, power, boot,
+  archive), `kernel/`, `mesa/`, `dxvk/`. `users/robin/`: manifest, `pegasus/` collections, emulator settings
+  (`dotfiles/`), `games/` (saves.json, steam-library.json), `docs/steam-library.md`. `users/example/`: template.
 - `desktop/`: tools that run on the Linux desktop (clone in `~/Code/gpdwin` there), e.g.
   `steam-cloud-status`. Not used on the GPD.

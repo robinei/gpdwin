@@ -1,0 +1,351 @@
+# Hardware
+
+GPD Win 1 (2016): Atom x7-Z8700 (Cherry Trail, 4 cores, 1.6 GHz), 3.7 GB RAM, 58 GB eMMC,
+5.5" 720x1280 DSI panel (portrait native), AMI Aptio BIOS 5.11 (Delete key, or Utilities
+"BIOS Setup"). 64-bit UEFI.
+
+| Part | Driver | Firmware / notes |
+|---|---|---|
+| GPU (HD Graphics, CHV) | i915 | none needed; Mesa GL 4.6 |
+| Wi-Fi BCM4356 (PCIe) | brcmfmac | `linux-firmware-broadcom`: `brcmfmac4356-pcie.bin` + `brcmfmac4356-pcie.gpd-win-pocket.txt` |
+| Bluetooth BCM4356A2 (UART) | hci_uart_bcm | patch `brcm/BCM4356A2.hcd` missing (not in repos). Radio rfkill-blocked. |
+| Audio RT5645 | intel_sst_acpi (legacy SST, not SOF) | `linux-firmware-intel` (`intel/fw_sst_22a8.bin`), `alsa-ucm-conf`. Kernel detects "GPD Win / Pocket platform". |
+| Gamepad | xpad | `Microsoft X-Box 360 pad` (045e:028e), Guide = BTN_MODE (316). Only in gamepad mode; the hardware switch's other mode is "Mouce for Android" (0079:1a00), where Guide sends nothing and A sends KEY_DOWN (tested 2026-10-10), so the pad in shelf needs gamepad mode. The keyboard's Menu key (bottom right) sends KEY_COMPOSE (127) |
+| Touchscreen | Goodix | works, rotation correct |
+| Accelerometer | kxcjk1013 | unused |
+| Battery / charger | max170xx_battery, bq24190-charger | `capacity`, `status`; charger `online` = 1 on power |
+
+## Fixes
+| Problem | Fix | Where |
+|---|---|---|
+| Backlight: `Failed to get the SoC PWM chip`, no `intel_backlight` | load LPSS PWM before i915 | `MODULES=(pwm-lpss-platform i915)` in `/etc/mkinitcpio.conf` |
+| Portrait panel | console and sway rotation | kernel `fbcon=rotate:1`; sway `output DSI-1 transform 90` |
+| RetroArch fullscreen at 720x1280 | it reads the panel's native mode | `video_fullscreen_x/y = 1280/720` |
+| Suspend aborted: `xhci_hcd ... hcd_pci_suspend returns -16` | disable wakeup on the USB3 controller (pad/keyboard can't wake it; the power button still does) | `/etc/udev/rules.d/90-xhci-no-wakeup.rules` |
+| Backlight at minimum after hibernate resume | save/restore around sleep | `/usr/lib/systemd/system-sleep/backlight` |
+| Charging stuck at 500 mA after hibernate (firmware resets PMIC charger registers) | save/restore them around sleep | `/usr/lib/systemd/system-sleep/pmic-charger` |
+| Previous install froze after resume | not seen since the xHCI fix: 5/5 s2idle cycles, lid suspend-then-hibernate, plain hibernate all fine | — |
+| Wi-Fi regulatory domain missing (`regulatory.db failed`) | `wireless-regdb` + country | `/etc/modprobe.d/cfg80211.conf`: `ieee80211_regdom=NO` |
+
+## Known harmless kernel messages
+- Hibernate: `i2c i2c-5: Transfer while suspended` + WARNING trace in `__i2c_smbus_xfer`, then
+  `ACPI Error: Aborting method \_SB.P18W._ON`. Firmware powers a rail via the PMIC before the
+  I2C bus is resumed. Resume works.
+- `cherryview-pinctrl INT33FF:04: probe ... failed with error -61`, `intel-hid: failed to enable
+  HID power button`, `supply ... not found, using dummy regulator`, `hpet`, `esrt`, `TDX`.
+- brcmfmac: `no txcap_blob available`, `brcmf_p2p_send_action_frame: Unknown Frame`.
+- After hibernate: `usb ...: WARN: invalid context state for evaluate context command`.
+- Bluetooth: `BCM: firmware Patch file not found`. (gone since 2026-10-11: Bluetooth modules blacklisted, docs/packages.md)
+
+## Display
+- Only mode: 720x1280 @ 60.253 Hz, rotated to 1280x720. ~267 ppi, sway scale 1.
+- A game's fullscreen switch sometimes leaves the picture split (bottom half on top); seen with
+  DevilutionX, Zelda 3 and Sam & Max (2026-10-09, also with red/blue swapped; it persisted into
+  the frontend after the game quit). It is in the display engine, after the compositor: a `grim`
+  screenshot of the same moment looked normal. Fix: `Mod4+F10` (`dotfiles/sway/screen-reset.sh`:
+  output power off, 2 s, power on); `swaymsg 'output DSI-1 power off'` then `power on` does the same
+  remotely. Root cause unknown (panel/DSI resync after a mode or buffer change). Not specific to
+  Wine/DXVK/Vulkan: native SDL games do it too (DevilutionX: SDL2, X11 via Xwayland, OpenGL/GLX).
+  - What it is (2026-10-09 session): the kernel's view is identical in good and bad state (same
+    plane, fb 140 XR24 X-tiled, rotation 0, no kernel messages, `grim` fine). The only difference
+    found is the DSI controller's `MIPI_INTR_STAT` (`0x18b804`) with bit 20 `DPI_FIFO_UNDERRUN` set
+    (0x40300000 vs 0x40200000); a panel power cycle clears it (modeset). The bit is a sticky latch,
+    so it doesn't say "bad right now". Other differing registers (`0x1e1708`, `0x1e170c`, ...) are
+    noisy, not indicators. Correlated with heavy GPU load (Sam & Max first room ~20 fps; worse with
+    CPU turbo off). Underrun log at 10:41, 10:50, 10:57 matched glitch sessions; none in 17 clean min.
+  - Ruled out (tested): direct scanout (every fb on the plane is allocated by sway), GPU runtime
+    PM / RC6 (held awake with `i915_forcewake_user`), CPU deep C-states (`/dev/cpu_dma_latency` 0),
+    GPU frequency changes (pinned 400 MHz via `rps_min_freq_mhz`), the game's own mode switching
+    (Wine virtual desktop), GPU hangs/resets (`i915_wedged` 0, error state empty), `max_render_time`
+    (inconclusive), FBC/PSR/DMC (not present on this chip/DSI). Not tested: memory pressure/bandwidth
+    as the cause, kernel DSI tracing, a different kernel.
+  - Register poking notes (2026-10-09): `intel_reg` needs a read-write mapping of
+    `/sys/bus/pci/devices/0000:00:02.0/resource0` (keep it `0600`; a `0440` rule breaks it even for root).
+    Display registers read `0xffffffff` (and the kernel logs "Invalid mmio detected during user access")
+    while the output is powered off. DSI port C control, by the driver headers (`vlv_dsi_regs.h`,
+    `_MIPI_PORT(port, a, c)`), is `0x1e1700` (VLV display base `0x180000` + `0x61700`) but it reads 0
+    in every state although the panel works: known hardware quirk, DPI_ENABLE never reads back on VLV/CHV port C
+    (driver comment in `vlv_dsi.c` `get_hw_state`; audit 2026-10-09). `0x1e1708`/`0x1e170c` change between reads and
+    are not defined anywhere in i915. Do NOT write DSI registers (e.g. a `DPI_ENABLE` toggle to
+    test "host vs panel") until the real control register is identified. Driver sequence for reference:
+    enable = DPI `TURN_ON` command, 100 ms, panel DISPLAY_ON, then `DPI_ENABLE` in the port control;
+    disable = `SHUTDOWN` command, port control `DPI_ENABLE` cleared.
+  - **REFUTED 2026-10-09 15:39 for the desync:** a persistent desync happened in the fresh-boot state, with
+    `0x18b810` = `0x3fffff` (read-only logger: unchanged since boot, no modeset), so the truncated
+    timeout below is NOT what makes the picture desync. Underruns/flashes also occur with the long value (15:31:43).
+    The `u16` truncation is still a real driver bug (worth reporting upstream) but apparently harmless here.
+    Still unknown what makes some underruns persistent. Everything below up to "Live register writes" is the
+    original (wrong) theory, kept for the facts (VBT decode, register arithmetic).
+  - **Probable root cause found in the driver (2026-10-09), untested:** `vlv_dsi.c` programs
+    `MIPI_HS_TX_TIMEOUT` (0x18b810, "recovery" timer: one frame in byte clocks for non-burst video mode)
+    with `txbyteclkhs(vtotal * htotal, ...)`, whose pixel argument AND return value are `u16`.
+    774 x 1308 = 1,012,392 px wraps to 29,352, so the register is 22,015 (`0x55ff`, exactly what the
+    hardware shows) instead of ~759,295 (`0xb95ff`): a ~0.5 ms timeout instead of one 16 ms frame
+    (upstream master still has the `u16`). The VBT (`i915_vbt` in debugfs, decode with `intel_vbt_decode`)
+    says: MIPI port C, 4 lanes, RGB888, **non-burst with sync events** (no slack), clock stop off, EOT on,
+    HSTxTimeOut 0x3fffff (ignored for non-burst), panel init = Jadard-type (E1/E2/E3 unlock, sleep out,
+    lane setting 0x03, display on), reset on GPIO 72, backlight on GPIO 70. The comment in the driver says
+    that when the counter expires the controller ends the HS transmission (EOT, stop state), so with the
+    truncated value this happens many times per frame (consistent with `MIPI_INTR_STAT` bit 21
+    HS_TX_TIMEOUT always set); each forced restart leaves a gap that non-burst mode cannot absorb, the DPI
+    pixel FIFO underruns (bit 20) under load, and a stop/restart can leave the stream misaligned.
+    **Live register writes are NOT safe (tried 2026-10-09, DON'T repeat):** writing `0x18b810` = `0xb95ff` and
+    then clearing the latch/bit 21 in `0x18b804` on the running system was followed within a minute by
+    `[CRTC:86:pipe B] flip_done timed out` (pipe stalled) and a hard lock (black screen) when suspend started; only a
+    hard reset recovered. Also: a **fresh boot has `0x18b810` = `0x3fffff`** (the VBT value, left by the firmware: no
+    DSI modeset has run yet); the truncated `0x55ff` appears only after the driver's first modeset (screen
+    power off/on, resume, Mod4+F10, a mode change). Read-only check of the theory: does the glitch rate differ
+    between the fresh-boot state and after the first modeset? (`~/.cache/gpd/glitchlog/watch.py` logs the register).
+    The reliable test is the patched driver (below), loaded through a reboot with a way back.
+    Fix: `devices/gpd-win1/kernel/i915/0001-*.patch` (u32 + 64-bit multiply), to send upstream (draft, not sent).
+  - **Driver audit (2026-10-09, desktop, `devices/gpd-win1/kernel/dsi-investigation/FINDINGS.md`)**: every DSI register equals the driver's
+    arithmetic and the GOP programs the same values at fresh boot (only HS_TX_TIMEOUT differs). The pipe's own FIFO
+    never underruns (reporting is on in every state, no message): only the DSI controller's DPI FIFO does, so the
+    problem sits between pipe output and the DSI serializer, not memory bandwidth/watermarks (cleared). Port C control
+    reading 0 is a known hardware quirk (DPI_ENABLE never reads back on VLV/CHV port C), not a mapping error.
+    cdclk is **266667 kHz** (fresh boot and after modesets). Upstream fixed the same symptom on sibling chips twice:
+    `c8dae55a8ced` (Bay Trail DSI: picture shifted with wraparound and wrong colors at cdclk 266667, needs >= 320000;
+    applied to Valleyview only, not Cherry Trail) and `f90e8c36c886` (Broxton split screen with cycled colors: DPI FIFO
+    not flushed at frame end, `EOT_DISABLE` bit 9). Neither is proven for CHV; the cdclk one was tested (patch 0002) and showed no improvement.
+  - **Current state (2026-10-10): patched i915 as DKMS package `gpd-i915`** (`devices/gpd-win1/kernel/i915/install-dkms.sh`,
+    patches 0001+0011+0012+0013+0014(off)+0015+0016+0017): every DPI underrun is logged (`journalctl -k | grep DSI`) and a lone
+    underrun (= a split) triggers an automatic resync (one dark frame instead of a lasting split); flashes
+    still happen. The dkms pacman hook rebuilds it for every new kernel on the device: it downloads that
+    kernel's source from kernel.org (+ Arch's i915 changes), applies the patches and compiles (**634 s on the
+    Atom**). If that fails (patch no longer applies, download), DKMS installs nothing and the stock i915 is used.
+    `scripts/update` and `/maintain` warn before a kernel update and offer to hold the kernel.
+    Boot menu (hold Space at power-on): **Arch Linux** = patched; **Arch Linux (stock)** = initramfs with Arch's own modules
+    (`/usr/local/bin/gpd-stock-initramfs`, rebuilt by `95-gpd-stock-initramfs.hook` after kernel/DKMS changes;
+    stock i915, the audio modules still come patched from disk). Remove the patch: `devices/gpd-win1/kernel/i915/uninstall-dkms.sh`.
+  - **Trigger found (2026-10-11):** the flashes come ~0.5 ms after a GPU batch that follows a CPU upload of a texture
+    from a Mesa (crocus) snooped staging buffer, which the SDL `opengl` renderer causes every frame by a format mismatch,
+    and sway when a shared-memory client's texture is still busy; details `devices/gpd-win1/kernel/dsi-investigation/reports/R4-upload-path.md`). Reproducer `devices/gpd-win1/kernel/dsi-investigation/scripts/burst.c`: 66 events/10 min with upload only, 0 with
+    SDL's `opengles2`, `vulkan` or `gpu` renderer. Not GPU frequency/RC6, not memory self-refresh (0019). Hellfire with
+    `SDL_RENDER_DRIVER=opengles2` played 7-15 min without an underrun (test only, launcher reverted; workaround for SDL
+    games: set that variable). Candidate Mesa fix (no snooped staging on CHV) in R4, not implemented.
+  - **Root-cause tracing (2026-10-11, patch 0018, test entry only):** the pauses start mostly late in the frame
+    (FINDINGS.md "Frame position of the underruns"). To see what happens just before them: boot the one-shot test entry
+    (`i915.vlv_dsi_ur_irq=1`, underruns timed by the MIPI interrupt; log lines say "(irq, N us before the poll)", and
+    "DSI MIPI interrupt armed" once), then `sudo systemd-run --unit=dsi-trace python3
+    ~/gpd/kernel/dsi-investigation/scripts/dsi-trace.py` and play (~1 h for ~30 events); stop with `sudo systemctl stop
+    dsi-trace`; copy `/var/tmp/dsi-trace` to the desktop and run `scripts/dsi-trace-analyze.py DIR`.
+  - **Split that stayed 22 s (2026-10-11, patch 0017):** a lone underrun 0.6 s after a resync fell inside the 2 s
+    resync rate limit and was dropped, not retried; a stall realigned it by chance. 0017 defers it to the end of the gap
+    (log: "DSI resync rate limited, deferred"), so such a split lasts ~2 s at most. Log: `devices/gpd-win1/kernel/dsi-investigation/data/split-2026-10-11-1507.log`.
+  - **Display dead after screen-on (2026-10-10, patch 0015):** screen-on by the power button after the output had been off for
+    a while: "vblank wait timed out on crtc 1", then `flip_done timed out`; no picture, sway hung. Not the DSI link: the
+    pipe kept running, but `VLV_IER` (display interrupt enable) was 0. Stock i915 race: the CHV irq handler saves and
+    restores `VLV_IER` without the lock that the display power well enable uses, so a GT interrupt at that moment writes 0
+    back over the new mask. 0015 waits for running handlers after the enable and applies the mask again (and logs
+    "VLV_IER 0x... after display irq enable" when it had been lost). 0016: 0012's vblank FIFO sample stayed queued for the
+    missing vblank, which hung every later commit in `drm_vblank_work_flush_all()` (no timeout); now cancelled after 200 ms.
+    Only a reboot recovered it before. **Verified:** a stress loop (`devices/gpd-win1/kernel/dsi-investigation/scripts/screen-race-test.sh`, screen
+    off/on under GPU load) hits the race in ~5% of screen-ons; with 0015 all 14 of 300 were restored, no timeouts. Details: `devices/gpd-win1/kernel/dsi-investigation/FINDINGS.md`.
+    Note: DKMS moves the replaced stock modules to `/var/lib/dkms/<pkg>/original_module/` (restored on
+    uninstall), so `pacman -Qkk linux` reports them missing; expected.
+    2026-10-12: 0015 reworked after review R6 (a handler starting between the wait and the restore write could still
+    lose the mask): now a bounded synchronize / re-read / rewrite loop; DKMS module srcversion 051DA60BA67259721D07E17.
+  - **Burst mode experiment (0014, in the DKMS build, off by default):** `i915.vlv_dsi_burst_pct=120` on the
+    kernel command line runs the panel in burst mode (link 20% faster, idle between lines = slack against pipe
+    hiccups). One-shot test with a desktop build: `devices/gpd-win1/kernel/i915/install-test.sh ~/i915-burst.ko.zst i915.vlv_dsi_burst_pct=120`. **Tested 2026-10-09 22:53-23:07: the panel works in burst mode (VIDEO_MODE_FORMAT 0x1f, link 440 Mbit/s/lane, 60.15 Hz, picture fine), but the underrun rate did not drop: 9 flashes + 1 lone (resynced) in ~12 min of DevilutionX (~0.8/min; non-burst ~0.5/min). No benefit: the pipe pauses are longer than the ~1 us per line burst slack.** Log: `data/trace-2026-10-09/burst-0014.log`.
+  - **i915 patch tests** (`devices/gpd-win1/kernel/i915/`; history of the experiments. `install-test.sh` now builds its test initramfs from
+    an alternate module tree, so it works next to DKMS): `build.sh` on the desktop builds a module for exactly 7.2.9-arch1-1;
+    `install-test.sh i915-XXXX.ko.zst` on the GPD makes `/boot/initramfs-linux-test.img` + entry
+    `arch-test.conf` and sets it as one-shot for the next boot (5 s menu); the stock entry stays default, so a
+    black screen is fixed by a hard reset. Check after boot: `cat /sys/module/i915/srcversion`, cdclk in
+    `/sys/kernel/debug/dri/1/i915_cdclk_info`. Boot is a fastset (GOP state kept): a patch only takes effect after the
+    first driver modeset, so do one panel reset (Mod4+F10) after boot before testing, with stock too. Keep it: `sudo bootctl set-default arch-test.conf`; remove:
+    `uninstall-test.sh`. A kernel update makes the test entry useless (module is for 7.2.9-arch1-1 only); remove it.
+    Test: play the scenes that glitch (DevilutionX, Zelda 3, Sam & Max) with
+    `sudo python3 devices/gpd-win1/kernel/dsi-investigation/data/watch-readonly-logger.py LOG STOPFILE`; compare time to the first
+    underrun latch after a panel reset (stock: ~1.5-2 min) over several runs, and whether a persistent desync happens.
+    | Date | Module | Result |
+    |---|---|---|
+    | 2026-10-09 | 0002 only (CHV cdclk >= 320000, srcversion 128FFB8FD09197039ED50CD) | Booted fine (fastset keeps GOP cdclk 266667; one panel reset -> 320000, as intended). DevilutionX: underrun latch + a momentary flash 34 s after the reset (16:21:32): **cdclk 320 MHz does not stop the underruns/flashes.** Many more momentary flashes in ~15 min of play; at ~16:35 a split (cdclk verified 320000) that held for several seconds and then recovered on its own; stock splits also sometimes recovered by themselves. **No improvement seen: cdclk is not the cause** (only open: whether never-recovering splits get rarer, not measurable well). Another (small-shift) split at 16:38; register snapshots of both: `devices/gpd-win1/kernel/dsi-investigation/data/split-0002-regs.txt` (identical to the stock bad state). |
+    | 2026-10-09 | 0003 only (CHV `EOT_DISABLE` bit 9 = BXT DPI FIFO flush, srcversion 251C1EC9D5CBEFF7D7D8A09) | Booted fine; after the panel reset `0x18b85c` reads **0** although the driver wrote bit 9 (and 0x55ff shows the modeset ran): port C does not keep the bit on CHV. Test void (module = stock). |
+    | 2026-10-09 | 0004 only (bit 9 in port A `EOT_DISABLE`, read-modify-write, srcversion 48F34CBA904549B308EE021) | Booted fine; after the panel reset port A still reads 0x100 (bit 9 dropped, modeset ran). **CHV has no DPI FIFO flush bit in either port's `EOT_DISABLE`**; void. |
+    | 2026-10-09 | 0004 (= stock behaviour), `trace-logger.py` | **The DSI link paces the pipe**: measured frame period 16.6094 ms = 1308 lines x 582 byte clocks (link, blanking rounded up 13.5 -> 14 each), not 16.5664 ms (pipe clock). Both flashes in 5 min = one-frame pipe stalls in the trace. Details: FINDINGS.md "MEASURED". Next: 0005 (link line 580 <= pipe 580.5). |
+    | 2026-10-09 | 0005 only (blanking rounded down, 13/14/13, srcversion 21CB1E6917839BCF3736715) | Link no longer slower than the pipe (period 16.55-16.565 ms), but **splits still happen** (2 s one; a color-shifted one that held ~1 min and recovered). Not the cause. |
+    | 2026-10-09 | built: 0001+0006 (EOT_DISABLE recovery bits 2-7 off + timeout fix, 45C14B7FA47D302E8C71EED), 0007 (no DDR DVFS on CHV, A8795CD2AEAFA0ABCEAF893), 0008 (frame start delay 4, FD69BDD4F932E50948DC5BE; boot becomes a full modeset) | round 2, `devices/gpd-win1/kernel/dsi-investigation/BRIEF-round2.md` |
+    | 2026-10-09 | 0007 (no DDR DVFS: only WM levels 3/12 us, DSPFW1 0xe93fd200) | DPI underrun 40 s into DevilutionX, two one-frame stalls (period monitor). **DDR DVFS is not the trigger.** |
+    | 2026-10-09 | 0001+0006 (EOT_DISABLE 0xfc recovery actions off, HS_TX_TIMEOUT 0xb95ff; bit 21 no longer latched) | Underrun 27 s into DevilutionX and an immediate color-shifted split that held. **Recovery actions are not the cause.** This underrun had no one-frame stall (game barely flipping, loading): a split can start from an underrun without a stall. |
+    | 2026-10-09 | 0008 (frame start delay 4, TRANSCONF B 0xd8000000; boot = full modeset) | First underrun after ~4.5 min, then one-frame stalls at 18:36:53, 18:40:03, 18:40:55 (+ one 3 ms partial hiccup 18:37:21): 3 flashes in 9 min, about the stock rate: **flash rate unchanged**; then a **held split** around 18:43 (~11 min after 18:32). **No effect.** |
+    | 2026-10-09 | built: 0009 (video-mode BTA enabled: panel error reports visible in MIPI_INTR_STAT, BBDAC278435172071BAA5CC), 0009+0010 (+ MIPI C HS TX delay 13/11 in port A ctrl, from Intel's CHV A0 workaround, 24CA58FBA649FCADAB033F8) | see next row |
+    | 2026-10-09 | 0009 (video BTA on: VIDEO_MODE_FORMAT 0x16) | Panel answers every BTA: MIPI_INTR_STAT bit 24 ACK With No Error, picture fine. Flashes (18:54) and a **held split** (~18:59): only bit 20 (DPI underrun) appeared, **no panel-reported error and no turnaround timeout** (period-0009.log). The panel receives a protocol-clean stream; the byte offset is in what the host sends. 0010 (HS TX delay) therefore not tested. |
+    | 2026-10-09 | 0011 (log every DPI underrun) | Flash = underrun pair (mid-frame, then line 1279) + one-frame stall, realigned 7/7; split = lone underrun, 2/2, lasting until the next pair. Details: BRIEF-round2.md. |
+    | 2026-10-09 | built: 0011+0012 (automatic resync after a lone underrun, design `reports/R3-resync-design.md`, srcversion 3A41309E27DEDD33C435772) | **Oops at the first Mod4+F10** (20:56:58): NULL deref in `drm_vblank_work_cancel_sync` from `intel_dsi_disable`: the boot fastset never ran pre_enable, so the vblank work was never initialized. Patch bug, fixed (disable returns early when the poller was never started). |
+    | 2026-10-09 | 0011+0012 fixed (231829EC8CE686AB2C748DF), resync method 1 | 4 pairs correctly left alone; idle screen off/on fine. **21:17:22 lone underrun -> automatic resync (pipe off 1 frame, FIFO drained, pipe on at 1st attempt, 49 ms): Robin saw a brief flicker and a correct picture** (first split fixed without a panel reset; 1 event). One `drm_WARN_ON_ONCE` in drm_vblank timestamp code during the resync: drm_crtc_vblank_off() zeroes the timestamping constants and the resync did not restore them (coarse vblank timestamps until the next modeset). Fixed in 0012 (intel_crtc_update_active_timings() before vblank on; srcversion 1E4AAD12A719567DC36C767). |
+    | 2026-10-09 21:05-21:33 | same session, totals | **4 lone underruns -> 4 automatic resyncs (21:17:22, 21:24:20, 21:25:01, 21:32:55), each 36-49 ms, pipe back at the first attempt, FIFO drained; Robin saw only brief flickers, never a held split (before: 2/2 lone underruns split).** 9 pairs (flashes) correctly left alone. Each resync is followed by one 'echo' underrun at the next frame (pipe restart), harmless but misclassified as LONE (rate limiter stopped a 2nd resync); to be filtered. Log: `data/trace-2026-10-09/resync-0012.log`. |
+    | 2026-10-09 | built daily candidate 0001+0011+0012(v4: echo filter)+0013 (poller also started on fastset, so no Mod4+F10 needed after boot), srcversion D963898C4BA68A0CF1CA369 | 2026-10-09 22:19: poller started on the boot fastset (no Mod4+F10 needed), detector aligned. **Made the default boot entry** (`bootctl set-default arch-i915test.conf`, menu timeout 3 s). |
+  - Automatic reset tried and REMOVED (2026-10-09): `inputd` power-cycled the output once a second-check
+    saw the underrun bit. It fired 9 times in a day, including during Commander Keen with nothing wrong on
+    screen: the bit is a sticky latch that is set by harmless underruns too, it does not mean "picture
+    broken now". Do not rebuild this on that bit. Manual reset stays (`Mod4+F10`).
+    An automatic detector would need a real "picture is wrong" signal (none found: kernel state, plane
+    registers and screenshots all look normal in the bad state).
+
+## Prior art: ViccRondo/gpd-win1-atomic-gaming (checked 2026-10-07, commit 325f405)
+An atomic Fedora/Bazzite-style GPD Win 1 image (KWin + Steam Gamepad UI). Useful findings:
+- Confirms our xHCI fix: they also disable wakeup on `0000:00:14.0` because of EBUSY in s2idle,
+  and additionally on the internal keyboard device `0603:0002`.
+- Confirms Vulkan 1.2 on this GPU; some old games run with Proton 7 (DXVK 1.10.x era).
+- Their known issue: long/repeated suspend cycles can leave the i915 DSI display black or freeze
+  the machine. Kernel patch `drm/i915/chv: Retry stalled DSI transcoder enable` (resume leaves
+  the transcoder "enabled" but the scanline counter stopped → `flip_done timed out`), plus a
+  watcher (`win1-i915-watch`) that saves i915 debugfs state and force-reboots on
+  `flip_done timed out` / `commit wait timed out` / `vblank wait timed out on crtc`.
+  Our journal had none of these messages across 11 boots (2026-10-07). If they appear: their
+  patch is the lead (needs a custom kernel), and copying their diagnostics capture (without the
+  forced reboot) would help.
+- Kernel args they set without documented reasons: `reboot=pci` (reboot hangs on some GPDs) and
+  `i915.disable_power_well=0` (keeps display power wells on; commonly used against DSI
+  black-screen-after-resume, costs some idle power). Candidates only if we see those problems.
+- Lid wake race: after an open-lid resume, a spurious lid-close event can immediately re-suspend
+  the device; they ignore lid-close events within 8 s of a resume (`win1-lid-event-guard`).
+  Watch for "goes back to sleep right after waking".
+- Coredumps disabled (`Storage=none`) to save eMMC space and time: adopted here too
+  (`/etc/systemd/coredump.conf.d/90-gpd.conf`).
+- The in-session "split picture" (bottom half on top) that we fix with `Mod4+F10` is not covered
+  by their patch (different symptom: ours keeps running, theirs stalls).
+
+## Firmware (checked 2026-10-12)
+- BIOS: American Megatrends 5.11, 2016-10-18 (`/sys/class/dmi/id/bios_*`). Memory (SMBIOS type 17, read from
+  `/sys/firmware/dmi/tables/DMI`): 2 x 2 GB Hynix, 1600 MT/s configured. Package power limit PL1 6 W (devices/gpd-win1/docs/power.md).
+- A "GPD WIN1 original universal BIOS 2016-11-18" circulates (chinafix.com thread 1401335, RAR re-upload, no
+  checksum or author) claiming "memory 1600 MHz + a high-performance option": the memory part is already true
+  here, the rest is undocumented. Not flashed: unclear source, a bad flash needs an external programmer, and our
+  display/PMIC workarounds depend on firmware behaviour. Only with an official source and a backup first.
+
+## Memory map (checked 2026-10-07)
+- 4 GB physical, 3.7 GB `MemTotal`. Firmware keeps ~94 MB: 32 MB graphics stolen memory (DVMT
+  pre-allocated; already minimal), an 18 MB block at 0x1f000000, ACPI/EFI tables. The kernel
+  keeps the rest: page bookkeeping (~64 MB), kernel image, and a 64 MB swiotlb bounce buffer
+  (RAM extends above 4 GB; peak use seen 1.6 MB, so `swiotlb=8192` would give back 48 MB if RAM
+  ever gets tight).
+- The BIOS "512 MB" graphics setting is the GPU aperture (PCI BAR at 0x80000000): address space
+  for CPU access to GPU memory, it costs no RAM. Leave it. GPU buffers come from normal RAM on
+  demand.
+
+## Analog sticks (measured 2026-10-08)
+- The sticks snap to the axes, from the controller firmware: at half deflection only ~14% of
+  samples fell in the diagonal sector (a round stick gives ~41%), i.e. a per-axis dead zone; at
+  full deflection the range is square (diagonals reach both maxima). The kernel adds almost
+  nothing (xpad `flat 128`, `fuzz 16` of +-32768).
+- No firmware update path known for the Win 1 (GPD's tools are Windows-only and for later
+  models). A uinput remapper could only smooth the jump at the threshold; decided to leave it.
+
+## Speaker loudness (2026-10-11)
+- The speaker is quiet even at 100%, but nothing is attenuated: PipeWire uses software volume (100% = full
+  scale), and DAC1, the SST DSP gains and `Speaker ClassD` are all at 0 dB. UCM (`SpeakerEnableSeq.conf`)
+  sets `Speaker Playback Volume` to 31 of 39 (0 dB). Raising it to 39 (+12 dB) or 35 (+6 dB) distorted
+  heavily: the speakers themselves are the limit, so it stays at 31.
+- Instead, a compressor on the speaker only (`devices/gpd-win1/dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf`):
+  300 Hz high-pass, swh-plugins `sc4` (RMS, threshold -30 dB, 4:1, 1.5 ms attack, +3 dB makeup), limiter at -5 dB
+  (tuned by ear with Super+C, 2026-10-11). The fast attack was the key: it catches the sharp transients the
+  speakers distort on, so the ceiling no longer has to be low (an earlier -20 dB ceiling with 9:1 was clean too,
+  but much quieter).
+  Stronger settings (+12 dB, 150 Hz) made DevilutionX's bass-heavy, hissy audio distort; even plain full scale
+  distorts on loud treble, so the top of the volume range is the speakers' limit (lowering the ceiling to -10 dB
+  didn't fully fix it).
+  It is a WirePlumber smart filter bound to `HiFi__Speaker__sink`: the headphones are a separate sink
+  (`HiFi__Headphones__sink`), so they and Bluetooth bypass it. The volume (`@DEFAULT_AUDIO_SINK@`, still the
+  speaker sink) applies after the compressor. Costs ~40 µs per audio cycle. Tune by editing the controls and
+  `systemctl --user restart pipewire`, or live with **Super+C** while a game plays (`scripts/speaker-tune`: arrows
+  select/change, b bypass, s save into the config, r revert, Esc done; the game keeps focus); off: delete the file
+  (and its manifest line).
+
+## Audio after hibernation (2026-10-08, solved 2026-10-09)
+- After waking from hibernation the rt5645 codec reported headphones (and mic) plugged in with
+  nothing in the jack, the speaker was silent and the headphones gave static. Cause and fix: below.
+  What did NOT work: a real s2idle suspend; rebinding the codec or reloading the sound modules on a
+  running system (hangs the kernel, `rmmod` stuck in D state until reboot); plugging a jack in and
+  out (only helped when the driver's jack interrupt happened to be on).
+
+### Audio broken after hibernate: codec not restored (kernel driver bug, 2026-10-09)
+- Symptoms after any hibernate: speaker silent although the whole path is powered and unmuted,
+  headphones give static instead of sound, plugging/unplugging does nothing (the `chtrt5645 Headset`
+  input switch stays "headphone+mic inserted"). `scripts/audio-speaker` only fixes routing; a
+  reboot, or reloading the sound card (below), fixes it. Not an aborted hibernate: the machine
+  really powers off and resumes (the `acpi_resume_power_resources` / `P18W._ON` warning and "i2c
+  Transfer while suspended" in the log are a separate, harmless resume-path error: P18W is a PMIC
+  1.8 V rail for the SD controller/cameras, not the codec; the codec's only power resource is CLK3).
+- Root cause, shown with a trace of the whole hibernate (events `power:device_pm_callback_*` and
+  `regmap:*` filtered to the codec, see below): the codec loses power; on `[restore]` the driver
+  (`rt5645_sys_resume`) runs `regcache_sync()`, which writes ~30 registers but skips (a) registers
+  whose cached value equals the reset default in its defaults table (it assumes a freshly reset
+  chip), and (b) volatile registers, which are not in the cache at all. Probe does a one-time setup
+  that falls in exactly those groups and is never redone: `init_list` (private registers
+  `PR_BASE+0x3d/0x1c/0x20/0x21/0x23`, the amp/analog settings, plus `ASRC_4` `0x8a` = `0x0120`,
+  which the cache already holds as its default so the sync skips it while the chip powers up with 0)
+  and the jack detection setup (`IRQ_CTRL2` `0xbd`, `A_JD_CTRL1`). Consequences: static through the
+  headphones, a silent speaker, and with `0xbd` = 0 no jack interrupt ever fires, so the jack state
+  is frozen at "inserted".
+  Evidence: codec registers via `/sys/kernel/debug/regmap/i2c-10EC5645:00-nocache/registers`
+  (`0bd: 0000`, `08a: 0000` after, `0280` / `0120` before) and `scripts/audio-snapshot`.
+- Second bug, in the sound DSP driver (Intel SST, `snd_intel_sst_core`): `intel_sst_pm` only has
+  `.suspend/.resume/.runtime_suspend`, so hibernate's `.freeze/.thaw/.poweroff/.restore` do nothing
+  for it (trace: `[freeze]`/`[restore]` return at once). The DSP firmware is neither saved nor
+  restored; when the DSP was not runtime-suspended at hibernate time the driver believes the
+  firmware runs after the power loss and every IPC times out (`sst: Busy wait failed`, `Wait timed-out
+  condition:0x0, msg_id:0x1 fw_state 0x3`, `fw returned err -16`, `ASoC: PRE_PMD: pcm0_in event
+  failed: -16`), `pw-play` hangs, nothing sounds. Idle-DSP hibernates happen to work (state RESET
+  -> firmware reloaded on first use), which is why the static-noise case was seen first.
+  Patch: `devices/gpd-win1/kernel/intel-sst/` (9 changed lines of `sst.c`: map the four callbacks to the existing
+  suspend/resume handlers) (built by `devices/gpd-win1/kernel/prepare.sh`).
+- Workaround that works without a reboot: stop PipeWire/WirePlumber, `modprobe -r
+  snd_soc_sst_cht_bsw_rt5645` (also unloads the codec), `modprobe snd_soc_sst_cht_bsw_rt5645`, start
+  PipeWire (re-probes the codec; stop PipeWire first, unbinding with the card open hung the kernel once).
+  Writing only the lost registers (`0xbd`, `0x8a`, `0x83`, `0xf8`) with `i2ctransfer -f -y 1 w3@0x1a REG HI LO`
+  fixed the jack but not the sound (private registers can't be read back).
+- Live module swapping is not safe (2026-10-09): replacing `snd_soc_rt5645` by `insmod` of the patched
+  module while the machine was running hung twice. Unloading the codec waits in `rt5645_i2c_remove` ->
+  `cancel_delayed_work_sync(jack_detect_work)` forever (`rmmod` in D state), after the kernel oops'd in
+  `rt5645_jack_detect_work` (page fault in `mutex_lock`, the DSP was wedged and the work hit
+  `PRE_PMD ... event failed: -16` errors). Only a reboot clears it. So test the patches by installing them
+  in `/usr/lib/modules/$(uname -r)/updates/` (or DKMS) and rebooting.
+- Proper fix: `devices/gpd-win1/kernel/rt5645/` (patch against the 7.2.9 `sound/soc/codecs/rt5645.c`):
+  a `.restore` PM handler that soft-resets the codec, redoes the one-time setup of probe (now
+  `rt5645_hw_init()`, used by probe and restore) and then resyncs the cache. v1 only redid the jack
+  setup: the jack worked after a real hibernate (trace: `0xbd` rewritten) but `0x8a` and the private
+  registers were still lost, hence v2. `devices/gpd-win1/kernel/prepare.sh` builds the tree. Status: installed via DKMS and proven
+  (2026-10-09): after a real hibernate/resume with the DSP active (tone playing just before) the codec registers
+  are back (`0xbd` = `0x0280`, `0x8a` = `0x0120`), no SST errors, sound plays, the jack state is right, no
+  reload needed; worth sending upstream (alsa-devel; both patches carry commit messages) (alsa-devel, Realtek
+  rt5645 maintainers) once it is proven.
+- Installing the patches: `devices/gpd-win1/kernel/install.sh` (sudo): `devices/gpd-win1/kernel/prepare.sh` assembles
+  `devices/gpd-win1/kernel/dkms-tree/gpd-audio-1.0/` (pinned upstream 7.2.9 sources of `rt5645.c` and the Intel atom
+  SST driver, sha256-checked, our two patches applied, Kbuild Makefiles, `dkms.conf`), which is copied
+  to `/usr/src/gpd-audio-1.0` and installed with DKMS (`dkms` + `linux-headers`, official repo) into
+  `/usr/lib/modules/<kernel>/updates/` (depmod prefers it: search order `updates extramodules
+  built-in`). The dkms pacman hook rebuilds it on every kernel update, so no manual step; if a build
+  fails the stock modules stay (sound works, the hibernate bug is back). Then reboot (never
+  load/unload the sound modules live). `devices/gpd-win1/kernel/uninstall.sh` reverts. The sources are pinned (`V=` in
+  `devices/gpd-win1/kernel/prepare.sh`) and compiled against whichever kernel is installed, so after a kernel update
+  they are still the old kernel's driver code: `/maintain` re-pins them on every kernel update
+  (`devices/gpd-win1/kernel/prepare.sh --repin <version>`, then `devices/gpd-win1/kernel/install.sh`). The patches must apply exactly
+  (`--fuzz=0`), here and in the i915 DKMS build; one that only fits loosely fails instead of landing
+  in the wrong place. Best long-term: upstream.
+- Reproduce and trace: `sudo systemctl hibernate`, power on, compare `scripts/audio-snapshot`
+  dirs. Tracing: `/sys/kernel/tracing/events/regmap/{regmap_reg_write,regcache_sync,regmap_cache_only}`
+  with filter `name == "i2c-10EC5645:00"` and `events/power/device_pm_callback_{start,end}` with
+  `device ~ "*10EC5645*" || device ~ "*808622A8*" || device ~ "*cht-bsw*"`.
+- Loudness check without ears: play a 440 Hz tone at 100% and record the internal mic
+  (`pw-record --target alsa_input.platform-cht-bsw-rt5645.HiFi__Mic__source`): -31.0 dBFS on 2026-10-09
+  after a card reload (compare after changes). The reported volume looked "low" after the reload; all
+  codec/DSP gain registers equalled the pre-hibernate ones, cause not found.
+
+### Quick fix: `scripts/audio-speaker` (2026-10-09)
+- Recurred on 2026-10-09 with no plug/unplug by anyone: stale "headphones plugged in" since the
+  hibernate attempt at 22:42 the evening before (the hibernate aborted and the system resumed).
+- Try first: `scripts/audio-speaker`. It selects the card profile `HiFi (Mic, Speaker)` (the
+  profile list is not filtered by jack state) and makes the speaker sink the default. Same as
+  `pactl set-card-profile alsa_card.platform-cht-bsw-rt5645 "HiFi (Mic, Speaker)"`. Sound came
+  back immediately. `scripts/audio-speaker auto` restores the normal profile (use after really
+  plugging in headphones). Lasts until reboot/next profile reset.
+- Diagnosis (what does NOT work): a real s2idle suspend (`rtcwake -m freeze -s 10`) does not clear
+  it; the driver re-runs jack detect on resume and still gets "jack in". The codec's own status
+  register says plugged: `INT_IRQ_ST` (0xbf) = 0x0880 with bit 0x1000 clear = jack in; `IRQ_CTRL2`
+  (0xbd) reads 0. Read with `sudo grep -E '^0(bd|bf):' /sys/kernel/debug/regmap/i2c-10EC5645:00-nocache/registers`.
+  Input switch state: `chtrt5645 Headset` (event18) SW bits 2 and 4 set (headphone+mic insert).
+  IRQ injection is unavailable (no /sys/kernel/debug/irq); there is no userspace way to re-trigger
+  the jack work except the unsafe codec unbind. Root cause unknown (chip vs stuck jack contact).

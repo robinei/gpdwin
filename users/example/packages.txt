@@ -1,0 +1,5 @@
+# Your own packages (official repos), installed with the rest by the install playbook.
+retroarch
+retroarch-assets-ozone
+libretro-core-info
+libretro-snes9x

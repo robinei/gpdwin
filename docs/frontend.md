@@ -87,8 +87,8 @@ source at the installed commit).
 
 ## Collections
 One directory per collection under `~/Games`, each listed in `~/.config/pegasus-frontend/game_dirs.txt`
-(`dotfiles/pegasus-frontend/game_dirs.txt`), each with `metadata.pegasus.txt`:
-- `pc` (repo `pegasus/pc`): native games. A game needs a `file:`, so each game has a small launcher
+(`users/robin/dotfiles/pegasus-frontend/game_dirs.txt`), each with `metadata.pegasus.txt`:
+- `pc` (repo `users/robin/pegasus/pc`): native games. A game needs a `file:`, so each game has a small launcher
   script (`diablo.sh`, `hellfire.sh`, `zelda3.sh`). Shortname `pc` gives the IBM logo (wanted).
 - `snes` (ROMs, not in the repo; its metadata is a `copy` entry): launch
   `retroarch -f -L /usr/lib/libretro/snes9x_libretro.so "{file.path}"`.
@@ -104,14 +104,14 @@ One directory per collection under `~/Games`, each listed in `~/.config/pegasus-
 - `ngc` (ISOs, not in the repo; metadata is a `copy` entry): `shortname: gc` (logo), standalone Dolphin
   (`dolphin-emu`, Arch package): `env QT_QPA_PLATFORM=xcb dolphin-emu -b -e "{file.path}"` (Dolphin doesn't
   support Wayland rendering; `-b` quits Dolphin when the game stops). Name ISOs as in Redump
-  (`Legend of Zelda, The - The Wind Waker (USA).iso`). Config `dotfiles/dolphin-emu/` (`keep` entries):
+  (`Legend of Zelda, The - The Wind Waker (USA).iso`). Config `users/robin/dotfiles/dolphin-emu/` (`keep` entries):
   Vulkan, 1x, 16:9, shader compilation "skip drawing" (no stutter, brief missing effects), VSync off,
   SDL pad mapped by position (A/B/X/Y, Z = right shoulder, L/R = triggers, C-stick = right stick), Esc
   stops. Wind Waker: Dolphin's own widescreen Gecko code and "Remove Distance Blur" enabled
   (`~/.local/share/dolphin-emu/GameSettings/GZLE01.ini`). Tried 2026-10-12: the save-state keys
   (Shift+F1..F8) didn't reach Dolphin and sway's workspace keys didn't work while it was focused
   (cause not found yet). No speed figure yet: the test ended when the device overheated
-  (docs/power.md).
+  (devices/gpd-win1/docs/power.md).
 - `utils` (repo `pegasus/utils`, `x-shelf-kind: tools`): tools in `tools/*.sh`, 512x512 icons in
   `media/` (#11111b / #1e1e2e / #45475a / #89b4fa, DejaVu Sans Bold labels; keep them 8-bit).
   Terminal tools run `foot --app-id=shelf-tool`, fullscreen like everything on workspace 1.
@@ -141,7 +141,7 @@ when it's no longer wanted.
   (OpenGL 94%, threaded software 88%) both fell below full speed. Unthrottled fps can't be
   compared here (sway paces frames at ~60 even with vsync off), so CPU time is the measure. Beetle PSX
   (`libretro-beetle-psx`) was uninstalled after this; SwanStation was only tested.
-- Config `~/.config/retroarch/retroarch.cfg` (repo copy in `dotfiles/retroarch/`):
+- Config `~/.config/retroarch/retroarch.cfg` (repo copy in `users/robin/dotfiles/retroarch/`):
   `config_save_on_exit = false` (save from the menu explicitly). The manifest entry is `keep` (since
   2026-10-11): `scripts/sync install` never overwrites the saved settings (it used to, on every deploy),
   and `scripts/sync capture retroarch.cfg` takes them into the repo.
@@ -188,7 +188,7 @@ when it's no longer wanted.
   (needs the Windows installer).
 
 ## Game installer (`scripts/games`, shelf: Utilities > Games)
-- Curses UI over all owned games (`games/steam-library.json`: DRM status and controller support
+- Curses UI over all owned games (`users/robin/games/steam-library.json`: DRM status and controller support
   from PCGamingWiki, tier = expected performance here, native Linux build, hours). Filters: DRM
   (default any), tier, controller, installed-only, text search; `s` sorts by hours played.
 - Install: DepotDownloader (`-remember-password -validate`, Linux build preferred when one exists)
@@ -210,14 +210,14 @@ when it's no longer wanted.
 - Per-game setup is a Claude session (2026-10-12): after a download the installer offers it, and an installed
   game's menu has "Set up with Claude". It runs `scripts/maintain "/setup-game <folder>"` (sudo once, one session
   at a time) with the playbook `.claude/commands/setup-game.md`: DRM (Steamless, gbe), renderer (Direct3D 9 →
-  our DXVK build from `~/Games/tools/dxvk/gpd/x32|x64`, `dxvk/`), measuring and fixing the real limiter
+  our DXVK build from `~/Games/tools/dxvk/gpd/x32|x64`, `devices/gpd-win1/dxvk/`), measuring and fixing the real limiter
   (vsync rounding, GPU stalls via the DXVK wait log, power), recording in steam-library.md.
 - Per-game performance in shelf (2026-10-12): on the selected game, T CPU turbo and G GPU turbo (default/on/off,
   like Super+T/G), W power limit (default 6 W → 8 → 1 → 2 → 4 W; the chip idles at ~1.2 W, so 1 W throttles even menus), P GPU clock pin (off/on), L fps cap through MangoHud
   (off/30/60). The details panel shows the changed ones. Only changed values are stored, per game file path, in
   `~/.config/pegasus-frontend/shelf-game-settings.txt`; at launch shelf passes them as GPD_CPU_TURBO,
   GPD_GPU_TURBO, GPD_TDP_W, GPD_GPU_PIN and MANGOHUD_CONFIG, and scripts/game-wrap applies them for the game's
-  lifetime and restores the previous state (docs/power.md). Launchers no longer set these.
+  lifetime and restores the previous state (devices/gpd-win1/docs/power.md). Launchers no longer set these.
 - `~/Games/installed/metadata.pegasus.txt` is regenerated from the records with
   `collection: PC Games` / `shortname: pc`, so these games merge into PC Games
   (verified). `~/Games/installed` is in `game_dirs.txt`. Launchers are not overwritten on
@@ -437,7 +437,7 @@ when it's no longer wanted.
   (`dotfiles/pipewire/...`), because this Atom without RTKit (realtime priority) underran
   constantly at 512 (10.7 ms).
 - Speaker hardware buffer: the SST driver came up with 34 x 1008-frame periods (~714 ms), which
-  made audio lag (noticed in Bastion). WirePlumber rule `dotfiles/wireplumber/.../51-speaker-latency.conf`
+  made audio lag (noticed in Bastion). WirePlumber rule `devices/gpd-win1/dotfiles/wireplumber/.../51-speaker-latency.conf`
   caps it at 4 periods (driver keeps 1008 frames: 4032 = ~84 ms). No extra underruns seen. If
   crackles appear, raise `api.alsa.period-num` to 6-8. Check: `/proc/asound/card1/pcm0p/sub0/hw_params`.
 - OpenAL Soft (`dotfiles/openal/alsoft.conf`, used by e.g. Super Meat Boy): its PipeWire backend
@@ -453,7 +453,7 @@ when it's no longer wanted.
   instead of the DOSBox/Wine versions (that is the Steam pack's `dosbox.exe`).
 - CG only looks in `~/.CommanderGenius/games`: `gpd-launch.sh` (hand-edited, kept on metadata regen)
   symlinks `base1..5` there as `Keen 1..5` each launch, then starts CG, which shows its game picker.
-- Config `~/.CommanderGenius/cgenius.cfg` is a manifest `copy` (`dotfiles/commandergenius/`; CG rewrites
+- Config `~/.CommanderGenius/cgenius.cfg` is a manifest `copy` (`users/robin/dotfiles/commandergenius/`; CG rewrites
   it on exit): fullscreen, 1280x720, aspect 4:3 (bars on the 16:9 panel). `dir=PATH` on the command line
   is ignored by this version ("No games detected").
 - Widescreen: the game area is 426x240 (x3 = 1278x720, fills the panel at an integer scale; Keen's own 320x200

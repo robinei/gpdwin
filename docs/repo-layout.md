@@ -1,4 +1,4 @@
-# Repo layout: shared, device and user layers (plan, 2026-10-12)
+# Repo layout: common, device and user layers (built 2026-10-13)
 
 The repo grew around one device (GPD Win 1) and one person. A second device (ASUS ROG Ally, Z1 Extreme, no
 keyboard; `docs/ideas.md` item 15) and the wish to share the work with others pull in different directions:
@@ -7,71 +7,96 @@ keyboard; `docs/ideas.md` item 15) and the wish to share the work with others pu
 - the Ally's needs (Ryzen, stock Mesa and Proton, pad and extra buttons only);
 - no duplication between them;
 - Robin's own choices (games, emulator settings, look);
-- an entry point for other people who want Arch to work well on their GPD or Ally.
+- an entry point for other people who want Arch to work well on their GPD or Ally: boot the install
+  medium, start ssh, point an agent at it (`/install`), and get a fully fixed system.
 
-Answer: three layers, each a directory, applied in order. Not started; steps at the end.
+Answer: three layers, applied in order, with the shared part split into optional components.
 
 ## Layers
 ```
-common/              everything device- and person-neutral
-  src/               shelf, inputd, statusbar
-  scripts/           sync, game-wrap, games + gamelib, saves-*, steam-cloud, update, maintain, ...
-  dotfiles/          sway base config, foot, fish, wob, MangoHud, emulator defaults
-  system/            /etc files every device wants (pacman, iwd, tmpfiles for wheel access, ...)
-  shelf/             logos, shelf assets
-  .claude/commands/  maintain, setup-game, port-device
-  docs/              frontend, saves, packages (common part), changelog (common)
-  manifest.tsv
-devices/<name>/      one per device: gpd-win1, rog-ally
-  device.conf        hardware facts the common code reads (below)
-  system/, dotfiles/ kernel modules/params, udev rules, services, sway device.d/ snippets
-  kernel/, mesa/, dxvk/   gpd-win1 only
-  docs/              hardware, power, boot, findings; its own changelog
-  manifest.tsv
-users/<name>/        one per person: robin (private), example (public template)
-  dotfiles/          sway personal.d/, emulator settings kept by choice, theme
-  games/             collections metadata, saves manifest, steam library
-  docs/              play notes, game setup notes (steam-library.md), own changelog
-  manifest.tsv
+(repo root)          common: everything device- and person-neutral
+  src/               shelf, inputd, statusbar (+ devconf.h: reads device.conf)
+  scripts/           sync, layers.py, game-wrap, games + gamelib, saves-*, steam-cloud, update, maintain, ...
+  dotfiles/ system/  configs and /etc files the components install
+  shelf/ pegasus/utils/ games/{patches,shims}/ aur/ desktop/
+  components/<name>/ base, desktop, inputd, shelf: manifest.tsv, packages.txt, services.txt, sway.conf
+  .claude/commands/  install, port-device, maintain, setup-game, aur-add
+  docs/              frontend, desktop, saves, packages, pegasus-format, ideas, changelog, this file
+devices/<name>/      one per device (gpd-win1 so far)
+  README.md          how to recognise it, what is fixed, extras not from pacman, known problems
+  device.conf        hardware facts the programs read (below)
+  manifest.tsv packages.txt services.txt
+  system/ dotfiles/  boot entry, mkinitcpio, udev rules, sleep hooks, sway.conf (outputs), audio tuning
+  kernel/ mesa/ dxvk/   gpd-win1 only
+  docs/              hardware, power, boot, archive
+users/<name>/        one per person: robin, example (the template)
+  manifest.tsv packages.txt
+  dotfiles/ pegasus/ games/ system/ docs/   emulator settings, collections, saves.json, Wi-Fi country, notes
 ```
 
-A file belongs to the lowest layer that is true for it: if every device and person would want it, `common/`; if it
-depends on the hardware, `devices/`; if it's a choice, `users/`.
+The common layer stayed at the repo root rather than moving into `common/`: generated game launchers on the
+device call `~/gpd/scripts/game-wrap`, and every doc and script refers to `scripts/`, `src/`, `docs/`.
+
+A file belongs to the lowest layer that is true for it: if every device and person would want it, common
+(in the component it belongs to); if it depends on the hardware, the device; if it's a choice, the user.
 
 ## How the layers combine
-- **Host file** `~/.config/gpd/host` (not in the repo): `device=gpd-win1` and `user=robin`.
-- **Manifest:** `scripts/sync` reads common, then the device's, then the user's `manifest.tsv`; a later layer may
-  name the same live path and wins (a user's `retroarch.cfg` over the common default). `sync check` says which layer
-  each live file comes from.
-- **sway:** the common config ends with `include device.d/*` and `include personal.d/*` (linked from the device and
-  user layers).
-- **No hard-coded person:** `$HOME` and `$USER` in manifests, scripts and configs instead of `/home/robin` and
-  `robin:robin`; the program looks paths up (e.g. game dirs relative to `$HOME`).
+- **Host file** `~/.config/gpd/host` (not in the repo; `scripts/layers.py`):
+  `device=gpd-win1`, `user=robin` (or `user_dir=<path>` for a user layer kept elsewhere, e.g. a private
+  repo), `components=base desktop inputd shelf` (default: all four). Without `user=` the only users/* other
+  than example is used; without `device=` `sync install` refuses (it would leave out the hardware fixes).
+- **Manifests:** `scripts/sync` reads each component's `manifest.tsv` in the listed order, then the device's,
+  then the user's. Repo paths are relative to the layer's root (the repo root for components). A later layer
+  may name the same live path and wins. `sync list` shows each live file's layer. Owner `user` = whoever runs
+  sync. Copies containing `@USER@` or `@ROOT_UUID@` are templates filled in on install (capture skips them).
+  A link that still points into the repo at an old path is simply re-pointed by `install`.
+- **Packages and services:** `packages.txt` and `services.txt` next to each manifest; `sync packages` and
+  `sync services` print the union for this host (the install playbook uses them).
+- **sway:** the common config ends with `include ~/.config/gpd/sway.d/*`; layers link their snippets there:
+  `10-device.conf` (outputs, rotation, device keys), `50-shelf.conf`, `50-inputd.conf` (their autostart),
+  `90-user.conf` (optional).
+- **Python scripts** find user data with `layers.user_file("games/saves.json")`.
+
+## Components
+| Component | What | Needs |
+|---|---|---|
+| base | shell, sudo rules (group wheel), network (iwd, resolved), firewall, sshd, pacman, logging, low-battery hibernate | - |
+| desktop | autologin into sway, foot, fuzzel, wob, status bar, PipeWire defaults, GPU driver prefetch | base |
+| inputd | idle dim/off/sleep, lid, power button, menu key; logind leaves those to it | desktop |
+| shelf | the frontend, Utilities collection, per-game performance (turbo/power/fps), MangoHud, save backup timer | desktop |
+
+Without inputd, logind's defaults handle the lid and power button and nothing dims the screen (add swayidle in
+a user sway snippet). Without shelf, nothing starts on workspace 1.
 
 ## device.conf
-Plain `key=value`, read at start by shelf, inputd, statusbar and game-wrap (and sourced by shell scripts). The code
-never asks which device it runs on, only for these facts; a new device is a new file, not new code. Draft keys:
+`key=value`, `#` comments, values with spaces in quotes (shell scripts source it). Read by statusbar, inputd
+and shelf (`src/devconf.h`) and game-wrap. Every key is optional; the code never asks which device it runs
+on. Implemented keys (the GPD Win's values):
 
-| Key | gpd-win1 | rog-ally |
-|---|---|---|
-| `power_limit` (sustained package limit file) | `/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw` | asus-wmi `ppt_pl1_spl` (or `asus-armoury`) |
-| `power_default_w` / `power_steps_w` (shelf W) | 6 / 1 2 4 6 8 | ~15 / 9 15 20 25 30 |
-| `power_draw` (energy counter) | `intel-rapl:0/energy_uj` | `amdgpu` hwmon power |
-| `cpu_turbo` | `intel_pstate/no_turbo` | `cpufreq/boost` |
-| `gpu_freq_min/max` (shelf G/P) | i915 `rps_*_freq_mhz` | amdgpu `power_dpm_force_performance_level` / `pp_od_clk_voltage` |
-| `temp_sensor` | coretemp | k10temp |
-| `charge_limit` | `voltage:4144000` (bq24190) | `threshold:80` (`charge_control_end_threshold`) |
-| `menu_key` (opens shelf) | `KEY_COMPOSE` | the Ally's left extra button |
-| `quick_key` | (none) | the right extra button |
-| `rotation`, `idle_*` | 270, power.md times | 0, to measure |
+| Key | gpd-win1 | Default without it | Used by |
+|---|---|---|---|
+| `battery` | `max170xx_battery` | first power supply of type Battery | statusbar |
+| `charger` | `bq24190-charger` | first Mains/USB supply with `online` | statusbar, inputd |
+| `wifi` | `wlan0` | first interface with `wireless/` | statusbar |
+| `temp_hwmon` | `coretemp` | coretemp, else k10temp | statusbar |
+| `power_limit` | (default) | Intel RAPL PL1 `constraint_0_power_limit_uw` | statusbar, game-wrap |
+| `power_default_w` | `6.016` | statusbar: the value at its start; game-wrap: 6.016 | statusbar, game-wrap |
+| `power_steps_w` | `"8 1 2 4"` | `8 1 2 4` | shelf (W key) |
+| `menu_key` | `127` (KEY_COMPOSE) | 127 | inputd |
+| `pad_name` | `"Microsoft X-Box 360 pad"` | the same | inputd |
 
-Exact names get settled in step 1, when the code starts reading the file.
+Hardware without a counterpart degrades instead of failing: no i915 GPU clock files → no GPU block in the
+bar and no lid throttling; `cpufreq/boost` is used where intel_pstate's `no_turbo` is missing (turbo.sh,
+game-wrap, statusbar). Still Intel-only: GPU turbo/pin (i915 `rps_*`), the power limit (RAPL). For the
+Ally these need an AMD path (amdgpu `power_dpm_force_performance_level`, asus-wmi `ppt_*`), added when it
+is ported, with its keys documented here.
 
 ## Docs
 - Device findings live with the device (`devices/*/docs`). They are the most reusable work: hasvk HiZ, the DXVK
   readback stall, charge limit by voltage, the 2026-10-12 4 A drain if its cause is found.
 - Play history and per-game notes are personal (`users/robin/docs`).
-- One changelog per layer; the common one notes which devices a change was tested on.
+- One changelog for now (`docs/changelog.md`, all layers; entries say which device a change was tested on).
+  Split per layer when users/robin moves to its own repo.
 - `README.md` at the top is for outsiders: what this is, "pick your device", the install path, and how to work with
   an agent. `CLAUDE.md` says which layers a session may change and where things go.
 
@@ -88,13 +113,13 @@ Exact names get settled in step 1, when the code starts reading the file.
   `x-` keys in metadata, so the library files stay shareable and untouched.
 
 ## Agent playbooks
-The Claude playbooks are part of what others get: `/maintain`, `/setup-game`, and a new `/port-device`: boot Arch
-with ssh, the agent detects the hardware, writes `devices/<new>/` (device.conf, fixes, docs) and a `users/<you>/`
-from the example. "Install Arch, then let an agent over ssh make it yours" is the intended entry point, rather than
-an image to flash.
+The Claude playbooks are part of what others get: `/install` (from the Arch install medium over ssh: identify
+the device, ask for components and the disk, install, apply the layers, check), `/port-device` (survey new
+hardware, write `devices/<new>/`), `/maintain`, `/setup-game`, `/aur-add`. "Install Arch, then let an agent over
+ssh make it yours" is the intended entry point, rather than an image to flash.
 
 ## Public vs private
-- Public repo: `common/`, `devices/`, `users/example/`. Private: `users/robin/` as its own repo, cloned next to it
+- Public repo: the common layer, `devices/`, `users/example/`. Private: `users/robin/` as its own repo, cloned next to it
   (the host file points at it), so personal files never enter public history.
 - Licence for our own code to be chosen. The grid-theme logos are CC BY-NC-SA (non-commercial): ship them with
   that note or fetch them at install. Vendored code keeps its licences.
@@ -102,12 +127,13 @@ an image to flash.
   lists and save details, never secrets (the sudo password and Steam key were never committed; check anyway).
 - Rename from `gpdwin` to something device-neutral.
 
-## Steps (each leaves the GPD working)
-1. `device.conf` for gpd-win1 + the host file; shelf, inputd, statusbar and game-wrap read their hardware facts from
-   it. Nothing moves. Can be built and tested on the desktop.
-2. `$HOME`/`$USER` instead of the hard-coded user in manifests, scripts and configs.
-3. `git mv` into `common/`, `devices/gpd-win1/`, `users/robin/`; split the manifest; layered `scripts/sync`; fix doc
-   and script paths. Moves nearly every file: do it when no other session is working on the repo.
-4. `users/robin/` to its own private repo; `users/example/`.
-5. The Ally as the second device (`devices/rog-ally/`, via `/port-device`): the real test of the split.
-6. README for outsiders, licence, rename, go public.
+## Steps
+1. Done 2026-10-13: `device.conf` + host file; statusbar, inputd, shelf, game-wrap, lid.sh, turbo.sh read it or
+   detect the hardware.
+2. Done: no hard-coded user in manifests (`user` owner, `@USER@`), sudoers by group wheel, user data found
+   through the host file.
+3. Done: files moved into `components/`, `devices/gpd-win1/`, `users/robin/`; layered `scripts/sync`;
+   packages and services per layer; `/install` and `/port-device` playbooks; README for outsiders.
+4. Open: `users/robin/` into its own private repo (`user_dir=`), once the public repo exists.
+5. Open: the Ally as the second device (`devices/rog-ally/`, via `/port-device`): the real test of the split.
+6. Open: licence, rename from `gpdwin`, history audit, go public.

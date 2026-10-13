@@ -1,0 +1,18 @@
+# Component "base": official Arch packages (pacman -S --needed $(grep -v '^#' ... )). One per line, # comments.
+# Kernel and firmware are the device's (devices/<name>/packages.txt).
+base
+base-devel
+git
+python
+openssh
+sudo
+iwd
+wireless-regdb
+iw
+fish
+vim
+helix
+pacman-contrib
+nftables
+bc
+strace

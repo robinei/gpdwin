@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Keep live config files and the ~/gpd repo in step.
 
-manifest.tsv lists every file the repo manages:
+The files come in layers (docs/repo-layout.md, scripts/layers.py): the common components named in the host file
+~/.config/gpd/host (components/<name>/manifest.tsv), then the device's (devices/<device>/manifest.tsv), then the
+user's (users/<user>/manifest.tsv). Repo paths in a manifest are relative to its layer's root (the repo root for
+components). A later layer may list the same live path again and wins (a user's setting over a default).
+
+Each manifest.tsv lists the files its layer manages:
   link  <repo path>  <live path>                  live path is a symlink into the repo
   copy  <repo path>  <live path>  <owner:group:mode>  repo holds a copy (root-owned files)
   keep  <repo path>  <live path>  <owner:group:mode>  like copy, for files a program rewrites itself
@@ -11,6 +16,8 @@ manifest.tsv lists every file the repo manages:
                                                   a C source compiled to the live path
                                                       (rebuilt when the source is newer), linked
                                                       against the space-separated packages
+owner "user" means whoever runs sync. A copy whose repo file contains @USER@ or @ROOT_UUID@ gets the user name
+or the root file system's UUID put in on install (edit those in the repo; capture refuses them).
 
 Commands:
   sync check            report drift (missing/foreign links, copies that differ). Exit 1 on drift.
@@ -26,15 +33,30 @@ since then (without a base, live counts as changed). They never resolve a differ
 that is decided with the user (CLAUDE.md): `capture` (live wins), `install --force` (repo wins), or
 a hand merge followed by either.
   sync adopt            first-time setup: move live files into the repo and link them
+  sync list             every managed live path with its layer
+  sync packages         the official packages the layers need (for `sudo pacman -S --needed $(scripts/sync packages)`)
+  sync services         the systemd units the layers enable; "user NAME" lines are --user units
 
 Root files are read and written with `sudo -n`, so run `sudo -v` in a terminal first.
 """
-import difflib, hashlib, json, os, shutil, subprocess, sys
+import difflib, getpass, hashlib, json, os, shutil, subprocess, sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import layers  # noqa: E402
+
+REPO = layers.REPO
 HOME = Path.home()
+USER = getpass.getuser()
 BASES = Path(os.environ.get("XDG_STATE_HOME") or HOME / ".local/state") / "gpd-sync" / "bases.json"
+
+
+def rel(p):
+    """A repo path for messages: relative to the repo when it's inside it."""
+    try:
+        return p.relative_to(REPO)
+    except ValueError:
+        return p
 
 
 def expand(p):
@@ -42,23 +64,68 @@ def expand(p):
 
 
 def manifest():
-    entries = []
-    for n, line in enumerate((REPO / "manifest.tsv").read_text().splitlines(), 1):
-        if not line.strip() or line.startswith("#"):
-            continue
-        f = line.split("\t")
-        if f[0] == "link" and len(f) == 3:
-            entries.append({"kind": "link", "repo": REPO / f[1], "live": expand(f[2])})
-        elif f[0] == "build" and len(f) in (3, 4):
-            entries.append({"kind": "build", "repo": REPO / f[1], "live": expand(f[2]),
-                            "pkgs": f[3].split() if len(f) == 4 else []})
-        elif f[0] in ("copy", "keep") and len(f) == 4:
-            owner, group, mode = f[3].split(":")
-            entries.append({"kind": "copy", "keep": f[0] == "keep", "repo": REPO / f[1], "live": expand(f[2]),
-                            "owner": owner, "group": group, "mode": mode})
-        else:
-            sys.exit(f"manifest.tsv:{n}: bad line: {line!r}")
-    return entries
+    """All entries of all layers; for a live path listed by several layers, the last layer's entry."""
+    by_live = {}
+    for label, root, path in layers.layers():
+        if not path.exists():
+            sys.exit(f"{label}: {path} is missing (host file {layers.HOST})")
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            if not line.strip() or line.startswith("#"):
+                continue
+            f = line.split("\t")
+            if f[0] == "link" and len(f) == 3:
+                e = {"kind": "link", "repo": root / f[1], "live": expand(f[2])}
+            elif f[0] == "build" and len(f) in (3, 4):
+                e = {"kind": "build", "repo": root / f[1], "live": expand(f[2]),
+                     "pkgs": f[3].split() if len(f) == 4 else []}
+            elif f[0] in ("copy", "keep") and len(f) == 4:
+                owner, group, mode = f[3].split(":")
+                e = {"kind": "copy", "keep": f[0] == "keep", "repo": root / f[1], "live": expand(f[2]),
+                     "owner": USER if owner == "user" else owner, "group": USER if group == "user" else group,
+                     "mode": mode}
+            else:
+                sys.exit(f"{path}:{n}: bad line: {line!r}")
+            e["layer"] = label
+            by_live[str(e["live"])] = e
+    return list(by_live.values())
+
+
+def need_device():
+    """install changes the system: without a device layer it would leave the hardware fixes out."""
+    if not layers.device_dir():
+        sys.exit(f"no device in {layers.HOST}: create it first, e.g.\n"
+                 f"  device=gpd-win1\n  user=yourname\n  components={' '.join(layers.DEFAULT)}\n"
+                 f"(devices: {', '.join(p.name for p in sorted((REPO / 'devices').glob('*')))}; docs/repo-layout.md)")
+
+
+_root_uuid = None
+
+
+def root_uuid():
+    """The root file system's UUID (for boot entries: @ROOT_UUID@)."""
+    global _root_uuid
+    if _root_uuid is None:
+        r = subprocess.run(["findmnt", "-no", "UUID", "/"], capture_output=True, text=True)
+        _root_uuid = r.stdout.strip() if r.returncode == 0 else ""
+    return _root_uuid
+
+
+def repo_data(e):
+    """The repo file's content as it is installed: @USER@ replaced by the user's name, @ROOT_UUID@ by the
+    root file system's UUID."""
+    data = e["repo"].read_bytes()
+    if e["kind"] != "copy":
+        return data
+    if b"@ROOT_UUID@" in data:
+        if not root_uuid():
+            sys.exit(f"{e['repo']}: needs the root file system's UUID, but findmnt found none")
+        data = data.replace(b"@ROOT_UUID@", root_uuid().encode())
+    return data.replace(b"@USER@", USER.encode())
+
+
+def templated(e):
+    raw = e["repo"].read_bytes()
+    return e["kind"] == "copy" and (b"@USER@" in raw or b"@ROOT_UUID@" in raw)
 
 
 def selected(entries, args):
@@ -96,7 +163,11 @@ def read_live(e):
 
 
 def build_ok(e):
-    return e["live"].exists() and e["live"].stat().st_mtime >= e["repo"].stat().st_mtime
+    """Built and newer than its source and the headers next to it (src/devconf.h)."""
+    if not e["live"].exists():
+        return False
+    newest = max([e["repo"].stat().st_mtime] + [h.stat().st_mtime for h in e["repo"].parent.glob("*.h")])
+    return e["live"].stat().st_mtime >= newest
 
 
 def link_ok(e):
@@ -123,7 +194,7 @@ def save_bases(bases):
 
 def keep_state(e, live, bases):
     """Which side of a keep entry changed since its last sync: same, missing, live, repo, conflict."""
-    repo = e["repo"].read_bytes()
+    repo = repo_data(e)
     if live is None:
         return "missing"
     if live == repo:
@@ -148,7 +219,7 @@ def check(args):
     bases = load_bases()
     for e in selected(manifest(), args):
         if not os.path.lexists(e["repo"]):
-            print(f"MISSING-IN-REPO  {e['repo'].relative_to(REPO)}"); drift += 1
+            print(f"MISSING-IN-REPO  {rel(e['repo'])}"); drift += 1
         elif e["kind"] == "link":
             if not link_ok(e):
                 state = "not a symlink" if os.path.lexists(e["live"]) else "missing"
@@ -165,12 +236,14 @@ def check(args):
                 continue
             if live is None:
                 print(f"COPY missing      {e['live']}"); drift += 1
-            elif live != e["repo"].read_bytes():
+            elif live != repo_data(e):
                 if e["keep"]:
                     print(f"KEEP {e['live']}: {KEEP_MSG[keep_state(e, live, bases)]}")
                 else:
                     print(f"COPY differs      {e['live']}")
                 drift += 1
+    if not layers.device_dir():
+        print(f"note: no device layer ({layers.HOST} has no device=), so its files weren't checked")
     print("no drift" if not drift else f"{drift} item(s) drifted (`sync diff`, then `sync capture` or `sync install`; KEEP: decide with the user, CLAUDE.md)")
     if skipped:
         print(f"{skipped} root-only file(s) not checked: run `sudo -v` first")
@@ -182,11 +255,11 @@ def diff(args):
         if e["kind"] != "copy" or not e["repo"].exists():
             continue
         live = read_live(e)
-        if live is None or live == e["repo"].read_bytes():
+        if live is None or live == repo_data(e):
             continue
-        a = e["repo"].read_text(errors="replace").splitlines(keepends=True)
+        a = repo_data(e).decode(errors="replace").splitlines(keepends=True)
         b = live.decode(errors="replace").splitlines(keepends=True)
-        sys.stdout.writelines(difflib.unified_diff(a, b, f"repo/{e['repo'].relative_to(REPO)}", f"live:{e['live']}"))
+        sys.stdout.writelines(difflib.unified_diff(a, b, f"repo/{rel(e['repo'])}", f"live:{e['live']}"))
     return 0
 
 
@@ -198,6 +271,10 @@ def capture(args):
         live = read_live(e)
         if live is None:
             print(f"skip (live missing) {e['live']}"); continue
+        if templated(e):
+            if live != repo_data(e):
+                print(f"skip (a template: edit the repo file, then install) {e['live']}")
+            continue
         e["repo"].parent.mkdir(parents=True, exist_ok=True)
         if not e["repo"].exists() or e["repo"].read_bytes() != live:
             e["repo"].write_bytes(live)
@@ -214,13 +291,16 @@ def install(args):
     if force and not args:
         sys.exit("install --force needs the PATH(s) to overwrite: it replaces live settings")
     hints = set()
+    need_device()
     bases = load_bases()
     for e in selected(manifest(), args):
         live = e["live"]
         if e["kind"] == "link":
             if link_ok(e):
                 continue
-            if os.path.lexists(live):
+            if live.is_symlink() and os.readlink(live).startswith(str(REPO) + "/"):
+                live.unlink()  # a link into the repo from before a file moved there: just re-point it
+            elif os.path.lexists(live):
                 backup = live.with_name(live.name + ".pre-gpd")
                 os.rename(live, backup)
                 print(f"moved existing {live} -> {backup}")
@@ -240,7 +320,7 @@ def install(args):
             print(f"built {live}")
             hints.add(f"restart {live.name} (see docs/desktop.md)")
             continue
-        data = e["repo"].read_bytes()
+        data = repo_data(e)
         live_data = read_live(e)
         if e["keep"]:
             state = keep_state(e, live_data, bases)
@@ -253,14 +333,20 @@ def install(args):
         elif live_data == data:
             continue
         if "sudoers" in str(live):
-            r = subprocess.run(["visudo", "-cf", str(e["repo"])], capture_output=True, text=True)
+            r = subprocess.run(["visudo", "-cf", "-"], input=data.decode(), capture_output=True, text=True)
             if r.returncode != 0:
                 sys.exit(f"refusing to install invalid sudoers file {e['repo']}: {r.stdout}{r.stderr}")
-        cmd = ["install", "-D", "-m", e["mode"], "-o", e["owner"], "-g", e["group"], str(e["repo"]), str(live)]
+        src = str(e["repo"])
+        if templated(e):  # install the filled-in text from a temporary file
+            tmp = HOME / ".cache" / "gpd-sync.tmp"
+            tmp.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_bytes(data)
+            src = str(tmp)
+        cmd = ["install", "-D", "-m", e["mode"], "-o", e["owner"], "-g", e["group"], src, str(live)]
         if is_root(e):
             cmd = ["sudo", "-n"] + cmd
-        elif e["owner"] == os.environ.get("USER"):
-            cmd = ["install", "-D", "-m", e["mode"], str(e["repo"]), str(live)]
+        elif e["owner"] == USER:
+            cmd = ["install", "-D", "-m", e["mode"], src, str(live)]
         subprocess.run(cmd, check=True)
         print(f"installed {live}")
         if e["keep"]:
@@ -290,7 +376,7 @@ def adopt(args):
             elif os.path.lexists(e["live"]):
                 e["repo"].parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(e["live"]), str(e["repo"]))
-                print(f"moved {e['live']} -> {e['repo'].relative_to(REPO)}")
+                print(f"moved {e['live']} -> {rel(e['repo'])}")
             else:
                 print(f"skip (nothing to adopt) {e['live']}"); continue
             e["live"].parent.mkdir(parents=True, exist_ok=True)
@@ -299,8 +385,24 @@ def adopt(args):
     return capture([])
 
 
+def listing(args):
+    for e in sorted(selected(manifest(), args), key=lambda e: str(e["live"])):
+        print(f"{e['kind']:5} {e['layer']:22} {e['live']}")
+    return 0
+
+
+def packages(args):
+    print("\n".join(layers.packages()))
+    return 0
+
+
+def services(args):
+    print("\n".join(layers.services()))
+    return 0
+
+
 def main():
-    cmds = {"check": check, "diff": diff, "capture": capture, "install": install, "adopt": adopt}
+    cmds = {"packages": packages, "services": services, "check": check, "diff": diff, "capture": capture, "install": install, "adopt": adopt, "list": listing}
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
         print(__doc__); return 2
     try:

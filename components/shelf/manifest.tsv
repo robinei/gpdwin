@@ -1,0 +1,17 @@
+# Component "shelf": shelf (src/shelf.c), the game frontend, with its Utilities collection, per-game performance settings and save backups.
+# Tab-separated. Repo paths are relative to the layer's root (the repo root); see scripts/sync and
+# docs/repo-layout.md. Kinds: link (live is a symlink into the repo), copy (repo holds a copy),
+# keep (a copy the program rewrites, synced both ways with the user's say), build (C source compiled).
+# owner "user" = whoever runs scripts/sync.
+
+link	dotfiles/MangoHud/MangoHud.conf	~/.config/MangoHud/MangoHud.conf
+link	dotfiles/shelf/run	~/.config/shelf/run
+link	pegasus/utils	~/Games/utils
+link	scripts/fetch-boxart.py	~/Games/fetch-boxart.py
+copy	system/etc/systemd/system/turbo-perms.service	/etc/systemd/system/turbo-perms.service	root:root:0644
+copy	system/etc/tmpfiles.d/turbo.conf	/etc/tmpfiles.d/turbo.conf	root:root:0644
+link	shelf/logos	~/.local/share/shelf/logos
+build	src/shelf.c	~/.local/bin/shelf	sdl3 sdl3-image sdl3-ttf sqlite3 icu-i18n icu-uc wayland-client
+link	dotfiles/systemd/user/saves-backup.service	~/.config/systemd/user/saves-backup.service
+link	dotfiles/systemd/user/saves-backup.timer	~/.config/systemd/user/saves-backup.timer
+link	components/shelf/sway.conf	~/.config/gpd/sway.d/50-shelf.conf

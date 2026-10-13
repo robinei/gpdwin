@@ -1,0 +1,11 @@
+# User layer: an example to copy (cp -r users/example users/<you>, or into a repo of your own and point
+# user_dir= in ~/.config/gpd/host at it). Your choices go here: game collections, emulator settings,
+# anything you'd rather not share. Tab-separated; repo paths relative to this folder; see scripts/sync.
+# owner "user" = you; @USER@ in a copied file becomes your user name.
+
+# Which folders shelf shows (Pegasus format, docs/pegasus-format.md)
+copy	dotfiles/pegasus-frontend/game_dirs.txt	~/.config/pegasus-frontend/game_dirs.txt	user:user:0644
+# One collection: put ROMs in ~/Games/snes, then run ~/Games/fetch-boxart.py for names and box art
+copy	pegasus/snes/metadata.pegasus.txt	~/Games/snes/metadata.pegasus.txt	user:user:0644
+# Wi-Fi country (sets the allowed channels), e.g.:
+# copy	system/etc/modprobe.d/cfg80211.conf	/etc/modprobe.d/cfg80211.conf	root:root:0644

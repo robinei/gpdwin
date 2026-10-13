@@ -1,0 +1,26 @@
+# Device layer: GPD Win 1. Hardware fixes and tuning that only make sense on this device.
+# Tab-separated. Repo paths are relative to the layer's root (devices/gpd-win1); see scripts/sync and
+# docs/repo-layout.md. Kinds: link (live is a symlink into the repo), copy (repo holds a copy),
+# keep (a copy the program rewrites, synced both ways with the user's say), build (C source compiled).
+# owner "user" = whoever runs scripts/sync.
+
+link	dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf	~/.config/pipewire/pipewire.conf.d/30-speaker-compressor.conf
+link	dotfiles/wireplumber/wireplumber.conf.d/51-speaker-latency.conf	~/.config/wireplumber/wireplumber.conf.d/51-speaker-latency.conf
+copy	system/boot/loader/loader.conf	/boot/loader/loader.conf	root:root:0700
+copy	system/boot/loader/entries/arch.conf	/boot/loader/entries/arch.conf	root:root:0700
+copy	system/etc/mkinitcpio.conf	/etc/mkinitcpio.conf	root:root:0644
+copy	system/etc/sudoers.d/23-wifi-reset	/etc/sudoers.d/23-wifi-reset	root:root:0440
+copy	system/etc/systemd/sleep.conf.d/handheld.conf	/etc/systemd/sleep.conf.d/handheld.conf	root:root:0644
+copy	system/etc/modprobe.d/no-bluetooth.conf	/etc/modprobe.d/no-bluetooth.conf	root:root:0644
+copy	system/etc/udev/rules.d/90-xhci-no-wakeup.rules	/etc/udev/rules.d/90-xhci-no-wakeup.rules	root:root:0644
+copy	system/etc/udev/rules.d/90-txe-runtime-pm.rules	/etc/udev/rules.d/90-txe-runtime-pm.rules	root:root:0644
+copy	system/etc/udev/rules.d/90-charge-limit.rules	/etc/udev/rules.d/90-charge-limit.rules	root:root:0644
+copy	system/etc/systemd/system/charge-limit.service	/etc/systemd/system/charge-limit.service	root:root:0644
+copy	system/usr/local/bin/charge-limit	/usr/local/bin/charge-limit	root:root:0755
+copy	system/usr/local/bin/wifi-reset	/usr/local/bin/wifi-reset	root:root:0755
+copy	system/usr/lib/systemd/system-sleep/backlight	/usr/lib/systemd/system-sleep/backlight	root:root:0755
+copy	system/usr/lib/systemd/system-sleep/pmic-charger	/usr/lib/systemd/system-sleep/pmic-charger	root:root:0755
+copy	system/usr/local/bin/gpd-stock-initramfs	/usr/local/bin/gpd-stock-initramfs	root:root:0755
+copy	system/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	/etc/pacman.d/hooks/95-gpd-stock-initramfs.hook	root:root:0644
+link	device.conf	~/.config/gpd/device.conf
+link	dotfiles/sway.conf	~/.config/gpd/sway.d/10-device.conf

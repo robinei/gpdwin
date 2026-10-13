@@ -17,7 +17,7 @@ truth; this explains the choices.
 - Frontend: shelf (`src/shelf.c`): `sdl3_image`, `sdl3_ttf` (with `sdl3`, `sqlite` and `icu`, already
   installed). `retroarch`, assets, core-info, cores (frontend.md). `qt5-*` only for Pegasus, kept
   installed without integration (frontend.md).
-- PSP: standalone `ppsspp` (settings: keep entries in manifest, `dotfiles/ppsspp/`) (SDL build, `PPSSPPSDL`; pulls `ppsspp-assets`, `openxr`, `libzip`,
+- PSP: standalone `ppsspp` (settings: keep entries in manifest, `users/robin/dotfiles/ppsspp/`) (SDL build, `PPSSPPSDL`; pulls `ppsspp-assets`, `openxr`, `libzip`,
   `miniupnpc`), installed 2026-10-09.
 - Windows games: `wine` (repo, WoW64 build: no multilib needed) + `ntsync-autoload`. No DXVK.
 - Multilib (enabled 2026-10-07, `system/etc/pacman.conf`) for 32-bit-only native Linux ports
@@ -31,7 +31,7 @@ truth; this explains the choices.
   comment out [multilib].
   `xorg-xwayland` (+ small deps, 4.4 MiB) so Wine uses X11 (its Wayland driver mishandles the rotated panel).
 - Display debugging: `intel-gpu-tools` (`intel_reg read 0x18b804` etc., needs sudo; installed 2026-10-09).
-- DKMS (`dkms`, `linux-headers`): builds our two patched audio modules (`kernel/`, docs/hardware.md "Audio") for each kernel; keep both installed. Debugging tools (2026-10-09, removable): `linux-headers` (needed to build `kernel/rt5645`), `alsa-utils`, `acpica` (iasl), `intel-gpu-tools`; remove what isn't needed. `i2c-tools` is used by the `pmic-charger` sleep hook (power.md).
+- DKMS (`dkms`, `linux-headers`): builds our two patched audio modules (`devices/gpd-win1/kernel/`, devices/gpd-win1/docs/hardware.md "Audio") for each kernel; keep both installed. Debugging tools (2026-10-09, removable): `linux-headers` (needed to build `devices/gpd-win1/kernel/rt5645`), `alsa-utils`, `acpica` (iasl), `intel-gpu-tools`; remove what isn't needed. `i2c-tools` is used by the `pmic-charger` sleep hook (power.md).
 - Profiling: `perf` (installed 2026-10-09 to find a Wine bottleneck; run as `sudo perf record -g -p PID`).
 - Performance overlay: `mangohud-light` and `lib32-mangohud-light` (for 32-bit games), one own
   rebuild of the repo package without mangoplot/mangoapp and their ~134 MB of
@@ -69,15 +69,15 @@ truth; this explains the choices.
   (kvm, mei, thunderbolt, pcspkr).
 - **Own Mesa** (since 2026-10-12): `mesa-gpd`, `vulkan-intel-gpd`, `vulkan-mesa-implicit-layers-gpd` and their
   `lib32-` versions replace Arch's `mesa`, `vulkan-intel`, ... (provide + conflict the Arch names, like
-  `mangohud-light`, so repo updates never overwrite them). `mesa/`: Arch's PKGBUILD slimmed to this device
+  `mangohud-light`, so repo updates never overwrite them). `devices/gpd-win1/mesa/`: Arch's PKGBUILD slimmed to this device
   (crocus + softpipe, hasvk; no LLVM at runtime) + five crocus patches (no snooped staging textures: stops the display
   flashes; GPU blit for uploads >= 256 KiB and for tiled readback; range-limited invalidate for read maps) and a
   trimmed driconf file, and a hasvk patch restoring HiZ (lost upstream in Mesa 23.0; Vulkan/DXVK depth-heavy
   rendering up to 5x faster in fill tests), and real Vulkan 1.3 on hasvk (softpin with a 32-bit address layout, buffer
-  device address; `HASVK_USE_RELOCATIONS=1` = old driver; mesa/reports/R9); GL programs start ~40 % faster with ~60 % less memory (mesa/README.md; release 1.11;
-  correctness: mesa/reports/R6, dEQP/piglit identical to Arch's Mesa). Vulkan 1.3/DXVK and softpin: `mesa/reports/R5-*.md`, ideas 13. Built on the desktop (`mesa/build.sh`,
-  `mesa/build.sh lib32`), installed with `mesa/install.sh`; Arch's packages saved in `/var/cache/gpd-mesa-stock`,
-  `mesa/rollback.sh` puts them back. `scripts/aur check` shows "REBUILD" when Arch has a newer Mesa; a package
+  device address; `HASVK_USE_RELOCATIONS=1` = old driver; devices/gpd-win1/mesa/reports/R9); GL programs start ~40 % faster with ~60 % less memory (devices/gpd-win1/mesa/README.md; release 1.11;
+  correctness: devices/gpd-win1/mesa/reports/R6, dEQP/piglit identical to Arch's Mesa). Vulkan 1.3/DXVK and softpin: `devices/gpd-win1/mesa/reports/R5-*.md`, ideas 13. Built on the desktop (`devices/gpd-win1/mesa/build.sh`,
+  `devices/gpd-win1/mesa/build.sh lib32`), installed with `devices/gpd-win1/mesa/install.sh`; Arch's packages saved in `/var/cache/gpd-mesa-stock`,
+  `devices/gpd-win1/mesa/rollback.sh` puts them back. `scripts/aur check` shows "REBUILD" when Arch has a newer Mesa; a package
   update that needs a newer Mesa than ours fails with a dependency error until we rebuild.
 
 ## AUR policy

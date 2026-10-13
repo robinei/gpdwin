@@ -24,6 +24,8 @@ import datetime, fcntl, fnmatch, glob, json, os, re, shutil, sys, time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "scripts"))
+import layers  # noqa: E402  (the user layer holds games/saves.json)
 HOME = Path.home()
 STORE = HOME / "Saves"
 INSTALLED = HOME / "Games/installed"
@@ -241,7 +243,7 @@ def main():
         "unlink" if "--unlink" in args else "backup"
     force = "--force" in args
     wanted = [a for a in args if not a.startswith("--")]
-    cfg = json.loads((REPO / "games/saves.json").read_text())
+    cfg = json.loads((layers.user_file("games/saves.json")).read_text())
     ids = installed_slugs()
     lk = lock() if mode != "status" else None
     problems = shown = 0

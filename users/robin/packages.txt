@@ -1,0 +1,20 @@
+# Robin's games and emulators (official repos; AUR ones via scripts/aur: devilutionx-bin, zelda3-git,
+# steamdepotdownloader-bin, ludusavi-bin, commander-genius-git, lib32-openal, lib32-sdl2-compat, lib32-sdl12-compat).
+retroarch
+retroarch-assets-ozone
+retroarch-assets-xmb
+libretro-core-info
+libretro-nestopia
+libretro-snes9x
+libretro-gambatte
+libretro-mgba
+libretro-genesis-plus-gx
+libretro-picodrive
+libretro-beetle-pce-fast
+ppsspp
+dolphin-emu
+wine
+ntsync-autoload
+firefox
+yazi
+7zip

@@ -19,7 +19,7 @@
 10. Measure s2idle battery drain (unplugged, known sleep time; method in power.md); then
     consider a shorter HibernateDelaySec or the BIOS C-state limit.
 
-11. Device-only Mesa (after the upload fix is settled; `mesa/`): gallium `crocus` + `softpipe`, Vulkan
+11. Device-only Mesa (after the upload fix is settled; `devices/gpd-win1/mesa/`): gallium `crocus` + `softpipe`, Vulkan
     `intel_hasvk`, no rusticl/OpenCL, video codecs, docs or other vendors' drivers. The stock `libgallium`
     (55 MB) links `libLLVM` (172 MB) into every GL process (sway, frontend, games) only for drivers this device
     never uses. Expected: faster app start, less memory, builds in minutes. Measure start time and memory
@@ -29,7 +29,7 @@
     now that packages can be built for it: e.g. `-march=silvermont`/`-mtune` builds of hot packages (Mesa,
     emulator cores, SDL), Mesa/driconf defaults that suit a non-LLC GPU, trimming libraries loaded by every
     process. Find candidates by measuring first (perf, startup traces), not by guessing.
-13. Vulkan 1.3 on hasvk: shipped in Mesa 1.11 (2026-10-12, `mesa/README.md`, `mesa/reports/R9-vulkan13.md`). Left
+13. Vulkan 1.3 on hasvk: shipped in Mesa 1.11 (2026-10-12, `devices/gpd-win1/mesa/README.md`, `devices/gpd-win1/mesa/reports/R9-vulkan13.md`). Left
     open: a real (still non-conformant) descriptor indexing for non-sampler descriptors (~300-500 lines, R9 section
     7.3), only useful if something besides DXVK >= 2.7 needs it; DXVK 2.7.1 works with the opt-in claim but felt
     slower than 2.4.1 in Dark Souls, so the games stay on 2.4.1.
@@ -77,7 +77,7 @@ Not worth doing: disabling `sshd` (not on the boot path), zram (zswap is already
     2. Per-device split (superseded by the layer plan in `docs/repo-layout.md`): a device column in `manifest.tsv` (by hostname); per-device sections where hardware is
        touched: `statusbar` (power limit, sensors), `game-wrap` and shelf's W steps (GPD 1-8 W via RAPL; Ally
        ~9-30 W via asus-wmi `ppt_pl1_spl`/`ppt_pl2_sppt`/`ppt_fppt` or `asus-armoury`), GPU clock pin (amdgpu),
-       charge limit (Ally: `charge_control_end_threshold`), rotation and idle times. GPD-only: `mesa/`, `dxvk/`,
+       charge limit (Ally: `charge_control_end_threshold`), rotation and idle times. GPD-only: `devices/gpd-win1/mesa/`, `devices/gpd-win1/dxvk/`,
        the bq24190 charge-limit service.
     3. Ally specifics: its two extra buttons and back paddles come through `hid-asus` (map one to inputd's Menu
        action, one to a quick menu); stock Mesa (radv) and Proton, so Windows games can go through Steam

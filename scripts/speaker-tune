@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tune the speaker compressor live while a game plays (Super+C; docs/hardware.md, "Speaker loudness").
+"""Tune the speaker compressor live while a game plays (Super+C; devices/gpd-win1/docs/hardware.md, "Speaker loudness").
 
 The game keeps keyboard focus (RetroArch pauses when it loses it): sway's "speaker-tune" mode
 (dotfiles/sway/config) catches the keys and runs `speaker-tune key K`; a small foot window that
@@ -12,14 +12,14 @@ $XDG_RUNTIME_DIR/speaker-tune.json while tuning.
   speaker-tune view         the display loop (run by start)
 
 Changes apply at once (pw-cli on the filter node); `save` writes them into
-dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf (commit it afterwards), `revert`
+devices/gpd-win1/dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf (commit it afterwards), `revert`
 reloads the saved values. Bypass compares with the unprocessed sound without losing the values.
 """
 import fcntl, json, os, re, subprocess, sys, textwrap, time
 from pathlib import Path
 
 NODE = "speaker_compressor"
-CONF = Path(__file__).resolve().parent.parent / "dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf"
+CONF = Path(__file__).resolve().parent.parent / "devices/gpd-win1/dotfiles/pipewire/pipewire.conf.d/30-speaker-compressor.conf"
 WIDTH, HEIGHT = 50, 23    # view window, in characters
 STATE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "speaker-tune.json"
 

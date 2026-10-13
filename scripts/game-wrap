@@ -5,11 +5,12 @@
 # backup; the user timer (dotfiles/systemd/user/saves-backup.timer) covers that. The game is the folder under
 # ~/Games/installed that the launcher cd'ed into.
 #
-# Performance settings for the duration of the game (docs/power.md "Package power limit"). shelf sets them per
+# Performance settings for the duration of the game (devices/gpd-win1/docs/power.md "Package power limit"). shelf sets them per
 # game (keys T G W P L, src/shelf.c "Performance"); a launcher may also export them before the exec:
 #   GPD_CPU_TURBO=on|off  CPU turbo (intel_pstate no_turbo)
 #   GPD_GPU_TURBO=on|off  GPU maximum/boost clock RP0 (600 MHz) or RP1 (400 MHz)
-#   GPD_TDP_W=1|2|4|8     package power limit (RAPL PL1) in watts; the firmware's is 6.016 W
+#   GPD_TDP_W=1|2|4|8     package power limit (RAPL PL1) in watts; the firmware's is 6.016 W on the GPD Win
+#                         (device.conf power_default_w, power_limit)
 #   GPD_GPU_PIN=1         GPU minimum clock = its maximum (after GPD_GPU_TURBO)
 # They need the sysfs files writable by wheel (/etc/tmpfiles.d/turbo.conf, turbo-perms.service). Afterwards the
 # turbo states go back to what they were before the game (Super+T/G toggles), PL1 to 6.016 W and the GPU minimum
@@ -20,9 +21,16 @@
 [ -n "$GPD_WRAPPED" ] && exec "$@"
 export GPD_WRAPPED=1
 slug=$GPD_GAME            # a launcher that does not cd into its install folder sets GPD_GAME=<folder name>
-NO_TURBO=/sys/devices/system/cpu/intel_pstate/no_turbo
-PL1=/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw
-PL1_DEFAULT=6016000
+# Hardware facts from the device layer (devices/<name>/device.conf; defaults: the GPD Win's / Intel's)
+power_limit=/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw
+power_default_w=6.016
+conf="${XDG_CONFIG_HOME:-$HOME/.config}/gpd/device.conf"
+[ -r "$conf" ] && . "$conf"
+PL1=$power_limit
+PL1_DEFAULT=$(awk "BEGIN { printf \"%d\", $power_default_w * 1000000 }")
+# CPU turbo: intel_pstate's no_turbo (1 = off), else cpufreq's boost (0 = off)
+NO_TURBO=/sys/devices/system/cpu/intel_pstate/no_turbo TURBO_OFF=1 TURBO_ON=0
+[ -e "$NO_TURBO" ] || { NO_TURBO=/sys/devices/system/cpu/cpufreq/boost TURBO_OFF=0 TURBO_ON=1; }
 GT=$(ls -d /sys/class/drm/card*/gt/gt0 2>/dev/null | head -1)
 perf=$GPD_CPU_TURBO$GPD_GPU_TURBO$GPD_TDP_W
 [ "$GPD_GPU_PIN" = 1 ] && perf=${perf}pin
@@ -34,7 +42,7 @@ if [ -n "$perf" ]; then
     restore_cmd="$restore_cmd; pkill -USR1 -x statusbar"
     # guard first, so the previous state comes back even if this wrapper is killed right after changing it
     setsid -f sh -c "tail --pid=$$ -f /dev/null; $restore_cmd" >/dev/null 2>&1 </dev/null
-    case $GPD_CPU_TURBO in on) echo 0 > $NO_TURBO ;; off) echo 1 > $NO_TURBO ;; esac 2>/dev/null
+    case $GPD_CPU_TURBO in on) echo $TURBO_ON > $NO_TURBO ;; off) echo $TURBO_OFF > $NO_TURBO ;; esac 2>/dev/null
     if [ -n "$GT" ]; then
         case $GPD_GPU_TURBO in
         on)  f=$(cat "$GT/rps_RP0_freq_mhz"); echo "$f" > "$GT/rps_max_freq_mhz"; echo "$f" > "$GT/rps_boost_freq_mhz" ;;

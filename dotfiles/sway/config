@@ -16,14 +16,7 @@ set $menu fuzzel
 
 ### Output configuration
 #
-output DSI-1 transform 90
-# No subpixel antialiasing: grey antialiasing is sharp enough at this density, and glyph caches stay
-# 8-bit instead of 32-bit (the kernel's native "rgb" would also be wrong for the rotated panel).
-output DSI-1 subpixel none
-# Composite 12 ms before vblank instead of right after it. Measured 2026-10-07 with the i915 frame
-# counter: default drops 11-14% of refreshes in RetroArch and HLD, 12 ms drops 0-0.3% (10 ms: 3-6%,
-# 14 ms: same as 12 but 2 ms more latency). Also ~4.6 ms less input latency. See docs/desktop.md.
-output DSI-1 max_render_time 12
+# The device's own outputs (rotation, timing) are in its layer: ~/.config/gpd/sway.d (end of this file).
 #
 # Example configuration:
 #
@@ -187,26 +180,6 @@ mode "resize" {
 }
 bindsym $mod+r mode "resize"
 
-# Speaker compressor tuning (scripts/speaker-tune): Super+C while a game plays. The keys go to this
-# mode, so the game keeps focus (RetroArch pauses without it); the value window never takes focus.
-for_window [app_id="speaker-tune"] floating enable, sticky enable, move position 16 16
-no_focus [app_id="speaker-tune"]
-set $tune ~/gpd/scripts/speaker-tune
-bindsym $mod+c exec $tune start
-mode "speaker-tune" {
-    bindsym Up exec $tune key up
-    bindsym Down exec $tune key down
-    bindsym Left exec $tune key left
-    bindsym Right exec $tune key right
-    bindsym b exec $tune key bypass
-    bindsym s exec $tune key save
-    bindsym r exec $tune key revert
-    bindsym --locked XF86AudioLowerVolume exec ~/.config/sway/osd.sh vol-down
-    bindsym --locked XF86AudioRaiseVolume exec ~/.config/sway/osd.sh vol-up
-    bindsym Escape exec $tune stop
-    bindsym Return exec $tune stop
-    bindsym $mod+c exec $tune stop
-}
 #
 # Utilities:
 #
@@ -232,8 +205,6 @@ mode "speaker-tune" {
     bindsym --locked $mod+m exec ~/.config/sway/osd.sh mute
 
     # Special key to take a screenshot with grim
-    # Resync the panel when the picture is split (bottom half at top)
-    bindsym --locked $mod+F10 exec ~/.config/sway/screen-reset.sh
     bindsym --locked $mod+t exec ~/.config/sway/turbo.sh cpu
     bindsym --locked $mod+g exec ~/.config/sway/turbo.sh gpu
     bindsym Print exec grim
@@ -247,3 +218,6 @@ include ~/.config/sway/theme
 include ~/.config/sway/autostart
 include ~/.config/sway/handheld
 include /etc/sway/config.d/*
+# Snippets from the other layers (scripts/sync links them): components (shelf, inputd), the device
+# (outputs, its own keys), the user. Name order: 10-device, 50-<component>, 90-user.
+include ~/.config/gpd/sway.d/*

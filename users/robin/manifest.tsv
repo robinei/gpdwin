@@ -1,0 +1,24 @@
+# User layer: Robin's own choices (game collections, emulator settings, Wi-Fi country).
+# Tab-separated. Repo paths are relative to the layer's root (users/robin); see scripts/sync and
+# docs/repo-layout.md. Kinds: link (live is a symlink into the repo), copy (repo holds a copy),
+# keep (a copy the program rewrites, synced both ways with the user's say), build (C source compiled).
+# owner "user" = whoever runs scripts/sync.
+
+link	dotfiles/pegasus-frontend/game_dirs.txt	~/.config/pegasus-frontend/game_dirs.txt
+link	pegasus/pc	~/Games/pc
+keep	dotfiles/retroarch/retroarch.cfg	~/.config/retroarch/retroarch.cfg	user:user:0644
+keep	dotfiles/retroarch/autoconfig/Microsoft X-Box 360 pad.cfg	~/.config/retroarch/autoconfig/udev/Microsoft X-Box 360 pad.cfg	user:user:0644
+keep	dotfiles/devilutionx/diablo.ini	~/.local/share/diasurgical/devilution/diablo.ini	user:user:0644
+copy	pegasus/snes/metadata.pegasus.txt	~/Games/snes/metadata.pegasus.txt	user:user:0644
+copy	pegasus/psp/metadata.pegasus.txt	~/Games/psp/metadata.pegasus.txt	user:user:0644
+copy	pegasus/ps1/metadata.pegasus.txt	~/Games/ps1/metadata.pegasus.txt	user:user:0644
+copy	pegasus/ngc/metadata.pegasus.txt	~/Games/ngc/metadata.pegasus.txt	user:user:0644
+copy	system/etc/modprobe.d/cfg80211.conf	/etc/modprobe.d/cfg80211.conf	root:root:0644
+copy	system/opt/zelda3-git/zelda3.ini	/opt/zelda3-git/zelda3.ini	root:root:0644
+keep	dotfiles/commandergenius/cgenius.cfg	~/.CommanderGenius/cgenius.cfg	user:user:0644
+keep	dotfiles/ppsspp/ppsspp.ini	~/.config/ppsspp/PSP/SYSTEM/ppsspp.ini	user:user:0644
+keep	dotfiles/ppsspp/controls.ini	~/.config/ppsspp/PSP/SYSTEM/controls.ini	user:user:0644
+keep	dotfiles/dolphin-emu/Dolphin.ini	~/.config/dolphin-emu/Dolphin.ini	user:user:0644
+keep	dotfiles/dolphin-emu/GFX.ini	~/.config/dolphin-emu/GFX.ini	user:user:0644
+keep	dotfiles/dolphin-emu/GCPadNew.ini	~/.config/dolphin-emu/GCPadNew.ini	user:user:0644
+keep	dotfiles/dolphin-emu/GameSettings/GZLE01.ini	~/.local/share/dolphin-emu/GameSettings/GZLE01.ini	user:user:0644

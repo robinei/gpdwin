@@ -17,7 +17,7 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   mirror (`<game>` = the folder name under `~/Games/installed`) and `scripts/saves-backup --restore` puts it
   back (games then start with default settings). Back up or sync `~/Saves`, nothing else.
 - What is backed up: **saves only**, not settings (saves are portable between devices, settings are not): the
-  `"data"` list per game in `games/saves.json`: save folders, single files, or patterns
+  `"data"` list per game in `users/robin/games/saves.json`: save folders, single files, or patterns
   (`.../Heretic/saves/*.sav`; a pattern matches the files that exist at that moment, new ones are picked up by the
   next run). The lists come from ludusavi's manifest (`~/.config/ludusavi/manifest.yaml`: paths tagged `save`;
   config-only paths are dropped; a folder tagged both stays whole) via `scripts/saves-manifest` (review first,
@@ -66,13 +66,13 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   history), and a `--restore --newer` step in `game-wrap` before a game starts so a newer save from the other
   device is picked up. With two devices Syncthing becomes the more natural transport than `rsync`.
 - **Not covered yet** (no `"data"` entry; find the folder with `scripts/saves-discover` or by looking at what
-  the game writes, then add it to `games/saves.json`): Starcom: Nexus (no save found: not played yet), the
+  the game writes, then add it to `users/robin/games/saves.json`): Starcom: Nexus (no save found: not played yet), the
   Steam emulator's saves (`~/.local/share/GSE Saves/<appid>`, games with the emulator `libsteam_api.so`; Isaac,
   Spelunky), DevilutionX (`~/.local/share/diasurgical`, 667 MB incl. game data), Wine's own per-prefix settings.
 
 ## Game Saves (shelf: Utilities > Game Saves; `scripts/save-status`)
 - Full-screen curses UI, manual per game, no automatic sync (Syncthing was rejected). One row
-  per game in `games/saves.json`: status against the desktop and against Steam Cloud (in sync /
+  per game in `users/robin/games/saves.json`: status against the desktop and against Steam Cloud (in sync /
   GPD newer / other side newer / only on one side / differ), newest save time on GPD, desktop and
   cloud; below it the per-file detail for the selected game.
   Keys: `c` pull Steam Cloud→GPD (works with the desktop off), `g` pull desktop→GPD, `p` push
@@ -80,7 +80,7 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   newer), `r` refresh, `q` quit. Each copy asks for confirmation and warns when the target side is
   newer or Steam is running. The cloud is read-only: to get a save into it, push to the desktop and
   start the game once in Steam there.
-- Cloud names per file: `"cloud"` in `games/saves.json` (a folder entry uses a name prefix, e.g.
+- Cloud names per file: `"cloud"` in `users/robin/games/saves.json` (a folder entry uses a name prefix, e.g.
   Stardew `%WinAppDataRoaming%StardewValley/Saves/`; Bastion's cloud names are lowercase). Files
   are matched by name only: the cloud's per-file platform flag (`All` for the games here) is ignored,
   so saves made by a Windows install (Proton on the desktop) can be pulled onto the Linux build; the
@@ -97,15 +97,15 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
   (tar of the game's files), `put APPID` (same format in). A tar member is named `N` (file entry
   N of the game) or `N/rel/path` (file inside folder entry N, `"dir": true` in saves.json); other
   names are rejected. So the key can only read and write the paths in the desktop's own copy of
-  `games/saves.json` (and below its folders). The GPD asks about each game separately at startup;
+  `users/robin/games/saves.json` (and below its folders). The GPD asks about each game separately at startup;
   a game the desktop's copy doesn't list shows "git pull in ~/Code/gpdwin there". Remove the authorized_keys line to revoke. PTY requests fail and
   port forwarding is prohibited (`restrict`).
   Desktop firewall (ufw): `sudo ufw allow from 192.168.1.218 to any port 22 proto tcp comment
   'GPD save status'` (tied to the GPD's IP; reserve both IPs in the router).
 - The desktop clone (`~/Code/gpdwin`) must be pulled for changes to `desktop/` or
-  `games/saves.json` to take effect there; with an old script, copying fails with a message saying so.
-- New game: add it to `games/saves.json` (both paths) and `docs/saves.md`.
-- `desktop_host` in `games/saves.json` is the desktop (`robin@desktop.lan`).
+  `users/robin/games/saves.json` to take effect there; with an old script, copying fails with a message saying so.
+- New game: add it to `users/robin/games/saves.json` (both paths) and `docs/saves.md`.
+- `desktop_host` in `users/robin/games/saves.json` is the desktop (`robin@desktop.lan`).
 
 ## Steam Cloud directly from the GPD (`scripts/steam-cloud`)
 - Read-only access to a game's cloud files without the desktop: `steam-cloud list APPID`,
@@ -132,7 +132,7 @@ launch to upload). Copying is manual, per game, in the Game Saves tool (below).
 - `ludusavi-bin` (AUR, vendored in `aur/pkgbuilds/`) is installed on the GPD and must be installed on the
   desktop too. `saves-discover [APPID...]` asks ludusavi what save files exist (GPD: directly; desktop:
   `save-status-remote discover APPID...` over ssh, so the desktop clone must be pulled), adds the game's
-  Steam Cloud file names (`steam-cloud list-many`) and prints a *draft* `games/saves.json` entry per game
+  Steam Cloud file names (`steam-cloud list-many`) and prints a *draft* `users/robin/games/saves.json` entry per game
   plus notes on what it could not pair. It never writes; review the draft and add it by hand.
 - Pairing: a found file belongs to the manifest save path whose literal tail (`StardewValley/Saves`)
   it sits under; same relative paths on both machines -> `"dir": true` entry, else files are paired by

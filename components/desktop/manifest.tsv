@@ -1,0 +1,17 @@
+# Component "desktop": The sway session: autologin into sway, terminal, launcher, OSD, status bar, audio defaults.
+# Tab-separated. Repo paths are relative to the layer's root (the repo root); see scripts/sync and
+# docs/repo-layout.md. Kinds: link (live is a symlink into the repo), copy (repo holds a copy),
+# keep (a copy the program rewrites, synced both ways with the user's say), build (C source compiled).
+# owner "user" = whoever runs scripts/sync.
+
+link	dotfiles/sway	~/.config/sway
+link	dotfiles/foot	~/.config/foot
+link	dotfiles/fuzzel	~/.config/fuzzel
+link	dotfiles/wob	~/.config/wob
+link	dotfiles/fish/conf.d/sway.fish	~/.config/fish/conf.d/sway.fish
+link	dotfiles/openal/alsoft.conf	~/.config/alsoft.conf
+link	dotfiles/pipewire/pipewire.conf.d/10-min-quantum.conf	~/.config/pipewire/pipewire.conf.d/10-min-quantum.conf
+copy	system/etc/systemd/system/getty@tty1.service.d/autologin.conf	/etc/systemd/system/getty@tty1.service.d/autologin.conf	root:root:0644
+copy	system/etc/systemd/system/systemd-user-sessions.service	/etc/systemd/system/systemd-user-sessions.service	root:root:0644
+copy	system/etc/systemd/system/gpu-prefetch.service	/etc/systemd/system/gpu-prefetch.service	root:root:0644
+build	src/statusbar.c	~/.local/bin/statusbar

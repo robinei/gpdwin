@@ -8,6 +8,8 @@
 nt=/sys/devices/system/cpu/intel_pstate/no_turbo
 g=$(ls -d /sys/class/drm/card*/gt/gt0 2>/dev/null | head -1)
 s="$XDG_RUNTIME_DIR/lid-saved"
+# Intel CPU (intel_pstate) and i915 GPU only; on other hardware there is nothing to throttle here.
+[ -e "$nt" ] && [ -n "$g" ] || exit 0
 
 case "$1" in
 close)

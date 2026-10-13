@@ -2,7 +2,7 @@
 seat * hide_cursor 3000
 # wlroots' built-in cursor (a few shapes compiled in): no such theme "none", so nothing is read. The
 # default theme (Adwaita: 63 cursors in all sizes, 12 MB) took ~0.16 s to load cold at startup
-# (docs/boot.md). Apps that draw their own cursor (foot, Xwayland games) still use Adwaita.
+# (devices/gpd-win1/docs/boot.md). Apps that draw their own cursor (foot, Xwayland games) still use Adwaita.
 seat * xcursor_theme none 24
 
 # Idle (dim, screen off, suspend) is handled by inputd (src/inputd.c, started in autostart), not

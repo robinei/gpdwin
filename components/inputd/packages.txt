@@ -1,0 +1,2 @@
+# Component "inputd": built from src/inputd.c by scripts/sync (needs wayland headers, in the wayland package).
+wayland

@@ -1,0 +1,3 @@
+# Component "desktop": units to enable.
+seatd.service
+gpu-prefetch.service

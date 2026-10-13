@@ -1,6 +1,6 @@
 #!/bin/sh
 # Capture the audio chain's state while a tone plays through the CURRENT default sink, for diffing a
-# bad state against a good one (docs/hardware.md "Audio"). Needs sudo (debugfs). Output:
+# bad state against a good one (devices/gpd-win1/docs/hardware.md "Audio"). Needs sudo (debugfs). Output:
 # ~/.cache/gpd/audio-LABEL/. Usage: scripts/audio-snapshot LABEL   (e.g. bad, good)
 L=${1:?label}
 O=$HOME/.cache/gpd/audio-$L

@@ -1,0 +1,3 @@
+/home/@USER@/Games/utils
+/home/@USER@/Games/installed
+/home/@USER@/Games/snes

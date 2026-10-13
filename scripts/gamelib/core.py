@@ -4,6 +4,9 @@ import json, os, re, shutil, stat, subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+import sys  # noqa: E402
+sys.path.insert(0, str(REPO / "scripts"))
+import layers  # noqa: E402  (the user layer: games/saves.json, games/steam-library.json)
 INSTALL_ROOT = Path.home() / "Games" / "installed"
 GAME_DIRS = Path.home() / ".config" / "pegasus-frontend" / "game_dirs.txt"
 CONFIG = Path.home() / ".config" / "gpd" / "games.json"
@@ -85,10 +88,9 @@ def uninstall(rec):
 def restore_saves(rec):
     """Put the game's backed-up saves (~/Saves, scripts/saves-backup) back after an install or a new Wine
     prefix: only files that are missing, nothing is overwritten. Returns the printable lines."""
-    root = Path(__file__).resolve().parents[2]
     try:
-        games = json.loads((root / "games/saves.json").read_text())["games"]
-    except (OSError, ValueError, KeyError):
+        games = json.loads(layers.user_file("games/saves.json").read_text())["games"]
+    except (OSError, ValueError, KeyError, SystemExit):
         return []
     if not any(str(g["appid"]) == str(rec["id"]) and g.get("data") for g in games):
         return ["No save location known for this game yet, so its saves are not backed up automatically. "

@@ -1,0 +1,32 @@
+# Component "base": Everything a device running this setup needs: shell, sudo, network, firewall, pacman, logging.
+# Tab-separated. Repo paths are relative to the layer's root (the repo root); see scripts/sync and
+# docs/repo-layout.md. Kinds: link (live is a symlink into the repo), copy (repo holds a copy),
+# keep (a copy the program rewrites, synced both ways with the user's say), build (C source compiled).
+# owner "user" = whoever runs scripts/sync.
+
+link	dotfiles/helix	~/.config/helix
+link	dotfiles/fish/config.fish	~/.config/fish/config.fish
+link	dotfiles/hushlogin	~/.hushlogin
+link	dotfiles/fish/conf.d/00-path.fish	~/.config/fish/conf.d/00-path.fish
+link	dotfiles/fish/functions/reboot.fish	~/.config/fish/functions/reboot.fish
+link	dotfiles/fish/functions/poweroff.fish	~/.config/fish/functions/poweroff.fish
+link	dotfiles/fish/functions/suspend.fish	~/.config/fish/functions/suspend.fish
+link	dotfiles/fish/functions/hibernate.fish	~/.config/fish/functions/hibernate.fish
+link	dotfiles/pacman/makepkg.conf	~/.config/pacman/makepkg.conf
+copy	system/etc/sudoers.d/10-global-timestamp	/etc/sudoers.d/10-global-timestamp	root:root:0440
+copy	system/etc/sudoers.d/10-wheel	/etc/sudoers.d/10-wheel	root:root:0440
+copy	system/etc/sudoers.d/20-power	/etc/sudoers.d/20-power	root:root:0440
+copy	system/etc/sudoers.d/21-firmware-setup	/etc/sudoers.d/21-firmware-setup	root:root:0440
+copy	system/etc/systemd/coredump.conf.d/90-gpd.conf	/etc/systemd/coredump.conf.d/90-gpd.conf	root:root:0644
+copy	system/etc/systemd/system.conf.d/90-gpd.conf	/etc/systemd/system.conf.d/90-gpd.conf	root:root:0644
+copy	system/etc/systemd/system/low-battery.service	/etc/systemd/system/low-battery.service	root:root:0644
+copy	system/etc/systemd/system/low-battery.timer	/etc/systemd/system/low-battery.timer	root:root:0644
+copy	system/etc/sysctl.d/90-gpd.conf	/etc/sysctl.d/90-gpd.conf	root:root:0644
+copy	system/etc/systemd/resolved.conf.d/90-gpd.conf	/etc/systemd/resolved.conf.d/90-gpd.conf	root:root:0644
+copy	system/etc/systemd/journald.conf.d/90-gpd.conf	/etc/systemd/journald.conf.d/90-gpd.conf	root:root:0644
+copy	system/etc/nftables.conf	/etc/nftables.conf	root:root:0644
+copy	system/etc/iwd/main.conf	/etc/iwd/main.conf	root:root:0644
+copy	system/etc/ssh/sshd_config.d/10-keys-only.conf	/etc/ssh/sshd_config.d/10-keys-only.conf	root:root:0644
+copy	system/etc/pacman.conf	/etc/pacman.conf	root:root:0644
+copy	system/etc/conf.d/pacman-contrib	/etc/conf.d/pacman-contrib	root:root:0644
+copy	system/usr/local/bin/low-battery-hibernate	/usr/local/bin/low-battery-hibernate	root:root:0755

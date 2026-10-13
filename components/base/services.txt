@@ -1,0 +1,9 @@
+# Component "base": systemd units to enable (system-wide; "--user" units with a "user " prefix).
+iwd.service
+systemd-resolved.service
+systemd-timesyncd.service
+sshd.service
+nftables.service
+fstrim.timer
+paccache.timer
+low-battery.timer

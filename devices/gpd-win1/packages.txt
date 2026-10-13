@@ -1,0 +1,13 @@
+# GPD Win 1: kernel, firmware, and what the device's fixes need (devices/gpd-win1/docs/).
+linux
+linux-headers
+linux-firmware-broadcom
+linux-firmware-intel
+intel-ucode
+dkms
+i2c-tools
+f2fs-tools
+# speaker compressor (dotfiles/pipewire 30-speaker-compressor.conf)
+swh-plugins
+# Not from pacman: our Mesa (devices/gpd-win1/mesa/, mesa/install.sh) and the patched kernel modules
+# (kernel/install.sh, kernel/i915/install-dkms.sh): see devices/gpd-win1/README.md.

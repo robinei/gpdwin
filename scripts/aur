@@ -18,7 +18,7 @@ Commands:
                             Also for rebuilds of official packages: aur/pkgbuilds/PKG/.arch-package
                             names the repo package (its Arch GitLab PKGBUILD is vendored, our
                             changes are pkgbuild patches); `check` compares with the repo version.
-                            Packages named *-gpd (mesa/: mesa-gpd provides+conflicts mesa) are
+                            Packages named *-gpd (devices/gpd-win1/mesa/: mesa-gpd provides+conflicts mesa) are
                             our rebuilds under their own name; `check` compares them with the repo
                             package without the suffix.
 
@@ -209,10 +209,10 @@ def check(_):
     for pkg, ver in foreign:
         i = info.get(pkg)
         if not i and pkg.endswith("-gpd"):
-            # our rebuild of an official package under its own name (mesa/: mesa-gpd provides mesa, ...)
+            # our rebuild of an official package under its own name (devices/gpd-win1/mesa/: mesa-gpd provides mesa, ...)
             base = pkg[:-len("-gpd")]
             aur = out(["pacman", "-Si", base]).split("Version")[1].split(":", 1)[1].split()[0]
-            state = (f"REBUILD: repo {base} is newer (mesa/README.md: update from Arch's PKGBUILD, build, install)"
+            state = (f"REBUILD: repo {base} is newer (devices/gpd-win1/mesa/README.md: update from Arch's PKGBUILD, build, install)"
                      if vercmp(aur, ver) > 0 else f"ok (rebuild of repo {base})")
         elif not i and (VENDOR / pkg / ".arch-package").exists():
             # our rebuild of an official package (e.g. mangohud-light): compare with the repo

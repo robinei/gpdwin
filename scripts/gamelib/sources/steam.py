@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .. import core
 
-LIBRARY = core.REPO / "games" / "steam-library.json"
+LIBRARY = core.layers.user_file("games/steam-library.json")
 API_KEY_FILE = core.CONFIG.parent / "steam-api-key"
 UA = {"User-Agent": "gpd-games/1.0 (personal library tool)"}
 STORE_ITEMS = "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/"

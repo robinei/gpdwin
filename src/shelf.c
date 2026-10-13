@@ -30,7 +30,7 @@
  * (default/on/off), GPU turbo (default/on = 600 MHz/off = 400 MHz), power limit (default 6 W → 8 → 1 → 2 → 4 W),
  * GPU clock pin (off/on), fps cap through MangoHud (off/30/60). Only changed values are stored; at launch
  * they go to the game as GPD_CPU_TURBO, GPD_GPU_TURBO, GPD_TDP_W, GPD_GPU_PIN and MANGOHUD_CONFIG, which
- * scripts/game-wrap applies for the game's lifetime and restores afterwards (docs/power.md).
+ * scripts/game-wrap applies for the game's lifetime and restores afterwards (devices/gpd-win1/docs/power.md).
  *
  * Input: keyboard (only while the window has focus), mouse and touch from Wayland. Gamepads (any
  * with the Xbox layout, up to four) are read directly from evdev in a thread (inotify for hotplug),
@@ -87,6 +87,7 @@
 
 #include "vendor/xdg-shell-client-protocol.h"
 #include "vendor/xdg-shell-protocol.c"
+#include "devconf.h"
 
 #define FONT_REGULAR "/usr/share/fonts/TTF/DejaVuSans.ttf"
 #define FONT_BOLD "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"
@@ -1270,10 +1271,10 @@ static void save_favorites(Library *L, const char *cfg)
 enum { PERF_CPU, PERF_GPU, PERF_TDP, PERF_PIN, PERF_FPS, NPERF };
 static const char *const perf_key[NPERF] = { "cpu", "gpu", "tdp", "pin", "fps" };
 /* the values each setting cycles through; [0] is the default (0) */
-static const signed char perf_cycle[NPERF][6] = {
+static signed char perf_cycle[NPERF][8] = {
     { 0, 1, 2, -1 },  /* cpu: default, on, off */
     { 0, 1, 2, -1 },  /* gpu: default, on, off */
-    { 0, 8, 1, 2, 4, -1 }, /* tdp: default (firmware 6 W), 8 W, 1 W, 2 W, 4 W */
+    { 0, 8, 1, 2, 4, -1 }, /* tdp: default (the firmware's), then device.conf power_steps_w (load_power_steps) */
     { 0, 1, -1 },     /* pin: off, on */
     { 0, 30, 60, -1 } /* fps: no cap, 30, 60 */
 };
@@ -2961,6 +2962,23 @@ static void toggle_favorite(App *a)
     a->dirty = true;
 }
 
+/* The W key's power limit steps from device.conf (power_steps_w="8 1 2 4", watts); without it the GPD Win's. */
+static void load_power_steps(void)
+{
+    const char *v = devconf("power_steps_w", NULL);
+    if (!v)
+        return;
+    int n = 1;
+    for (char *end; n < 7; v = end) {
+        long w = strtol(v, &end, 10);
+        if (end == v)
+            break;
+        if (w > 0 && w < 128)
+            perf_cycle[PERF_TDP][n++] = (signed char)w;
+    }
+    perf_cycle[PERF_TDP][n] = -1;
+}
+
 /* T G W P L: step the selected game's setting to its next value and store it */
 static void cycle_perf(App *a, int k)
 {
@@ -3553,6 +3571,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    load_power_steps();
     timing = getenv("SHELF_TIMING") != NULL;
     mark("main");
     /* testing: SHELF_SCREENSHOT=file.png [SHELF_KEYS=dddr...] renders 1280x720 without a window,

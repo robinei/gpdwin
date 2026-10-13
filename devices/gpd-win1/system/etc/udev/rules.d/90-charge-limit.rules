@@ -1,0 +1,4 @@
+# Battery charge limit when the charger driver (re)registers: /usr/local/bin/charge-limit
+# (devices/gpd-win1/docs/power.md, "Charge limit"); at boot charge-limit.service does it too. The bq24190 driver
+# keeps the value and rewrites it on resume.
+ACTION=="add", SUBSYSTEM=="power_supply", KERNEL=="bq24190-charger", RUN+="/bin/sh -c '/usr/local/bin/charge-limit udev | logger -t charge-limit'"

@@ -544,7 +544,7 @@ The Skraper layout is also compiled in (`providers/skraper/SkraperAssetsProvider
 6. The `game-start` scripts run (with the game file's absolute path as the argument), then
    `QProcess::start(command, args)` (`:226-262`). The **environment is inherited unchanged** from Pegasus. On the
    device that includes `MANGOHUD=1`, `LD_PRELOAD=...libMangoHud_shim.so`, `QT_BEARER_POLL_TIMEOUT=-1` and a
-   `PATH` with `~/.config/pegasus-frontend/bin` first, all set by `dotfiles/pegasus-frontend/run`. stdout, stderr
+   `PATH` with `~/.config/pegasus-frontend/bin` first, all set by `users/robin/dotfiles/pegasus-frontend/run`. stdout, stderr
    and stdin are **forwarded** to Pegasus' own. The C launcher's wrapper should set the same environment.
 
 Results here:
@@ -725,7 +725,7 @@ Stale paths stay in the DB: `utils/tools/desktop.sh` and `snes/Breath of Fire.sm
 
 ## 8. What this setup actually uses
 
-Six game dirs (`dotfiles/pegasus-frontend/game_dirs.txt`, symlinked into `~/.config/pegasus-frontend/`):
+Six game dirs (`users/robin/dotfiles/pegasus-frontend/game_dirs.txt`, symlinked into `~/.config/pegasus-frontend/`):
 `~/Games/{pc,snes,psp,ps1,utils,installed}`. `~/Games/pc` and `~/Games/utils` are **symlinks** to
 `~/gpd/pegasus/{pc,utils}` (the repo's `pegasus/` dir), and all stored paths use the `~/Games/...` form. There
 are no global metafiles, no `.media`, no scripts and no favourites. Pegasus found **43 games in 5 collections**,

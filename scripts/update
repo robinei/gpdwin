@@ -19,7 +19,7 @@ before=$(pacman -Q)
 echo; echo "== Repo packages"
 if checkupdates 2>/dev/null | grep -q '^linux '; then
     echo "Kernel update pending ($(checkupdates 2>/dev/null | grep '^linux ')). The patched display driver"
-    echo "(DKMS gpd-i915, docs/hardware.md \"Display\") is then rebuilt on this device during the update:"
+    echo "(DKMS gpd-i915, devices/gpd-win1/docs/hardware.md \"Display\") is then rebuilt on this device during the update:"
     echo "about 10-15 minutes of full CPU load (download ~150 MB + compile). If that build fails, the stock"
     echo "driver is used until the patches are updated (lasting split pictures possible again)."
     if ask "Update the kernel now? (N = update everything else, keep the current kernel)"; then
@@ -35,7 +35,7 @@ fi
 # re-checked here; /maintain does that, see .claude/commands/maintain.md)
 if [[ "$(grep '^linux ' <<<"$before")" != "$(pacman -Q linux)" ]]; then
     new=$(pacman -Q linux | cut -d' ' -f2 | sed 's/\.arch/-arch/')
-    echo; echo "== Kernel updated to $new: our patched modules (docs/hardware.md \"Display\", \"Audio\")"
+    echo; echo "== Kernel updated to $new: our patched modules (devices/gpd-win1/docs/hardware.md \"Display\", \"Audio\")"
     dkms status
     for pkg in gpd-i915 gpd-audio; do
         dkms status "$pkg" | grep -q "$new.*installed" ||

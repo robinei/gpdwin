@@ -15,6 +15,8 @@ import curses, importlib.machinery, importlib.util, io, json, os, subprocess, sy
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "scripts"))
+import layers  # noqa: E402  (the user layer holds games/saves.json)
 
 # Reuse the desktop script's tar validation and file writing (same format both ways).
 _loader = importlib.machinery.SourceFileLoader("saveremote", str(REPO / "desktop/save-status-remote"))
@@ -483,7 +485,7 @@ def tui(scr, cfg):
 
 
 def main():
-    cfg = json.loads((REPO / "games/saves.json").read_text())
+    cfg = json.loads((layers.user_file("games/saves.json")).read_text())
     if "--list" in sys.argv:
         for e in load(cfg, Desktop(cfg["desktop_host"]), Cloud()):
             for msg in (e["err"], e["cloud_err"] and "Steam Cloud: " + e["cloud_err"]):

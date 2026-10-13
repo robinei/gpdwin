@@ -23,6 +23,8 @@ from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
+sys.path.insert(0, str(REPO / "scripts"))
+import layers  # noqa: E402  (the user layer holds games/saves.json)
 MAX_FILE = 64 << 20   # bytes per save file
 MAX_FILES = 2000      # files per game
 
@@ -331,7 +333,7 @@ def do_discover(sc, appids, out):
 
 
 def main():
-    cfg = json.loads((REPO / "games/saves.json").read_text())
+    cfg = json.loads((layers.user_file("games/saves.json")).read_text())
     sc = load_cloud()
     cmd = os.environ.get("SSH_ORIGINAL_COMMAND", "status").split()
     out = sys.stdout.buffer

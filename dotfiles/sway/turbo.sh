@@ -1,6 +1,6 @@
 #!/bin/sh
 # Toggle CPU or GPU turbo and show it in wob (full bar = on, empty = off).
-#   CPU: intel_pstate no_turbo (0 = turbo allowed)
+#   CPU: intel_pstate no_turbo (0 = turbo allowed), elsewhere cpufreq boost (1 = allowed)
 #   GPU: i915 max/boost frequency, RP0 (turbo) <-> RP1 (efficient)
 # Needs the sysfs files to be writable by the wheel group (see /etc/tmpfiles.d/turbo.conf).
 wob="$XDG_RUNTIME_DIR/wob.sock"
@@ -8,9 +8,18 @@ wob="$XDG_RUNTIME_DIR/wob.sock"
 case "$1" in
 cpu)
     f=/sys/devices/system/cpu/intel_pstate/no_turbo
-    if [ "$(cat $f)" = 0 ]; then new=1; else new=0; fi
-    echo $new > $f 2>/dev/null
-    [ "$(cat $f)" = 0 ] && on=1 || on=0
+    if [ -e "$f" ]; then
+        if [ "$(cat $f)" = 0 ]; then new=1; else new=0; fi
+        echo $new > $f 2>/dev/null
+        [ "$(cat $f)" = 0 ] && on=1 || on=0
+    else
+        # other CPUs (AMD, acpi-cpufreq): cpufreq boost, 1 = turbo allowed
+        f=/sys/devices/system/cpu/cpufreq/boost
+        [ -e "$f" ] || exit 1
+        if [ "$(cat $f)" = 1 ]; then new=0; else new=1; fi
+        echo $new > $f 2>/dev/null
+        [ "$(cat $f)" = 1 ] && on=1 || on=0
+    fi
     ;;
 gpu)
     d=$(ls -d /sys/class/drm/card*/gt/gt0 2>/dev/null | head -1)

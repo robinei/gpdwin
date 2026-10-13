@@ -1,6 +1,9 @@
 # Desktop (sway)
 
-All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
+The shared files are in `dotfiles/sway/` (symlinked to `~/.config/sway`). The config ends with
+`include ~/.config/gpd/sway.d/*`, where the other layers link their parts (docs/repo-layout.md): the device's
+outputs and keys (`devices/gpd-win1/dotfiles/sway.conf`: `output DSI-1 ...`, Super+F10 panel resync, Super+C
+speaker tuning), shelf's and inputd's autostart (`components/{shelf,inputd}/sway.conf`).
 
 - `config`: stock `/etc/sway/config` plus: `$menu` = fuzzel, `Mod+Backspace` kill, `Mod+Shift+Backspace` force-kill (`force-kill.sh`: TERM, then KILL after 1 s),
   `output DSI-1 transform 90`, volume/brightness keys → `osd.sh`, brightness on `Mod+volume`
@@ -20,7 +23,8 @@ All files in `dotfiles/sway/` (symlinked to `~/.config/sway`).
   state when `osd.sh`/`turbo.sh` send SIGUSR1. The screen-off idle step SIGSTOPs it, resume
   SIGCONTs it. Only changed lines are written. Measured: sway+swaybar+statusbar together
   1.7 ms CPU/s (0.17% of a core); the GPU stays in RC6.
-- `autostart`: shelf on workspace 1 (`assign` + `exec ~/.config/shelf/run`),
+- `autostart` (now empty; the following live in `components/shelf/sway.conf` and `components/inputd/sway.conf`):
+  shelf on workspace 1 (`assign` + `exec ~/.config/shelf/run`),
   `inputd.sh` (keeps `~/.local/bin/inputd` running: restarted 1 s after it exits, until sway is
   gone), `for_window` rules making everything shelf starts
   fullscreen (dialogs float; shelf itself is a normal window with the bar visible),

@@ -27,6 +27,7 @@ from pathlib import Path, PurePosixPath
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 from gamelib import core   # noqa: E402
+import layers              # noqa: E402
 
 _l = importlib.machinery.SourceFileLoader("saveremote", str(REPO / "desktop/save-status-remote"))
 _s = importlib.util.spec_from_loader("saveremote", _l)
@@ -222,7 +223,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     inst = {aid: g for (src, aid), g in core.installed().items() if src == "steam"}
     appids = args or sorted(inst, key=lambda a: inst[a]["name"].lower())
-    cfg = json.loads((REPO / "games/saves.json").read_text())
+    cfg = json.loads((layers.user_file("games/saves.json")).read_text())
     mapped = {g["appid"] for g in cfg["games"]}
     cloud = {} if "--no-cloud" in sys.argv else cloud_lists(appids)
     here = remote.ludusavi_discover(appids)

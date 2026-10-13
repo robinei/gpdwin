@@ -1,0 +1,18 @@
+# Component "desktop": the sway session, audio, fonts.
+sway
+seatd
+foot
+fuzzel
+wob
+brightnessctl
+grim
+xorg-xwayland
+ttf-dejavu
+ttf-nerd-fonts-symbols
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+alsa-ucm-conf
+realtime-privileges
+btop

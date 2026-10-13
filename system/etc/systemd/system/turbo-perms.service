@@ -1,4 +1,4 @@
-# Apply /etc/tmpfiles.d/turbo.conf once the RAPL powercap files exist (docs/power.md "Package power limit").
+# Apply /etc/tmpfiles.d/turbo.conf once the RAPL powercap files exist (devices/gpd-win1/docs/power.md "Package power limit").
 # systemd-tmpfiles-setup runs at ~8 s, but intel_rapl creates /sys/class/powercap/intel-rapl:0 only at ~13 s,
 # so its permissions (PL1 writable, energy_uj readable by wheel) were never applied: game-wrap's GPD_TDP_W
 # failed silently and MangoHud's package power showed 0 W (2026-10-12). Waits up to 60 s.

@@ -1,0 +1,10 @@
+# Component "inputd": inputd (src/inputd.c): idle dimming and sleep, lid, power button, the menu key; logind leaves those to it.
+# Tab-separated. Repo paths are relative to the layer's root (the repo root); see scripts/sync and
+# docs/repo-layout.md. Kinds: link (live is a symlink into the repo), copy (repo holds a copy),
+# keep (a copy the program rewrites, synced both ways with the user's say), build (C source compiled).
+# owner "user" = whoever runs scripts/sync.
+
+copy	system/etc/systemd/logind.conf.d/handheld.conf	/etc/systemd/logind.conf.d/handheld.conf	root:root:0644
+copy	system/usr/lib/systemd/system-sleep/resume-time	/usr/lib/systemd/system-sleep/resume-time	root:root:0755
+build	src/inputd.c	~/.local/bin/inputd	wayland-client
+link	components/inputd/sway.conf	~/.config/gpd/sway.d/50-inputd.conf

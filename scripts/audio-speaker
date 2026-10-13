@@ -1,6 +1,6 @@
 #!/bin/sh
 # Force the speaker output when the rt5645 codec wrongly reports a headphone plug
-# (docs/hardware.md "Audio jack"). Undo with: audio-speaker auto
+# (devices/gpd-win1/docs/hardware.md "Audio jack"). Undo with: audio-speaker auto
 CARD=alsa_card.platform-cht-bsw-rt5645
 case "${1:-speaker}" in
   auto) pactl set-card-profile $CARD "HiFi (Headphones, Headset)" ;;   # use after really plugging in

@@ -8,11 +8,11 @@ The user started this from the game installer (`scripts/games` → `scripts/main
 `sudo -n` works for the session. They hold the device: keep messages short, say before anything appears on the
 screen, and let them launch the game from shelf when testing (shelf turns MangoHud on; Ctrl+Shift+F12 shows it).
 Ask before changing anything outside the game's folder and launcher. Record what you did and measured in
-`docs/steam-library.md` (one entry per game) and `docs/changelog.md`, and commit.
+`users/robin/docs/steam-library.md` (one entry per game) and `docs/changelog.md`, and commit.
 
-Background (read when relevant): `docs/steam-library.md` (DRM recipes, Dark Souls as the worked example),
-`docs/frontend.md` "Game installer", `docs/power.md` "Package power limit", `dxvk/README.md`,
-`mesa/reports/R5-softpin-vulkan13.md` (DXVK on this GPU), `scripts/game-wrap` (header).
+Background (read when relevant): `users/robin/docs/steam-library.md` (DRM recipes, Dark Souls as the worked example),
+`docs/frontend.md` "Game installer", `devices/gpd-win1/docs/power.md` "Package power limit", `devices/gpd-win1/dxvk/README.md`,
+`devices/gpd-win1/mesa/reports/R5-softpin-vulkan13.md` (DXVK on this GPU), `scripts/game-wrap` (header).
 
 ## 1. What is it
 - `.gpd-game.json` (exe, os, runner), the launcher `gpd-launch.sh` (generated; `"runner": "custom"` in the record
@@ -20,7 +20,7 @@ Background (read when relevant): `docs/steam-library.md` (DRM recipes, Dark Soul
   (32-bit → old-style Wine `~/Games/tools/wine32`, prefix `~/.wine32`; 64-bit → system Wine, `~/.wine`).
 - Graphics API: `strings -n 6 EXE *.dll | grep -iE '^(d3d8|d3d9|d3d10|d3d11|d3d12|dxgi|opengl32|vulkan-1)\.dll$'`
   (exe and the DLLs next to it; engines load it from a DLL, e.g. UnityPlayer.dll).
-- PCGamingWiki page (`pcgw` in `games/steam-library.json`): known fixes, frame-rate caps, physics tied to fps,
+- PCGamingWiki page (`pcgw` in `users/robin/games/steam-library.json`): known fixes, frame-rate caps, physics tied to fps,
   widescreen/resolution mods (Dark Souls: DSfix).
 
 ## 2. Make it start (Steam games)
@@ -35,12 +35,12 @@ Background (read when relevant): `docs/steam-library.md` (DRM recipes, Dark Soul
   rotated, so crop carefully. Don't leave test windows running.
 
 ## 3. Renderer
-- **Direct3D 9: DXVK, our build** (`dxvk/`, on the device `~/Games/tools/dxvk/gpd/x32|x64/d3d9.dll`): copy next to
+- **Direct3D 9: DXVK, our build** (`devices/gpd-win1/dxvk/`, on the device `~/Games/tools/dxvk/gpd/x32|x64/d3d9.dll`): copy next to
   the exe, `WINEDLLOVERRIDES=...;d3d9=n`, `export DXVK_GPD_ASYNC_READBACK=1`, and `dxvk.conf` next to the exe with
   `dxvk.enableAsync = true`, `d3d9.numBackBuffers = 3`, `d3d9.maxFrameLatency = 3`. Keep a Wine-d3d variant
   `gpd-launch-wined3d.sh` (`d3d9=b`) and compare. Reserves `~/Games/tools/dxvk/gpd-2.6.2/`, `gpd-2.7.1/` (same patches):
   only if a game needs them; 2.5+ costs more CPU per frame here, 2.7+ needs `hasvk_report_descriptor_indexing=true`
-  (dxvk/README.md). Since Mesa 1.11 hasvk has real Vulkan 1.3, so `hasvk_report_vk_1_3_version` is no longer needed.
+  (devices/gpd-win1/dxvk/README.md). Since Mesa 1.11 hasvk has real Vulkan 1.3, so `hasvk_report_vk_1_3_version` is no longer needed.
 - Direct3D 8: Wine's d3d8 first; DXVK route (d3d8to9 + DXVK) only if needed (docs/frontend.md "Sam & Max").
 - Direct3D 10/11/dxgi, OpenGL, Vulkan: Wine's own (wined3d / the GL driver crocus / hasvk) unless tested
   otherwise. DXVK d3d11 on this GPU is untested: try only with the user's OK, record the result.
@@ -56,8 +56,8 @@ Background (read when relevant): `docs/steam-library.md` (DRM recipes, Dark Soul
   `DXVK_HUD=fps,submissions,cs,gpuload,drawcalls` (one launch): "Queue syncs" per frame = GPU stalls. Our DXVK's
   wait log (`DXVK_LOG_LEVEL=warn DXVK_LOG_PATH=$HOME/.cache`) names the call, size, format, pool and flags of
   every stall. A small SYSTEMMEM readback (Dark Souls: 16x16 R32F luminance) is covered by
-  `DXVK_GPD_ASYNC_READBACK=1`; other patterns may need a DXVK option or a new patch in `dxvk/` (rebuild with
-  `dxvk/build.sh` on the desktop, it needs the desktop's sudo).
+  `DXVK_GPD_ASYNC_READBACK=1`; other patterns may need a DXVK option or a new patch in `devices/gpd-win1/dxvk/` (rebuild with
+  `devices/gpd-win1/dxvk/build.sh` on the desktop, it needs the desktop's sudo).
 - Thread waits in detail: `sudo perf sched record -- sleep 8` and attribute the render thread's blocked time to
   its wakers (see the Dark Souls notes). `perf record -g -p PID` for CPU hot spots.
 - GPU busy ~100%: fewer pixels (game/mod resolution; 960x540 was the sweet spot for Dark Souls), cheaper effects

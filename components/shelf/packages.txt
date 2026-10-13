@@ -1,0 +1,9 @@
+# Component "shelf": built from src/shelf.c by scripts/sync, plus the game tooling around it.
+sdl3
+sdl3_image
+sdl3_ttf
+sqlite
+icu
+wayland
+# MangoHud: the repo package, or our lighter rebuild (aur/pkgbuilds/mangohud-light) via scripts/aur
+mangohud
