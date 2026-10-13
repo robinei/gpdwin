@@ -147,6 +147,11 @@ paused, run via `swaymsg exec` (brightnessctl needs the session).
 - Check after installing (not yet done, the board is out for repair): `modinfo -n intel_chtwc_int33fe` under
   `updates/dkms/`; with a 12 V-capable PD charger `cat /sys/class/power_supply/tcpm-source-psy-i2c-fusb302/voltage_now`
   = 5000000 and a USB meter at 5 V; the charger's `input_current_limit` should follow the 2.5 A contract (check).
+- Tested 2026-10-13 14:13 (installed by `scripts/sync install`, rebooted; module from `updates/dkms`), the charger
+  that gave 12 V before: contract 5 V / 2.5 A (`tcpm-source-psy` 5000 mV, current_max 2500 mA), bq24190
+  `input_current_limit` 2000 mA (the charger's own cap below the contract), battery +0.6-0.84 A while idle with
+  the board fault, USB meter ~9 W (at 12 V it was ~10 W with +1.08 A into the battery). Works; charging is
+  somewhat slower than at 12 V.
 
 ## Overheating with a 4 A battery drain (2026-10-12, open)
 After ~10 min of Wind Waker in Dolphin (package limit 6 W, MangoHud showed ~4 W) the device got very hot.
