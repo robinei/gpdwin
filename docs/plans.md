@@ -359,6 +359,14 @@ in the loop.
   `pacman -Syu` and downgrades see them. Versions from git (`pkgver` = describe + commits, plus a build number
   for uncommitted builds) so each build is an upgrade. No dev overrides: always build and install. Rust
   builds are incremental (`cargo` target dir kept between builds).
+- **The agent runs on the Thor too** (Claude Code has linux-arm64 builds): checkout, builds, installs and tests
+  all local, no ssh. Started from a terminal on the device, from shelf's Utilities (as the GPD's Maintenance
+  entry), or reached remotely (ssh, or a remote session from the desktop or phone) when typing on the device
+  is too slow. Guard rails, as CLAUDE.md's rules: a narrow sudoers rule for what the loop needs
+  (`pacman -U` from the local repo, `systemctl` for our units), everything else asks; a btrfs snapshot before
+  every pacman transaction; kernel, bootloader and firmware changes only with the user's yes (a bad one
+  can leave the device unbootable, and the agent with it); never restart the system program or sway while a
+  game runs.
 - Drift: `pacman -Qkk` for files changed under the packages; `/etc` edits go into the package, not the device.
 - **Publishing**, only when ready and only our own packages: sign with our GPG key and upload to a public repo
   (GitHub Releases/Pages); others add it to `pacman.conf` next to ALARM and Pocknix's repo. Later, an image
