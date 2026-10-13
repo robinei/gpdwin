@@ -209,6 +209,8 @@ idle rest is ~1.4 W (2.56 W battery, 1.2 W package), so the fault is ~3.2 W. It 
 clock or voltage: the +0.9 W in rest at 2.4 GHz is about the regulator loss and memory traffic of 4 W more package
 power. So probably not SoC leakage: a part on another rail (PMIC output, memory, a regulator or a capacitor on
 a rail switched on with the system), near PNIT. Next step is hardware (thermal camera or repair shop).
+Robin (2026-10-13): a faint burnt smell from the photographed side (BAT area), also noticed on 2026-10-12. So a
+part has overheated, not just aged. Decision: don't use or charge it; battery disconnected until repaired.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
