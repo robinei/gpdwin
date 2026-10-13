@@ -194,6 +194,9 @@ After the battery was out overnight (2026-10-13, cold boot on battery, 5% bright
 the first minute (typically ~1.6 A, ~5.8 W; normal 0.59 A), package 1.15-1.4 W, PNIT and DTS 34 -> 40 C in 2 min
 and still rising. The same as right after the disconnect: the overnight rest cleared nothing more. The extra
 ~1 A (~3.5-4 W outside the package estimate) is there cold, so it is not heat-driven runaway.
+USB meter cross-check (12 V PD, idle, battery charging at its 1.02 A setting): 10 W at the input, which fits
+the gauge (~6 W system incl. the fault + ~4.4 W into the battery). The gauge is trustworthy. While charging the
+battery current stays at the charge setting whatever the load, so load tests must run on battery.
 
 ## Idle wakeups (2026-10-07, with Pegasus as the frontend then)
 - Screen on, Pegasus idle: ~300 irq/s. Biggest source: the gamepad (USB dev `045e:028e`)
