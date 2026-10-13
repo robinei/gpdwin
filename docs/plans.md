@@ -77,8 +77,17 @@ running when nothing needs it. On the GPD shelf avoided the client (DepotDownloa
 - Installing and uninstalling: in Steam itself (decided 2026-10-13). shelf has an entry that opens Steam's UI
   (Big Picture, or the library) for that; shelf lists only installed games, and picks up changes from the
   manifests.
-- Windows: sway rules put `steam_app_*` fullscreen on the main screen; Steam's own windows (login, dialogs,
-  overlay) are allowed but placed on the main screen and closed or hidden when done.
+- Windows: sway rules put `steam_app_*` (games) fullscreen on the main screen. **Steam's own windows stay
+  hidden** unless asked for: `steam -silent` starts without a window, and a sway rule moves every other Steam
+  window (class `steam`: the client, updater, dialogs) to the scratchpad, where it exists but is not shown.
+  - Shown on request: shelf's Steam entry brings the client (or Big Picture) out of the scratchpad onto the
+    main screen; leaving it sends it back.
+  - Windows that need an answer (login or Steam Guard, cloud save conflict, launch options, EULA, an error)
+    are not lost: the system program sees each new Steam window over sway IPC and shows a notice with its
+    title on the second screen; a tap (or the system button) brings it up. Which titles count as "needs an
+    answer" and which are just progress (updates, "Preparing to launch", shader pre-caching) is learnt on the
+    device; progress can show as a line in the bar instead.
+  - The in-game overlay is part of the game window and unaffected.
 - Input: Steam Input sees our virtual Xbox pad ("Owning the input path"); keep Steam Input off for it by
   default (our layer and profiles do that job), on per game if a game needs Steam's remapping.
 - Bottom screen during a Steam game: the same follow mode (controls, per-game settings, bar).
