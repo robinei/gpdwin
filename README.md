@@ -5,6 +5,12 @@ standard Arch install. The session is **sway** (Wayland), and inputd and the sta
 Supported device: **GPD Win 1** (2016, Intel Atom x7-Z8700). Other devices can be added
 as a device layer (see "Adding a device").
 
+![shelf on the GPD Win 1: collection tabs, the game list with box art, details of the selected game, and the
+status bar above](docs/images/shelf.png)
+
+*shelf on the GPD Win 1 (1280x720), with the status bar above it: CPU and GPU clock, power limit, temperature,
+RAM, Wi-Fi, volume, battery.*
+
 ## Contents
 
 **Device fixes.** Each device folder lists problems on stock Arch, the fix, and measurements. GPD Win 1
@@ -121,6 +127,7 @@ Parts that modify or come from other projects keep those projects' licences; eac
 | `src/vendor/`: Wayland protocol code | MIT (in the files) |
 | `system/etc/systemd/system/systemd-user-sessions.service`: changed copy of systemd's unit | LGPL-2.1-or-later (in the file) |
 | `shelf/logos/`: Pegasus grid theme logos | CC BY-NC-SA 4.0, non-commercial ([README](shelf/logos/README.md)) |
+| `docs/images/shelf.png`: screenshot | ours, but the game covers and console logos in it belong to their owners |
 
 The licence texts are in `LICENSES/`. Not included: the dxvk-gplasync patches (no licence stated upstream;
 `build.sh` downloads them) and the GPD Win's firmware video table.
