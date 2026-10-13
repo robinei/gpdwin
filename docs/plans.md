@@ -193,28 +193,11 @@ worked on. Fresh history (none of this repo's personal data or old paths); MIT f
 - `docs/pegasus-format.md` (the spec for `library`), docs/frontend.md and docs/desktop.md as the behaviour
   spec for the new program; the C sources as reference only.
 
-**Arch, with the useful parts of NixOS (decided 2026-10-13: stay on Arch). Proposal: base it on darch.**
-Robin's github.com/robinei/darch (Jan 2026, ~1600 lines Python, tested in QEMU only) already builds Arch
-declaratively: config in Python, each build an immutable generation in a btrfs subvolume (`/usr`, `/etc`,
-`/boot` and the pacman state), tmpfs root with symlinks through `/current`, persistent `@var` and `@home`,
-incremental builds by config diff, atomic live switch, a GRUB entry per generation, garbage collection.
-It replaces most of `scripts/sync` (no drift in `/etc` and `/usr`: they are rebuilt), and the layers become
-Python functions composing a `Config` (components, device, user).
-What it needs for the Thor:
-- **aarch64**: `grub-install --target=x86_64-efi` and `qemu-system-x86_64` are hardcoded; the package set and
-  repos per architecture (ALARM + the Thor's kernel/firmware/BSP repo).
-- **A boot backend for ROCKNIX ABL**: no GRUB; the kernel is an Android boot image (`mkbootimg`) on a FAT
-  partition with the cmdline inside, so `darch.gen=N` goes into the image. Keep the current and the previous
-  generation's image and find out what ROCKNIX ABL can choose between; or a generation picker in the initramfs
-  (same kernel only).
-- **Hibernate** with a tmpfs root: the initramfs must try `resume` before darch's mount handler; the swap
-  sized for RAM plus the tmpfs.
-- **Home files**: darch writes user files on every build and never removes them; our `keep` files (settings
-  programs rewrite: Dolphin, RetroArch) and links into a repo need `sync`'s rules, so `sync` (or its home part)
-  stays for `~`.
-- Building aarch64 images on the x86 desktop: chroot steps run through qemu-user binfmt (slow but works);
-  after install, builds run on the device (`apply --switch`).
-- First on real hardware: GRUB's serial-console setup is for QEMU.
+**System management (decided 2026-10-13): as on the GPD.** A normal Arch Linux ARM install, changed live and
+recorded in the repo with `scripts/sync` (manifests, drift check, changelog), so experimenting stays easy and
+the effort goes into the device and the system program. Not NixOS, not darch (github.com/robinei/darch:
+generations and a tmpfs root; considered and set aside). Cheap additions worth having: btrfs snapshots around
+pacman transactions for rollback, and `sync` reporting installed packages that no layer lists.
 
 **Stays here (the archive):** `devices/gpd-win1` (kernel patches, Mesa, DXVK, docs), the C programs
 (`src/`), the GPD-specific dotfiles and scripts (speaker tuning, audio snapshots), `docs/changelog.md`, the
