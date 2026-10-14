@@ -7,8 +7,9 @@ change gets a `docs/changelog.md` entry, and the section here is removed. Unsort
 
 ## Rust and a project structure for the system program
 
-**Goal:** write the system program ("One system program", below) in Rust as a Cargo workspace, not as more single C files. The C
-programs (shelf, inputd, statusbar; ~5200 lines) keep running until it replaces them.
+**Goal:** write the system program ("One system program", below) and the new shelf in Rust as one Cargo
+workspace, not as more single C files. The C programs (shelf, inputd, statusbar; ~5200 lines) keep running
+until they are replaced.
 
 **Why:** a long-running program that owns input, power and the screen, with threads sharing one state, parsing
 untrusted files (Pegasus metadata, images, Steam data). Rust gives memory and thread safety there, `cargo test`
@@ -20,11 +21,11 @@ for the parts that are pure logic, and a structure that can grow.
   - `policy`: evdev (`evdev` crate), logind inhibitor locks and sleep (`zbus`), sway IPC, uinput, sysfs
     (power, backlight, charger), device.conf;
   - `library`: Pegasus format, `stats.db` (`rusqlite`), the user layer's games (docs/pegasus-format.md is the
-    spec; the C shelf the reference implementation);
-  - `ui`: Wayland surfaces (`smithay-client-toolkit`: xdg toplevel, layer-shell, virtual keyboard), drawing
-    (CPU: `tiny-skia` + a text crate; or GPU, if the Atom's Mesa startup cost allows), the shelf, companion
-    and keyboard views;
-  - one binary.
+    spec; the C shelf the reference implementation); used by both programs;
+  - `ui`: Wayland surfaces (`smithay-client-toolkit`: xdg toplevel, layer-shell, virtual keyboard) and the
+    drawing helpers ("UI code" below), used by both programs;
+  - two binaries: the system program (bar, second-screen modes, keyboard, input, power, game launch) and
+    shelf (a separate app, "One system program" says why).
 - Port the behaviour, not the code: the C sources and docs are the spec; their tests are what was measured on
   the GPD (first frame ~40 ms after start, docs/frontend.md).
 - **No panics by construction**: workspace lints deny `unwrap`/`expect`/`panic!`/slice indexing
@@ -56,6 +57,30 @@ sysfs under a configurable root with fake trees for lid, battery and charger, un
   scrolling, box art) may be too much for the CPU at full rate: measure on the desktop with the Thor's sizes;
   if it is, draw that view with the GPU (Vulkan/GLES through Turnip, or `wgpu`) behind the same drawing
   interface, and keep the second screen on the CPU.
+- **UI code, decided 2026-10-14: no toolkit, no widget library.** The UI is about eight fixed screens on two
+  known panels (bar, keyboard, touchpad, sysinfo, launcher/app switcher, pad-layer overlay, notices; shelf's
+  list and details), used by pad and touch only: no resizing, free layout, theming or accessibility tree, so a
+  toolkit's layout engine buys little (the C shelf is 3700 lines on bare SDL3 with none). Considered: iced
+  (tiny-skia renderer, a layer-shell fork used by COSMIC; the closest fit, but weak pad focus navigation and
+  its own event and state model next to ours), slint (good software renderer, awkward with layer-shell), egui
+  (looks like a dev tool, weak pad navigation). Instead the `ui` crate, a few hundred lines:
+  - surface: double-buffered shm, damage regions, scale;
+  - draw: fill, rounded rect, image blit (`tiny-skia`), text with a glyph cache (`cosmic-text`, or `fontdue`
+    for less);
+  - targets: while drawing, each screen records the rects that can be tapped or focused, with their action.
+    Touch hit-tests that list; the pad moves focus between the same rects by direction. One mechanism for
+    both inputs.
+
+  Each screen is a function (state, size) → drawing + targets, laid out with plain arithmetic (two known
+  panels). A helper moves into `ui` only when a second screen needs it.
+- **Immediate mode, with retained state and redraw on demand**: no widget tree; every frame redraws from the
+  state. But frames come only when something changes (input, a sysinfo tick, a game starting), never every
+  vsync; between them the program sleeps in `poll`. Animations ask for frames only while they run. Focus,
+  pressed button, scroll position and keyboard layer live in the program's state, keyed by stable ids (game
+  id, key name). Hits are tested against the last frame's targets (layouts only move when state does).
+  Cached: glyphs, decoded and scaled box art, static backgrounds; only damaged rects go to the compositor
+  (one key lighting up). If shelf's scrolling gets heavy: redraw only the changed strip, or the GPU, without
+  changing the model.
 - Repository, decided 2026-10-13: a new repo for everything (see "New repository" below).
 - Order: build the new program against the new device (the Thor) first, where the second screen and the pad
   layer are needed. The C programs stay for devices/gpd-win1 (other GPD owners) until the new one covers them.
@@ -78,8 +103,8 @@ No tiling, borders, title bars or workspace names ever visible.
 - Closing an app: its workspace disappears; the previous app (most recently used) comes back, else shelf.
 - No sway key bindings for tiling, layouts, splits or workspaces at all; `default_border none`, no swaybar.
   Everything the user does goes through the system program.
-- **Second screen**: one workspace, normally empty under the program's layer-shell views; an emulator's
-  second window goes there ("Second screen" below).
+- **Second screen**: one workspace, normally empty under the program's layer-shell views; apps' second
+  windows (shelf's, an emulator's) go there ("Second screen" below).
 - **App switcher**: a second-screen mode (and a pad-layer binding: D-pad left/right = previous/next app,
   most recently used order): the open apps as a list or grid with icon and title, tap to switch, a close
   button (polite close, then kill after a timeout for hung games). Thumbnails later, if sway can capture
@@ -111,7 +136,7 @@ running when nothing needs it. On the GPD shelf avoided the client (DepotDownloa
 - Library: read Steam's own files, no API: `libraryfolders.vdf` and `appmanifest_*.acf` (installed games,
   size, last played), `librarycache/` art for box art. Only installed games; a "Steam" collection in shelf.
 - Launch: start Steam in the background on demand (`steam -silent`), wait until it is logged in, then
-  `steam -applaunch <appid>`; shelf tracks the game by its `steam_app_<appid>` window class (sway) and
+  `steam -applaunch <appid>`; the system program (which launches every game for shelf) tracks it by its `steam_app_<appid>` window class (sway) and
   Steam's reaper process, for play time and for "game running" state. Steam shuts down (`steam -shutdown`)
   some minutes after the last Steam game exits, unless kept.
 - Installing and uninstalling: in Steam itself (decided 2026-10-13). shelf has an entry that opens Steam's UI
@@ -147,15 +172,27 @@ running when nothing needs it. On the GPD shelf avoided the client (DepotDownloa
 sysfs paths; no generality for other devices or single-screen fallbacks. Anything device-specific stays in
 one module so a later device is a port, not a design constraint now.
 
-**Goal:** one program instead of inputd, shelf, the companion and the on-screen keyboard: one in-memory state
-(focus, selected game, layer and override modes, lid, idle, power) that every part sees at once, with no IPC
-or state files between them. It has 0, 1 or 2 windows: none while a game has the screen (only the input and
-power policy run), shelf on the main screen, the companion or keyboard on the second.
+**Goal:** one program instead of inputd, statusbar, the companion and the on-screen keyboard: one in-memory
+state (focus, layer and override modes, running game, lid, idle, power) that every part sees at once, with no
+IPC or state files between them.
+
+**shelf stays a separate app, with two windows (decided 2026-10-14).** Merging it was considered (follow mode
+needs the live selection; launch and per-game settings; no IPC), but shelf is the riskiest code (images,
+metadata, fonts, scrolling) and the system program must not die with it; as an app it fits the window model
+(its own workspace, switched like any other), frees its memory by exiting, and restarts alone while
+developing. The selection problem goes away when shelf draws both screens itself:
+- its main window (xdg toplevel) on the main screen, fullscreen in its own workspace;
+- a second window with the selected game's art, description, play time and touchable per-game settings,
+  placed on the second screen by the same sway rule as an emulator's second window. Its selection drives its
+  own second window in-process; touches on it go to shelf.
+- The system program owns game launch: shelf asks it over a small socket (`launch <game>`; replies
+  `running <game>`, `exited <game>`). It applies per-game settings and input profiles, starts the game in its
+  own scope, tracks its windows and play time. A few messages, no shared state; `library` is the shared code.
+- A shelf crash takes only shelf's two windows; input, bar and modes keep running.
 
 **Design so far:**
-- Wayland client with up to two surfaces: shelf's window (xdg toplevel, so sway rules still place it) and
-  layer-shell surfaces for the second screen, the keyboard and popups. The keyboard types through
-  `zwp_virtual_keyboard_v1` (as wvkbd does), so no separate keyboard program.
+- Wayland client with layer-shell surfaces only: the bar, the second-screen modes, the keyboard, popups. The
+  keyboard types through `zwp_virtual_keyboard_v1` (as wvkbd does), so no separate keyboard program.
 - Crash isolation, since a bug in drawing must not take the input and power policy with it:
   - the policy (evdev, lid, idle, power button, charger, pad grab) runs in its own thread with no SDL or image
     code, and owns the state; the UI thread reads it under a lock and sends it commands;
@@ -167,15 +204,14 @@ power policy run), shelf on the main screen, the companion or keyboard on the se
     modes) is saved as now;
   - games run in their own scope (`systemd-run --user --scope` or `setsid` with a pid file), so a crash or
     restart never kills a running game, and the restarted program finds it again.
-- Memory: while a game runs, shelf's textures and fonts are freed or kept small (the game needs the RAM on a
-  4 GB device).
+- Threads: the input loop (evdev in, uinput out: pad, mouse emulation, touchpad) on its own thread at
+  raised priority (rtkit, or a low `SCHED_FIFO` value) so a game loading every core can't delay it; the UI on
+  another; they talk over a channel. The input thread never waits for drawing, Wayland or shelf.
 - statusbar: built in (see "Second screen": the bar on the second screen); swaybar is then not needed.
 
 **Open questions:**
-- Migration: grow shelf into it (it has the window and the state), then move inputd's policy in as a thread;
-  keep inputd buildable until the merged program has run for a while.
-- Whether SDL3 can give the layer-shell surfaces, or those use plain Wayland next to SDL's window (shelf
-  already uses Wayland protocols directly, `src/vendor/`).
+- Whether shelf keeps running while a game runs (instant return) or exits and restarts after (frees its
+  RAM; its first frame came ~40 ms after start on the GPD). 16 GB makes keeping it cheap.
 - Does a sway or GPU reset (DSI resync, Super+F10) disturb the surfaces; the policy thread must not care.
 
 ## Owning the input path
@@ -190,8 +226,12 @@ per-game profiles, deadzones and calibration, chords. The pad system layer becom
   in other modes they become pointer, keyboard or system actions, or are remapped first.
 - The virtual pad looks like a well-known controller (Xbox 360/One vendor and product ids, standard button and
   axis codes), so SDL and Wine games map it without configuration whatever the device's own pad is.
-- Mouse and keyboard output: sway's virtual-pointer and virtual-keyboard protocols where a Wayland client is
-  enough; a uinput mouse/keyboard where something outside Wayland needs it (Xwayland games read them anyway).
+- Mouse output (decided 2026-10-14): one **uinput mouse**, shared by the touchpad mode and the pad mouse
+  mode. uinput (`/dev/uinput`: a program creates a device the kernel shows as `/dev/input/eventN`, like a
+  plugged-in mouse) rather than sway's virtual-pointer protocol: it keeps working if the program's Wayland
+  connection or UI thread hangs, games see an ordinary mouse, and sway moves the cursor as a hardware plane.
+  Set its libinput accel profile to flat in sway (our curve, not two). Keyboard: the virtual-keyboard
+  protocol (or input-method for text), a uinput keyboard where something outside Wayland needs it.
 - Force feedback: games upload rumble effects to the virtual pad; the program forwards them to the real one
   (uinput FF upload/erase callbacks, as InputPlumber does). Needed for rumble to keep working.
 - Per-game profiles: shelf already starts the games, so it knows which profile applies.
@@ -235,7 +275,7 @@ has no keyboard. Started as `docs/ideas.md` item 15.1.
   | X | shelf |
   | D-pad left / right | previous / next workspace |
   | D-pad up / down | focus the other output (dual screen) |
-  | right stick, R1 / L1 | mouse pointer and clicks (virtual-pointer protocol, as the touchpad mode) |
+  | right stick, R1 / L1 | mouse pointer and clicks (the uinput mouse, as the touchpad mode) |
   | left stick | scroll |
   | L2 / R2 | brightness (or volume) down / up |
   | Start | power menu: suspend, hibernate, power off |
@@ -254,7 +294,6 @@ has no keyboard. Started as `docs/ideas.md` item 15.1.
   drops the grab when inputd exits; inputd itself must not keep the layer on after resume or a pad reconnect.
 - Games reading the pad through hidraw (SDL HIDAPI, Steam) bypass the grab and would see the presses. Check
   which games here do.
-- The uinput mouse: a separate small device, or part of a general "pad as desktop" mode.
 - On-screen keyboard: `wvkbd` (layer-shell, wlroots) is the candidate; size and position per device
   (bottom screen on a dual-screen device, bottom half otherwise). It types through the virtual-keyboard
   protocol, which sway supports.
@@ -266,14 +305,16 @@ second desktop to manage by hand.
 
 **Design so far:**
 - The Thor's outputs: main `DSI-2` (top, rotated), second `DSI-1` (bottom, touch).
-- A small **companion** program owns the second screen (a layer-shell surface on that output, like a panel).
-  It follows sway's focus (IPC window events) and shelf's state, and draws what fits:
+- The system program owns the second screen (layer-shell surfaces on that output, like a panel). **Follow
+  mode is one rule: if the focused app has a second-screen window, show it; else the system program's own
+  view.** It follows sway's focus (IPC window events); apps' second windows go to the second screen's
+  workspace by sway rules, and step aside when their app loses focus:
 
   | On the main screen | Second screen (follow mode) |
   |---|---|
-  | shelf | the selected game: art, description, play time, last played, its per-game settings (touch to change) |
-  | a game started from shelf | its info: controls, per-game settings, maybe a small performance line; dark otherwise |
-  | an emulator with two screens (DS, 3DS, Wii U) | the emulator's second window, moved there by sway rules; the companion stands aside |
+  | shelf | shelf's own second window: the selected game's art, description, play time, last played, its per-game settings (touch to change) |
+  | a game started from shelf | the system program's view: controls, per-game settings, maybe a small performance line; dark otherwise |
+  | an emulator with two screens (DS, 3DS, Wii U) | the emulator's second window |
   | a terminal or desktop app | dark, or workspace and window list |
 
 - **Override modes**, chosen from the pad system layer (one button cycles them, or a binding each) or by touch:
@@ -281,12 +322,20 @@ second desktop to manage by hand.
   - sysinfo: clock, battery and charge rate, temperatures, CPU/GPU clock and power limit, Wi-Fi (the status
     line's data, larger, maybe with short graphs);
   - pad layer: while the system button is held, its bindings (see "Pad system layer");
-  - touchpad: the second screen as a trackpad for the main one. The program gets the touches on its own
-    surface (`wl_touch`) and moves the pointer through sway's virtual-pointer protocol
-    (`zwlr_virtual_pointer_v1`; no uinput or root needed). Gestures: one finger moves (with acceleration), tap
-    = left click, two-finger tap = right click, two fingers scroll, tap-and-drag = drag, three-finger swipe =
-    workspace. Maybe an absolute mode too (the second screen maps onto the main one) and a strip of buttons
-    or keys along an edge. Combines with the keyboard mode (keyboard below, touchpad above) for desktop use.
+  - touchpad: the second screen as a trackpad for the main one, **with minimal latency** (decided
+    2026-10-14). Not through the UI: the input thread grabs the bottom digitizer's evdev device
+    (`EVIOCGRAB`; sway sees no touches), computes motion with our acceleration curve, and writes it to the
+    uinput mouse ("Owning the input path"); sway moves the hardware cursor at the top panel's next vblank, no
+    client redraw. Our share is one evdev read and one uinput write (microseconds); the rest is the
+    digitizer's report rate and the panel's refresh. The bottom screen shows a static image and doesn't
+    redraw while the finger moves. Gestures: one finger moves, two-finger tap = right click, two fingers
+    scroll, tap-and-drag = drag, three-finger swipe = previous/next app. **Clicks**: tap-to-click needs
+    ~100-150 ms to tell a tap from a drag, so the pad's buttons click with no delay (A left, B right), and
+    tap-to-click is there too with a short timeout. Maybe an absolute mode (the second screen maps onto the
+    main one) and a strip of keys along an edge. Combines with the keyboard mode (keyboard below, touchpad
+    above) for desktop use: the digitizer is grabbed, so the program handles the keyboard's touches from the
+    same raw events. Measure: evdev event timestamp against our uinput write (should be well under
+    1 ms); the whole chain with a slow-motion phone camera. Ratatoskr (below) grabs the digitizer the same way.
   - off: the panel powered down (`output … power off`).
   - launcher: a grid of apps and tools (desktop entries, shelf's Utilities, terminal, settings), started
     on the main screen by touch or the pad; recent and pinned first.
@@ -305,15 +354,14 @@ second desktop to manage by hand.
     an input method (`zwp_input_method_v2`, which sway supports with `text-input-v3` clients; GTK, Qt, SDL3
     use it). Apps without text-input still need the manual toggle;
   - when focus on the main screen changes, an override stays (it was asked for), except automatic keyboard.
-- Touch on the second screen goes only to the companion or the second window (`map_to_output`), so a touch
-  never lands in the game by accident.
+- Touch on the second screen goes only to the system program or the second window shown there
+  (`map_to_output`), so a touch never lands in the game by accident.
 - Power: OLED black costs little, but powering the panel off when it shows nothing saves more. Measure both.
 
 **Open questions:**
-- How shelf shares its state: the selected game and its settings (a state file it already writes,
-  `~/.local/state/shelf/last`, or a small socket/IPC). Or shelf draws the second screen itself as a second
-  window while it has the focus, and the companion only handles the rest.
-- One program for the companion and the override modes, or the companion plus `wvkbd` as a separate client.
+- How the bar coexists with a second window (shelf's, an emulator's): an exclusive zone so sway sizes the
+  window around it, or the bar hides as for emulators. Check how sway places a fullscreen window next to a
+  layer-shell exclusive zone.
 - Which game info is worth showing (controls per emulator system? notes per game in the user layer?).
 - Idle: inputd dims and turns off both outputs; the second one could go dark sooner.
 
