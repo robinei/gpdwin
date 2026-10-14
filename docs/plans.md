@@ -7,7 +7,7 @@ change gets a `docs/changelog.md` entry, and the section here is removed. Unsort
 
 ## Rust and a project structure for the system program
 
-**Goal:** write the system program ("One system program", below) and the new shelf in Rust as one Cargo
+**Goal:** write the system program ("One system program", below; shelf is part of it) in Rust as a Cargo
 workspace, not as more single C files. The C programs (shelf, inputd, statusbar; ~5200 lines) keep running
 until they are replaced.
 
@@ -21,11 +21,10 @@ for the parts that are pure logic, and a structure that can grow.
   - `policy`: evdev (`evdev` crate), logind inhibitor locks and sleep (`zbus`), sway IPC, uinput, sysfs
     (power, backlight, charger), device.conf;
   - `library`: Pegasus format, `stats.db` (`rusqlite`), the user layer's games (docs/pegasus-format.md is the
-    spec; the C shelf the reference implementation); used by both programs;
+    spec; the C shelf the reference implementation);
   - `ui`: Wayland surfaces (`smithay-client-toolkit`: xdg toplevel, layer-shell, virtual keyboard) and the
-    drawing helpers ("UI code" below), used by both programs;
-  - two binaries: the system program (bar, second-screen modes, keyboard, input, power, game launch) and
-    shelf (a separate app, "One system program" says why).
+    drawing helpers ("UI code" below), the views (shelf, settings panel, bar, modes, keyboard);
+  - one binary (shelf is part of it, "One system program" says why).
 - Port the behaviour, not the code: the C sources and docs are the spec; their tests are what was measured on
   the GPD (first frame ~40 ms after start, docs/frontend.md).
 - **No panics by construction**: workspace lints deny `unwrap`/`expect`/`panic!`/slice indexing
@@ -103,8 +102,8 @@ No tiling, borders, title bars or workspace names ever visible.
 - Closing an app: its workspace disappears; the previous app (most recently used) comes back, else shelf.
 - No sway key bindings for tiling, layouts, splits or workspaces at all; `default_border none`, no swaybar.
   Everything the user does goes through the system program.
-- **Second screen**: one workspace, normally empty under the program's layer-shell views; apps' second
-  windows (shelf's, an emulator's) go there ("Second screen" below).
+- **Second screen**: one workspace, normally empty under the program's layer-shell views; an emulator's
+  second window goes there ("Second screen" below).
 - **App switcher**: a second-screen mode (and a pad-layer binding: D-pad left/right = previous/next app,
   most recently used order): the open apps as a list or grid with icon and title, tap to switch, a close
   button (polite close, then kill after a timeout for hung games). Thumbnails later, if sway can capture
@@ -136,7 +135,7 @@ running when nothing needs it. On the GPD shelf avoided the client (DepotDownloa
 - Library: read Steam's own files, no API: `libraryfolders.vdf` and `appmanifest_*.acf` (installed games,
   size, last played), `librarycache/` art for box art. Only installed games; a "Steam" collection in shelf.
 - Launch: start Steam in the background on demand (`steam -silent`), wait until it is logged in, then
-  `steam -applaunch <appid>`; the system program (which launches every game for shelf) tracks it by its `steam_app_<appid>` window class (sway) and
+  `steam -applaunch <appid>`; the system program tracks it by its `steam_app_<appid>` window class (sway) and
   Steam's reaper process, for play time and for "game running" state. Steam shuts down (`steam -shutdown`)
   some minutes after the last Steam game exits, unless kept.
 - Installing and uninstalling: in Steam itself (decided 2026-10-13). shelf has an entry that opens Steam's UI
@@ -172,27 +171,31 @@ running when nothing needs it. On the GPD shelf avoided the client (DepotDownloa
 sysfs paths; no generality for other devices or single-screen fallbacks. Anything device-specific stays in
 one module so a later device is a port, not a design constraint now.
 
-**Goal:** one program instead of inputd, statusbar, the companion and the on-screen keyboard: one in-memory
-state (focus, layer and override modes, running game, lid, idle, power) that every part sees at once, with no
-IPC or state files between them.
+**Goal:** one program instead of inputd, shelf, statusbar, the companion and the on-screen keyboard: one
+in-memory state (focus, selected and running game, layer and override modes, lid, idle, power) that every part
+sees at once, with no IPC or state files between them.
 
-**shelf stays a separate app, with two windows (decided 2026-10-14).** Merging it was considered (follow mode
-needs the live selection; launch and per-game settings; no IPC), but shelf is the riskiest code (images,
-metadata, fonts, scrolling) and the system program must not die with it; as an app it fits the window model
-(its own workspace, switched like any other), frees its memory by exiting, and restarts alone while
-developing. The selection problem goes away when shelf draws both screens itself:
-- its main window (xdg toplevel) on the main screen, fullscreen in its own workspace;
-- a second window with the selected game's art, description, play time and touchable per-game settings,
-  placed on the second screen by the same sway rule as an emulator's second window. Its selection drives its
-  own second window in-process; touches on it go to shelf.
-- The system program owns game launch: shelf asks it over a small socket (`launch <game>`; replies
-  `running <game>`, `exited <game>`). It applies per-game settings and input profiles, starts the game in its
-  own scope, tracks its windows and play time. A few messages, no shared state; `library` is the shared code.
-- A shelf crash takes only shelf's two windows; input, bar and modes keep running.
+**shelf is part of it (decided 2026-10-14, reversing the same day's "separate app with two windows").**
+- Layout: **top**, shelf's window: the game list with large artwork, description, play time. **Bottom**, the
+  system program's settings panel for the current game (performance and power limit, controls and input
+  profile, emulator options, launch), with the bar along one edge. The same panel shows the running game's
+  settings live during play, so the current game is shelf's selection or the running game, one view for both.
+- Why merged: the bottom shows things the system program owns and applies anyway; the D-pad moves focus from
+  the list on top into the settings below and back, which in one program is a focus change in one state and
+  across two processes a focus-handoff protocol; what a separate shelf would keep (list and art) is thin and
+  shares `library`, selection and launch with the system program.
+- shelf's window stays an xdg toplevel in its own workspace, so the window model treats it like any app.
+- **Memory**: shelf's state (art and glyph caches, decoded images, its buffers) is one value; closing shelf
+  drops it, keeping only the selection and scroll position. Large blocks (images, shm buffers) go back to
+  the OS at once; call `malloc_trim(0)` after the drop, or use mimalloc, for the small ones. Reopening
+  rebuilds it (art loads lazily, visible items first). Measure RSS before and after on the device.
+- Crash isolation is what the merge costs: covered below (UI thread with `catch_unwind`, image decoding on a
+  worker thread with pure-Rust crates, watchdog and restart, logind fallback, games in their own scope). The
+  worst case is about a second without UI; the pad keeps working through a caught panic.
 
 **Design so far:**
-- Wayland client with layer-shell surfaces only: the bar, the second-screen modes, the keyboard, popups. The
-  keyboard types through `zwp_virtual_keyboard_v1` (as wvkbd does), so no separate keyboard program.
+- Wayland client: shelf's window (xdg toplevel) and layer-shell surfaces for the bar, the second-screen modes
+  and settings panel, the keyboard, popups. The keyboard types through `zwp_virtual_keyboard_v1` (as wvkbd does), so no separate keyboard program.
 - Crash isolation, since a bug in drawing must not take the input and power policy with it:
   - the policy (evdev, lid, idle, power button, charger, pad grab) runs in its own thread with no SDL or image
     code, and owns the state; the UI thread reads it under a lock and sends it commands;
@@ -210,8 +213,8 @@ developing. The selection problem goes away when shelf draws both screens itself
 - statusbar: built in (see "Second screen": the bar on the second screen); swaybar is then not needed.
 
 **Open questions:**
-- Whether shelf keeps running while a game runs (instant return) or exits and restarts after (frees its
-  RAM; its first frame came ~40 ms after start on the GPD). 16 GB makes keeping it cheap.
+- Whether shelf closes when a game starts (frees its memory) or stays open in the background (instant
+  return); 16 GB makes keeping it cheap. Maybe close only after some minutes in a game.
 - Does a sway or GPU reset (DSI resync, Super+F10) disturb the surfaces; the policy thread must not care.
 
 ## Owning the input path
@@ -306,14 +309,14 @@ second desktop to manage by hand.
 **Design so far:**
 - The Thor's outputs: main `DSI-2` (top, rotated), second `DSI-1` (bottom, touch).
 - The system program owns the second screen (layer-shell surfaces on that output, like a panel). **Follow
-  mode is one rule: if the focused app has a second-screen window, show it; else the system program's own
-  view.** It follows sway's focus (IPC window events); apps' second windows go to the second screen's
-  workspace by sway rules, and step aside when their app loses focus:
+  mode is one rule: if the focused app has a second-screen window (an emulator's), show it; else the system
+  program's own view.** It follows sway's focus (IPC window events); emulators' second windows go to the
+  second screen's workspace by sway rules, and step aside when their app loses focus:
 
   | On the main screen | Second screen (follow mode) |
   |---|---|
-  | shelf | shelf's own second window: the selected game's art, description, play time, last played, its per-game settings (touch to change) |
-  | a game started from shelf | the system program's view: controls, per-game settings, maybe a small performance line; dark otherwise |
+  | shelf | the settings panel for the selected game: performance, power limit, controls, emulator options, launch (touch or pad); art and description stay on top |
+  | a game started from shelf | the same panel for the running game, applied live; maybe a small performance line |
   | an emulator with two screens (DS, 3DS, Wii U) | the emulator's second window |
   | a terminal or desktop app | dark, or workspace and window list |
 
@@ -359,7 +362,7 @@ second desktop to manage by hand.
 - Power: OLED black costs little, but powering the panel off when it shows nothing saves more. Measure both.
 
 **Open questions:**
-- How the bar coexists with a second window (shelf's, an emulator's): an exclusive zone so sway sizes the
+- How the bar coexists with an emulator's second window: an exclusive zone so sway sizes the
   window around it, or the bar hides as for emulators. Check how sway places a fullscreen window next to a
   layer-shell exclusive zone.
 - Which game info is worth showing (controls per emulator system? notes per game in the user layer?).
